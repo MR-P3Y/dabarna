@@ -1,8 +1,8 @@
-# Davarna Deployment (Host Nginx + Docker Compose)
+﻿# Davarna Deployment (Host Nginx + Docker Compose)
 
 ## 1) Production Environment Files
 
-1. Fill `./.env.prod` (root env for backend/mysql/redis).
+1. Fill `./.env.prod` (root env for backend, mysql, redis, nginx).
 2. Fill `./davarna-bot/.env.prod` (bot runtime env).
 3. Required keys in `.env.prod`:
 - `NGINX_SERVER_NAME=davarna.peymoonnet.de`
@@ -12,7 +12,7 @@
 
 ## 2) Start Stack (without dockerized nginx)
 
-Project root:
+From the project root:
 
 ```bash
 docker compose --env-file .env.prod up -d --build mysql redis backend bot
@@ -20,12 +20,12 @@ docker compose --env-file .env.prod up -d --build mysql redis backend bot
 
 Notes:
 - `backend` is published only on `127.0.0.1:${BACKEND_HOST_PORT}`.
-- `mysql` and `redis` are private (no public host ports).
-- migrations run automatically inside backend container (`alembic upgrade head`).
+- `mysql` and `redis` stay private and are not exposed publicly.
+- backend runs database migrations automatically on startup (`alembic upgrade head`).
 
 ## 3) Host Nginx vhost for `davarna.peymoonnet.de`
 
-Use host nginx (recommended when same server already has n8n/x-ui):
+Use host nginx when the same server already runs services like `n8n` or `x-ui`:
 
 ```nginx
 server {
@@ -65,28 +65,28 @@ server {
 }
 ```
 
-## 4) Scheduled Ops Tasks
+## 4) Scheduled Operations
 
-1. DB backup مستقیم به تلگرام (بدون ذخیره روی سرور):
+1. Send a database backup directly to Telegram:
 
 ```bash
 bash /opt/davarna/scripts/backup-db-to-telegram.sh
 ```
 
-2. حذف رسیدهای قدیمی‌تر از ۵ روز:
+2. Delete receipt files older than 5 days:
 
 ```bash
 bash /opt/davarna/scripts/cleanup-receipts.sh
 ```
 
-3. Suggested cron (UTC):
-- `30 1 * * *` backup
-- `0 2 * * *` cleanup receipts
+3. Suggested cron schedule (UTC):
+- `30 1 * * *` database backup
+- `0 2 * * *` cleanup old receipts
 
 ## 5) Baseline Hardening
 
-- Enable swap (2G suggested for 4G RAM).
-- UFW: allow only required ports (`22`, `80`, `443`, `2053`, `5678`, `1356`, `1357` + any extra x-ui inbounds you use).
+- Enable swap (2G suggested for a 4G RAM server).
+- UFW: allow only required ports (`22`, `80`, `443`, `2053`, `5678`, `1356`, `1357` and any extra `x-ui` inbounds you really use).
 - Docker logging cap: `json-file` with `max-size=10m`, `max-file=3`.
 - Service restart policy: `unless-stopped`.
 
@@ -99,3 +99,11 @@ docker compose --env-file .env.prod logs bot --tail=100
 curl -I http://127.0.0.1:18080/health/db
 curl -I https://davarna.peymoonnet.de/health/db
 ```
+
+## 7) GitHub Export Reminder
+
+This export contains only example env files and a schema-only database dump.
+Before deploying to a real server:
+- create real `.env.prod`
+- create real `davarna-bot/.env.prod`
+- do not copy `database/schema_only.sql` over a live production database
