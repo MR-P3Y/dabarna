@@ -1,0 +1,6 @@
+﻿aiogram==3.*
+pydantic==2.*
+pydantic-settings==2.*
+python-dotenv==1.*
+aiohttp==3.*
+redis==5.*

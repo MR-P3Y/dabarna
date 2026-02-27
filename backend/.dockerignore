@@ -1,0 +1,12 @@
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.log
+
+storage/
+app.zip
+
+.git
+.gitignore

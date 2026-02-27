@@ -1,0 +1,139 @@
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: davarna-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      TZ: Asia/Tehran
+    volumes:
+      - mysql_data:/var/lib/mysql
+    command: ["mysqld", "--default-authentication-plugin=mysql_native_password", "--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci", "--default-time-zone=+03:30"]
+    mem_limit: 1536m
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u$$MYSQL_USER -p$$MYSQL_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: davarna-redis
+    restart: unless-stopped
+    environment:
+      TZ: Asia/Tehran
+    volumes:
+      - redis_data:/data
+    command: ["redis-server", "--appendonly", "yes"]
+    mem_limit: 256m
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: davarna-backend
+    restart: unless-stopped
+    env_file:
+      - ${BACKEND_ENV_FILE:-./.env}
+    environment:
+      DATABASE_URL: mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@mysql:3306/${MYSQL_DATABASE}?charset=utf8mb4
+      REDIS_URL: redis://redis:6379/0
+      RECEIPTS_DIR: /app/storage/receipts
+      TZ: Asia/Tehran
+    expose:
+      - "8000"
+    ports:
+      - "127.0.0.1:${BACKEND_HOST_PORT:-18080}:8000"
+    volumes:
+      - ./storage:/app/storage
+    init: true
+    mem_limit: 768m
+    logging: *default-logging
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/db', timeout=5).read()\""]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: davarna-nginx
+    profiles: ["edge"]
+    restart: unless-stopped
+    environment:
+      NGINX_SERVER_NAME: ${NGINX_SERVER_NAME:-_}
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${NGINX_HTTP_PORT:-80}:80"
+      - "${NGINX_HTTPS_PORT:-443}:443"
+    volumes:
+      - ./deploy/nginx/docker-entrypoint.sh:/docker-entrypoint.sh:ro
+      - ./deploy/nginx/templates:/etc/nginx/templates:ro
+      - ./deploy/certbot/conf:/etc/letsencrypt
+      - ./deploy/certbot/www:/var/www/certbot
+    command: ["sh", "/docker-entrypoint.sh"]
+    mem_limit: 128m
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/health/db >/dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+  certbot:
+    image: certbot/certbot:latest
+    profiles: ["edge", "certbot"]
+    volumes:
+      - ./deploy/certbot/conf:/etc/letsencrypt
+      - ./deploy/certbot/www:/var/www/certbot
+
+  bot:
+    build:
+      context: ./davarna-bot
+      dockerfile: Dockerfile
+    container_name: davarna-bot
+    restart: unless-stopped
+    env_file:
+      - ${BOT_ENV_FILE:-./davarna-bot/.env}
+    environment:
+      API_BASE_URL: http://backend:8000
+      REDIS_URL: redis://redis:6379/0
+      TZ: Asia/Tehran
+    volumes:
+      - ./davarna-bot/storage:/app/storage
+    init: true
+    mem_limit: 512m
+    logging: *default-logging
+    depends_on:
+      backend:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  mysql_data:
+  redis_data:

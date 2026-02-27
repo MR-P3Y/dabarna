@@ -1,0 +1,22 @@
+# Python cache/bytecode
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtual environments
+.venv/
+venv/
+
+# Local env/config
+.env
+.env.local
+
+# Runtime/generated artifacts
+*.log
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Bot local state files
+storage/*.json
+

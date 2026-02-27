@@ -1,0 +1,22 @@
+# Secrets
+.env
+.env.*
+!.env.example
+!.env.prod.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Runtime data
+storage/
+backend/storage/
+davarna-bot/storage/
+*.log
+
+# Local/editor
+.vscode/
+.idea/
+.DS_Store
