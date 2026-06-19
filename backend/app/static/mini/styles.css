@@ -1090,6 +1090,7 @@ body {
 }
 
 .mini-card-grid {
+  direction: ltr;
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 6px;
