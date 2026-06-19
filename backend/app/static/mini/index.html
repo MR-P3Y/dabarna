@@ -4,9 +4,21 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>مینی‌اپ دورنای پیمون</title>
-    <link rel="stylesheet" href="./styles.css?v=20260227k" />
+    <link rel="stylesheet" href="./styles.css?v=20260619ux1" />
   </head>
   <body>
+    <div id="appSplash" class="app-splash" aria-label="در حال آماده‌سازی مینی‌اپ">
+      <div class="splash-orb splash-orb-a"></div>
+      <div class="splash-orb splash-orb-b"></div>
+      <div class="splash-card glass">
+        <img class="splash-logo" src="./assets/bot-logo.jpg?v=20260224a" alt="لوگوی دورنای پیمون" />
+        <div class="splash-title">دبرنای حلیم یگن طیار</div>
+        <div class="splash-subtitle">بازی، هیجان، جایزه واقعی</div>
+        <div class="splash-loader"><i></i></div>
+        <div id="splashStatus" class="splash-status">در حال آماده‌سازی بازی...</div>
+      </div>
+    </div>
+
     <div class="app-shell">
       <header class="topbar glass">
         <div class="topbar-main">
@@ -30,6 +42,7 @@
         <div class="smart-head smart-head-secondary">
           <div id="headerUserStatus" class="smart-chip status normal">عادی</div>
           <button id="themeBtn" class="theme-toggle-btn" type="button" aria-label="تغییر پوسته">◐ حالت تیره</button>
+          <button id="soundBtn" class="theme-toggle-btn sound-toggle-btn" type="button" aria-label="فعال‌سازی صدای بازی">🔕 صدا</button>
           <span id="authBadge" class="badge pending system-badge hidden">...</span>
         </div>
       </header>
@@ -146,6 +159,10 @@
               <span id="walletBalanceLabel">موجودی فعلی</span>
               <strong id="walletBalance">-</strong>
             </div>
+            <div class="wallet-quick-actions">
+              <button class="small-btn primary wallet-jump-btn" data-target="deposit" type="button">شارژ کیف پول</button>
+              <button class="small-btn wallet-jump-btn" data-target="withdraw" type="button">درخواست برداشت</button>
+            </div>
 
             <div class="wallet-flow-grid">
               <div class="deposit-flow flow-card">
@@ -159,6 +176,12 @@
                   <div class="deposit-step-body">
                     <label id="depositAmountLabel" for="depositAmountInput">مبلغ (تومان)</label>
                     <input id="depositAmountInput" type="number" min="1" />
+                    <div class="amount-preset-row" aria-label="مبلغ‌های آماده شارژ">
+                      <button class="amount-preset" data-amount="50000" type="button">۵۰ هزار</button>
+                      <button class="amount-preset" data-amount="100000" type="button">۱۰۰ هزار</button>
+                      <button class="amount-preset" data-amount="200000" type="button">۲۰۰ هزار</button>
+                      <button class="amount-preset" data-amount="500000" type="button">۵۰۰ هزار</button>
+                    </div>
                   </div>
                 </div>
 
@@ -180,6 +203,7 @@
                   <div class="deposit-step-body">
                     <label id="depositReceiptLabel" for="depositReceiptFileInput">رسید</label>
                     <input id="depositReceiptFileInput" type="file" accept="image/*,.pdf" />
+                    <div id="receiptPreview" class="receipt-preview hidden"></div>
                   </div>
                 </div>
 
@@ -406,16 +430,16 @@
 
       <nav class="bottom-nav glass">
         <button class="nav-btn active" data-view="games" type="button">
-          <span id="navGamesText">بازی</span>
+          <span class="nav-icon">🎲</span><span id="navGamesText">بازی</span>
         </button>
         <button class="nav-btn" data-view="cards" type="button">
-          <span id="navCardsText">کارت‌های من</span>
+          <span class="nav-icon">🎫</span><span id="navCardsText">کارت‌های من</span>
         </button>
         <button class="nav-btn" data-view="wallet" type="button">
-          <span id="navWalletText">کیف پول</span>
+          <span class="nav-icon">💰</span><span id="navWalletText">کیف پول</span>
         </button>
         <button id="adminNavBtn" class="nav-btn hidden" data-view="admin" type="button">
-          <span id="navAdminText">مدیریت</span>
+          <span class="nav-icon">⚙️</span><span id="navAdminText">مدیریت</span>
         </button>
       </nav>
     </div>
@@ -426,9 +450,14 @@
           <h2 id="winnerModalTitle">اعلان برد</h2>
           <button id="winnerCloseBtn" class="icon-btn" type="button" aria-label="بستن">×</button>
         </div>
+        <div class="winner-graphic" aria-hidden="true">
+          <span>🎉</span>
+          <i></i><i></i><i></i><i></i><i></i>
+        </div>
         <p id="winnerModalKind" class="winner-modal-kind"></p>
         <p id="winnerModalAmount" class="winner-modal-amount"></p>
         <p id="winnerModalGame" class="winner-modal-game"></p>
+        <p id="winnerModalStatus" class="winner-modal-status"></p>
         <div class="winner-modal-actions">
           <button id="winnerWalletBtn" class="small-btn primary" type="button">مشاهده در کیف پول</button>
           <button id="winnerDismissBtn" class="small-btn" type="button">بستن</button>
@@ -450,6 +479,6 @@
     <div id="miniToast" class="mini-toast hidden" role="status" aria-live="polite"></div>
 
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="./app.js?v=20260228a" type="module"></script>
+    <script src="./app.js?v=20260619ux1" type="module"></script>
   </body>
 </html>

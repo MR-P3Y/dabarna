@@ -29,6 +29,10 @@ const state = {
   globalRefreshTimer: null,
   historyModalCtx: null,
   toastTimer: null,
+  audioCtx: null,
+  soundEnabled: false,
+  receiptPreviewUrl: null,
+  splashHidden: false,
   gamesCache: [],
   walletCache: {
     balance: null,
@@ -338,6 +342,98 @@ function triggerLightHaptic(kind = "success") {
       navigator.vibrate(18);
     }
   } catch (_) {}
+}
+
+
+function setSplashStatus(text) {
+  const el = getEl("splashStatus");
+  if (el) el.textContent = String(text || "در حال آماده‌سازی...");
+}
+
+function hideSplash() {
+  if (state.splashHidden) return;
+  state.splashHidden = true;
+  const el = getEl("appSplash");
+  if (!el) return;
+  el.classList.add("is-hidden");
+  setTimeout(() => {
+    try { el.remove(); } catch (_) {}
+  }, 420);
+}
+
+function getAudioContext() {
+  if (state.audioCtx) return state.audioCtx;
+  const Ctx = window.AudioContext || window.webkitAudioContext;
+  if (!Ctx) return null;
+  state.audioCtx = new Ctx();
+  return state.audioCtx;
+}
+
+function playTone({ freq = 660, duration = 0.09, type = "sine", gain = 0.035 } = {}) {
+  if (!state.soundEnabled) return;
+  try {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+    if (ctx.state === "suspended") ctx.resume().catch(() => {});
+    const osc = ctx.createOscillator();
+    const vol = ctx.createGain();
+    osc.type = type;
+    osc.frequency.value = freq;
+    vol.gain.setValueAtTime(0.0001, ctx.currentTime);
+    vol.gain.exponentialRampToValueAtTime(gain, ctx.currentTime + 0.012);
+    vol.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + duration);
+    osc.connect(vol);
+    vol.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + duration + 0.02);
+  } catch (_) {}
+}
+
+function playNumberSound() {
+  playTone({ freq: 720, duration: 0.075, type: "triangle", gain: 0.028 });
+  setTimeout(() => playTone({ freq: 980, duration: 0.06, type: "sine", gain: 0.022 }), 68);
+}
+
+function playNotifySound(type = "success") {
+  if (type === "error") {
+    playTone({ freq: 230, duration: 0.11, type: "sawtooth", gain: 0.024 });
+    setTimeout(() => playTone({ freq: 180, duration: 0.09, type: "sawtooth", gain: 0.018 }), 95);
+    return;
+  }
+  playTone({ freq: 523, duration: 0.08, type: "triangle", gain: 0.026 });
+  setTimeout(() => playTone({ freq: 784, duration: 0.1, type: "triangle", gain: 0.024 }), 85);
+}
+
+function playWinnerSound() {
+  [523, 659, 784, 1046].forEach((freq, idx) => {
+    setTimeout(() => playTone({ freq, duration: 0.11, type: "triangle", gain: 0.032 }), idx * 85);
+  });
+}
+
+function updateSoundButton() {
+  const btn = getEl("soundBtn");
+  if (!btn) return;
+  btn.classList.toggle("is-on", Boolean(state.soundEnabled));
+  btn.textContent = state.soundEnabled ? "🔔 صدا" : "🔕 صدا";
+  btn.setAttribute("aria-label", state.soundEnabled ? "غیرفعال‌سازی صدای بازی" : "فعال‌سازی صدای بازی");
+}
+
+function toggleSound() {
+  state.soundEnabled = !state.soundEnabled;
+  try { localStorage.setItem("davarna_sound_enabled", state.soundEnabled ? "1" : "0"); } catch (_) {}
+  if (state.soundEnabled) {
+    getAudioContext();
+    playNotifySound("success");
+    showToast("صدای بازی فعال شد", "success");
+  } else {
+    showToast("صدای بازی غیرفعال شد", "pending");
+  }
+  updateSoundButton();
+}
+
+function initSoundPreference() {
+  try { state.soundEnabled = localStorage.getItem("davarna_sound_enabled") === "1"; } catch (_) {}
+  updateSoundButton();
 }
 
 function showToast(message, type = "success") {
@@ -1185,15 +1281,19 @@ function openWinnerModal(event) {
   const kindEl = getEl("winnerModalKind");
   const amountEl = getEl("winnerModalAmount");
   const gameEl = getEl("winnerModalGame");
+  const statusEl = getEl("winnerModalStatus");
   if (kindEl) kindEl.textContent = `نوع برد: ${info.kindLabel}`;
-  if (amountEl) amountEl.textContent = info.amount > 0 ? toman(info.amount) : "-";
+  if (amountEl) amountEl.textContent = info.amount > 0 ? `مبلغ جایزه: ${toman(info.amount)}` : "مبلغ جایزه: در حال محاسبه / بررسی";
   if (gameEl) gameEl.textContent = info.gameId > 0 ? `بازی #${info.gameId}` : "";
+  if (statusEl) statusEl.textContent = info.amount > 0 ? "جایزه در کیف پول شما قابل پیگیری است." : "اگر مبلغ نمایش داده نشد، وضعیت را از کیف پول یا مدیر پیگیری کنید.";
   modal.classList.add("open");
   modal.setAttribute("aria-hidden", "false");
   try {
     tg?.HapticFeedback?.notificationOccurred?.("success");
     tg?.HapticFeedback?.impactOccurred?.("medium");
   } catch (_) {}
+  try { if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") navigator.vibrate([45, 35, 65]); } catch (_) {}
+  playWinnerSound();
 }
 
 function pushWinnerNotice(event) {
@@ -1407,11 +1507,19 @@ function renderLive(snapshot) {
           <div>مجموع جایزه: <strong>${toman(st.prize_pool ?? game.prize_pool)}</strong></div>
           <div class="meta">اعداد اعلام‌شده: ${safeText(st.called_count || called.length)}</div>
         </div>
-        <div class="${lastNumberClass}">${safeText(lastNow ?? "-")}</div>
+        <div class="live-last-wrap">
+          <div class="live-last-label">آخرین عدد</div>
+          <div class="${lastNumberClass}">${safeText(lastNow ?? "-")}</div>
+        </div>
       </div>
       <div class="live-called-grid">${calledGrid}</div>
     </div>
   `;
+
+  if (lastFresh && lastNow !== null && lastNow !== undefined) {
+    playNumberSound();
+    triggerLightHaptic("success");
+  }
 
   renderWinnerBannerFromState(game.id, st);
   renderGameTimeline(game, st);
@@ -1476,6 +1584,7 @@ function startEventPolling() {
         const calledEvent = events.find((e) => String(e?.kind || "").toUpperCase() === "NUMBER_CALLED");
         if (calledEvent) {
           try { tg?.HapticFeedback?.impactOccurred?.("light"); } catch (_) {}
+          try { if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") navigator.vibrate(24); } catch (_) {}
         }
         const snap = await apiFetch(`/mini-api/games/${state.selectedGameId}/snapshot?events_limit=${LIVE_EVENTS_LIMIT}`);
         state.lastEventId = Math.max(Number(state.lastEventId || 0), Number(snap.last_event_id || 0));
@@ -3672,6 +3781,58 @@ function wireWalletDynamic() {
   renderWithdrawPreview();
 }
 
+
+function wireWalletUxHelpers() {
+  document.querySelectorAll(".wallet-jump-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const target = btn.getAttribute("data-target") === "withdraw" ? ".withdraw-flow" : ".deposit-flow";
+      const el = document.querySelector(target);
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+      triggerLightHaptic("success");
+    });
+  });
+
+  document.querySelectorAll(".amount-preset").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const amount = Number(btn.getAttribute("data-amount") || "0");
+      if (!amount) return;
+      setVal("depositAmountInput", String(amount));
+      document.querySelectorAll(".amount-preset").forEach((b) => b.classList.remove("is-selected"));
+      btn.classList.add("is-selected");
+      setHint("depositSubmitHint", `مبلغ شارژ روی ${toman(amount)} تنظیم شد.`, "success");
+      triggerLightHaptic("success");
+    });
+  });
+
+  const receiptInput = getEl("depositReceiptFileInput");
+  if (receiptInput) {
+    receiptInput.addEventListener("change", () => {
+      const box = getEl("receiptPreview");
+      if (!box) return;
+      const file = receiptInput.files && receiptInput.files[0];
+      if (state.receiptPreviewUrl) {
+        try { URL.revokeObjectURL(state.receiptPreviewUrl); } catch (_) {}
+        state.receiptPreviewUrl = null;
+      }
+      if (!file) {
+        box.classList.add("hidden");
+        box.innerHTML = "";
+        return;
+      }
+      const name = safeText(file.name || "رسید انتخاب‌شده");
+      const sizeKb = Math.max(1, Math.round(Number(file.size || 0) / 1024));
+      if (String(file.type || "").startsWith("image/")) {
+        state.receiptPreviewUrl = URL.createObjectURL(file);
+        box.innerHTML = `<strong>پیش‌نمایش رسید:</strong><div>${name} — ${safeText(sizeKb)} KB</div><img src="${state.receiptPreviewUrl}" alt="پیش‌نمایش رسید" />`;
+      } else {
+        box.innerHTML = `<strong>فایل رسید انتخاب شد:</strong><div>${name} — ${safeText(sizeKb)} KB</div>`;
+      }
+      box.classList.remove("hidden");
+      triggerLightHaptic("success");
+    });
+  }
+}
+
 function wireAdminCreateUi() {
   const row = getEl("adminPricePresetRow");
   if (row) {
@@ -3707,6 +3868,7 @@ async function boot() {
     tg.expand();
   }
 
+  setSplashStatus("در حال بارگذاری رابط بازی...");
   localizeShell();
   localizeCardsShell();
   if (headerUserName) headerUserName.textContent = inferDisplayName();
@@ -3714,6 +3876,8 @@ async function boot() {
   wireNavigation();
   wireTheme();
   wireWalletDynamic();
+  wireWalletUxHelpers();
+  initSoundPreference();
   wireAdminCreateUi();
   wireAdminAccordion();
   wireCardsPullToRefresh();
@@ -3722,6 +3886,7 @@ async function boot() {
   const copyBtn = getEl("copyDepositCardBtn");
   if (copyBtn) copyBtn.disabled = true;
 
+  bind("soundBtn", "click", toggleSound);
   bind("refreshGamesBtn", "click", () => runManualRefresh("refreshGamesBtn", () => refreshGames()).catch(() => {}));
   bind("refreshCardsBtn", "click", () => runManualRefresh("refreshCardsBtn", () => refreshCards({ silent: false })).catch(() => {}));
   bind("refreshWalletBtn", "click", () => runManualRefresh("refreshWalletBtn", () => refreshWallet()).catch(() => {}));
@@ -3775,6 +3940,7 @@ async function boot() {
 
   let authOk = false;
   try {
+    setSplashStatus("در حال اتصال امن به حساب شما...");
     if (restoreMiniSession()) {
       authOk = true;
       setBadge("success", "متصل شد");
@@ -3790,12 +3956,15 @@ async function boot() {
 
   if (!authOk) return;
 
+  setSplashStatus("در حال دریافت بازی‌ها و کیف پول...");
   await refreshAdminBootstrap();
   await Promise.allSettled([refreshGames(), refreshCards({ silent: false }), refreshWallet()]);
   startGlobalRefresh();
 
   const current = document.querySelector(".nav-btn.active")?.getAttribute("data-view") || "games";
   switchToView(current);
+  setSplashStatus("آماده بازی هستید");
+  setTimeout(hideSplash, 260);
 }
 
 
@@ -3804,5 +3973,9 @@ window.addEventListener("beforeunload", () => {
   stopCardsPolling();
   stopGlobalRefresh();
 });
-boot().catch((err) => setBadge("error", String(err.message || "خطای داخلی")));
+boot().catch((err) => {
+  setBadge("error", String(err.message || "خطای داخلی"));
+  setSplashStatus("خطا در آماده‌سازی. لطفاً دوباره تلاش کنید.");
+  setTimeout(hideSplash, 900);
+});
 
