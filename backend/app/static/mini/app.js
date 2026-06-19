@@ -1076,7 +1076,7 @@ function isMyWinnerEvent(event) {
   const myId = Number(state.currentUserId || 0);
   if (!myId || !event) return false;
   const kind = String(event.kind || "").toUpperCase();
-  if (!["PRIZE_COL", "PRIZE_ROW", "GAME_ENDED", "WINNER_DECLARED"].includes(kind)) return false;
+  if (!["PRIZE_COL", "PRIZE_ROW", "WINNER_DECLARED"].includes(kind)) return false;
   const winners = extractWinnerUserIds(event.payload || {});
   return winners.includes(myId);
 }
