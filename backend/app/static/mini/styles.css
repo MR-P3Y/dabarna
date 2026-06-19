@@ -2944,3 +2944,209 @@ html[data-theme="light"] .live-main-pro .last-number-pop {
 .card-progress-ux2 {
   margin-bottom: 8px;
 }
+
+/* UX 2.1 cards and history modal polish */
+#historyModal .modal-card,
+.history-modal-card,
+.history-modal-content {
+  max-height: min(82vh, 760px);
+}
+
+#historyModal .modal-card {
+  padding-bottom: calc(18px + env(safe-area-inset-bottom));
+}
+
+#historyModalTitle {
+  font-size: clamp(19px, 5.1vw, 25px);
+  line-height: 1.45;
+  letter-spacing: -0.2px;
+}
+
+#historyModalMeta {
+  margin-top: 6px;
+  font-size: clamp(13px, 3.7vw, 16px);
+  line-height: 1.8;
+  color: var(--muted);
+}
+
+.history-modal-head-ux21,
+.history-modal-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  justify-content: center;
+  align-items: center;
+  margin: 12px 0 14px;
+  padding: 12px 14px;
+  border: 1px solid rgba(120, 167, 255, 0.28);
+  border-radius: 14px;
+  background: linear-gradient(145deg, rgba(255,255,255,0.055), rgba(255,255,255,0.02));
+  font-size: 13px;
+  line-height: 1.8;
+}
+
+.history-modal-head-ux21 strong,
+.history-modal-head strong {
+  color: var(--text);
+  font-weight: 900;
+}
+
+.history-modal-grid-ux21,
+.history-modal-grid {
+  display: grid;
+  gap: 12px;
+  padding-bottom: calc(18px + env(safe-area-inset-bottom));
+}
+
+.history-modal-card-item-ux21,
+.history-modal-card-item {
+  padding: 13px;
+  border-radius: 16px;
+  border: 1px solid rgba(120, 167, 255, 0.22);
+  background: radial-gradient(circle at 85% 0%, rgba(255, 213, 111, 0.10), transparent 34%), rgba(255, 255, 255, 0.035);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.10);
+}
+
+.history-card-pro-head-ux21,
+.history-modal-card-item .card-pro-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.history-modal-card-item .card-id-stack strong {
+  font-size: 15px;
+  font-weight: 950;
+}
+
+.history-modal-card-item .card-id-stack em {
+  opacity: 0.85;
+}
+
+.history-modal-card-item .card-game-badge {
+  padding: 4px 9px;
+  font-size: 11px;
+  min-height: 26px;
+}
+
+.history-modal-result-ux21,
+.history-modal-result {
+  margin: 8px 0 10px;
+  padding: 7px 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 213, 111, 0.30);
+  background: rgba(255, 213, 111, 0.075);
+  color: #ffe082;
+  font-size: 12px;
+  font-weight: 850;
+  line-height: 1.65;
+  text-align: center;
+}
+
+.history-modal-card-item .winner-kind-pill {
+  display: inline-flex;
+  width: fit-content;
+  max-width: 100%;
+  margin: 4px auto 2px;
+  padding: 5px 10px;
+  font-size: 11px;
+  line-height: 1.55;
+  white-space: normal;
+  text-align: center;
+}
+
+.history-modal-card-item .mini-card-grid {
+  gap: 7px;
+  margin-top: 8px;
+}
+
+.history-modal-card-item .num-chip {
+  min-height: 36px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 850;
+}
+
+.active-game-block-ux21 {
+  padding: 14px;
+  border-radius: 18px;
+}
+
+.active-game-block-ux21 .active-game-head {
+  gap: 10px;
+}
+
+.active-game-block-ux21 h4 {
+  font-size: 16px;
+  font-weight: 950;
+}
+
+.card-pro-ux21 {
+  border-radius: 15px;
+  padding: 11px;
+}
+
+.card-pro-ux21 .card-pro-head {
+  margin-bottom: 8px;
+}
+
+.card-pro-ux21 .mini-card-grid {
+  gap: 7px;
+}
+
+.card-pro-ux21 .num-chip {
+  min-height: 35px;
+  border-radius: 10px;
+}
+
+.card-progress {
+  height: 7px;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+@media (max-width: 430px) {
+  #historyModal .modal-card {
+    width: calc(100vw - 14px);
+    max-height: 84vh;
+    padding-inline: 18px;
+  }
+
+  #historyModalTitle {
+    font-size: 20px;
+    padding-inline-start: 38px;
+  }
+
+  .history-modal-head-ux21,
+  .history-modal-head {
+    font-size: 12px;
+    padding: 10px 11px;
+  }
+
+  .history-modal-card-item-ux21,
+  .history-modal-card-item {
+    padding: 11px;
+  }
+
+  .history-card-pro-head-ux21,
+  .history-modal-card-item .card-pro-head {
+    flex-wrap: wrap;
+  }
+
+  .history-modal-card-item .mini-card-grid,
+  .card-pro-ux21 .mini-card-grid {
+    gap: 6px;
+  }
+
+  .history-modal-card-item .num-chip,
+  .card-pro-ux21 .num-chip {
+    min-height: 34px;
+    font-size: 13px;
+  }
+
+  .cards-active-grid {
+    gap: 10px;
+  }
+}

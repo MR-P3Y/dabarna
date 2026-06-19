@@ -1902,7 +1902,7 @@ function renderCardsActive(activeGames) {
       const calledTail = (g.calledNumbers || []).slice(-20);
       const calledTailText = calledTail.length ? calledTail.join("\u060c ") : "\u0647\u0646\u0648\u0632 \u0639\u062f\u062f\u06cc \u0627\u0639\u0644\u0627\u0645 \u0646\u0634\u062f\u0647";
       return `
-        <div class="active-game-block game-emphasis-block">
+        <div class="active-game-block game-emphasis-block active-game-block-ux21">
           <div class="active-game-head">
             <h4>\u0628\u0627\u0632\u06cc #${g.gameId}</h4>
             <div class="active-game-meta">
@@ -2051,7 +2051,7 @@ async function openHistoryModalForGame(gameId, { cardId = 0, source = "history" 
     }
 
     const head = `
-      <div class="history-modal-head">
+      <div class="history-modal-head history-modal-head-ux21">
         آخرین عدد: <strong>${safeText(st.last_number ?? "-")}</strong> |
         مجموع جایزه: <strong>${safeText(toman((st.prize_pool ?? snapshot?.game?.prize_pool ?? 0)))}</strong>
       </div>
@@ -2064,23 +2064,23 @@ async function openHistoryModalForGame(gameId, { cardId = 0, source = "history" 
         const isColWinner = colWinnerSet.has(Number(c.card_id || 0));
         const winnerCells = calcWinnerCellIndices(nums, calledSet, { row: isRowWinner, col: isColWinner });
         const winnerLabel = winnerKindLabelByFlags({ row: isRowWinner, col: isColWinner });
-        const resultText = winnerLabel ? `اعلام برنده: ${winnerLabel}` : "اعلام برنده: هنوز ثبت نشده";
+        const resultText = winnerLabel ? `برنده: ${winnerLabel}` : "هنوز برنده ثبت نشده";
         return `
-          <div class="history-modal-card-item">
+          <div class="history-modal-card-item history-modal-card-item-ux21">
             <div class="card-pro-head">
               <span class="card-id-stack"><strong>کارت #${safeText(c.card_id)}</strong><em>بازی #${gid}</em></span>
               <span class="card-game-badge">بازی #${gid}</span>
               <span>${safeText(String(c.created_at || "-"))}</span>
             </div>
             ${winnerLabel ? `<span class="winner-kind-pill">${safeText(winnerLabel)}</span>` : ""}
-            <div class="history-modal-result">${safeText(resultText)}</div>
+            <div class="history-modal-result history-modal-result-ux21">${safeText(resultText)}</div>
             <div class="mini-card-grid">${buildCardGrid(nums, calledSet, new Set(), winnerCells)}</div>
           </div>
         `;
       })
       .join("");
 
-    bodyEl.innerHTML = `${head}<div class="history-modal-grid">${cardsHtml}</div>`;
+    bodyEl.innerHTML = `${head}<div class="history-modal-grid history-modal-grid-ux21">${cardsHtml}</div>`;
   } catch (err) {
     const msg = localizeApiError(err?.message || err || "خطای بارگذاری جزئیات");
     titleEl.textContent = source === "wins" ? `جزئیات برد بازی #${gid}` : `جزئیات کارت‌های بازی #${gid}`;
