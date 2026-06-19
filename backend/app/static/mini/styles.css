@@ -3306,3 +3306,27 @@ html[data-theme="light"] .live-main-pro .last-number-pop {
     min-height: 44px;
   }
 }
+
+/* LIVE-2 send button active state and admin group visibility */
+#adminSendLiveBtn:not(:disabled) {
+  opacity: 1 !important;
+  filter: none !important;
+  color: #f8fbff !important;
+  border-color: rgba(45, 212, 191, 0.45);
+  background:
+    radial-gradient(circle at 20% 0%, rgba(45, 212, 191, 0.34), transparent 38%),
+    linear-gradient(135deg, rgba(45, 212, 191, 0.30), rgba(120, 167, 255, 0.24)) !important;
+  box-shadow:
+    0 0 0 1px rgba(45, 212, 191, 0.28),
+    0 12px 26px rgba(0, 0, 0, 0.18);
+}
+
+#adminSendLiveBtn:disabled {
+  opacity: 0.38 !important;
+  filter: grayscale(0.45);
+  box-shadow: none !important;
+}
+
+.admin-super-only-field.hidden {
+  display: none !important;
+}

@@ -47,6 +47,7 @@ const state = {
     roles: [],
     selectedGameId: 0,
     gamesById: new Map(),
+    liveLinksByGame: new Map(),
     users: {
       selectedTgUserId: 0,
       lastQuery: "",
@@ -2574,6 +2575,44 @@ function getAdminGameById(gameId) {
   return mp.get(gid) || null;
 }
 
+
+function adminLiveLinkForGame(gameId) {
+  const gid = Number(gameId || state.admin?.selectedGameId || 0);
+  if (!gid) return "";
+  const g = getAdminGameById(gid);
+  return String(
+    g?.live_link_url ||
+      g?.live_url ||
+      g?.live_link ||
+      state.admin?.liveLinksByGame?.get(gid) ||
+      ""
+  ).trim();
+}
+
+function updateAdminCreateGroupVisibility() {
+  const isSuper = Boolean(state.admin?.isSuper);
+  const input = getEl("adminCreateGroupIdInput");
+  const hint = getEl("adminCreateGroupHint");
+  const label = getEl("adminCreateGroupLabel");
+
+  const targets = new Set();
+  [input, hint, label].forEach((el) => {
+    if (!el) return;
+    targets.add(el.closest(".form-field") || el.closest(".field") || el.parentElement || el);
+  });
+
+  targets.forEach((el) => {
+    if (!el) return;
+    el.classList.toggle("hidden", !isSuper);
+    el.classList.toggle("admin-super-only-field", true);
+  });
+
+  if (input) {
+    input.readOnly = !isSuper;
+    input.disabled = !isSuper;
+  }
+}
+
 function resetAdminCreateState() {
   state.admin.create = {
     groupId: null,
@@ -2675,6 +2714,7 @@ async function refreshAdminCreateOptions() {
   }
 
   renderAdminCreateTopics();
+  updateAdminCreateGroupVisibility();
 }
 
 function syncAdminCreateFormFromGame(gameId) {
@@ -2719,7 +2759,7 @@ function updateAdminActionButtons() {
   const isLobby = status === "LOBBY";
   const isRunning = status === "RUNNING";
 
-  const hasLiveLink = Boolean(String(g?.live_link_url || g?.live_url || g?.live_link || getVal("adminLiveLinkInput") || "").trim());
+  const hasLiveLink = Boolean(adminLiveLinkForGame(gid));
 
   setBtn("adminStartBtn", hasGame && isLobby, hasGame ? "شروع فقط برای بازی در لابی فعال است." : "ابتدا بازی را انتخاب کنید.");
   setBtn("adminCloseLobbyBtn", hasGame && isLobby, hasGame ? "لغو فقط پیش از شروع بازی مجاز است." : "ابتدا بازی را انتخاب کنید.");
@@ -2753,6 +2793,7 @@ async function refreshAdminBootstrap() {
     if (roleEl) roleEl.textContent = adminRoleBadgeText();
     const superSection = getEl("superAdminSection");
     if (superSection) superSection.classList.toggle("hidden", !state.admin.isSuper);
+    updateAdminCreateGroupVisibility();
     if (state.admin.enabled) {
       await Promise.allSettled([refreshAdminCreateOptions(), refreshAdminPanel()]);
     }
@@ -3659,6 +3700,7 @@ async function adminSetLiveLink() {
     method: "PUT",
     body: { url },
   });
+  state.admin.liveLinksByGame?.set(gid, String(url || "").trim());
   setHint("adminActionHint", "لینک لایو بازی با موفقیت ثبت شد. اکنون می‌توانید آن را برای خریداران کارت ارسال کنید.", "success");
   await Promise.allSettled([refreshAdminGames(), openLiveGame(gid)]);
   setAdminSelectedGame(gid, statusLabel(getAdminGameById(gid)?.status || ""));
@@ -3667,7 +3709,7 @@ async function adminSetLiveLink() {
 async function adminSendLiveLink() {
   const gid = requireAdminSelectedGame();
   const g = getAdminGameById(gid);
-  const liveUrl = String(g?.live_link_url || g?.live_url || g?.live_link || getVal("adminLiveLinkInput") || "").trim();
+  const liveUrl = adminLiveLinkForGame(gid);
   if (!liveUrl) throw new Error("ابتدا لینک لایو را ثبت کنید.");
   setHint("adminActionHint", "در حال ارسال لینک لایو به خریداران کارت...");
   const res = await apiFetch(`/mini-api/admin/games/${gid}/live-link/send`, {
@@ -3689,7 +3731,9 @@ async function adminClearLiveLink() {
   const gid = requireAdminSelectedGame();
   setHint("adminActionHint", "در حال حذف لینک لایو...");
   await apiFetch(`/mini-api/admin/games/${gid}/live-link`, { method: "DELETE" });
+  state.admin.liveLinksByGame?.delete(gid);
   setHint("adminActionHint", "لینک لایو حذف شد.", "success");
+  updateAdminActionButtons();
   await Promise.allSettled([refreshAdminGames(), openLiveGame(gid)]);
 }
 
