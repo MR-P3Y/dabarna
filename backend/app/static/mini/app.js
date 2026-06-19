@@ -956,29 +956,33 @@ function drawGames(items) {
     .join("");
 
   root.querySelectorAll(".open-btn").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const gameId = Number(btn.getAttribute("data-game-id") || "0");
-      if (!gameId) return;
-      const myCardsCount = Number(state.myCardsByGame.get(gameId) || 0);
+  btn.addEventListener("click", () => {
+    const gameId = Number(btn.getAttribute("data-game-id") || "0");
+    if (!gameId) return;
 
-      if (myCardsCount > 0) {
-        // کاربر قبلاً کارت خریده: تب کارت‌ها را باز کن
-        state.selectedGameId = gameId;
-        switchToView("cards");
-      } else {
-        // کاربر کارت ندارد: بازی را باز کن و سپس به بخش وضعیت زنده اسکرول کن
-        openLiveGame(gameId)
-          .then(() => {
-            // اسکرول نرم به ابتدای بخش وضعیت زنده بازی
-            const liveTitle = document.getElementById("liveTitle");
-            if (liveTitle) {
-              liveTitle.scrollIntoView({ behavior: "smooth", block: "start" });
-            }
-          })
-          .catch((err) => setBadge("error", err.message));
-      }
-    });
+    const isBuyButton = btn.classList.contains("cta-big");
+
+    if (!isBuyButton) {
+      state.selectedGameId = gameId;
+      switchToView("cards");
+      return;
+    }
+
+    openLiveGame(gameId)
+      .then(() => {
+        setTimeout(() => {
+          const liveTitle = getEl("liveTitle");
+          const buyForm = getEl("buyActionForm");
+          const target = liveTitle || buyForm;
+
+          if (target) {
+            target.scrollIntoView({ behavior: "smooth", block: "start" });
+          }
+        }, 100);
+      })
+      .catch((err) => setBadge("error", err.message));
   });
+});
 }
 
 function formatDuration(sec) {
