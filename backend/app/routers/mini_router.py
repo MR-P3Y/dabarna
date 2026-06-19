@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import json
 import os
@@ -2151,6 +2151,78 @@ def mini_admin_set_live_link(
     )
     db.commit()
     return {"ok": True, "game_id": int(game_id), "url": url, "updated_at": now}
+
+
+@router.post("/admin/games/{game_id}/live-link/send")
+def mini_admin_send_live_link(
+    game_id: int,
+    ident: MiniAdminIdentity = Depends(get_mini_admin_identity),
+    db: Session = Depends(get_db),
+):
+    _ = _mini_require_game_manage_access(db, int(game_id), ident)
+    url, updated_at = _read_game_live_link(db, game_id=int(game_id))
+    if not url:
+        raise HTTPException(status_code=400, detail="live_url is required")
+
+    rows = db.execute(
+        select(
+            User.id,
+            User.tg_user_id,
+            func.count(GameCard.id).label("cards_count"),
+        )
+        .select_from(GameCard)
+        .join(User, User.id == GameCard.user_id)
+        .where(GameCard.game_id == int(game_id))
+        .group_by(User.id, User.tg_user_id)
+    ).all()
+
+    participants_count = len(rows)
+    notified_ok = 0
+    notify_failed = 0
+    no_tg_count = 0
+    failed_tg_ids: list[int] = []
+
+    safe_url = html_escape(str(url), quote=True)
+    for row in rows:
+        tg_user_id = int(row.tg_user_id or 0)
+        cards_count = int(row.cards_count or 0)
+        if tg_user_id <= 0:
+            no_tg_count += 1
+            continue
+
+        text = (
+            "🎥 <b>لینک پخش زنده بازی آماده است</b>\n\n"
+            f"🎮 بازی: <b>#{int(game_id)}</b>\n"
+            f"🃏 تعداد کارت‌های شما در این بازی: <b>{cards_count}</b>\n\n"
+            "برای مشاهده پخش زنده روی لینک زیر بزنید:\n"
+            f"<a href=\\"{safe_url}\\">مشاهده پخش زنده بازی #{int(game_id)}</a>\n\n"
+            "این لینک فقط برای بازیکنانی ارسال شده که در همین بازی کارت خریداری کرده‌اند."
+        )
+
+        delivered = False
+        for _ in range(3):
+            if _mini_send_topic_message(chat_id=tg_user_id, topic_id=None, text=text):
+                delivered = True
+                break
+
+        if delivered:
+            notified_ok += 1
+        else:
+            notify_failed += 1
+            if len(failed_tg_ids) < 10:
+                failed_tg_ids.append(tg_user_id)
+
+    return {
+        "ok": True,
+        "game_id": int(game_id),
+        "url": str(url),
+        "updated_at": updated_at,
+        "participants_count": int(participants_count),
+        "notified_ok": int(notified_ok),
+        "notify_failed": int(notify_failed),
+        "no_tg_count": int(no_tg_count),
+        "failed_tg_ids": failed_tg_ids,
+    }
 
 
 @router.delete("/admin/games/{game_id}/live-link")

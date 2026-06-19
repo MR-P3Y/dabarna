@@ -2719,10 +2719,14 @@ function updateAdminActionButtons() {
   const isLobby = status === "LOBBY";
   const isRunning = status === "RUNNING";
 
+  const hasLiveLink = Boolean(String(g?.live_link_url || "").trim());
+
   setBtn("adminStartBtn", hasGame && isLobby, hasGame ? "شروع فقط برای بازی در لابی فعال است." : "ابتدا بازی را انتخاب کنید.");
   setBtn("adminCloseLobbyBtn", hasGame && isLobby, hasGame ? "لغو فقط پیش از شروع بازی مجاز است." : "ابتدا بازی را انتخاب کنید.");
   setBtn("adminCallBtn", hasGame && isRunning, hasGame ? "اعلام عدد فقط برای بازی در حال اجرا مجاز است." : "ابتدا بازی را انتخاب کنید.");
   setBtn("adminUndoBtn", hasGame && isRunning, hasGame ? "حذف آخرین عدد فقط برای بازی در حال اجرا مجاز است." : "ابتدا بازی را انتخاب کنید.");
+  setBtn("adminSendLiveBtn", hasGame && hasLiveLink, hasLiveLink ? "ارسال لینک لایو به خریداران کارت همین بازی." : "ابتدا لینک لایو را ثبت کنید.");
+  setBtn("adminClearLiveBtn", hasGame && hasLiveLink, hasLiveLink ? "حذف لینک لایو ثبت‌شده برای این بازی." : "لینک لایو ثبت نشده است.");
 }
 
 function requireAdminGameStatus(allowedStatuses, actionLabel) {
@@ -3655,9 +3659,30 @@ async function adminSetLiveLink() {
     method: "PUT",
     body: { url },
   });
-  setHint("adminActionHint", "لینک لایو بازی با موفقیت ثبت شد.", "success");
+  setHint("adminActionHint", "لینک لایو بازی با موفقیت ثبت شد. اکنون می‌توانید آن را برای خریداران کارت ارسال کنید.", "success");
+  await Promise.allSettled([refreshAdminGames(), openLiveGame(gid)]);
+  setAdminSelectedGame(gid, statusLabel(getAdminGameById(gid)?.status || ""));
+}
+async function adminSendLiveLink() {
+  const gid = requireAdminSelectedGame();
+  const g = getAdminGameById(gid);
+  const liveUrl = String(g?.live_link_url || getVal("adminLiveLinkInput") || "").trim();
+  if (!liveUrl) throw new Error("ابتدا لینک لایو را ثبت کنید.");
+  setHint("adminActionHint", "در حال ارسال لینک لایو به خریداران کارت...");
+  const res = await apiFetch(`/mini-api/admin/games/${gid}/live-link/send`, {
+    method: "POST",
+    body: { idempotency_key: idem("mini_admin_live_send") },
+  });
+  const participants = Number(res?.participants_count || 0);
+  const okCount = Number(res?.notified_ok || 0);
+  const failCount = Number(res?.notify_failed || 0);
+  const noTgCount = Number(res?.no_tg_count || 0);
+  const msg = `لینک لایو بازی #${gid} ارسال شد. خریداران: ${participants} | موفق: ${okCount} | ناموفق: ${failCount} | بدون شناسه: ${noTgCount}`;
+  setHint("adminActionHint", msg, okCount > 0 ? "success" : "error");
+  setBadge(okCount > 0 ? "success" : "error", okCount > 0 ? "لینک لایو ارسال شد" : "ارسال لینک لایو ناموفق بود");
   await Promise.allSettled([refreshAdminGames(), openLiveGame(gid)]);
 }
+
 
 async function adminClearLiveLink() {
   const gid = requireAdminSelectedGame();
@@ -3970,6 +3995,7 @@ async function boot() {
   bind("adminStartBtn", "click", () => adminStartGame().catch((e) => setBadge("error", e.message)));
   bind("adminCloseLobbyBtn", "click", () => adminCloseLobby().catch((e) => setBadge("error", e.message)));
   bind("adminSetLiveBtn", "click", () => adminSetLiveLink().catch((e) => setBadge("error", e.message)));
+  bind("adminSendLiveBtn", "click", () => adminSendLiveLink().catch((e) => setBadge("error", e.message)));
   bind("adminClearLiveBtn", "click", () => adminClearLiveLink().catch((e) => setBadge("error", e.message)));
   bind("superAdminGrantBtn", "click", () => superAdminGrant().catch((e) => setBadge("error", e.message)));
   bind("superAdminRevokeBtn", "click", () => superAdminRevoke().catch((e) => setBadge("error", e.message)));

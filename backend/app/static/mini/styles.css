@@ -3287,3 +3287,22 @@ html[data-theme="light"] .live-main-pro .last-number-pop {
     min-height: 44px;
   }
 }
+
+/* LIVE-1 admin live send polish */
+#adminSendLiveBtn {
+  box-shadow: 0 0 0 1px rgba(45, 212, 191, 0.22), 0 10px 22px rgba(0,0,0,0.13);
+}
+
+#adminSendLiveBtn:not(:disabled) {
+  background: linear-gradient(135deg, rgba(45, 212, 191, 0.22), rgba(120, 167, 255, 0.16));
+}
+
+#adminSendLiveBtn:disabled {
+  box-shadow: none;
+}
+
+@media (max-width: 430px) {
+  #adminSendLiveBtn {
+    min-height: 44px;
+  }
+}
