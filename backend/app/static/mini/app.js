@@ -2719,7 +2719,7 @@ function updateAdminActionButtons() {
   const isLobby = status === "LOBBY";
   const isRunning = status === "RUNNING";
 
-  const hasLiveLink = Boolean(String(g?.live_link_url || "").trim());
+  const hasLiveLink = Boolean(String(g?.live_link_url || g?.live_url || g?.live_link || getVal("adminLiveLinkInput") || "").trim());
 
   setBtn("adminStartBtn", hasGame && isLobby, hasGame ? "شروع فقط برای بازی در لابی فعال است." : "ابتدا بازی را انتخاب کنید.");
   setBtn("adminCloseLobbyBtn", hasGame && isLobby, hasGame ? "لغو فقط پیش از شروع بازی مجاز است." : "ابتدا بازی را انتخاب کنید.");
@@ -3662,11 +3662,12 @@ async function adminSetLiveLink() {
   setHint("adminActionHint", "لینک لایو بازی با موفقیت ثبت شد. اکنون می‌توانید آن را برای خریداران کارت ارسال کنید.", "success");
   await Promise.allSettled([refreshAdminGames(), openLiveGame(gid)]);
   setAdminSelectedGame(gid, statusLabel(getAdminGameById(gid)?.status || ""));
+  updateAdminActionButtons();
 }
 async function adminSendLiveLink() {
   const gid = requireAdminSelectedGame();
   const g = getAdminGameById(gid);
-  const liveUrl = String(g?.live_link_url || getVal("adminLiveLinkInput") || "").trim();
+  const liveUrl = String(g?.live_link_url || g?.live_url || g?.live_link || getVal("adminLiveLinkInput") || "").trim();
   if (!liveUrl) throw new Error("ابتدا لینک لایو را ثبت کنید.");
   setHint("adminActionHint", "در حال ارسال لینک لایو به خریداران کارت...");
   const res = await apiFetch(`/mini-api/admin/games/${gid}/live-link/send`, {
