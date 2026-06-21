@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>مینی‌اپ دورنای پیمون</title>
-    <link rel="stylesheet" href="./styles.css?v=20260621wdr1d" />
+    <link rel="stylesheet" href="./styles.css?v=20260621wdr2" />
   </head>
   <body>
     <div id="appSplash" class="app-splash" aria-label="در حال آماده‌سازی مینی‌اپ">
@@ -477,9 +477,54 @@
       </div>
     </div>
 
+
+    <div id="withdrawProofModal" class="winner-modal" aria-hidden="true">
+      <div class="withdraw-proof-modal-card glass" role="dialog" aria-modal="true" aria-labelledby="withdrawProofModalTitle">
+        <div class="winner-modal-head">
+          <div>
+            <h2 id="withdrawProofModalTitle">ثبت فیش پرداخت برداشت</h2>
+            <p id="withdrawProofModalMeta" class="withdraw-proof-meta">پس از تایید برداشت، مبلغ از کیف پول کسر شده است. حالا فیش پرداخت را ثبت کنید.</p>
+          </div>
+          <button id="withdrawProofCloseBtn" class="icon-btn" type="button" aria-label="بستن">×</button>
+        </div>
+
+        <div class="withdraw-proof-flow">
+          <div class="withdraw-proof-step">
+            <div class="withdraw-proof-step-no">1</div>
+            <div>
+              <strong>متن فیش یا کد پیگیری</strong>
+              <p>کد پیگیری، شماره حواله، توضیح پرداخت یا هر متن قابل استناد را وارد کنید.</p>
+              <textarea id="withdrawProofTextInput" rows="4" maxlength="1000" placeholder="مثال: پرداخت شد - کد پیگیری 123456789"></textarea>
+            </div>
+          </div>
+
+          <div class="withdraw-proof-step">
+            <div class="withdraw-proof-step-no">2</div>
+            <div>
+              <strong>تصویر فیش پرداخت</strong>
+              <p>اختیاری است؛ ولی برای پیگیری بهتر پیشنهاد می‌شود. فرمت مجاز: JPG, PNG, WEBP - حداکثر ۳ مگابایت.</p>
+              <label class="withdraw-proof-file-picker" for="withdrawProofFileInput">
+                <span>انتخاب تصویر فیش</span>
+                <b id="withdrawProofFileName">هیچ فایلی انتخاب نشده</b>
+              </label>
+              <input id="withdrawProofFileInput" class="visually-hidden-file" type="file" accept="image/jpeg,image/png,image/webp,image/*" />
+              <div id="withdrawProofPreview" class="withdraw-proof-preview hidden"></div>
+            </div>
+          </div>
+
+          <div id="withdrawProofHint" class="step-hint"></div>
+
+          <div class="withdraw-proof-actions">
+            <button id="withdrawProofCancelBtn" class="small-btn" type="button">انصراف</button>
+            <button id="withdrawProofSubmitBtn" class="small-btn primary" type="button">ثبت نهایی پرداخت</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div id="miniToast" class="mini-toast hidden" role="status" aria-live="polite"></div>
 
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="./app.js?v=20260621wdr1d" type="module"></script>
+    <script src="./app.js?v=20260621wdr2" type="module"></script>
   </body>
 </html>

@@ -3020,7 +3020,7 @@ function renderAdminWithdraws(payload) {
         actions.push(`<button class="small-btn danger admin-wdr-reject-btn" data-id="${safeText(id)}" type="button">رد</button>`);
       }
       if (status === "APPROVED") {
-        actions.push(`<button class="small-btn admin-wdr-paid-btn" data-id="${safeText(id)}" type="button">ثبت پرداخت</button>`);
+        actions.push(`<button class="small-btn primary admin-wdr-paid-btn" data-id="${safeText(id)}" type="button">ثبت فیش پرداخت</button>`);
       }
 
       return `
@@ -3869,26 +3869,151 @@ async function adminRejectWithdraw(withdrawId) {
 }
 
 
-function pickWithdrawProofImage() {
-  return new Promise((resolve) => {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = "image/*";
-    input.style.position = "fixed";
-    input.style.left = "-9999px";
-    input.addEventListener("change", () => {
-      const file = input.files && input.files[0] ? input.files[0] : null;
-      try { input.remove(); } catch (_) {}
-      resolve(file);
-    }, { once: true });
-    document.body.appendChild(input);
-    input.click();
-  });
+
+let withdrawProofModalWithdrawId = 0;
+let withdrawProofSelectedFile = null;
+let withdrawProofModalBound = false;
+
+function withdrawProofAllowedImage(file) {
+  if (!file) return true;
+  const type = String(file.type || "").toLowerCase();
+  const name = String(file.name || "").toLowerCase();
+  const okType = type.startsWith("image/");
+  const okExt = [".jpg", ".jpeg", ".png", ".webp"].some((ext) => name.endsWith(ext));
+  if (!okType && !okExt) {
+    throw new Error("فرمت تصویر فیش مجاز نیست. فقط JPG، PNG یا WEBP قابل قبول است.");
+  }
+  const maxBytes = 3 * 1024 * 1024;
+  if (Number(file.size || 0) > maxBytes) {
+    throw new Error("حجم تصویر فیش نباید بیشتر از ۳ مگابایت باشد.");
+  }
+  return true;
+}
+
+function closeWithdrawProofModal() {
+  const modal = getEl("withdrawProofModal");
+  if (modal) {
+    modal.classList.remove("open");
+    modal.setAttribute("aria-hidden", "true");
+  }
+  withdrawProofModalWithdrawId = 0;
+  withdrawProofSelectedFile = null;
+}
+
+function setWithdrawProofHint(text, kind = "") {
+  const el = getEl("withdrawProofHint");
+  if (!el) return;
+  el.textContent = String(text || "");
+  el.classList.remove("success", "error", "pending");
+  if (kind) el.classList.add(kind);
+}
+
+async function renderWithdrawProofPreview(file) {
+  const preview = getEl("withdrawProofPreview");
+  const nameEl = getEl("withdrawProofFileName");
+  if (!preview) return;
+
+  if (!file) {
+    preview.classList.add("hidden");
+    preview.innerHTML = "";
+    if (nameEl) nameEl.textContent = "هیچ فایلی انتخاب نشده";
+    return;
+  }
+
+  withdrawProofAllowedImage(file);
+  if (nameEl) nameEl.textContent = `${file.name || "تصویر فیش"} - ${Math.ceil(Number(file.size || 0) / 1024)}KB`;
+
+  const dataUrl = await readFileAsDataUrl(file);
+  preview.innerHTML = `
+    <div class="withdraw-proof-preview-card">
+      <span>پیش‌نمایش فیش انتخاب‌شده</span>
+      <img src="${dataUrl}" alt="پیش‌نمایش فیش پرداخت" />
+    </div>
+  `;
+  preview.classList.remove("hidden");
+}
+
+function bindWithdrawProofModalOnce() {
+  if (withdrawProofModalBound) return;
+  withdrawProofModalBound = true;
+
+  const closeBtn = getEl("withdrawProofCloseBtn");
+  const cancelBtn = getEl("withdrawProofCancelBtn");
+  const submitBtn = getEl("withdrawProofSubmitBtn");
+  const fileInput = getEl("withdrawProofFileInput");
+  const modal = getEl("withdrawProofModal");
+
+  if (closeBtn) closeBtn.addEventListener("click", closeWithdrawProofModal);
+  if (cancelBtn) cancelBtn.addEventListener("click", closeWithdrawProofModal);
+
+  if (modal) {
+    modal.addEventListener("click", (ev) => {
+      if (ev.target === modal) closeWithdrawProofModal();
+    });
+  }
+
+  if (fileInput) {
+    fileInput.addEventListener("change", async () => {
+      const file = fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
+      try {
+        withdrawProofSelectedFile = file;
+        await renderWithdrawProofPreview(file);
+        setWithdrawProofHint(file ? "تصویر فیش آماده ارسال است." : "", file ? "success" : "");
+      } catch (e) {
+        withdrawProofSelectedFile = null;
+        fileInput.value = "";
+        await renderWithdrawProofPreview(null);
+        setWithdrawProofHint(e.message || "فایل فیش نامعتبر است.", "error");
+      }
+    });
+  }
+
+  if (submitBtn) {
+    submitBtn.addEventListener("click", () => submitWithdrawProofModal().catch((e) => {
+      setWithdrawProofHint(e.message || "ثبت فیش پرداخت ناموفق بود.", "error");
+      setBadge("error", e.message || "ثبت فیش پرداخت ناموفق بود.");
+    }));
+  }
+}
+
+function openWithdrawProofModal(withdrawId) {
+  const id = Number(withdrawId || 0);
+  if (!id) throw new Error("شناسه برداشت نامعتبر است.");
+
+  bindWithdrawProofModalOnce();
+  withdrawProofModalWithdrawId = id;
+  withdrawProofSelectedFile = null;
+
+  const modal = getEl("withdrawProofModal");
+  const textInput = getEl("withdrawProofTextInput");
+  const fileInput = getEl("withdrawProofFileInput");
+  const submitBtn = getEl("withdrawProofSubmitBtn");
+  const meta = getEl("withdrawProofModalMeta");
+
+  if (textInput) textInput.value = "";
+  if (fileInput) fileInput.value = "";
+  if (submitBtn) {
+    submitBtn.disabled = false;
+    submitBtn.textContent = "ثبت نهایی پرداخت";
+  }
+  if (meta) {
+    meta.textContent = `برداشت #${id} تایید شده و مبلغ از کیف پول کسر شده است. فیش پرداخت را به صورت متن یا تصویر ثبت کنید.`;
+  }
+  renderWithdrawProofPreview(null);
+  setWithdrawProofHint("حداقل یکی از این دو مورد را وارد کنید: متن فیش یا تصویر فیش.", "pending");
+
+  if (!modal) throw new Error("پنجره ثبت فیش در صفحه پیدا نشد.");
+  modal.classList.add("open");
+  modal.setAttribute("aria-hidden", "false");
+  setTimeout(() => {
+    try { textInput?.focus(); } catch (_) {}
+  }, 50);
 }
 
 async function adminSaveWithdrawProof(withdrawId, proofText, file) {
   const body = { proof_text: String(proofText || "").trim() };
   if (file) {
+    withdrawProofAllowedImage(file);
     body.filename = String(file.name || "withdraw-proof.jpg");
     body.content_type = String(file.type || "image/jpeg");
     body.data_base64 = await readFileAsDataUrl(file);
@@ -3899,28 +4024,48 @@ async function adminSaveWithdrawProof(withdrawId, proofText, file) {
   });
 }
 
-async function adminPaidWithdraw(withdrawId) {
-  const id = Number(withdrawId || 0);
+async function submitWithdrawProofModal() {
+  const id = Number(withdrawProofModalWithdrawId || 0);
   if (!id) throw new Error("شناسه برداشت نامعتبر است.");
 
-  const proofText = String(window.prompt("متن فیش/کد پیگیری برداشت را وارد کنید:", "") || "").trim();
-  const wantsImage = window.confirm("آیا می‌خواهید عکس فیش پرداخت برداشت را هم انتخاب کنید؟");
-  const file = wantsImage ? await pickWithdrawProofImage() : null;
+  const textInput = getEl("withdrawProofTextInput");
+  const submitBtn = getEl("withdrawProofSubmitBtn");
+  const proofText = String(textInput?.value || "").trim();
+  const file = withdrawProofSelectedFile || null;
 
   if (!proofText && !file) {
     throw new Error("برای ثبت پرداخت، متن فیش/کد پیگیری یا تصویر فیش الزامی است.");
   }
 
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.textContent = "در حال ثبت...";
+  }
+  setWithdrawProofHint("در حال ثبت فیش پرداخت و نهایی‌سازی برداشت...", "pending");
   setBadge("loading", "در حال ثبت فیش برداشت...");
-  await adminSaveWithdrawProof(id, proofText, file);
 
-  const tracking = proofText || `mini_paid_${Date.now()}`;
-  await apiFetch(`/mini-api/admin/withdraws/${id}/paid`, {
-    method: "POST",
-    body: { paid_tracking: tracking.slice(0, 128) },
-  });
-  setBadge("success", `برداشت #${id} پرداخت‌شده ثبت شد`);
-  await refreshAdminWithdraws();
+  try {
+    await adminSaveWithdrawProof(id, proofText, file);
+    const tracking = proofText || `image_receipt_${Date.now()}`;
+    await apiFetch(`/mini-api/admin/withdraws/${id}/paid`, {
+      method: "POST",
+      body: { paid_tracking: tracking.slice(0, 128) },
+    });
+
+    setWithdrawProofHint("فیش پرداخت ثبت شد و برداشت پرداخت‌شده شد.", "success");
+    setBadge("success", `برداشت #${id} پرداخت‌شده ثبت شد`);
+    closeWithdrawProofModal();
+    await refreshAdminWithdraws();
+  } finally {
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.textContent = "ثبت نهایی پرداخت";
+    }
+  }
+}
+
+async function adminPaidWithdraw(withdrawId) {
+  openWithdrawProofModal(withdrawId);
 }
 
 async function superAdminGrant() {
