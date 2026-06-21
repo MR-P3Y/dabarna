@@ -695,6 +695,97 @@ def _mini_send_topic_message(
         return False
 
 
+def _mini_parse_env_int(name: str) -> int | None:
+    raw = str(os.getenv(name) or "").strip()
+    if not raw:
+        return None
+    try:
+        return int(raw)
+    except ValueError:
+        return None
+
+
+def _mini_fmt_toman(amount: object) -> str:
+    try:
+        return f"{int(amount or 0):,} ?????"
+    except Exception:
+        return "0 ?????"
+
+
+def _mini_user_title(user: User | None, *, user_id: int) -> str:
+    if user is None:
+        return f"????? #{int(user_id)}"
+    username = str(getattr(user, "username", "") or "").strip()
+    tg_user_id = getattr(user, "tg_user_id", None)
+    if username:
+        return f"@{html_escape(username)}"
+    if tg_user_id is not None:
+        return f"TG <code>{int(tg_user_id)}</code>"
+    return f"????? #{int(user_id)}"
+
+
+def _mini_mask_card(value: object) -> str:
+    raw = _clean_numeric(value)
+    if len(raw) < 8:
+        return html_escape(raw or "-")
+    return html_escape(f"{raw[:4]} **** **** {raw[-4:]}")
+
+
+def _mini_send_admin_topic_notice(*, topic_env: str, text: str) -> bool:
+    chat_id = _mini_parse_env_int("ADMIN_FORUM_CHAT_ID")
+    topic_id = _mini_parse_env_int(topic_env)
+    if chat_id is None or topic_id is None:
+        log.warning("mini admin topic notice skipped: missing %s or ADMIN_FORUM_CHAT_ID", topic_env)
+        return False
+
+    sent = _mini_send_topic_message(chat_id=int(chat_id), topic_id=int(topic_id), text=str(text), parse_mode="HTML")
+    if not sent:
+        log.warning("mini admin topic notice failed: topic_env=%s chat_id=%s topic_id=%s", topic_env, chat_id, topic_id)
+    return bool(sent)
+
+
+def _mini_notify_admin_deposit_pending(*, db: Session, dr: DepositRequest) -> bool:
+    user = db.get(User, int(dr.user_id))
+    destination_id, destination_title = _read_request_destination(db, request_id=int(dr.id))
+    dest_line = html_escape(str(destination_title or destination_id or "-"))
+
+    text = (
+        "?? <b>??????? ????? ???? ?? Mini App</b>\n"
+        "#????? #????_?? #???????_????\n"
+        f"?? ????? ???????: <b>{int(dr.id)}</b>\n"
+        f"?? ?????: {_mini_user_title(user, user_id=int(dr.user_id))}\n"
+        f"?? ????: <b>{_mini_fmt_toman(dr.amount)}</b>\n"
+        f"?? ????: <b>{dest_line}</b>\n"
+        f"?? ????: <b>{'????? ???' if bool(dr.receipt_path or dr.receipt_file_id) else '?????'}</b>\n"
+        f"?? ?????: <b>{html_escape(str(dr.status))}</b>\n\n"
+        "???? ?????? ??? ?????? ????????? ?? Mini App ?? ??? ??."
+    )
+    return _mini_send_admin_topic_notice(topic_env="ADMIN_TOPIC_DEPOSIT_ID", text=text)
+
+
+def _mini_notify_admin_withdraw_pending(*, db: Session, wr: WithdrawRequest) -> bool:
+    user = db.get(User, int(wr.user_id))
+    wallet_balance_raw = db.execute(
+        select(Wallet.balance).where(Wallet.user_id == int(wr.user_id))
+    ).scalar_one_or_none()
+    wallet_balance = int(wallet_balance_raw or 0)
+
+    text = (
+        "?? <b>??????? ?????? ???? ?? Mini App</b>\n"
+        "#?????? #????_?? #???????_????\n"
+        f"?? ????? ??????: <b>{int(wr.id)}</b>\n"
+        f"?? ?????: {_mini_user_title(user, user_id=int(wr.user_id))}\n"
+        f"?? ????: <b>{_mini_fmt_toman(wr.amount)}</b>\n"
+        f"?? ?????? ??? ???: <b>{_mini_fmt_toman(wallet_balance)}</b>\n"
+        f"?? ??? ???? ????: <b>{html_escape(str(wr.full_name or '-'))}</b>\n"
+        f"?? ????: <code>{_mini_mask_card(wr.card_number)}</code>\n"
+        f"?? ???: <code>{html_escape(str(wr.iban or '-'))}</code>\n"
+        f"?? ?????: <b>{html_escape(str(wr.status))}</b>\n\n"
+        "???? ?????? ??? ?????? ????????? ?? Mini App ?? ??? ??."
+    )
+    return _mini_send_admin_topic_notice(topic_env="ADMIN_TOPIC_WITHDRAW_ID", text=text)
+
+
 def _mini_send_game_created_notice(*, game: Game) -> bool:
     group_id = int(getattr(game, "tg_group_id", 0) or 0)
     if group_id == 0:
@@ -1615,6 +1706,7 @@ def upload_deposit_receipt(
     dr.status = "PENDING_REVIEW"
     db.flush()
     db.commit()
+    _mini_notify_admin_deposit_pending(db=db, dr=dr)
 
     return MiniDepositOut(
         id=int(dr.id),
@@ -1643,6 +1735,8 @@ def create_withdraw(
         {"source": "mini"},
     )
     db.commit()
+    _mini_notify_admin_withdraw_pending(db=db, wr=wr)
+
     return MiniWithdrawOut(
         id=int(wr.id),
         amount=int(wr.amount),
