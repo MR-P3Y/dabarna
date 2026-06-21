@@ -1559,28 +1559,27 @@ body {
 
 .admin-notify {
   position: fixed;
+  top: calc(10px + env(safe-area-inset-top));
   left: max(12px, env(safe-area-inset-left));
   right: max(12px, env(safe-area-inset-right));
-  bottom: calc(86px + env(safe-area-inset-bottom));
   display: grid;
   grid-template-columns: 1fr auto;
-  gap: 8px;
-  align-items: stretch;
-  max-width: 520px;
+  gap: 6px;
+  align-items: center;
+  max-width: 480px;
+  min-height: 54px;
   margin: 0 auto;
-  border: 1px solid rgba(100, 214, 255, 0.34);
-  border-radius: 18px;
-  background:
-    linear-gradient(135deg, rgba(36, 68, 132, 0.84), rgba(10, 18, 42, 0.88)),
-    rgba(8, 16, 36, 0.86);
+  border: 1px solid rgba(148, 190, 255, 0.22);
+  border-radius: 14px;
+  background: rgba(12, 23, 48, 0.9);
   color: #f5f8ff;
-  box-shadow: 0 20px 42px rgba(2, 10, 31, 0.46);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+  box-shadow: 0 14px 34px rgba(2, 10, 31, 0.34);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   z-index: 12100;
   opacity: 0;
-  transform: translateY(16px) scale(0.98);
-  transition: opacity 0.22s ease, transform 0.22s ease;
+  transform: translateY(-18px) scale(0.99);
+  transition: opacity 0.2s ease, transform 0.2s ease;
   overflow: hidden;
   touch-action: pan-y;
 }
@@ -1591,11 +1590,11 @@ body {
 }
 
 .admin-notify.deposit {
-  border-color: rgba(126, 245, 188, 0.46);
+  border-color: rgba(126, 245, 188, 0.34);
 }
 
 .admin-notify.withdraw {
-  border-color: rgba(255, 213, 111, 0.5);
+  border-color: rgba(255, 213, 111, 0.38);
 }
 
 .admin-notify.is-dismissing {
@@ -1612,7 +1611,7 @@ body {
 
 .admin-notify-body {
   min-width: 0;
-  padding: 12px 14px;
+  padding: 9px 12px 9px 6px;
   text-align: right;
   cursor: pointer;
 }
@@ -1620,12 +1619,12 @@ body {
 .admin-notify-kind {
   display: inline-flex;
   width: fit-content;
-  margin-bottom: 4px;
+  margin-bottom: 1px;
   border-radius: 999px;
-  padding: 2px 8px;
-  background: rgba(255, 255, 255, 0.1);
-  color: #dbe8ff;
-  font-size: 11px;
+  padding: 1px 7px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #cbdcff;
+  font-size: 10px;
   font-weight: 800;
 }
 
@@ -1635,24 +1634,30 @@ body {
 }
 
 .admin-notify-body strong {
-  font-size: 14px;
-  line-height: 1.8;
+  font-size: 13px;
+  line-height: 1.55;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .admin-notify-meta,
 #adminNotifyMeta {
-  color: rgba(230, 238, 255, 0.78);
-  font-size: 12px;
-  line-height: 1.7;
+  color: rgba(230, 238, 255, 0.68);
+  font-size: 11px;
+  line-height: 1.45;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .admin-notify-close {
-  width: 42px;
-  min-height: 42px;
+  width: 34px;
+  min-height: 34px;
   margin: 8px 0 8px 8px;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.1);
-  font-size: 22px;
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 19px;
   line-height: 1;
   cursor: pointer;
 }
@@ -1663,11 +1668,11 @@ body {
 
 @keyframes adminNotifyPulse {
   0% {
-    box-shadow: 0 0 0 0 rgba(255, 213, 111, 0.42);
-    border-color: rgba(255, 213, 111, 0.7);
+    box-shadow: 0 0 0 0 rgba(255, 213, 111, 0.36);
+    border-color: rgba(255, 213, 111, 0.64);
   }
   45% {
-    box-shadow: 0 0 0 8px rgba(255, 213, 111, 0.12);
+    box-shadow: 0 0 0 8px rgba(255, 213, 111, 0.1);
   }
   100% {
     box-shadow: none;
