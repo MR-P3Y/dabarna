@@ -3411,3 +3411,32 @@ html[data-theme="light"] .live-main-pro .last-number-pop {
   display: block;
   color: var(--muted);
 }
+
+/* WITHDRAW-1C-v2 admin withdraw cards */
+.admin-withdraw-item .history-meta {
+  line-height: 1.95;
+}
+
+.admin-withdraw-item .withdraw-wallet-status {
+  display: block;
+  margin: 10px 0 8px;
+  padding: 10px;
+  border-radius: 16px;
+  border: 1px solid rgba(120, 167, 255, 0.30);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.admin-withdraw-item .withdraw-wallet-grid {
+  width: 100%;
+}
+
+.admin-withdraw-item .withdraw-wallet-grid.muted {
+  display: block;
+  color: #b7c4e6;
+  text-align: center;
+  font-size: 12px;
+}
+
+.admin-withdraw-item .withdraw-wallet-grid b {
+  font-size: 12px;
+}

@@ -3001,26 +3001,44 @@ function renderAdminWithdraws(payload) {
     root.innerHTML = '<div class="empty">برداشتی برای مدیریت وجود ندارد.</div>';
     return;
   }
+
   root.innerHTML = items
     .map((w) => {
+      const id = Number(w.id || 0);
       const status = String(w.status || "").toUpperCase();
+      const walletInfo = state.admin.adminWithdrawWalletStatus?.get(id) || null;
+      const canApproveFromWallet = Boolean(walletInfo?.can_approve);
+      const userLabel = w.tg_username
+        ? `@${safeText(String(w.tg_username).replace(/^@+/, ""))}`
+        : safeText(w.tg_user_id || w.user_id || "-");
+      const fullName = String(w.full_name || w.name || w.account_name || "").trim();
+
       const actions = [];
       if (status === "PENDING") {
-        actions.push(`<button class="small-btn admin-wdr-wallet-refresh-btn" data-id="${safeText(w.id)}" type="button">بروزرسانی کیف پول</button>`);
-        actions.push(`<button class="small-btn primary admin-wdr-approve-btn needs-refresh" data-id="${safeText(w.id)}" type="button" disabled title="ابتدا بروزرسانی کیف پول را بزنید.">تایید</button>`);
-        actions.push(`<button class="small-btn danger admin-wdr-reject-btn" data-id="${safeText(w.id)}" type="button">رد</button>`);
+        actions.push(`<button class="small-btn admin-wdr-wallet-refresh-btn" data-id="${safeText(id)}" type="button">بروزرسانی کیف پول</button>`);
+        actions.push(`<button class="small-btn primary admin-wdr-approve-btn ${canApproveFromWallet ? "" : "needs-refresh"}" data-id="${safeText(id)}" type="button" ${canApproveFromWallet ? "" : "disabled"} title="${canApproveFromWallet ? "آخرین وضعیت کیف پول تایید شد؛ می‌توانید برداشت را تایید کنید." : "ابتدا بروزرسانی کیف پول را بزنید."}">تایید</button>`);
+        actions.push(`<button class="small-btn danger admin-wdr-reject-btn" data-id="${safeText(id)}" type="button">رد</button>`);
       }
       if (status === "APPROVED") {
-        actions.push(`<button class="small-btn admin-wdr-paid-btn" data-id="${safeText(w.id)}" type="button">ثبت پرداخت</button>`);
+        actions.push(`<button class="small-btn admin-wdr-paid-btn" data-id="${safeText(id)}" type="button">ثبت پرداخت</button>`);
       }
+
       return `
-        <div class="history-item">
-          <strong>برداشت #${safeText(w.id)} | ${safeText(withdrawStatusLabel(w.status))}</strong>
+        <div class="history-item admin-withdraw-item">
+          <strong>برداشت #${safeText(id)} | ${safeText(withdrawStatusLabel(w.status))}</strong>
           <div class="history-meta">
-            کاربر: ${safeText(w.tg_username || w.tg_user_id || w.user_id)}<br />
+            کاربر: ${userLabel}<br />
+            نام: ${safeText(fullName || "-")}<br />
+            شناسه داخلی: ${safeText(w.user_id || "-")}<br />
             مبلغ: ${safeText(toman(w.amount || 0))}<br />
             کارت: ${safeText(w.card_number || "-")}<br />
+            شبا: ${safeText(w.iban || "-")}<br />
+            حساب: ${safeText(w.account_number || "-")}<br />
+            پیگیری پرداخت: ${safeText(w.paid_tracking || "-")}<br />
             زمان: ${safeText(String(w.created_at || "-"))}
+          </div>
+          <div id="adminWdrWalletStatus${safeText(id)}" class="withdraw-wallet-status">
+            ${renderWithdrawWalletStatusHtml(walletInfo)}
           </div>
           <div class="admin-item-actions">${actions.join("")}</div>
         </div>
@@ -3043,6 +3061,7 @@ function renderAdminWithdraws(payload) {
       adminApproveWithdraw(id).catch((e) => setBadge("error", e.message));
     });
   });
+
   root.querySelectorAll(".admin-wdr-reject-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
       const id = Number(btn.getAttribute("data-id") || "0");
@@ -3050,6 +3069,7 @@ function renderAdminWithdraws(payload) {
       adminRejectWithdraw(id).catch((e) => setBadge("error", e.message));
     });
   });
+
   root.querySelectorAll(".admin-wdr-paid-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
       const id = Number(btn.getAttribute("data-id") || "0");
