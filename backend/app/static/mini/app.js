@@ -2975,7 +2975,7 @@ function renderWithdrawWalletStatusHtml(info) {
 function setWithdrawWalletStatus(withdrawId, info) {
   const id = Number(withdrawId || 0);
   if (!id) return;
-  state.admin.adminWithdrawWalletStatus?.set(id, info);
+  state.adminWithdrawWalletStatus?.set(id, info);
   const el = getEl(`adminWdrWalletStatus${id}`);
   if (el) {
     el.innerHTML = renderWithdrawWalletStatusHtml(info);
@@ -3006,7 +3006,7 @@ function renderAdminWithdraws(payload) {
     .map((w) => {
       const id = Number(w.id || 0);
       const status = String(w.status || "").toUpperCase();
-      const walletInfo = state.admin.adminWithdrawWalletStatus?.get(id) || null;
+      const walletInfo = state.adminWithdrawWalletStatus?.get(id) || null;
       const canApproveFromWallet = Boolean(walletInfo?.can_approve);
       const userLabel = w.tg_username
         ? `@${safeText(String(w.tg_username).replace(/^@+/, ""))}`
