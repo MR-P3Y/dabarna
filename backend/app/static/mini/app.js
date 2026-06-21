@@ -3931,6 +3931,14 @@ async function renderWithdrawProofPreview(file) {
     </div>
   `;
   preview.classList.remove("hidden");
+  try {
+    const modalCard = document.querySelector("#withdrawProofModal .withdraw-proof-modal-card");
+    if (modalCard) {
+      modalCard.scrollLeft = 0;
+    }
+    document.body.scrollLeft = 0;
+    document.documentElement.scrollLeft = 0;
+  } catch (_) {}
 }
 
 function bindWithdrawProofModalOnce() {
