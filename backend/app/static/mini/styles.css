@@ -1557,6 +1557,123 @@ body {
   color: #ffe8bf;
 }
 
+.admin-notify {
+  position: fixed;
+  left: max(12px, env(safe-area-inset-left));
+  right: max(12px, env(safe-area-inset-right));
+  bottom: calc(86px + env(safe-area-inset-bottom));
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: stretch;
+  max-width: 520px;
+  margin: 0 auto;
+  border: 1px solid rgba(100, 214, 255, 0.34);
+  border-radius: 18px;
+  background:
+    linear-gradient(135deg, rgba(36, 68, 132, 0.84), rgba(10, 18, 42, 0.88)),
+    rgba(8, 16, 36, 0.86);
+  color: #f5f8ff;
+  box-shadow: 0 20px 42px rgba(2, 10, 31, 0.46);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  z-index: 12100;
+  opacity: 0;
+  transform: translateY(16px) scale(0.98);
+  transition: opacity 0.22s ease, transform 0.22s ease;
+  overflow: hidden;
+  touch-action: pan-y;
+}
+
+.admin-notify.show {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.admin-notify.deposit {
+  border-color: rgba(126, 245, 188, 0.46);
+}
+
+.admin-notify.withdraw {
+  border-color: rgba(255, 213, 111, 0.5);
+}
+
+.admin-notify.is-dismissing {
+  opacity: 0;
+}
+
+.admin-notify-body,
+.admin-notify-close {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+}
+
+.admin-notify-body {
+  min-width: 0;
+  padding: 12px 14px;
+  text-align: right;
+  cursor: pointer;
+}
+
+.admin-notify-kind {
+  display: inline-flex;
+  width: fit-content;
+  margin-bottom: 4px;
+  border-radius: 999px;
+  padding: 2px 8px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #dbe8ff;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.admin-notify-body strong,
+.admin-notify-body span {
+  display: block;
+}
+
+.admin-notify-body strong {
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+.admin-notify-meta,
+#adminNotifyMeta {
+  color: rgba(230, 238, 255, 0.78);
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.admin-notify-close {
+  width: 42px;
+  min-height: 42px;
+  margin: 8px 0 8px 8px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.1);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.admin-notify-highlight {
+  animation: adminNotifyPulse 1.8s ease;
+}
+
+@keyframes adminNotifyPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 213, 111, 0.42);
+    border-color: rgba(255, 213, 111, 0.7);
+  }
+  45% {
+    box-shadow: 0 0 0 8px rgba(255, 213, 111, 0.12);
+  }
+  100% {
+    box-shadow: none;
+  }
+}
+
 .game-hero {
   display: grid;
   gap: 8px;

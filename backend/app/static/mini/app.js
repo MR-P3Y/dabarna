@@ -30,6 +30,8 @@ const state = {
   globalRefreshTimer: null,
   historyModalCtx: null,
   toastTimer: null,
+  adminNotifyTimer: null,
+  adminNotifyCurrent: null,
   audioCtx: null,
   soundEnabled: false,
   receiptPreviewUrl: null,
@@ -54,6 +56,12 @@ const state = {
       lastQuery: "",
       reportMode: "none",
       profile: null,
+    },
+    notify: {
+      ready: false,
+      lastDepositId: 0,
+      lastWithdrawId: 0,
+      checking: false,
     },
     create: {
       groupId: null,
@@ -173,6 +181,8 @@ const EVENT_KIND_LABELS = {
 const ACTIVE_GAME_STATUSES = new Set(["LOBBY", "RUNNING"]);
 const CARDS_REFRESH_INTERVAL_MS = 2200;
 const GLOBAL_REFRESH_INTERVAL_MS = 12000;
+const ADMIN_NOTIFY_STORAGE_KEY = "davarna_admin_notify_seen_v1";
+const ADMIN_NOTIFY_HIDE_MS = 8500;
 const HISTORY_LIST_LIMIT = 15;
 const CARD_HISTORY_LIMIT = 10;
 const LIVE_EVENTS_LIMIT = 15;
@@ -468,6 +478,167 @@ function showToast(message, type = "success") {
       state.toastTimer = null;
     }, 220);
   }, 1700);
+}
+
+function loadAdminNotifySeen() {
+  try {
+    const raw = localStorage.getItem(ADMIN_NOTIFY_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    state.admin.notify.lastDepositId = Number(parsed?.deposit || 0);
+    state.admin.notify.lastWithdrawId = Number(parsed?.withdraw || 0);
+  } catch (_) {}
+}
+
+function saveAdminNotifySeen() {
+  try {
+    localStorage.setItem(
+      ADMIN_NOTIFY_STORAGE_KEY,
+      JSON.stringify({
+        deposit: Number(state.admin.notify.lastDepositId || 0),
+        withdraw: Number(state.admin.notify.lastWithdrawId || 0),
+      })
+    );
+  } catch (_) {}
+}
+
+function hideAdminNotify() {
+  const box = getEl("adminNotify");
+  if (!box) return;
+  if (state.adminNotifyTimer) {
+    clearTimeout(state.adminNotifyTimer);
+    state.adminNotifyTimer = null;
+  }
+  box.classList.add("is-dismissing");
+  box.classList.remove("show");
+  setTimeout(() => {
+    box.classList.add("hidden");
+    box.classList.remove("deposit", "withdraw", "is-dismissing");
+    box.style.transform = "";
+    state.adminNotifyCurrent = null;
+  }, 220);
+}
+
+function showAdminNotify(item) {
+  const box = getEl("adminNotify");
+  if (!box || !item) return;
+  const kind = String(item.kind || "");
+  const title = getEl("adminNotifyTitle");
+  const meta = getEl("adminNotifyMeta");
+  const label = getEl("adminNotifyKind");
+
+  state.adminNotifyCurrent = item;
+  box.classList.remove("hidden", "deposit", "withdraw", "is-dismissing");
+  box.classList.add(kind === "withdraw" ? "withdraw" : "deposit");
+  box.style.transform = "";
+
+  if (label) label.textContent = kind === "withdraw" ? "برداشت جدید" : "واریزی جدید";
+  if (title) title.textContent = item.title || "مورد جدید مدیریتی";
+  if (meta) meta.textContent = item.meta || "برای مشاهده جزئیات لمس کنید";
+
+  requestAnimationFrame(() => box.classList.add("show"));
+  triggerLightHaptic(kind === "withdraw" ? "warning" : "success");
+  playNotifySound(kind === "withdraw" ? "pending" : "success");
+
+  if (state.adminNotifyTimer) clearTimeout(state.adminNotifyTimer);
+  state.adminNotifyTimer = setTimeout(hideAdminNotify, ADMIN_NOTIFY_HIDE_MS);
+}
+
+async function openAdminNotifyTarget(item) {
+  if (!item) return;
+  hideAdminNotify();
+  switchToView("admin");
+  const kind = String(item.kind || "");
+  const id = Number(item.id || 0);
+  if (kind === "withdraw") {
+    await refreshAdminWithdraws();
+    openAdminAccordionFor("adminWithdrawsList", id);
+  } else {
+    await refreshAdminDeposits();
+    openAdminAccordionFor("adminDepositsList", id);
+  }
+}
+
+function openAdminAccordionFor(listId, itemId) {
+  const list = getEl(listId);
+  if (!list) return;
+  const details = list.closest("details");
+  if (details) details.open = true;
+  const attr = listId === "adminWithdrawsList" ? "data-admin-withdraw-id" : "data-admin-deposit-id";
+  const item = itemId ? list.querySelector(`[${attr}="${Number(itemId)}"]`) : null;
+  const target = item || list;
+  target.scrollIntoView({ behavior: "smooth", block: "center" });
+  if (item) {
+    item.classList.add("admin-notify-highlight");
+    setTimeout(() => item.classList.remove("admin-notify-highlight"), 1800);
+  }
+}
+
+function wireAdminNotify() {
+  const box = getEl("adminNotify");
+  const body = getEl("adminNotifyBody");
+  const close = getEl("adminNotifyClose");
+  if (!box || !body) return;
+  body.addEventListener("click", () => {
+    openAdminNotifyTarget(state.adminNotifyCurrent).catch((e) => setBadge("error", e.message));
+  });
+  if (close) {
+    close.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      hideAdminNotify();
+    });
+  }
+
+  let startX = 0;
+  let startY = 0;
+  let dragging = false;
+  const start = (x, y) => {
+    startX = x;
+    startY = y;
+    dragging = true;
+  };
+  const move = (x, y) => {
+    if (!dragging || box.classList.contains("hidden")) return;
+    const dx = x - startX;
+    const dy = y - startY;
+    if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+    box.style.transform = `translate(${dx}px, ${Math.min(18, Math.max(-18, dy))}px)`;
+    if (Math.abs(dx) > 90 || Math.abs(dy) > 70) box.classList.add("is-dismissing");
+  };
+  const end = (x, y) => {
+    if (!dragging) return;
+    dragging = false;
+    const dx = x - startX;
+    const dy = y - startY;
+    if (Math.abs(dx) > 90 || Math.abs(dy) > 70) {
+      hideAdminNotify();
+      return;
+    }
+    box.classList.remove("is-dismissing");
+    box.style.transform = "";
+  };
+
+  box.addEventListener("touchstart", (ev) => {
+    const t = ev.touches && ev.touches[0];
+    if (t) start(t.clientX, t.clientY);
+  }, { passive: true });
+  box.addEventListener("touchmove", (ev) => {
+    const t = ev.touches && ev.touches[0];
+    if (t) move(t.clientX, t.clientY);
+  }, { passive: true });
+  box.addEventListener("touchend", (ev) => {
+    const t = ev.changedTouches && ev.changedTouches[0];
+    end(t ? t.clientX : startX, t ? t.clientY : startY);
+  }, { passive: true });
+  box.addEventListener("pointerdown", (ev) => {
+    if (ev.pointerType === "mouse" && ev.button !== 0) return;
+    start(ev.clientX, ev.clientY);
+  });
+  box.addEventListener("pointermove", (ev) => move(ev.clientX, ev.clientY));
+  box.addEventListener("pointerup", (ev) => end(ev.clientX, ev.clientY));
+  box.addEventListener("pointercancel", () => {
+    dragging = false;
+    box.style.transform = "";
+  });
 }
 
 function inferDisplayName() {
@@ -1616,6 +1787,9 @@ async function refreshAutoTick() {
   }
   if (state.admin.enabled && isAdminViewActive()) {
     tasks.push(refreshAdminPanel({ silent: true }));
+  }
+  if (state.admin.enabled) {
+    tasks.push(checkAdminFinanceNotifications({ silent: false }));
   }
   await Promise.allSettled(tasks);
   if (state.selectedGameId) {
@@ -2901,7 +3075,7 @@ function renderAdminDeposits(payload) {
 
   root.innerHTML = items
     .map((d) => `
-      <div class="history-item">
+      <div class="history-item" data-admin-deposit-id="${safeText(d.id)}">
         <strong>واریزی #${safeText(d.id)} | ${safeText(depositStatusLabel(d.status))}</strong>
         <div class="history-meta">
           کاربر: ${safeText(d.tg_username || d.tg_user_id || d.user_id)}<br />
@@ -3024,7 +3198,7 @@ function renderAdminWithdraws(payload) {
       }
 
       return `
-        <div class="history-item admin-withdraw-item">
+        <div class="history-item admin-withdraw-item" data-admin-withdraw-id="${safeText(id)}">
           <strong>برداشت #${safeText(id)} | ${safeText(withdrawStatusLabel(w.status))}</strong>
           <div class="history-meta">
             کاربر: ${userLabel}<br />
@@ -3083,6 +3257,73 @@ async function refreshAdminWithdraws() {
   if (!state.admin.enabled) return;
   const out = await apiFetch("/mini-api/admin/withdraws?status=PENDING,APPROVED&limit=40");
   renderAdminWithdraws(out);
+}
+
+function latestAdminItem(items) {
+  const arr = Array.isArray(items) ? items : [];
+  let best = null;
+  arr.forEach((it) => {
+    const id = Number(it?.id || 0);
+    if (!id) return;
+    if (!best || id > Number(best.id || 0)) best = it;
+  });
+  return best;
+}
+
+async function checkAdminFinanceNotifications(options = {}) {
+  if (!state.admin.enabled || state.admin.notify.checking) return;
+  state.admin.notify.checking = true;
+  const silent = Boolean(options.silent);
+  try {
+    const [depSettled, wdrSettled] = await Promise.allSettled([
+      apiFetch("/mini-api/admin/deposits?status=PENDING_REVIEW&limit=5"),
+      apiFetch("/mini-api/admin/withdraws?status=PENDING&limit=5"),
+    ]);
+
+    const depItems = depSettled.status === "fulfilled" && Array.isArray(depSettled.value?.items)
+      ? depSettled.value.items
+      : [];
+    const wdrItems = wdrSettled.status === "fulfilled" && Array.isArray(wdrSettled.value?.items)
+      ? wdrSettled.value.items
+      : [];
+
+    const latestDep = latestAdminItem(depItems);
+    const latestWdr = latestAdminItem(wdrItems);
+    const latestDepId = Number(latestDep?.id || 0);
+    const latestWdrId = Number(latestWdr?.id || 0);
+
+    const notices = [];
+    if (latestDepId > Number(state.admin.notify.lastDepositId || 0)) {
+      notices.push({
+        kind: "deposit",
+        id: latestDepId,
+        title: `واریزی #${latestDepId} | ${toman(latestDep?.amount || 0)}`,
+        meta: `کاربر: ${latestDep?.tg_username || latestDep?.tg_user_id || latestDep?.user_id || "-"} | لمس برای بررسی`,
+      });
+      state.admin.notify.lastDepositId = latestDepId;
+    }
+    if (latestWdrId > Number(state.admin.notify.lastWithdrawId || 0)) {
+      notices.push({
+        kind: "withdraw",
+        id: latestWdrId,
+        title: `برداشت #${latestWdrId} | ${toman(latestWdr?.amount || 0)}`,
+        meta: `نیاز به بررسی کیف پول | لمس برای مشاهده`,
+      });
+      state.admin.notify.lastWithdrawId = latestWdrId;
+    }
+
+    if (latestDepId || latestWdrId) {
+      saveAdminNotifySeen();
+    }
+    if (!silent && notices.length) {
+      showAdminNotify(notices[notices.length - 1]);
+    }
+  } catch (_) {
+    // Admin notifications are a UX layer; never break the mini-app.
+  } finally {
+    state.admin.notify.ready = true;
+    state.admin.notify.checking = false;
+  }
 }
 
 function parseAdminUsersSearchParams(raw) {
@@ -4302,6 +4543,7 @@ async function boot() {
   initSoundPreference();
   wireAdminCreateUi();
   wireAdminAccordion();
+  wireAdminNotify();
   wireCardsPullToRefresh();
   updateBuyActionState({ statusKey: "", myCardsCount: 0 });
   renderLiveLink({});
@@ -4380,8 +4622,12 @@ async function boot() {
   if (!authOk) return;
 
   setSplashStatus("در حال دریافت بازی‌ها و کیف پول...");
+  loadAdminNotifySeen();
   await refreshAdminBootstrap();
   await Promise.allSettled([refreshGames(), refreshCards({ silent: false }), refreshWallet()]);
+  if (state.admin.enabled) {
+    checkAdminFinanceNotifications({ silent: false }).catch(() => {});
+  }
   startGlobalRefresh();
 
   const current = document.querySelector(".nav-btn.active")?.getAttribute("data-view") || "games";
