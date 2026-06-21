@@ -2951,13 +2951,34 @@ function renderWithdrawWalletStatusLine(info, withdrawAmount = 0) {
   return `کیف پول: ${toman(balance)} | برداشت‌های دیگر در انتظار: ${toman(pendingOther)} | قابل تایید برای این برداشت: ${toman(available)} | مبلغ درخواست: ${toman(req)} | ${ok ? "مجاز برای تایید" : "نیازمند رد/بررسی"}`;
 }
 
+
+function renderWithdrawWalletStatusHtml(info) {
+  if (!info) {
+    return '<div class="withdraw-wallet-grid muted">برای دیدن موجودی، دکمه بروزرسانی کیف پول را بزنید.</div>';
+  }
+  const balance = Number(info.wallet_balance || 0);
+  const pendingOther = Number(info.pending_other || 0);
+  const available = Number(info.available_for_this || 0);
+  const req = Number(info.request_amount || 0);
+  const ok = Boolean(info.can_approve);
+  return `
+    <div class="withdraw-wallet-grid ${ok ? "ok" : "bad"}">
+      <div><span>موجودی کیف پول</span><b>${safeText(toman(balance))}</b></div>
+      <div><span>مبلغ این برداشت</span><b>${safeText(toman(req))}</b></div>
+      <div><span>برداشت‌های دیگر در انتظار</span><b>${safeText(toman(pendingOther))}</b></div>
+      <div><span>قابل تایید برای این برداشت</span><b>${safeText(toman(available))}</b></div>
+      <div class="wide"><span>نتیجه</span><b>${ok ? "موجودی کافی است؛ تایید مجاز است" : "موجودی کافی نیست؛ رد یا بررسی کن"}</b></div>
+    </div>
+  `;
+}
+
 function setWithdrawWalletStatus(withdrawId, info) {
   const id = Number(withdrawId || 0);
   if (!id) return;
   state.admin.adminWithdrawWalletStatus?.set(id, info);
   const el = getEl(`adminWdrWalletStatus${id}`);
   if (el) {
-    el.textContent = renderWithdrawWalletStatusLine(info);
+    el.innerHTML = renderWithdrawWalletStatusHtml(info);
     el.classList.toggle("ok", Boolean(info?.can_approve));
     el.classList.toggle("bad", !info?.can_approve);
   }
@@ -3827,13 +3848,58 @@ async function adminRejectWithdraw(withdrawId) {
   await refreshAdminWithdraws();
 }
 
-async function adminPaidWithdraw(withdrawId) {
-  const tracking = `mini_paid_${Date.now()}`;
-  await apiFetch(`/mini-api/admin/withdraws/${Number(withdrawId)}/paid`, {
-    method: "POST",
-    body: { paid_tracking: tracking },
+
+function pickWithdrawProofImage() {
+  return new Promise((resolve) => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+    input.style.position = "fixed";
+    input.style.left = "-9999px";
+    input.addEventListener("change", () => {
+      const file = input.files && input.files[0] ? input.files[0] : null;
+      try { input.remove(); } catch (_) {}
+      resolve(file);
+    }, { once: true });
+    document.body.appendChild(input);
+    input.click();
   });
-  setBadge("success", `برداشت #${withdrawId} پرداخت‌شده ثبت شد`);
+}
+
+async function adminSaveWithdrawProof(withdrawId, proofText, file) {
+  const body = { proof_text: String(proofText || "").trim() };
+  if (file) {
+    body.filename = String(file.name || "withdraw-proof.jpg");
+    body.content_type = String(file.type || "image/jpeg");
+    body.data_base64 = await readFileAsDataUrl(file);
+  }
+  return apiFetch(`/mini-api/admin/withdraws/${Number(withdrawId)}/proof`, {
+    method: "POST",
+    body,
+  });
+}
+
+async function adminPaidWithdraw(withdrawId) {
+  const id = Number(withdrawId || 0);
+  if (!id) throw new Error("شناسه برداشت نامعتبر است.");
+
+  const proofText = String(window.prompt("متن فیش/کد پیگیری برداشت را وارد کنید:", "") || "").trim();
+  const wantsImage = window.confirm("آیا می‌خواهید عکس فیش پرداخت برداشت را هم انتخاب کنید؟");
+  const file = wantsImage ? await pickWithdrawProofImage() : null;
+
+  if (!proofText && !file) {
+    throw new Error("برای ثبت پرداخت، متن فیش/کد پیگیری یا تصویر فیش الزامی است.");
+  }
+
+  setBadge("loading", "در حال ثبت فیش برداشت...");
+  await adminSaveWithdrawProof(id, proofText, file);
+
+  const tracking = proofText || `mini_paid_${Date.now()}`;
+  await apiFetch(`/mini-api/admin/withdraws/${id}/paid`, {
+    method: "POST",
+    body: { paid_tracking: tracking.slice(0, 128) },
+  });
+  setBadge("success", `برداشت #${id} پرداخت‌شده ثبت شد`);
   await refreshAdminWithdraws();
 }
 

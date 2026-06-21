@@ -3365,3 +3365,49 @@ html[data-theme="light"] .live-main-pro .last-number-pop {
   background: rgba(255, 213, 111, 0.08);
   color: #ffe082;
 }
+
+/* WITHDRAW-1B wallet display and paid proof */
+.withdraw-wallet-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.withdraw-wallet-grid > div {
+  padding: 8px 9px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.withdraw-wallet-grid > div.wide {
+  grid-column: 1 / -1;
+}
+
+.withdraw-wallet-grid span {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  margin-bottom: 4px;
+}
+
+.withdraw-wallet-grid b {
+  display: block;
+  color: #f8fbff;
+  font-size: 13px;
+}
+
+.withdraw-wallet-grid.ok > div {
+  border-color: rgba(45, 212, 191, 0.24);
+  background: rgba(45, 212, 191, 0.07);
+}
+
+.withdraw-wallet-grid.bad > div {
+  border-color: rgba(248, 113, 113, 0.24);
+  background: rgba(248, 113, 113, 0.07);
+}
+
+.withdraw-wallet-grid.muted {
+  display: block;
+  color: var(--muted);
+}

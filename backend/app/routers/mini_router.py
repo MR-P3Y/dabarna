@@ -96,6 +96,7 @@ log = logging.getLogger("mini.router")
 DEPOSIT_DESTINATIONS_SETTING_KEY = "deposit_destinations"
 DEPOSIT_REQUEST_DESTINATION_KEY_PREFIX = "deposit_request_destination:"
 WITHDRAW_REQUEST_SOURCE_KEY_PREFIX = "withdraw_request_source:"
+WITHDRAW_PAID_PROOF_KEY_PREFIX = "withdraw_paid_proof:"
 GAME_LIVE_LINK_KEY_PREFIX = "game_live_link:"
 
 
@@ -245,6 +246,10 @@ def _request_destination_setting_key(request_id: int) -> str:
 
 def _withdraw_source_setting_key(request_id: int) -> str:
     return f"{WITHDRAW_REQUEST_SOURCE_KEY_PREFIX}{int(request_id)}"
+
+
+def _withdraw_paid_proof_setting_key(request_id: int) -> str:
+    return f"{WITHDRAW_PAID_PROOF_KEY_PREFIX}{int(request_id)}"
 
 
 def _game_live_link_setting_key(game_id: int) -> str:
@@ -458,6 +463,13 @@ class MiniAdminWithdrawApproveIn(BaseModel):
 
 class MiniAdminWithdrawPaidIn(BaseModel):
     paid_tracking: str = Field(min_length=2, max_length=128)
+
+
+class MiniAdminWithdrawProofIn(BaseModel):
+    proof_text: str | None = Field(default=None, max_length=1000)
+    filename: str | None = Field(default=None, max_length=255)
+    content_type: str | None = Field(default=None, max_length=100)
+    data_base64: str | None = None
 
 
 class MiniAdminWithdrawRejectIn(BaseModel):
@@ -2465,6 +2477,138 @@ def mini_admin_approve_withdraw(
     )
     db.commit()
     return {"ok": True, "withdraw_id": int(wr.id), "status": str(wr.status), "wallet_tx_id": int(tx.id)}
+
+
+@router.post("/admin/withdraws/{withdraw_id}/proof")
+def mini_admin_save_withdraw_proof(
+    withdraw_id: int,
+    payload: MiniAdminWithdrawProofIn,
+    ident: MiniAdminIdentity = Depends(get_mini_admin_identity),
+    db: Session = Depends(get_db),
+):
+    enforce_write_rate_limit(int(ident.user_id))
+    wr = db.execute(
+        select(WithdrawRequest).where(WithdrawRequest.id == int(withdraw_id))
+    ).scalar_one_or_none()
+    if not wr:
+        raise HTTPException(status_code=404, detail="withdraw_request not found")
+    if str(wr.status) not in {"APPROVED", "PAID"}:
+        raise HTTPException(status_code=400, detail="withdraw_request not approved")
+
+    proof_text = str(payload.proof_text or "").strip()
+    filename = str(payload.filename or "").strip()
+    content_type = str(payload.content_type or "").strip().lower()
+    raw_b64 = str(payload.data_base64 or "").strip()
+
+    if not proof_text and not raw_b64:
+        raise HTTPException(status_code=400, detail="withdraw proof is required")
+
+    image_path: str | None = None
+    image_filename: str | None = None
+    image_content_type: str | None = None
+
+    if raw_b64:
+        if "," in raw_b64:
+            raw_b64 = raw_b64.split(",", 1)[1]
+        if not content_type.startswith("image/"):
+            raise HTTPException(status_code=400, detail="withdraw proof image type is invalid")
+
+        original_name = filename or "withdraw-proof.jpg"
+        ext = os.path.splitext(original_name)[1].lower()
+        if ext not in {".jpg", ".jpeg", ".png", ".webp"}:
+            if content_type == "image/png":
+                ext = ".png"
+            elif content_type == "image/webp":
+                ext = ".webp"
+            else:
+                ext = ".jpg"
+
+        try:
+            blob = base64.b64decode(raw_b64, validate=True)
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail="withdraw proof image is invalid") from exc
+        if not blob:
+            raise HTTPException(status_code=400, detail="withdraw proof image is empty")
+        if len(blob) > 6 * 1024 * 1024:
+            raise HTTPException(status_code=400, detail="withdraw proof image is too large")
+
+        proof_dir = Path(RECEIPTS_DIR)
+        proof_dir.mkdir(parents=True, exist_ok=True)
+        dest = proof_dir / f"withdraw_paid_{int(withdraw_id)}_{uuid4().hex}{ext}"
+        with dest.open("wb") as out:
+            out.write(blob)
+
+        image_path = str(dest.resolve())
+        image_filename = original_name
+        image_content_type = content_type
+
+    existing = _setting_get_json(db, _withdraw_paid_proof_setting_key(int(withdraw_id)))
+    if not isinstance(existing, dict):
+        existing = {}
+
+    proof = {
+        "proof_text": proof_text,
+        "image_path": image_path or existing.get("image_path"),
+        "image_filename": image_filename or existing.get("image_filename"),
+        "image_content_type": image_content_type or existing.get("image_content_type"),
+        "updated_at": datetime.utcnow().isoformat(),
+        "updated_by": int(ident.user_id),
+    }
+    _setting_set_json(db, _withdraw_paid_proof_setting_key(int(withdraw_id)), proof)
+    db.commit()
+
+    return {
+        "ok": True,
+        "withdraw_id": int(withdraw_id),
+        "proof_text": str(proof.get("proof_text") or ""),
+        "image_uploaded": bool(proof.get("image_path")),
+        "image_url": f"/mini-api/admin/withdraws/{int(withdraw_id)}/proof/file" if proof.get("image_path") else None,
+    }
+
+
+@router.get("/admin/withdraws/{withdraw_id}/proof")
+def mini_admin_get_withdraw_proof(
+    withdraw_id: int,
+    ident: MiniAdminIdentity = Depends(get_mini_admin_identity),
+    db: Session = Depends(get_db),
+):
+    _ = ident
+    wr = db.execute(
+        select(WithdrawRequest).where(WithdrawRequest.id == int(withdraw_id))
+    ).scalar_one_or_none()
+    if not wr:
+        raise HTTPException(status_code=404, detail="withdraw_request not found")
+
+    proof = _setting_get_json(db, _withdraw_paid_proof_setting_key(int(withdraw_id)))
+    if not isinstance(proof, dict):
+        proof = {}
+
+    return {
+        "ok": True,
+        "withdraw_id": int(withdraw_id),
+        "status": str(wr.status),
+        "paid_tracking": str(wr.paid_tracking or ""),
+        "proof_text": str(proof.get("proof_text") or ""),
+        "image_uploaded": bool(proof.get("image_path")),
+        "image_url": f"/mini-api/admin/withdraws/{int(withdraw_id)}/proof/file" if proof.get("image_path") else None,
+        "updated_at": proof.get("updated_at"),
+    }
+
+
+@router.get("/admin/withdraws/{withdraw_id}/proof/file")
+def mini_admin_get_withdraw_proof_file(
+    withdraw_id: int,
+    ident: MiniAdminIdentity = Depends(get_mini_admin_identity),
+    db: Session = Depends(get_db),
+):
+    _ = ident
+    proof = _setting_get_json(db, _withdraw_paid_proof_setting_key(int(withdraw_id)))
+    if not isinstance(proof, dict):
+        raise HTTPException(status_code=404, detail="withdraw proof not found")
+    p = Path(str(proof.get("image_path") or "")).expanduser()
+    if not p.exists() or not p.is_file():
+        raise HTTPException(status_code=404, detail="withdraw proof file not found")
+    return FileResponse(str(p.resolve()))
 
 
 @router.post("/admin/withdraws/{withdraw_id}/paid")
