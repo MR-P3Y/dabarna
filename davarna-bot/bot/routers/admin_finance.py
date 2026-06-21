@@ -419,6 +419,34 @@ def _quick_reject_reason(kind: str, code: str) -> str | None:
     return None
 
 
+async def _withdraw_wallet_status_note(api: ApiClient, wr: dict) -> str:
+    tg_user_id = _to_int(wr.get("tg_user_id"), 0)
+    if tg_user_id <= 0:
+        return "👛 موجودی فعلی کیف پول: <b>نامشخص</b>\n"
+
+    tg_username_raw = wr.get("tg_username")
+    tg_username = str(tg_username_raw).strip() if tg_username_raw is not None else None
+    if tg_username == "":
+        tg_username = None
+
+    try:
+        wallet = await api.bot_get_wallet(tg_user_id, tg_username)
+    except Exception:
+        return "👛 موجودی فعلی کیف پول: <b>خطا در دریافت</b>\n"
+
+    balance_raw = (
+        wallet.get("balance")
+        if isinstance(wallet, dict)
+        else None
+    )
+    if balance_raw is None and isinstance(wallet, dict):
+        balance_raw = wallet.get("wallet_balance")
+    if balance_raw is None and isinstance(wallet, dict):
+        balance_raw = wallet.get("amount")
+
+    return f"👛 موجودی فعلی کیف پول: <b>{_fmt_toman(balance_raw)}</b>\n"
+
+
 def _withdraw_detail_panel_text(
     *,
     withdraw_id: int,
@@ -1645,12 +1673,14 @@ async def admin_withdraw_view(cq: CallbackQuery, api: ApiClient, is_admin: bool 
             tg_username=wr.get("tg_username"),
             full_name=wr.get("full_name"),
         )
+        wallet_note = await _withdraw_wallet_status_note(api, wr)
         text = panel(
             f"برداشت {_withdraw_status_fa(status)}",
             f"🧾 شماره: <b>{withdraw_id}</b>\n"
             f"وضعیت: <b>{_withdraw_status_fa(status)}</b>\n"
             f"👤 کاربر: <b>{h(display_name)}</b>\n"
             f"🧾 شناسه داخلی: <code>{wr.get('user_id')}</code>\n"
+            f"{wallet_note}"
             f"💵 مبلغ: <b>{_fmt_toman(wr.get('amount'))}</b>\n"
             f"🙍 نام: <b>{h(str(wr.get('full_name') or '—'))}</b>\n"
             f"💳 کارت: <code>{h(str(wr.get('card_number') or '—'))}</code>\n"
@@ -1662,7 +1692,7 @@ async def admin_withdraw_view(cq: CallbackQuery, api: ApiClient, is_admin: bool 
         await safe_edit_or_send(
             cq.message,
             text,
-            reply_markup=withdraw_item_kb(withdraw_id=withdraw_id, status=status, back_offset=back_offset),
+            reply_markup=withdraw_item_kb(withdraw_id=withdraw_id, status=status, back_offset=back_offset, tg_user_id=_to_int(wr.get("tg_user_id"), 0)),
             parse_mode="HTML",
         )
     except ApiError as e:

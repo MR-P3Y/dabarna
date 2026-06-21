@@ -91,10 +91,16 @@ def admin_withdraws_list_kb(items: list[dict], *, status: str, offset: int, has_
     return kb.as_markup()
 
 
-def withdraw_item_kb(*, withdraw_id: int, status: str, back_offset: int = 0):
+def withdraw_item_kb(*, withdraw_id: int, status: str, back_offset: int = 0, tg_user_id: int | None = None):
     kb = InlineKeyboardBuilder()
     st = (status or "PENDING").upper()
     if st == "PENDING":
+        try:
+            live_tg_user_id = int(tg_user_id or 0)
+        except Exception:
+            live_tg_user_id = 0
+        if live_tg_user_id > 0:
+            kb.button(text="🔄 بروزرسانی موجودی", callback_data=f"admin:withdraw:live:{withdraw_id}:{live_tg_user_id}")
         kb.button(text="✅ تایید برداشت", callback_data=f"admin:withdraw:approve:{withdraw_id}:{st}:{back_offset}")
         kb.button(text="❌ رد برداشت", callback_data=f"admin:withdraw:reject:{withdraw_id}:{st}:{back_offset}")
     elif st == "APPROVED":
