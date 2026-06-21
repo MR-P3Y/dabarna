@@ -2611,6 +2611,186 @@ def mini_admin_get_withdraw_proof_file(
     return FileResponse(str(p.resolve()))
 
 
+
+
+def _mini_multipart_field(name: str, value: str, boundary: str) -> bytes:
+    return (
+        f"--{boundary}\r\n"
+        f'Content-Disposition: form-data; name="{name}"\r\n\r\n'
+        f"{value}\r\n"
+    ).encode("utf-8")
+
+
+def _mini_multipart_file(
+    *,
+    field_name: str,
+    filename: str,
+    content_type: str,
+    data: bytes,
+    boundary: str,
+) -> bytes:
+    head = (
+        f"--{boundary}\r\n"
+        f'Content-Disposition: form-data; name="{field_name}"; filename="{filename}"\r\n'
+        f"Content-Type: {content_type}\r\n\r\n"
+    ).encode("utf-8")
+    return head + data + b"\r\n"
+
+
+def _mini_image_content_type(path: Path) -> str:
+    ext = path.suffix.lower()
+    if ext == ".png":
+        return "image/png"
+    if ext == ".webp":
+        return "image/webp"
+    return "image/jpeg"
+
+
+def _mini_send_photo_message(
+    *,
+    chat_id: int,
+    photo_path: str,
+    caption: str,
+    parse_mode: str = "HTML",
+) -> bool:
+    bot_token = str(os.getenv("TELEGRAM_BOT_TOKEN") or "").strip()
+    if not bot_token or int(chat_id or 0) <= 0:
+        return False
+
+    p = Path(str(photo_path or "")).expanduser()
+    if not p.exists() or not p.is_file():
+        return False
+
+    try:
+        data = p.read_bytes()
+    except Exception:
+        return False
+    if not data:
+        return False
+
+    boundary = f"----davarna{uuid4().hex}"
+    filename = p.name or "withdraw-proof.jpg"
+    parts: list[bytes] = [
+        _mini_multipart_field("chat_id", str(int(chat_id)), boundary),
+        _mini_multipart_field("caption", str(caption), boundary),
+        _mini_multipart_field("parse_mode", str(parse_mode), boundary),
+        _mini_multipart_field("disable_notification", "false", boundary),
+        _mini_multipart_file(
+            field_name="photo",
+            filename=filename,
+            content_type=_mini_image_content_type(p),
+            data=data,
+            boundary=boundary,
+        ),
+        f"--{boundary}--\r\n".encode("utf-8"),
+    ]
+
+    req = urllib_request.Request(
+        url=f"https://api.telegram.org/bot{bot_token}/sendPhoto",
+        data=b"".join(parts),
+        headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
+        method="POST",
+    )
+    try:
+        with urllib_request.urlopen(req, timeout=20) as resp:
+            body_raw = resp.read().decode("utf-8", errors="replace")
+        body = json.loads(body_raw)
+        return bool(body.get("ok", False))
+    except (urllib_error.HTTPError, urllib_error.URLError, TimeoutError, json.JSONDecodeError):
+        return False
+    except Exception:
+        return False
+
+
+def _mini_send_plain_user_message(*, chat_id: int, text: str) -> bool:
+    # Reuse existing backend Telegram sender if available.
+    try:
+        return bool(_mini_send_topic_message(chat_id=int(chat_id), topic_id=None, text=str(text)))
+    except TypeError:
+        try:
+            return bool(_mini_send_topic_message(chat_id=int(chat_id), text=str(text)))
+        except Exception:
+            return False
+    except Exception:
+        return False
+
+
+def _mini_withdraw_paid_user_message(
+    *,
+    withdraw_id: int,
+    amount: int,
+    paid_tracking: str,
+    proof_text: str,
+    has_image: bool,
+) -> str:
+    tracking_text = html_escape(str(paid_tracking or "").strip() or "-")
+    proof_text_clean = html_escape(str(proof_text or "").strip())
+    proof_line = f"\n🧾 متن رسید: <b>{proof_text_clean}</b>" if proof_text_clean else ""
+    image_line = "\n🖼 تصویر فیش پرداخت پیوست شد." if has_image else ""
+    return (
+        "🟦 <b>دورنای پیمون | برداشت پرداخت شد</b>\n\n"
+        f"🧾 شماره برداشت: <b>{int(withdraw_id)}</b>\n"
+        f"💵 مبلغ: <b>{int(amount):,}</b> تومان\n"
+        f"🔖 پیگیری پرداخت: <code>{tracking_text}</code>"
+        f"{proof_line}"
+        f"{image_line}\n\n"
+        "✅ پرداخت برداشت شما توسط ادمین ثبت شد."
+    )
+
+
+def _mini_notify_withdraw_paid_to_user(
+    db: Session,
+    *,
+    wr: WithdrawRequest,
+    paid_tracking: str,
+) -> dict[str, Any]:
+    user = db.execute(select(User).where(User.id == int(wr.user_id))).scalar_one_or_none()
+    tg_user_id = int(getattr(user, "tg_user_id", 0) or 0) if user is not None else 0
+    if tg_user_id <= 0:
+        return {"sent": False, "reason": "user_has_no_tg_user_id"}
+
+    proof = _setting_get_json(db, _withdraw_paid_proof_setting_key(int(wr.id)))
+    if not isinstance(proof, dict):
+        proof = {}
+
+    proof_text = str(proof.get("proof_text") or "").strip()
+    image_path = str(proof.get("image_path") or "").strip()
+    has_image = bool(image_path)
+    text = _mini_withdraw_paid_user_message(
+        withdraw_id=int(wr.id),
+        amount=int(wr.amount),
+        paid_tracking=str(paid_tracking or wr.paid_tracking or ""),
+        proof_text=proof_text,
+        has_image=has_image,
+    )
+
+    sent = False
+    sent_kind = "text"
+
+    if has_image:
+        sent = _mini_send_photo_message(
+            chat_id=int(tg_user_id),
+            photo_path=image_path,
+            caption=text,
+        )
+        sent_kind = "photo"
+        if not sent:
+            fallback_text = text + "\n\n⚠️ تصویر فیش در سیستم ثبت شد، اما ارسال تصویر به تلگرام ناموفق بود."
+            sent = _mini_send_plain_user_message(chat_id=int(tg_user_id), text=fallback_text)
+            sent_kind = "text_fallback"
+
+    if not has_image:
+        sent = _mini_send_plain_user_message(chat_id=int(tg_user_id), text=text)
+        sent_kind = "text"
+
+    return {
+        "sent": bool(sent),
+        "kind": sent_kind,
+        "tg_user_id": int(tg_user_id),
+        "has_image": bool(has_image),
+    }
+
+
 @router.post("/admin/withdraws/{withdraw_id}/paid")
 def mini_admin_paid_withdraw(
     withdraw_id: int,
@@ -2624,9 +2804,22 @@ def mini_admin_paid_withdraw(
         admin_user_id=int(ident.user_id),
         paid_tracking=str(payload.paid_tracking),
     )
-    db.commit()
-    return {"ok": True, "withdraw_id": int(wr.id), "status": str(wr.status), "paid_tracking": str(wr.paid_tracking or "")}
+    db.flush()
 
+    notify_result = _mini_notify_withdraw_paid_to_user(
+        db,
+        wr=wr,
+        paid_tracking=str(payload.paid_tracking),
+    )
+
+    db.commit()
+    return {
+        "ok": True,
+        "withdraw_id": int(wr.id),
+        "status": str(wr.status),
+        "paid_tracking": str(wr.paid_tracking or ""),
+        "user_notify": notify_result,
+    }
 
 @router.post("/admin/withdraws/{withdraw_id}/reject")
 def mini_admin_reject_withdraw(
