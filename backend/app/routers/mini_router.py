@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import base64
 import hashlib
 import logging
+import time
 from html import escape as html_escape
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -14,7 +16,7 @@ from urllib import error as urllib_error
 from urllib import request as urllib_request
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, func, select
@@ -41,12 +43,14 @@ from app.core.config import (
     USER_TOPIC_GAME_LOW_ID,
     USER_TOPIC_GAME_MEDIUM_ID,
 )
-from app.core.db import get_db
+from app.core.db import SessionLocal, get_db
 from app.core.mini_security import (
     enforce_events_rate_limit,
     enforce_write_rate_limit,
     exchange_init_data_for_session,
     get_mini_user_id,
+    issue_session_token,
+    verify_session_token,
 )
 from app.models.finance import DepositRequest, WithdrawRequest
 from app.models.game import Game, GameCard
@@ -1142,6 +1146,18 @@ def exchange_auth(
     return MiniAuthExchangeOut(**result)
 
 
+@router.post("/auth/refresh", response_model=MiniAuthExchangeOut)
+def refresh_auth(user_id: int = Depends(get_mini_user_id)):
+    token, exp = issue_session_token(int(user_id))
+    return MiniAuthExchangeOut(
+        access_token=token,
+        token_type="Bearer",
+        expires_at=int(exp),
+        expires_in=max(0, int(exp - int(time.time()))),
+        user_id=int(user_id),
+    )
+
+
 @router.get("/games", response_model=MiniGameListOut)
 def list_games(
     status: str | None = Query(default="LOBBY|RUNNING"),
@@ -1627,6 +1643,184 @@ def list_game_events(
         )
         for r in rows
     ]
+
+
+def _mini_ws_game_snapshot_dict(*, user_id: int, game_id: int, events_limit: int = 20) -> dict[str, Any]:
+    with SessionLocal() as db:
+        out = game_snapshot(
+            game_id=int(game_id),
+            events_limit=int(events_limit),
+            user_id=int(user_id),
+            db=db,
+        )
+        return out.model_dump(mode="json")
+
+
+def _mini_ws_admin_finance_state_dict(*, user_id: int) -> dict[str, Any]:
+    with SessionLocal() as db:
+        ident = _mini_admin_identity_for_user(db, int(user_id))
+        if not ident.is_admin:
+            raise HTTPException(status_code=403, detail="دسترسی مدیریت لازم است.")
+
+        pending_deposit_count = db.execute(
+            select(func.count(DepositRequest.id)).where(DepositRequest.status == "PENDING_REVIEW")
+        ).scalar_one()
+        latest_pending_deposit_id = db.execute(
+            select(func.coalesce(func.max(DepositRequest.id), 0)).where(DepositRequest.status == "PENDING_REVIEW")
+        ).scalar_one()
+        pending_withdraw_count = db.execute(
+            select(func.count(WithdrawRequest.id)).where(WithdrawRequest.status == "PENDING")
+        ).scalar_one()
+        latest_pending_withdraw_id = db.execute(
+            select(func.coalesce(func.max(WithdrawRequest.id), 0)).where(WithdrawRequest.status == "PENDING")
+        ).scalar_one()
+        approved_withdraw_count = db.execute(
+            select(func.count(WithdrawRequest.id)).where(WithdrawRequest.status == "APPROVED")
+        ).scalar_one()
+
+    return {
+        "pending_deposit_count": int(pending_deposit_count or 0),
+        "latest_pending_deposit_id": int(latest_pending_deposit_id or 0),
+        "pending_withdraw_count": int(pending_withdraw_count or 0),
+        "latest_pending_withdraw_id": int(latest_pending_withdraw_id or 0),
+        "approved_withdraw_count": int(approved_withdraw_count or 0),
+        "server_time": datetime.now().isoformat(timespec="seconds"),
+    }
+
+
+def _mini_ws_live_key(snapshot: dict[str, Any]) -> str:
+    game = snapshot.get("game") if isinstance(snapshot.get("game"), dict) else {}
+    st = snapshot.get("state") if isinstance(snapshot.get("state"), dict) else {}
+    return ":".join(
+        [
+            str(snapshot.get("last_event_id") or 0),
+            str(game.get("status") or ""),
+            str(game.get("sold_amount") or 0),
+            str(st.get("called_count") or 0),
+            str(st.get("sold_cards_count") or 0),
+            str(st.get("my_cards_count") or 0),
+        ]
+    )
+
+
+@router.websocket("/ws")
+async def mini_ws(websocket: WebSocket):
+    await websocket.accept()
+    user_id: int | None = None
+
+    try:
+        raw = await asyncio.wait_for(websocket.receive_text(), timeout=6.0)
+        first = json.loads(raw)
+        if not isinstance(first, dict) or first.get("type") != "auth":
+            await websocket.send_json({"type": "error", "detail": "پیام احراز هویت WebSocket نامعتبر است."})
+            await websocket.close(code=1008)
+            return
+        user_id = verify_session_token(str(first.get("token") or ""))
+    except WebSocketDisconnect:
+        return
+    except Exception as exc:
+        await websocket.send_json({"type": "error", "detail": str(getattr(exc, "detail", None) or "احراز هویت WebSocket انجام نشد.")})
+        await websocket.close(code=1008)
+        return
+
+    await websocket.send_json(
+        {
+            "type": "connected",
+            "user_id": int(user_id),
+            "server_time": datetime.now().isoformat(timespec="seconds"),
+        }
+    )
+
+    subscribed_game_id = 0
+    subscribed_admin = False
+    last_live_key = ""
+    last_finance_key = ""
+    last_finance_check = 0.0
+    last_heartbeat = 0.0
+
+    while True:
+        now = asyncio.get_running_loop().time()
+        try:
+            raw = await asyncio.wait_for(websocket.receive_text(), timeout=1.4)
+            try:
+                msg = json.loads(raw)
+            except Exception:
+                msg = {}
+            msg_type = str(msg.get("type") or "").strip()
+            if msg_type == "subscribe_live":
+                subscribed_game_id = max(0, int(msg.get("game_id") or 0))
+                last_live_key = ""
+            elif msg_type == "unsubscribe_live":
+                subscribed_game_id = 0
+                last_live_key = ""
+            elif msg_type == "subscribe_admin":
+                want_admin = bool(msg.get("enabled", True))
+                if want_admin:
+                    try:
+                        state = await asyncio.to_thread(_mini_ws_admin_finance_state_dict, user_id=int(user_id))
+                        subscribed_admin = True
+                        last_finance_key = json.dumps(state, sort_keys=True, separators=(",", ":"))
+                        last_finance_check = now
+                        await websocket.send_json({"type": "finance_status", "state": state})
+                    except Exception as exc:
+                        subscribed_admin = False
+                        await websocket.send_json({"type": "admin_denied", "detail": str(getattr(exc, "detail", None) or "دسترسی مدیریت تایید نشد.")})
+                else:
+                    subscribed_admin = False
+                    last_finance_key = ""
+            elif msg_type == "ping":
+                await websocket.send_json({"type": "pong", "server_time": datetime.now().isoformat(timespec="seconds")})
+        except asyncio.TimeoutError:
+            pass
+        except WebSocketDisconnect:
+            return
+        except Exception as exc:
+            log.warning("mini websocket receive failed: %s", exc)
+
+        if subscribed_game_id > 0:
+            try:
+                snapshot = await asyncio.to_thread(
+                    _mini_ws_game_snapshot_dict,
+                    user_id=int(user_id),
+                    game_id=int(subscribed_game_id),
+                    events_limit=20,
+                )
+                live_key = _mini_ws_live_key(snapshot)
+                if live_key != last_live_key:
+                    last_live_key = live_key
+                    await websocket.send_json(
+                        {
+                            "type": "live_snapshot",
+                            "game_id": int(subscribed_game_id),
+                            "snapshot": snapshot,
+                        }
+                    )
+            except HTTPException as exc:
+                await websocket.send_json({"type": "live_error", "game_id": int(subscribed_game_id), "detail": str(exc.detail)})
+                subscribed_game_id = 0
+            except Exception as exc:
+                log.warning("mini websocket live snapshot failed: %s", exc)
+
+        if subscribed_admin and (now - last_finance_check) >= 4.0:
+            last_finance_check = now
+            try:
+                state = await asyncio.to_thread(_mini_ws_admin_finance_state_dict, user_id=int(user_id))
+                finance_key = json.dumps(state, sort_keys=True, separators=(",", ":"))
+                if finance_key != last_finance_key:
+                    last_finance_key = finance_key
+                    await websocket.send_json({"type": "finance_status", "state": state})
+            except HTTPException as exc:
+                subscribed_admin = False
+                await websocket.send_json({"type": "admin_denied", "detail": str(exc.detail)})
+            except Exception as exc:
+                log.warning("mini websocket finance status failed: %s", exc)
+
+        if (now - last_heartbeat) >= 25.0:
+            last_heartbeat = now
+            try:
+                await websocket.send_json({"type": "heartbeat", "server_time": datetime.now().isoformat(timespec="seconds")})
+            except WebSocketDisconnect:
+                return
 
 
 @router.post("/games/{game_id}/buy", response_model=MiniBuyOut)

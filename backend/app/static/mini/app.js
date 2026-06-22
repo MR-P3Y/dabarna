@@ -8,6 +8,13 @@ const state = {
     adminWithdrawWalletStatus: new Map(),
   lastEventId: 0,
   pollTimer: null,
+  miniSocket: null,
+  miniSocketReconnectTimer: null,
+  miniSocketManualClose: false,
+  miniSocketConnected: false,
+  miniSocketLiveGameId: 0,
+  miniSocketFinanceKey: "",
+  tokenRefreshPromise: null,
   depositDestinations: [],
   cardsPollTimer: null,
   cardsPrevCalledByGame: {},
@@ -76,12 +83,15 @@ const state = {
 
 const MINI_SESSION_STORAGE_KEY = "davarna_mini_session_v1";
 const FETCH_RETRY_DELAY_MS = 350;
+const TOKEN_REFRESH_BEFORE_SEC = 180;
+const MINI_SOCKET_RECONNECT_MS = 2500;
 
 function _nowSec() {
   return Math.floor(Date.now() / 1000);
 }
 
 function clearMiniSession() {
+  stopMiniSocket();
   state.token = null;
   state.tokenExp = 0;
   state.authReady = false;
@@ -1102,6 +1112,11 @@ async function apiFetch(path, { method = "GET", body = null, headers = {} } = {}
   let requestPath = String(path || "");
   const initData = telegramInitData();
   const isExchange = requestPath.startsWith("/mini-api/auth/exchange");
+  const isAuthRefresh = requestPath.startsWith("/mini-api/auth/refresh");
+
+  if (state.token && !isExchange && !isAuthRefresh) {
+    await refreshMiniSessionIfNeeded();
+  }
 
   if (!state.token && !isExchange) {
     throw new Error("نشست کاربری فعال نیست. مینی‌اپ را از منوی رسمی ربات باز کنید.");
@@ -1196,6 +1211,60 @@ async function apiBlobFetch(path, { headers = {} } = {}) {
   const contentType = String(resp.headers.get("content-type") || blob.type || "application/octet-stream");
   const filename = filenameFromContentDisposition(resp.headers.get("content-disposition"), "deposit-receipt");
   return { blob, contentType, filename };
+}
+
+async function refreshMiniSession(force = false) {
+  if (!state.token) {
+    throw new Error("نشست کاربری فعال نیست. مینی‌اپ را از منوی رسمی ربات باز کنید.");
+  }
+  if (!force && Number(state.tokenExp || 0) > _nowSec() + TOKEN_REFRESH_BEFORE_SEC) {
+    return false;
+  }
+  if (state.tokenRefreshPromise) return await state.tokenRefreshPromise;
+
+  state.tokenRefreshPromise = (async () => {
+    const resp = await fetchWithRetry("/mini-api/auth/refresh", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${state.token}`,
+      },
+      cache: "no-store",
+    }, 1);
+
+    if (!resp.ok) {
+      if (resp.status === 401) clearMiniSession();
+      let detail = `HTTP ${resp.status}`;
+      try {
+        const data = await resp.json();
+        if (data?.detail) detail = String(data.detail);
+      } catch (_) {}
+      throw new Error(localizeApiError(detail));
+    }
+
+    const res = await resp.json();
+    const oldToken = String(state.token || "");
+    state.token = String(res.access_token || "");
+    state.tokenExp = Number(res.expires_at || 0);
+    state.currentUserId = Number(res.user_id || state.currentUserId || 0);
+    state.authReady = Boolean(state.token);
+    persistMiniSession();
+    if (oldToken && oldToken !== state.token && state.miniSocketConnected) {
+      restartMiniSocket();
+    }
+    return true;
+  })();
+
+  try {
+    return await state.tokenRefreshPromise;
+  } finally {
+    state.tokenRefreshPromise = null;
+  }
+}
+
+async function refreshMiniSessionIfNeeded() {
+  if (!state.token || !state.tokenExp) return false;
+  if (Number(state.tokenExp || 0) > _nowSec() + TOKEN_REFRESH_BEFORE_SEC) return false;
+  return await refreshMiniSession(true);
 }
 
 async function runManualRefresh(buttonId, taskFn) {
@@ -1876,9 +1945,161 @@ function appendEvents(events) {
 }
 
 
+function miniSocketUrl() {
+  const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
+  return `${proto}//${window.location.host}/mini-api/ws`;
+}
+
+function isMiniSocketOpen() {
+  return Boolean(state.miniSocket && state.miniSocket.readyState === WebSocket.OPEN && state.miniSocketConnected);
+}
+
+function sendMiniSocket(payload) {
+  if (!isMiniSocketOpen()) return false;
+  try {
+    state.miniSocket.send(JSON.stringify(payload));
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+function subscribeLiveSocket(gameId) {
+  const gid = Number(gameId || state.selectedGameId || 0);
+  state.miniSocketLiveGameId = gid;
+  if (!gid) return;
+  if (sendMiniSocket({ type: "subscribe_live", game_id: gid })) {
+    stopEventPolling();
+  }
+}
+
+function subscribeAdminSocket() {
+  if (!state.admin.enabled) return;
+  sendMiniSocket({ type: "subscribe_admin", enabled: true });
+}
+
+function scheduleMiniSocketReconnect() {
+  if (state.miniSocketManualClose || !state.authReady || !state.token) return;
+  if (state.miniSocketReconnectTimer) clearTimeout(state.miniSocketReconnectTimer);
+  state.miniSocketReconnectTimer = setTimeout(() => {
+    state.miniSocketReconnectTimer = null;
+    startMiniSocket();
+  }, MINI_SOCKET_RECONNECT_MS);
+}
+
+function stopMiniSocket() {
+  state.miniSocketManualClose = true;
+  if (state.miniSocketReconnectTimer) clearTimeout(state.miniSocketReconnectTimer);
+  state.miniSocketReconnectTimer = null;
+  state.miniSocketConnected = false;
+  const ws = state.miniSocket;
+  state.miniSocket = null;
+  if (ws) {
+    try { ws.close(1000, "closed"); } catch (_) {}
+  }
+}
+
+function restartMiniSocket() {
+  stopMiniSocket();
+  state.miniSocketManualClose = false;
+  if (!state.authReady || !state.token) return;
+  state.miniSocketReconnectTimer = setTimeout(() => {
+    state.miniSocketReconnectTimer = null;
+    startMiniSocket();
+  }, 120);
+}
+
+function handleMiniSocketFinance(payload) {
+  if (!state.admin.enabled) return;
+  const statePayload = payload?.state || {};
+  const key = JSON.stringify({
+    dep: statePayload.latest_pending_deposit_id || 0,
+    depCount: statePayload.pending_deposit_count || 0,
+    wdr: statePayload.latest_pending_withdraw_id || 0,
+    wdrCount: statePayload.pending_withdraw_count || 0,
+    approvedWdr: statePayload.approved_withdraw_count || 0,
+  });
+  if (key === state.miniSocketFinanceKey) return;
+  state.miniSocketFinanceKey = key;
+  checkAdminFinanceNotifications({ silent: false }).catch(() => {});
+  if (isAdminViewActive()) {
+    Promise.allSettled([refreshAdminDeposits(), refreshAdminWithdraws()]).catch(() => {});
+  }
+}
+
+function handleMiniSocketMessage(event) {
+  let payload = null;
+  try {
+    payload = JSON.parse(String(event?.data || "{}"));
+  } catch (_) {
+    return;
+  }
+  const type = String(payload?.type || "");
+  if (type === "connected") {
+    state.miniSocketConnected = true;
+    subscribeAdminSocket();
+    if (state.selectedGameId) subscribeLiveSocket(state.selectedGameId);
+    return;
+  }
+  if (type === "live_snapshot") {
+    const gid = Number(payload.game_id || payload.snapshot?.game?.id || 0);
+    if (!gid || Number(state.selectedGameId || 0) !== gid) return;
+    const snapshot = payload.snapshot;
+    if (!snapshot) return;
+    state.gameSnapshots.set(gid, snapshot);
+    state.lastEventId = Math.max(Number(state.lastEventId || 0), Number(snapshot.last_event_id || 0));
+    renderLive(snapshot);
+    return;
+  }
+  if (type === "finance_status") {
+    handleMiniSocketFinance(payload);
+  }
+}
+
+function startMiniSocket() {
+  if (!("WebSocket" in window)) return;
+  if (!state.authReady || !state.token) return;
+  if (state.miniSocket && [WebSocket.OPEN, WebSocket.CONNECTING].includes(state.miniSocket.readyState)) return;
+
+  state.miniSocketManualClose = false;
+  const ws = new WebSocket(miniSocketUrl());
+  state.miniSocket = ws;
+
+  ws.addEventListener("open", () => {
+    try {
+      ws.send(JSON.stringify({ type: "auth", token: state.token }));
+    } catch (_) {}
+  });
+  ws.addEventListener("message", handleMiniSocketMessage);
+  ws.addEventListener("close", () => {
+    if (state.miniSocket === ws) state.miniSocket = null;
+    state.miniSocketConnected = false;
+    if (!state.miniSocketManualClose && state.selectedGameId) startEventPolling();
+    scheduleMiniSocketReconnect();
+  });
+  ws.addEventListener("error", () => {
+    try { ws.close(); } catch (_) {}
+  });
+
+  const markConnected = (event) => {
+    try {
+      const payload = JSON.parse(String(event?.data || "{}"));
+      if (payload?.type === "connected") {
+        state.miniSocketConnected = true;
+        ws.removeEventListener("message", markConnected);
+      }
+    } catch (_) {}
+  };
+  ws.addEventListener("message", markConnected);
+}
+
 function startEventPolling() {
   stopEventPolling();
   if (!state.selectedGameId) return;
+  if (isMiniSocketOpen()) {
+    subscribeLiveSocket(state.selectedGameId);
+    return;
+  }
   state.pollTimer = setInterval(async () => {
     try {
       const events = await apiFetch(
@@ -1911,11 +2132,11 @@ async function refreshAutoTick() {
   if (state.admin.enabled && isAdminViewActive()) {
     tasks.push(refreshAdminPanel({ silent: true }));
   }
-  if (state.admin.enabled) {
+  if (state.admin.enabled && !isMiniSocketOpen()) {
     tasks.push(checkAdminFinanceNotifications({ silent: false }));
   }
   await Promise.allSettled(tasks);
-  if (state.selectedGameId) {
+  if (state.selectedGameId && !isMiniSocketOpen()) {
     try {
       const snap = await apiFetch(`/mini-api/games/${state.selectedGameId}/snapshot?events_limit=${LIVE_EVENTS_LIMIT}`);
       state.lastEventId = Math.max(Number(state.lastEventId || 0), Number(snap?.last_event_id || 0));
@@ -3092,6 +3313,7 @@ async function refreshAdminBootstrap() {
     updateAdminCreateGroupVisibility();
     if (state.admin.enabled) {
       await Promise.allSettled([refreshAdminCreateOptions(), refreshAdminPanel()]);
+      subscribeAdminSocket();
     }
   } catch (err) {
     state.admin.enabled = false;
@@ -4857,6 +5079,7 @@ async function boot() {
 
   if (!authOk) return;
 
+  startMiniSocket();
   setSplashStatus("در حال دریافت بازی‌ها و کیف پول...");
   loadAdminNotifySeen();
   await refreshAdminBootstrap();
@@ -4874,6 +5097,7 @@ async function boot() {
 
 
 window.addEventListener("beforeunload", () => {
+  stopMiniSocket();
   stopEventPolling();
   stopCardsPolling();
   stopGlobalRefresh();
