@@ -846,6 +846,12 @@ function localizeApiError(detail) {
     "user not found": "کاربر موردنظر پیدا نشد.",
     "receipt file not found": "فایل رسید پیدا نشد.",
     "deposit_request not found": "درخواست واریز پیدا نشد.",
+    "wallet not found": "کیف پول شما پیدا نشد. ابتدا کیف پول را شارژ کنید.",
+    "insufficient balance": "موجودی کیف پول برای خرید کارت کافی نیست.",
+    "wallet balance became negative": "خطای امنیتی کیف پول رخ داد. عملیات انجام نشد.",
+    "game is not in lobby": "خرید کارت فقط قبل از شروع بازی فعال است.",
+    "prize locked": "این بازی قفل شده و خرید کارت امکان‌پذیر نیست.",
+    "amount must be > 0": "مبلغ باید بیشتر از صفر باشد.",
     "super admin required": "این عملیات فقط برای سوپرادمین مجاز است.",
     "super admin owner required": "این عملیات فقط برای سوپرادمین اصلی مجاز است.",
     "missing authorization": "احراز هویت انجام نشد.",
@@ -863,6 +869,15 @@ function localizeApiError(detail) {
 
   if (low.includes("invalid hash")) {
     return "احراز هویت تلگرام نامعتبر است. مینی‌اپ را فقط از منوی رسمی ربات باز کنید.";
+  }
+  if (low.includes("insufficient balance")) {
+    return "موجودی کیف پول برای خرید کارت کافی نیست.";
+  }
+  if (low.includes("wallet not found")) {
+    return "کیف پول شما پیدا نشد. ابتدا کیف پول را شارژ کنید.";
+  }
+  if (low.includes("game is not in lobby")) {
+    return "خرید کارت فقط قبل از شروع بازی فعال است.";
   }
   if (low.includes("json decode error")) {
     return "فرمت داده ارسالی نامعتبر است.";
@@ -1033,8 +1048,6 @@ async function copySelectedDepositCard() {
   const rawCard = normalizedCardNumber(selected?.card_number || "");
   if (!rawCard) {
     setHint("depositDestinationHint", "کارت مقصد انتخاب نشده است.", "error");
-    setBadge("error", "ابتدا کارت مقصد را انتخاب کنید");
-    showToast("ابتدا کارت مقصد را انتخاب کنید.", "error");
     return;
   }
   try {
@@ -1044,14 +1057,10 @@ async function copySelectedDepositCard() {
       hint.innerHTML = `شماره کارت ${ltrNumberHtml(prettyCardNumber(rawCard))} کپی شد.`;
       hint.dataset.type = "success";
     }
-    setBadge("success", "شماره کارت کپی شد");
-    showToast("شماره کارت با موفقیت کپی شد.", "success");
     triggerLightHaptic("success");
   } catch (err) {
     const msg = String(err?.message || "کپی شماره کارت انجام نشد.");
     setHint("depositDestinationHint", msg, "error");
-    setBadge("error", msg);
-    showToast(msg, "error");
   }
 }
 
@@ -1318,6 +1327,22 @@ function soldCardsCount(game, snap) {
   return 0;
 }
 
+function selectedGameCardPrice() {
+  const gid = Number(state.selectedGameId || 0);
+  if (!gid) return 0;
+  const snap = state.gameSnapshots.get(gid);
+  const snapPrice = Number(snap?.game?.card_price || 0);
+  if (snapPrice > 0) return snapPrice;
+  const game = Array.isArray(state.gamesCache)
+    ? state.gamesCache.find((g) => Number(g?.id || 0) === gid)
+    : null;
+  return Number(game?.card_price || 0);
+}
+
+function buyInsufficientBalanceMessage({ balance, totalPrice, qty, unitPrice }) {
+  return `موجودی کیف پول کافی نیست. موجودی فعلی: ${toman(balance)} | مبلغ لازم برای ${qty} کارت: ${toman(totalPrice)} | قیمت هر کارت: ${toman(unitPrice)}`;
+}
+
 function playersCount(game, snap) {
   return Number(snap?.state?.players_count || 0);
 }
@@ -1412,7 +1437,7 @@ function drawGames(items) {
           }
         }, 100);
       })
-      .catch((err) => setBadge("error", err.message));
+      .catch((err) => setLocalError("liveActionHint", err));
   });
 });
 }
@@ -1913,7 +1938,7 @@ async function openLiveGame(gameId, options = {}) {
   state.selectedGameId = Number(gameId);
   const snapshot = await apiFetch(`/mini-api/games/${gameId}/snapshot?events_limit=${LIVE_EVENTS_LIMIT}`);
   renderLiveSnapshot(snapshot, gameId);
-  if (options.announce !== false) setBadge("success", `بازی #${gameId} انتخاب شد`);
+  if (options.announce !== false) setHint("liveActionHint", `بازی #${gameId} انتخاب شد.`, "success");
 }
 
 function appendEvents(events) {
@@ -2483,7 +2508,7 @@ function renderCardsActive(activeGames) {
       const gid = Number(btn.getAttribute("data-game-id") || "0");
       if (!gid) return;
       switchToView("games");
-      openLiveGame(gid).catch((err) => setBadge("error", err.message));
+      openLiveGame(gid).catch((err) => setLocalError("liveActionHint", err));
     });
   });
 }
@@ -2518,7 +2543,7 @@ function renderCardsHistory(items) {
       const gameId = Number(row.getAttribute("data-game-id") || "0");
       const cardId = Number(row.getAttribute("data-card-id") || "0");
       if (!gameId) return;
-      openHistoryModalForGame(gameId, { cardId, source: "history" }).catch((e) => setBadge("error", e.message));
+      openHistoryModalForGame(gameId, { cardId, source: "history" }).catch((e) => renderCardsPullHint(localizeApiError(e?.message || e), "error"));
     });
   });
 }
@@ -2607,7 +2632,7 @@ async function openHistoryModalForGame(gameId, { cardId = 0, source = "history" 
     titleEl.textContent = source === "wins" ? `جزئیات برد بازی #${gid}` : `جزئیات کارت‌های بازی #${gid}`;
     metaEl.textContent = "بارگذاری ناموفق";
     bodyEl.innerHTML = `<div class="empty">جزئیات کارت‌ها بارگذاری نشد. ${safeText(msg)}</div>`;
-    setBadge("error", msg);
+    renderCardsPullHint(msg, "error");
   }
 }
 function groupCardsByGame(items) {
@@ -2685,7 +2710,7 @@ async function refreshCards({ silent = false } = {}) {
   drawWinTimeline();
 
   if (!silent) {
-    setBadge("success", "کارت‌های من به‌روزرسانی شد");
+    renderCardsPullHint("کارت‌های من به‌روزرسانی شد.", "success");
   }
 }
 
@@ -2756,7 +2781,7 @@ function wireCardsPullToRefresh() {
       if (!tracking) return;
       tracking = false;
       if (deltaY > 84) {
-        refreshCardsFromPull().catch((e) => setBadge("error", e.message));
+        refreshCardsFromPull().catch((e) => renderCardsPullHint(localizeApiError(e?.message || e), "error"));
       } else {
         renderCardsPullHint("برای نوسازی، صفحه را کمی به پایین بکشید.", "idle");
       }
@@ -2914,7 +2939,7 @@ function drawWinTimeline() {
     row.addEventListener("click", () => {
       const gameId = Number(row.getAttribute("data-game-id") || "0");
       if (!gameId) return;
-      openHistoryModalForGame(gameId, { source: "wins" }).catch((e) => setBadge("error", e.message));
+      openHistoryModalForGame(gameId, { source: "wins" }).catch((e) => renderCardsPullHint(localizeApiError(e?.message || e), "error"));
     });
   });
 }
@@ -2987,16 +3012,30 @@ async function buySelectedGame() {
   if (!state.selectedGameId) {
     throw new Error("ابتدا یک بازی را انتخاب کنید.");
   }
-  const qty = Number(getVal("buyQtyInput") || "1");
+  const qty = parsePositiveInt(getVal("buyQtyInput") || "1");
   if (!qty || qty < 1 || qty > 50) {
     throw new Error("تعداد کارت نامعتبر است.");
   }
 
+  const unitPrice = selectedGameCardPrice();
+  const totalPrice = unitPrice > 0 ? unitPrice * qty : 0;
+  if (totalPrice > 0) {
+    setHint("buyStatusHint", "در حال بررسی موجودی کیف پول...");
+    const wallet = await apiFetch("/mini-api/me/wallet");
+    const balance = Number(wallet?.balance || 0);
+    state.walletCache.balance = wallet;
+    updateHeaderWallet(balance);
+    if (balance < totalPrice) {
+      throw new Error(buyInsufficientBalanceMessage({ balance, totalPrice, qty, unitPrice }));
+    }
+  }
+
+  setHint("buyStatusHint", "در حال خرید کارت...");
   const res = await apiFetch(`/mini-api/games/${state.selectedGameId}/buy`, {
     method: "POST",
     body: { qty, idempotency_key: idem("buy") },
   });
-  setBadge("success", `خرید موفق بود. شماره خرید: ${res.purchase_id}`);
+  setHint("buyStatusHint", `خرید موفق بود. شماره خرید: ${res.purchase_id}`, "success");
   await Promise.allSettled([refreshWallet(), refreshCards(), openLiveGame(state.selectedGameId)]);
 }
 
@@ -3387,7 +3426,7 @@ function renderAdminGames(payload) {
       if (!gid) return;
       setAdminSelectedGame(gid);
       switchToView("games");
-      openLiveGame(gid).catch((e) => setBadge("error", e.message));
+      openLiveGame(gid).catch((e) => setAdminLocalError("adminActionHint", e));
     });
   });
 
@@ -3450,10 +3489,10 @@ function renderDepositReceiptActions(depositId, item) {
   const rejectBtn = getEl("depositReceiptRejectBtn");
   const dismissBtn = getEl("depositReceiptDismissBtn");
   if (approveBtn) {
-    approveBtn.addEventListener("click", () => adminApproveDeposit(depositId, { closeReceipt: true }).catch((e) => setBadge("error", e.message)));
+    approveBtn.addEventListener("click", () => adminApproveDeposit(depositId, { closeReceipt: true }).catch((e) => setAdminLocalError("adminActionHint", e)));
   }
   if (rejectBtn) {
-    rejectBtn.addEventListener("click", () => adminRejectDeposit(depositId, { closeReceipt: true }).catch((e) => setBadge("error", e.message)));
+    rejectBtn.addEventListener("click", () => adminRejectDeposit(depositId, { closeReceipt: true }).catch((e) => setAdminLocalError("adminActionHint", e)));
   }
   if (dismissBtn) {
     dismissBtn.addEventListener("click", closeDepositReceiptModal);
@@ -3541,21 +3580,21 @@ function renderAdminDeposits(payload) {
     btn.addEventListener("click", () => {
       const id = Number(btn.getAttribute("data-id") || "0");
       if (!id) return;
-      adminApproveDeposit(id).catch((e) => setBadge("error", e.message));
+      adminApproveDeposit(id).catch((e) => setAdminLocalError("adminActionHint", e));
     });
   });
   root.querySelectorAll(".admin-dep-reject-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
       const id = Number(btn.getAttribute("data-id") || "0");
       if (!id) return;
-      adminRejectDeposit(id).catch((e) => setBadge("error", e.message));
+      adminRejectDeposit(id).catch((e) => setAdminLocalError("adminActionHint", e));
     });
   });
   root.querySelectorAll(".admin-dep-receipt-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
       const id = Number(btn.getAttribute("data-id") || "0");
       if (!id) return;
-      openAdminDepositReceipt(id).catch((e) => setBadge("error", e.message));
+      openAdminDepositReceipt(id).catch((e) => setAdminLocalError("adminActionHint", e));
     });
   });
 }
@@ -3676,7 +3715,7 @@ function renderAdminWithdraws(payload) {
     btn.addEventListener("click", () => {
       const id = Number(btn.getAttribute("data-id") || "0");
       if (!id) return;
-      adminRefreshWithdrawWallet(id).catch((e) => setBadge("error", e.message));
+      adminRefreshWithdrawWallet(id).catch((e) => setAdminLocalError("adminActionHint", e));
     });
   });
 
@@ -3684,7 +3723,7 @@ function renderAdminWithdraws(payload) {
     btn.addEventListener("click", () => {
       const id = Number(btn.getAttribute("data-id") || "0");
       if (!id) return;
-      adminApproveWithdraw(id).catch((e) => setBadge("error", e.message));
+      adminApproveWithdraw(id).catch((e) => setAdminLocalError("adminActionHint", e));
     });
   });
 
@@ -3692,7 +3731,7 @@ function renderAdminWithdraws(payload) {
     btn.addEventListener("click", () => {
       const id = Number(btn.getAttribute("data-id") || "0");
       if (!id) return;
-      adminRejectWithdraw(id).catch((e) => setBadge("error", e.message));
+      adminRejectWithdraw(id).catch((e) => setAdminLocalError("adminActionHint", e));
     });
   });
 
@@ -3700,7 +3739,7 @@ function renderAdminWithdraws(payload) {
     btn.addEventListener("click", () => {
       const id = Number(btn.getAttribute("data-id") || "0");
       if (!id) return;
-      adminPaidWithdraw(id).catch((e) => setBadge("error", e.message));
+      adminPaidWithdraw(id).catch((e) => setAdminLocalError("adminActionHint", e));
     });
   });
 }
@@ -3874,7 +3913,7 @@ function renderAdminUsersSearchResults(payload) {
     item.addEventListener("click", () => {
       const tgid = Number(item.getAttribute("data-tg-id") || "0");
       if (!tgid) return;
-      adminUsersOpenProfile(tgid).catch((e) => setBadge("error", e.message));
+      adminUsersOpenProfile(tgid).catch((e) => setLocalError("adminUsersHint", e));
     });
   });
   root.querySelectorAll(".admin-user-open-btn").forEach((btn) => {
@@ -3882,7 +3921,7 @@ function renderAdminUsersSearchResults(payload) {
       ev.stopPropagation();
       const tgid = Number(btn.getAttribute("data-tg-id") || "0");
       if (!tgid) return;
-      adminUsersOpenProfile(tgid).catch((e) => setBadge("error", e.message));
+      adminUsersOpenProfile(tgid).catch((e) => setLocalError("adminUsersHint", e));
     });
   });
 }
@@ -3969,18 +4008,18 @@ function renderAdminUsersProfile(payload) {
       </div>
     </div>
   `;
-  root.querySelectorAll(".admin-user-fin-btn").forEach((btn) => btn.addEventListener("click", () => adminUsersShowFinancial(Number(btn.getAttribute("data-tg-id") || "0")).catch((e) => setBadge("error", e.message))));
-  root.querySelectorAll(".admin-user-games-btn").forEach((btn) => btn.addEventListener("click", () => adminUsersShowGames(Number(btn.getAttribute("data-tg-id") || "0")).catch((e) => setBadge("error", e.message))));
+  root.querySelectorAll(".admin-user-fin-btn").forEach((btn) => btn.addEventListener("click", () => adminUsersShowFinancial(Number(btn.getAttribute("data-tg-id") || "0")).catch((e) => setLocalError("adminUsersHint", e))));
+  root.querySelectorAll(".admin-user-games-btn").forEach((btn) => btn.addEventListener("click", () => adminUsersShowGames(Number(btn.getAttribute("data-tg-id") || "0")).catch((e) => setLocalError("adminUsersHint", e))));
   root.querySelectorAll(".admin-user-report-clear-btn").forEach((btn) => btn.addEventListener("click", () => {
     state.admin.users.reportMode = "none";
     renderAdminUsersReport(null);
     adminUsersRefreshReportModeUi();
   }));
-  root.querySelectorAll(".admin-user-restrict-btn").forEach((btn) => btn.addEventListener("click", () => adminUsersRestrict(Number(btn.getAttribute("data-tg-id") || "0")).catch((e) => setBadge("error", e.message))));
-  root.querySelectorAll(".admin-user-unrestrict-btn").forEach((btn) => btn.addEventListener("click", () => adminUsersUnrestrict(Number(btn.getAttribute("data-tg-id") || "0")).catch((e) => setBadge("error", e.message))));
-  root.querySelectorAll(".admin-user-adjust-btn").forEach((btn) => btn.addEventListener("click", () => adminUsersAdjustWallet(Number(btn.getAttribute("data-tg-id") || "0")).catch((e) => setBadge("error", e.message))));
-  root.querySelectorAll(".admin-user-template-btn").forEach((btn) => btn.addEventListener("click", () => adminUsersSendTemplate(Number(btn.getAttribute("data-tg-id") || "0")).catch((e) => setBadge("error", e.message))));
-  root.querySelectorAll(".admin-user-notify-btn").forEach((btn) => btn.addEventListener("click", () => adminUsersNotifyManual(Number(btn.getAttribute("data-tg-id") || "0")).catch((e) => setBadge("error", e.message))));
+  root.querySelectorAll(".admin-user-restrict-btn").forEach((btn) => btn.addEventListener("click", () => adminUsersRestrict(Number(btn.getAttribute("data-tg-id") || "0")).catch((e) => setLocalError("adminUsersHint", e))));
+  root.querySelectorAll(".admin-user-unrestrict-btn").forEach((btn) => btn.addEventListener("click", () => adminUsersUnrestrict(Number(btn.getAttribute("data-tg-id") || "0")).catch((e) => setLocalError("adminUsersHint", e))));
+  root.querySelectorAll(".admin-user-adjust-btn").forEach((btn) => btn.addEventListener("click", () => adminUsersAdjustWallet(Number(btn.getAttribute("data-tg-id") || "0")).catch((e) => setLocalError("adminUsersHint", e))));
+  root.querySelectorAll(".admin-user-template-btn").forEach((btn) => btn.addEventListener("click", () => adminUsersSendTemplate(Number(btn.getAttribute("data-tg-id") || "0")).catch((e) => setLocalError("adminUsersHint", e))));
+  root.querySelectorAll(".admin-user-notify-btn").forEach((btn) => btn.addEventListener("click", () => adminUsersNotifyManual(Number(btn.getAttribute("data-tg-id") || "0")).catch((e) => setLocalError("adminUsersHint", e))));
 }
 
 function renderAdminUsersReport(payload = null) {
@@ -4212,7 +4251,7 @@ async function adminUsersRestrict(tgUserId) {
     body.actions = actionsRaw.split(",").map((x) => String(x || "").trim().toUpperCase()).filter(Boolean);
   }
   await apiFetch(`/mini-api/admin/users/${tgid}/restrict`, { method: "POST", body });
-  setBadge("success", `کاربر ${tgid} محدود شد`);
+  setHint("adminUsersHint", `کاربر ${tgid} محدود شد.`, "success");
   await adminUsersOpenProfile(tgid);
 }
 
@@ -4220,7 +4259,7 @@ async function adminUsersUnrestrict(tgUserId) {
   const tgid = Number(tgUserId || 0);
   const reason = String(prompt("علت رفع محدودیت (اختیاری):", "رفع محدودیت توسط ادمین") || "").trim();
   await apiFetch(`/mini-api/admin/users/${tgid}/unrestrict`, { method: "POST", body: { reason: reason || null } });
-  setBadge("success", `محدودیت کاربر ${tgid} رفع شد`);
+  setHint("adminUsersHint", `محدودیت کاربر ${tgid} رفع شد.`, "success");
   await adminUsersOpenProfile(tgid);
 }
 
@@ -4235,7 +4274,7 @@ async function adminUsersAdjustWallet(tgUserId) {
     method: "POST",
     body: { amount: Math.trunc(amount), reason, notify_user: true },
   });
-  setBadge("success", `کیف پول کاربر ${tgid} اصلاح شد`);
+  setHint("adminUsersHint", `کیف پول کاربر ${tgid} اصلاح شد.`, "success");
   await adminUsersOpenProfile(tgid);
 }
 
@@ -4247,7 +4286,7 @@ async function adminUsersNotifyManual(tgUserId) {
     method: "POST",
     body: { text, parse_mode: "HTML", disable_notification: false },
   });
-  setBadge("success", `پیام خصوصی برای ${tgid} ارسال شد`);
+  setHint("adminUsersHint", `پیام خصوصی برای ${tgid} ارسال شد.`, "success");
 }
 
 async function adminUsersSendTemplate(tgUserId) {
@@ -4277,7 +4316,7 @@ async function adminUsersSendTemplate(tgUserId) {
     method: "POST",
     body: { text, parse_mode: "HTML", disable_notification: false },
   });
-  setBadge("success", `پیام آماده برای ${tgid} ارسال شد`);
+  setHint("adminUsersHint", `پیام آماده برای ${tgid} ارسال شد.`, "success");
 }
 
 async function refreshAdminUsersPanel(options = {}) {
@@ -4395,10 +4434,8 @@ async function adminCreateGame() {
         ? `برای این تاپیک، بازی فعال موجود بود (#${newGameId}) و قیمت کارت فعلی ${toman(activePrice)} است.`
         : `برای این تاپیک، بازی فعال موجود بود و همان بازی #${newGameId} انتخاب شد.`;
     setHint("adminCreateHintMsg", reuseMsg, "success");
-    setBadge("success", newGameId ? `بازی فعال #${newGameId} موجود بود` : "بازی فعال موجود بود");
   } else {
     setHint("adminCreateHintMsg", newGameId ? `بازی #${newGameId} با موفقیت ایجاد شد.` : "بازی جدید ایجاد شد.", "success");
-    setBadge("success", newGameId ? `بازی #${newGameId} ایجاد شد` : "بازی جدید ایجاد شد");
   }
 
   await Promise.allSettled([refreshAdminGames(), refreshGames(), refreshAdminCreateOptions()]);
@@ -4499,7 +4536,6 @@ async function adminSendLiveLink() {
   const noTgCount = Number(res?.no_tg_count || 0);
   const msg = `لینک لایو بازی #${gid} ارسال شد. خریداران: ${participants} | موفق: ${okCount} | ناموفق: ${failCount} | بدون شناسه: ${noTgCount}`;
   setAdminLocalHint("adminLiveActionHint", msg, okCount > 0 ? "success" : "error");
-  setBadge(okCount > 0 ? "success" : "error", okCount > 0 ? "لینک لایو ارسال شد" : "ارسال لینک لایو ناموفق بود");
   await Promise.allSettled([refreshAdminGames(), openLiveGame(gid)]);
 }
 
@@ -4519,14 +4555,14 @@ async function adminApproveDeposit(depositId, options = {}) {
     method: "POST",
     body: { idempotency_key: idem("mini_admin_dep_approve") },
   });
-  setBadge("success", `واریزی #${depositId} تایید شد`);
+  setAdminLocalHint("adminActionHint", `واریزی #${depositId} تایید شد.`, "success");
   if (options.closeReceipt) closeDepositReceiptModal();
   await Promise.allSettled([refreshAdminDeposits(), refreshWallet()]);
 }
 
 async function adminRejectDeposit(depositId, options = {}) {
   await apiFetch(`/mini-api/admin/deposits/${Number(depositId)}/reject`, { method: "POST" });
-  setBadge("success", `واریزی #${depositId} رد شد`);
+  setAdminLocalHint("adminActionHint", `واریزی #${depositId} رد شد.`, "success");
   if (options.closeReceipt) closeDepositReceiptModal();
   await refreshAdminDeposits();
 }
@@ -4535,10 +4571,14 @@ async function adminRejectDeposit(depositId, options = {}) {
 async function adminRefreshWithdrawWallet(withdrawId) {
   const id = Number(withdrawId || 0);
   if (!id) throw new Error("شناسه برداشت نامعتبر است.");
-  setBadge("loading", "در حال بروزرسانی کیف پول...");
+  setAdminLocalHint("adminActionHint", "در حال بروزرسانی کیف پول...");
   const info = await apiFetch(`/mini-api/admin/withdraws/${id}/wallet-status`);
   setWithdrawWalletStatus(id, info);
-  setBadge(info?.can_approve ? "success" : "error", info?.can_approve ? "کیف پول بروزرسانی شد؛ تایید مجاز است" : "موجودی قابل تایید کافی نیست");
+  setAdminLocalHint(
+    "adminActionHint",
+    info?.can_approve ? "کیف پول بروزرسانی شد؛ تایید مجاز است." : "موجودی قابل تایید کافی نیست.",
+    info?.can_approve ? "success" : "error"
+  );
   return info;
 }
 
@@ -4550,7 +4590,7 @@ async function adminApproveWithdraw(withdrawId) {
     method: "POST",
     body: { idempotency_key: idem("mini_admin_wdr_approve") },
   });
-  setBadge("success", `برداشت #${withdrawId} تایید شد`);
+  setAdminLocalHint("adminActionHint", `برداشت #${withdrawId} تایید شد.`, "success");
   await Promise.allSettled([refreshAdminWithdraws(), refreshWallet()]);
 }
 
@@ -4559,7 +4599,7 @@ async function adminRejectWithdraw(withdrawId) {
     method: "POST",
     body: { reason: "رد توسط ادمین" },
   });
-  setBadge("success", `برداشت #${withdrawId} رد شد`);
+  setAdminLocalHint("adminActionHint", `برداشت #${withdrawId} رد شد.`, "success");
   await refreshAdminWithdraws();
 }
 
@@ -5005,23 +5045,22 @@ async function boot() {
   bind("refreshGamesBtn", "click", () => runManualRefresh("refreshGamesBtn", () => refreshGames()).catch(() => {}));
   bind("refreshCardsBtn", "click", () => runManualRefresh("refreshCardsBtn", () => refreshCards({ silent: false })).catch(() => {}));
   bind("refreshWalletBtn", "click", () => runManualRefresh("refreshWalletBtn", () => refreshWallet()).catch(() => {}));
-  bind("buyCardsBtn", "click", () => buySelectedGame().catch((e) => setBadge("error", e.message)));
+  bind("buyCardsBtn", "click", () => buySelectedGame().catch((e) => setLocalError("buyStatusHint", e)));
   bind("submitDepositBtn", "click", () => submitDepositWithReceipt().catch((e) => setLocalError("depositSubmitHint", e)));
   bind("depositDestinationSelect", "change", renderDepositDestinationHint);
-  bind("copyDepositCardBtn", "click", () => copySelectedDepositCard().catch((e) => setBadge("error", e.message)));
+  bind("copyDepositCardBtn", "click", () => copySelectedDepositCard().catch((e) => setLocalError("depositDestinationHint", e)));
   bind("submitWithdrawBtn", "click", () => createWithdraw().catch((e) => setLocalError("withdrawSubmitHint", e)));
   bind("refreshAdminBtn", "click", () => runManualRefresh("refreshAdminBtn", () => refreshAdminPanel()).catch(() => {}));
-  bind("adminUsersSearchBtn", "click", () => adminUsersSearch().catch((e) => setBadge("error", e.message)));
-  bind("adminUsersRefreshBtn", "click", () => adminUsersRefreshSelected().catch((e) => setBadge("error", e.message)));
+  bind("adminUsersSearchBtn", "click", () => adminUsersSearch().catch((e) => setLocalError("adminUsersHint", e)));
+  bind("adminUsersRefreshBtn", "click", () => adminUsersRefreshSelected().catch((e) => setLocalError("adminUsersHint", e)));
   bind("adminUsersSearchInput", "keydown", (ev) => {
     if (ev.key !== "Enter") return;
     ev.preventDefault();
-    adminUsersSearch().catch((e) => setBadge("error", e.message));
+    adminUsersSearch().catch((e) => setLocalError("adminUsersHint", e));
   });
   bind("adminCreateBtn", "click", () =>
     adminCreateGame().catch((e) => {
       setHint("adminCreateHintMsg", String(e.message || ""), "error");
-      setBadge("error", e.message);
     })
   );
   bind("adminCallBtn", "click", () => adminCallNumber().catch((e) => setAdminLocalError("adminCallActionHint", e)));
@@ -5031,8 +5070,8 @@ async function boot() {
   bind("adminSetLiveBtn", "click", () => adminSetLiveLink().catch((e) => setAdminLocalError("adminLiveActionHint", e)));
   bind("adminSendLiveBtn", "click", () => adminSendLiveLink().catch((e) => setAdminLocalError("adminLiveActionHint", e)));
   bind("adminClearLiveBtn", "click", () => adminClearLiveLink().catch((e) => setAdminLocalError("adminLiveActionHint", e)));
-  bind("superAdminGrantBtn", "click", () => superAdminGrant().catch((e) => setBadge("error", e.message)));
-  bind("superAdminRevokeBtn", "click", () => superAdminRevoke().catch((e) => setBadge("error", e.message)));
+  bind("superAdminGrantBtn", "click", () => superAdminGrant().catch((e) => setLocalError("superAdminHint", e)));
+  bind("superAdminRevokeBtn", "click", () => superAdminRevoke().catch((e) => setLocalError("superAdminHint", e)));
   bind("winsGameFilter", "change", drawWinTimeline);
   bind("winnerCloseBtn", "click", closeWinnerModal);
   bind("winnerDismissBtn", "click", closeWinnerModal);
