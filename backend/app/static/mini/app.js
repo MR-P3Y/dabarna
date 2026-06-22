@@ -894,6 +894,27 @@ function setHint(id, text, type = "") {
   el.dataset.type = String(type || "");
 }
 
+const ADMIN_ACTION_HINT_IDS = ["adminCallActionHint", "adminCloseLobbyHint", "adminLiveActionHint", "adminActionHint"];
+
+function setAdminLocalHint(id, text, type = "") {
+  ADMIN_ACTION_HINT_IDS.forEach((hintId) => {
+    if (hintId !== id) setHint(hintId, "");
+  });
+  setHint(id, text, type);
+}
+
+function setLocalError(hintId, err) {
+  const message = String(err?.message || err || "خطا رخ داد.");
+  setHint(hintId, message, "error");
+  setBadge("error", message);
+}
+
+function setAdminLocalError(hintId, err) {
+  const message = String(err?.message || err || "خطا رخ داد.");
+  setAdminLocalHint(hintId, message, "error");
+  setBadge("error", message);
+}
+
 function setAdminNavVisible(visible) {
   const btn = getEl("adminNavBtn");
   if (!btn) return;
@@ -3061,7 +3082,7 @@ function renderAdminGames(payload) {
       const status = String(btn.getAttribute("data-status") || "");
       if (!gid) return;
       setAdminSelectedGame(gid, status);
-      setHint("adminActionHint", `بازی #${gid} انتخاب شد.`, "success");
+      setAdminLocalHint("adminCallActionHint", `بازی #${gid} انتخاب شد.`, "success");
     });
   });
 
@@ -3984,12 +4005,12 @@ async function adminCreateGame() {
 
 async function adminStartGame() {
   const { gid } = requireAdminGameStatus(["LOBBY"], "شروع بازی");
-  setHint("adminActionHint", "در حال شروع بازی...");
+  setAdminLocalHint("adminCallActionHint", "در حال شروع بازی...");
   await apiFetch(`/mini-api/admin/games/${gid}/start`, {
     method: "POST",
     body: { idempotency_key: idem("mini_admin_start") },
   });
-  setHint("adminActionHint", `بازی #${gid} شروع شد.`, "success");
+  setAdminLocalHint("adminCallActionHint", `بازی #${gid} شروع شد.`, "success");
   await Promise.allSettled([refreshAdminGames(), openLiveGame(gid)]);
 }
 
@@ -3997,24 +4018,24 @@ async function adminCallNumber() {
   const { gid } = requireAdminGameStatus(["RUNNING"], "اعلام عدد");
   const number = Number(getVal("adminCallNumberInput") || "0");
   if (!number || number < 1 || number > 99) throw new Error("عدد اعلام باید بین 1 تا 99 باشد.");
-  setHint("adminActionHint", "در حال ثبت عدد...");
+  setAdminLocalHint("adminCallActionHint", "در حال ثبت عدد...");
   await apiFetch(`/mini-api/admin/games/${gid}/call`, {
     method: "POST",
     body: { number, idempotency_key: idem("mini_admin_call") },
   });
   setVal("adminCallNumberInput", "");
-  setHint("adminActionHint", `عدد ${number} برای بازی #${gid} ثبت شد.`, "success");
+  setAdminLocalHint("adminCallActionHint", `عدد ${number} برای بازی #${gid} ثبت شد.`, "success");
   await Promise.allSettled([refreshAdminGames(), openLiveGame(gid), refreshCards({ silent: true })]);
 }
 
 async function adminUndoCall() {
   const { gid } = requireAdminGameStatus(["RUNNING"], "حذف آخرین عدد");
-  setHint("adminActionHint", "در حال Undo آخرین عدد...");
+  setAdminLocalHint("adminCallActionHint", "در حال حذف آخرین عدد...");
   await apiFetch(`/mini-api/admin/games/${gid}/undo-last-call`, {
     method: "POST",
     body: { idempotency_key: idem("mini_admin_undo") },
   });
-  setHint("adminActionHint", "آخرین عدد بازی با موفقیت Undo شد.", "success");
+  setAdminLocalHint("adminCallActionHint", "آخرین عدد بازی با موفقیت حذف شد.", "success");
   await Promise.allSettled([refreshAdminGames(), openLiveGame(gid), refreshCards({ silent: true })]);
 }
 
@@ -4022,7 +4043,7 @@ async function adminCloseLobby() {
   const { gid } = requireAdminGameStatus(["LOBBY"], "لغو لابی");
   const reason = getVal("adminCancelReasonInput");
   if (!reason || reason.length < 3) throw new Error("علت لغو باید حداقل 3 کاراکتر باشد.");
-  setHint("adminActionHint", "در حال لغو بازی لابی...");
+  setAdminLocalHint("adminCloseLobbyHint", "در حال لغو بازی لابی...");
   const res = await apiFetch(`/mini-api/admin/games/${gid}/close-lobby`, {
     method: "POST",
     body: { cancel_reason: reason, idempotency_key: idem("mini_admin_close_lobby") },
@@ -4038,7 +4059,7 @@ async function adminCloseLobby() {
   if (usersCount > 0) {
     hint = `بازی لابی لغو شد. بازگشت وجه: ${usersCount} کاربر (${toman(refundTotal)}). پیام خصوصی: موفق ${okCount} | ناموفق ${failCount} | بدون شناسه ${noTgCount}.`;
   }
-  setHint("adminActionHint", hint, "success");
+  setAdminLocalHint("adminCloseLobbyHint", hint, "success");
   await Promise.allSettled([refreshAdminGames(), refreshWallet(), refreshCards({ silent: true }), refreshAdminDeposits(), refreshAdminWithdraws()]);
 }
 
@@ -4046,13 +4067,13 @@ async function adminSetLiveLink() {
   const gid = requireAdminSelectedGame();
   const url = getVal("adminLiveLinkInput");
   if (!url) throw new Error("لینک لایو را وارد کنید.");
-  setHint("adminActionHint", "در حال ثبت لینک لایو...");
+  setAdminLocalHint("adminLiveActionHint", "در حال ثبت لینک لایو...");
   await apiFetch(`/mini-api/admin/games/${gid}/live-link`, {
     method: "PUT",
     body: { url },
   });
   state.admin.liveLinksByGame?.set(gid, String(url || "").trim());
-  setHint("adminActionHint", "لینک لایو بازی با موفقیت ثبت شد. اکنون می‌توانید آن را برای خریداران کارت ارسال کنید.", "success");
+  setAdminLocalHint("adminLiveActionHint", "لینک لایو بازی با موفقیت ثبت شد. اکنون می‌توانید آن را برای خریداران کارت ارسال کنید.", "success");
   await Promise.allSettled([refreshAdminGames(), openLiveGame(gid)]);
   setAdminSelectedGame(gid, statusLabel(getAdminGameById(gid)?.status || ""));
   updateAdminActionButtons();
@@ -4062,7 +4083,7 @@ async function adminSendLiveLink() {
   const g = getAdminGameById(gid);
   const liveUrl = adminLiveLinkForGame(gid);
   if (!liveUrl) throw new Error("ابتدا لینک لایو را ثبت کنید.");
-  setHint("adminActionHint", "در حال ارسال لینک لایو به خریداران کارت...");
+  setAdminLocalHint("adminLiveActionHint", "در حال ارسال لینک لایو به خریداران کارت...");
   const res = await apiFetch(`/mini-api/admin/games/${gid}/live-link/send`, {
     method: "POST",
     body: { idempotency_key: idem("mini_admin_live_send") },
@@ -4072,7 +4093,7 @@ async function adminSendLiveLink() {
   const failCount = Number(res?.notify_failed || 0);
   const noTgCount = Number(res?.no_tg_count || 0);
   const msg = `لینک لایو بازی #${gid} ارسال شد. خریداران: ${participants} | موفق: ${okCount} | ناموفق: ${failCount} | بدون شناسه: ${noTgCount}`;
-  setHint("adminActionHint", msg, okCount > 0 ? "success" : "error");
+  setAdminLocalHint("adminLiveActionHint", msg, okCount > 0 ? "success" : "error");
   setBadge(okCount > 0 ? "success" : "error", okCount > 0 ? "لینک لایو ارسال شد" : "ارسال لینک لایو ناموفق بود");
   await Promise.allSettled([refreshAdminGames(), openLiveGame(gid)]);
 }
@@ -4080,10 +4101,10 @@ async function adminSendLiveLink() {
 
 async function adminClearLiveLink() {
   const gid = requireAdminSelectedGame();
-  setHint("adminActionHint", "در حال حذف لینک لایو...");
+  setAdminLocalHint("adminLiveActionHint", "در حال حذف لینک لایو...");
   await apiFetch(`/mini-api/admin/games/${gid}/live-link`, { method: "DELETE" });
   state.admin.liveLinksByGame?.delete(gid);
-  setHint("adminActionHint", "لینک لایو حذف شد.", "success");
+  setAdminLocalHint("adminLiveActionHint", "لینک لایو حذف شد.", "success");
   updateAdminActionButtons();
   await Promise.allSettled([refreshAdminGames(), openLiveGame(gid)]);
 }
@@ -4581,10 +4602,10 @@ async function boot() {
   bind("refreshCardsBtn", "click", () => runManualRefresh("refreshCardsBtn", () => refreshCards({ silent: false })).catch(() => {}));
   bind("refreshWalletBtn", "click", () => runManualRefresh("refreshWalletBtn", () => refreshWallet()).catch(() => {}));
   bind("buyCardsBtn", "click", () => buySelectedGame().catch((e) => setBadge("error", e.message)));
-  bind("submitDepositBtn", "click", () => submitDepositWithReceipt().catch((e) => setBadge("error", e.message)));
+  bind("submitDepositBtn", "click", () => submitDepositWithReceipt().catch((e) => setLocalError("depositSubmitHint", e)));
   bind("depositDestinationSelect", "change", renderDepositDestinationHint);
   bind("copyDepositCardBtn", "click", () => copySelectedDepositCard().catch((e) => setBadge("error", e.message)));
-  bind("submitWithdrawBtn", "click", () => createWithdraw().catch((e) => setBadge("error", e.message)));
+  bind("submitWithdrawBtn", "click", () => createWithdraw().catch((e) => setLocalError("withdrawSubmitHint", e)));
   bind("refreshAdminBtn", "click", () => runManualRefresh("refreshAdminBtn", () => refreshAdminPanel()).catch(() => {}));
   bind("adminUsersSearchBtn", "click", () => adminUsersSearch().catch((e) => setBadge("error", e.message)));
   bind("adminUsersRefreshBtn", "click", () => adminUsersRefreshSelected().catch((e) => setBadge("error", e.message)));
@@ -4599,13 +4620,13 @@ async function boot() {
       setBadge("error", e.message);
     })
   );
-  bind("adminCallBtn", "click", () => adminCallNumber().catch((e) => setBadge("error", e.message)));
-  bind("adminUndoBtn", "click", () => adminUndoCall().catch((e) => setBadge("error", e.message)));
-  bind("adminStartBtn", "click", () => adminStartGame().catch((e) => setBadge("error", e.message)));
-  bind("adminCloseLobbyBtn", "click", () => adminCloseLobby().catch((e) => setBadge("error", e.message)));
-  bind("adminSetLiveBtn", "click", () => adminSetLiveLink().catch((e) => setBadge("error", e.message)));
-  bind("adminSendLiveBtn", "click", () => adminSendLiveLink().catch((e) => setBadge("error", e.message)));
-  bind("adminClearLiveBtn", "click", () => adminClearLiveLink().catch((e) => setBadge("error", e.message)));
+  bind("adminCallBtn", "click", () => adminCallNumber().catch((e) => setAdminLocalError("adminCallActionHint", e)));
+  bind("adminUndoBtn", "click", () => adminUndoCall().catch((e) => setAdminLocalError("adminCallActionHint", e)));
+  bind("adminStartBtn", "click", () => adminStartGame().catch((e) => setAdminLocalError("adminCallActionHint", e)));
+  bind("adminCloseLobbyBtn", "click", () => adminCloseLobby().catch((e) => setAdminLocalError("adminCloseLobbyHint", e)));
+  bind("adminSetLiveBtn", "click", () => adminSetLiveLink().catch((e) => setAdminLocalError("adminLiveActionHint", e)));
+  bind("adminSendLiveBtn", "click", () => adminSendLiveLink().catch((e) => setAdminLocalError("adminLiveActionHint", e)));
+  bind("adminClearLiveBtn", "click", () => adminClearLiveLink().catch((e) => setAdminLocalError("adminLiveActionHint", e)));
   bind("superAdminGrantBtn", "click", () => superAdminGrant().catch((e) => setBadge("error", e.message)));
   bind("superAdminRevokeBtn", "click", () => superAdminRevoke().catch((e) => setBadge("error", e.message)));
   bind("winsGameFilter", "change", drawWinTimeline);

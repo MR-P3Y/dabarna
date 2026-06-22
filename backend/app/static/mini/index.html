@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>مینی‌اپ دبرنا حلیم یگن طیار</title>
-    <link rel="stylesheet" href="./styles.css?v=20260622light1" />
+    <link rel="stylesheet" href="./styles.css?v=20260622localhint1" />
   </head>
   <body>
     <div id="appSplash" class="app-splash" aria-label="در حال آماده‌سازی مینی‌اپ">
@@ -346,9 +346,13 @@
                   <button id="adminUndoBtn" class="small-btn" type="button">حذف آخرین عدد</button>
                   <button id="adminStartBtn" class="small-btn" type="button">شروع بازی</button>
                 </div>
+                <div id="adminCallActionHint" class="step-hint action-local-hint"></div>
                 <label id="adminCancelReasonLabel" for="adminCancelReasonInput">علت لغو لابی</label>
                 <input id="adminCancelReasonInput" type="text" />
-                <button id="adminCloseLobbyBtn" class="small-btn danger" type="button">لغو بازی قبل از شروع</button>
+                <div class="admin-action-row">
+                  <button id="adminCloseLobbyBtn" class="small-btn danger" type="button">لغو بازی قبل از شروع</button>
+                </div>
+                <div id="adminCloseLobbyHint" class="step-hint action-local-hint"></div>
                 <label id="adminLiveLinkLabel" for="adminLiveLinkInput">لینک پخش زنده</label>
                 <input id="adminLiveLinkInput" type="url" />
                 <div class="admin-action-row">
@@ -356,6 +360,7 @@
                   <button id="adminSendLiveBtn" class="small-btn primary" type="button">ارسال لینک لایو</button>
                   <button id="adminClearLiveBtn" class="small-btn" type="button">حذف لینک لایو</button>
                 </div>
+                <div id="adminLiveActionHint" class="step-hint action-local-hint"></div>
                 <div id="adminActionHint" class="step-hint"></div>
               </div>
             </div>
@@ -534,6 +539,6 @@
     <div id="miniToast" class="mini-toast hidden" role="status" aria-live="polite"></div>
 
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="./app.js?v=20260622light1" type="module"></script>
+    <script src="./app.js?v=20260622localhint1" type="module"></script>
   </body>
 </html>
