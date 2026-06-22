@@ -111,7 +111,6 @@ def withdraw_item_kb(*, withdraw_id: int, status: str, back_offset: int = 0, tg_
         if live_tg_user_id > 0:
             kb.button(text="\U0001f504 \u0628\u0631\u0648\u0632\u0631\u0633\u0627\u0646\u06cc \u0645\u0648\u062c\u0648\u062f\u06cc", callback_data=f"admin:withdraw:live:{withdraw_id}:{live_tg_user_id}")
         kb.button(text="\u2705 \u067e\u0631\u062f\u0627\u062e\u062a \u0646\u0647\u0627\u06cc\u06cc \u0628\u0627 \u0631\u0633\u06cc\u062f", callback_data=f"admin:withdraw:send-receipt:{withdraw_id}:{st}:{back_offset}")
-        kb.button(text="\U0001f4b8 \u062b\u0628\u062a \u067e\u0631\u062f\u0627\u062e\u062a \u0628\u062f\u0648\u0646 \u0641\u06cc\u0634", callback_data=f"admin:withdraw:paid:{withdraw_id}:{st}:{back_offset}")
     elif st == "PAID":
         pass
 
