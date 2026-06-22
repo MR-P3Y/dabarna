@@ -1780,20 +1780,6 @@ async def admin_withdraw_approve(cq: CallbackQuery, api: ApiClient, is_admin: bo
 
     try:
         await api.admin_approve_withdraw(withdraw_id, idempotency_key=f"WDR_APPROVE:{withdraw_id}")
-        await _notify_withdraw_status(
-            cq,
-            tg_user_id=tg_user_id,
-            withdraw_id=withdraw_id,
-            amount=amount,
-            title="برداشت تایید شد ✅",
-            body=(
-                "برداشت وجه شما تایید شد و مبلغ از کیف پول کسر شد.\n"
-                "واریز تا ساعات آینده انجام می‌شود.\n"
-                "اگر کارت‌به‌کارت باشد، معمولا آنی انجام می‌شود؛ "
-                "در ساتنا/پایا انتقال در بازه بانکی انجام می‌شود."
-            ),
-        )
-
         wr: dict = {}
         status_u = "APPROVED"
         try:
@@ -1826,9 +1812,9 @@ async def admin_withdraw_approve(cq: CallbackQuery, api: ApiClient, is_admin: bo
                 wr=wr,
                 status=status_u,
                 user_display_name=display_name,
-                extra_note="✅ برداشت تایید شد. حالا می‌تونی با دکمه «ارسال رسید به کاربر» رسید کارت‌به‌کارت را بفرستی.",
+                extra_note="\u2705 \u0628\u0631\u062f\u0627\u0634\u062a \u062a\u0627\u06cc\u06cc\u062f \u0634\u062f. \u0647\u0646\u0648\u0632 \u067e\u06cc\u0627\u0645\u06cc \u0628\u0631\u0627\u06cc \u06a9\u0627\u0631\u0628\u0631 \u0627\u0631\u0633\u0627\u0644 \u0646\u0634\u062f\u0647\u061b \u067e\u06cc\u0627\u0645 \u06a9\u0627\u0631\u0628\u0631 \u0641\u0642\u0637 \u062f\u0631 \u0645\u0631\u062d\u0644\u0647 \u067e\u0631\u062f\u0627\u062e\u062a \u0646\u0647\u0627\u06cc\u06cc \u06cc\u0627 \u0631\u062f \u0627\u0631\u0633\u0627\u0644 \u0645\u06cc\u200c\u0634\u0648\u062f.",
             ),
-            reply_markup=withdraw_item_kb(withdraw_id=withdraw_id, status=status_u, back_offset=back_offset),
+            reply_markup=withdraw_item_kb(withdraw_id=withdraw_id, status=status_u, back_offset=back_offset, tg_user_id=_to_int(wr.get("tg_user_id"), 0)),
             parse_mode="HTML",
         )
         await cq.answer("برداشت تایید شد ✅", show_alert=False)
@@ -1936,12 +1922,10 @@ async def admin_withdraw_send_receipt_start(
     await safe_edit_or_send(
         cq.message,
         panel(
-            "ارسال رسید برداشت",
-            f"برای برداشت <b>#{withdraw_id}</b> رسید را بفرست.\n"
-            "می‌تونی یکی از این‌ها را ارسال کنی:\n"
-            "1. متن رسید/کد پیگیری\n"
-            "2. عکس فیش کارت‌به‌کارت\n\n"
-            "برای لغو: <code>لغو</code> یا <code>/cancel</code>",
+            "\u067e\u0631\u062f\u0627\u062e\u062a \u0646\u0647\u0627\u06cc\u06cc \u0628\u0631\u062f\u0627\u0634\u062a",
+            f"\u0628\u0631\u0627\u06cc \u0628\u0631\u062f\u0627\u0634\u062a <b>#{withdraw_id}</b> \u0631\u0633\u06cc\u062f \u0646\u0647\u0627\u06cc\u06cc \u0631\u0627 \u0628\u0641\u0631\u0633\u062a.\\n"
+            "\u0628\u0627 \u0627\u0631\u0633\u0627\u0644 \u0645\u062a\u0646 \u06cc\u0627 \u0639\u06a9\u0633\u060c \u0628\u0631\u062f\u0627\u0634\u062a PAID \u0645\u06cc\u200c\u0634\u0648\u062f \u0648 \u0641\u0642\u0637 \u06cc\u06a9 \u067e\u06cc\u0627\u0645 \u0646\u0647\u0627\u06cc\u06cc \u0628\u0631\u0627\u06cc \u06a9\u0627\u0631\u0628\u0631 \u0627\u0631\u0633\u0627\u0644 \u0645\u06cc\u200c\u0634\u0648\u062f.\\n\\n"
+            "\u0628\u0631\u0627\u06cc \u0644\u063a\u0648: <code>\u0644\u063a\u0648</code> \u06cc\u0627 <code>/cancel</code>",
         ),
         reply_markup=withdraw_receipt_prompt_kb(withdraw_id=withdraw_id, status=status_u, back_offset=back_offset),
         parse_mode="HTML",
@@ -1950,7 +1934,7 @@ async def admin_withdraw_send_receipt_start(
 
 
 @router.message(AdminWithdrawReceiptSG.payload)
-async def admin_withdraw_send_receipt_submit(m: Message, state: FSMContext, is_admin: bool = False):
+async def admin_withdraw_send_receipt_submit(m: Message, state: FSMContext, api: ApiClient, is_admin: bool = False):
     if not require_admin(is_admin):
         await m.answer("اجازه دسترسی نداری.")
         return
@@ -1977,11 +1961,25 @@ async def admin_withdraw_send_receipt_submit(m: Message, state: FSMContext, is_a
         )
         return
 
+    tracking = f"BOT-{withdraw_id}-{int(time.time())}"
+    if status_u != "PAID":
+        try:
+            await api.admin_mark_withdraw_paid(withdraw_id, paid_tracking=tracking)
+            status_u = "PAID"
+        except ApiError as e:
+            await m.answer(
+                panel("\u062e\u0637\u0627", f"<code>{e.status}</code>\\n<code>{e.detail}</code>"),
+                parse_mode="HTML",
+                reply_markup=withdraw_item_kb(withdraw_id=withdraw_id, status=status_u, back_offset=back_offset),
+            )
+            return
+
     amount_text = _fmt_toman(amount)
     base_caption = (
-        f"🧾 شماره برداشت: <b>{withdraw_id}</b>\n"
-        f"💵 مبلغ: <b>{amount_text}</b>\n"
-        "رسید پرداخت برای شما ارسال شد."
+        f"\U0001f9fe \u0634\u0645\u0627\u0631\u0647 \u0628\u0631\u062f\u0627\u0634\u062a: <b>{withdraw_id}</b>\\n"
+        f"\U0001f4b5 \u0645\u0628\u0644\u063a: <b>{amount_text}</b>\\n"
+        f"\U0001f516 \u06a9\u062f \u067e\u06cc\u06af\u06cc\u0631\u06cc: <code>{h(tracking)}</code>\\n"
+        "\u2705 \u0628\u0631\u062f\u0627\u0634\u062a \u0634\u0645\u0627 \u067e\u0631\u062f\u0627\u062e\u062a \u0634\u062f."
     )
 
     try:
@@ -2029,9 +2027,9 @@ async def admin_withdraw_send_receipt_submit(m: Message, state: FSMContext, is_a
 
     await state.clear()
     await m.answer(
-        panel("ارسال شد ✅", f"رسید برداشت <b>#{withdraw_id}</b> برای کاربر ارسال شد."),
+        panel("\u067e\u0631\u062f\u0627\u062e\u062a \u0646\u0647\u0627\u06cc\u06cc \u0634\u062f \u2705", f"\u0628\u0631\u062f\u0627\u0634\u062a <b>#{withdraw_id}</b> \u067e\u0631\u062f\u0627\u062e\u062a \u0634\u062f \u0648 \u0641\u0642\u0637 \u067e\u06cc\u0627\u0645 \u0646\u0647\u0627\u06cc\u06cc \u0628\u0631\u0627\u06cc \u06a9\u0627\u0631\u0628\u0631 \u0627\u0631\u0633\u0627\u0644 \u0634\u062f."),
         parse_mode="HTML",
-        reply_markup=withdraw_item_kb(withdraw_id=withdraw_id, status=status_u, back_offset=back_offset),
+        reply_markup=withdraw_item_kb(withdraw_id=withdraw_id, status="PAID", back_offset=back_offset),
     )
 
 @router.callback_query(F.data.startswith("admin:withdraw:paid:"))
