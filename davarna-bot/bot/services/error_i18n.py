@@ -107,7 +107,7 @@ _FAILED_WRAPPER = re.compile(r"^[a-z0-9_ \-]+ failed:\s*(.+)$", re.IGNORECASE)
 
 
 def _contains_persian(text: str) -> bool:
-    return bool(re.search(r"[\u0600-\u06FF]", text))
+    return bool(re.search(r"[؀-ۿ]", text))
 
 
 def _contains_latin(text: str) -> bool:

@@ -1,4 +1,4 @@
-﻿from aiogram.utils.keyboard import InlineKeyboardBuilder
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 
 def admin_finance_menu_kb(*, deposit_filter_active: bool = False, withdraw_filter_active: bool = False):
@@ -109,8 +109,8 @@ def withdraw_item_kb(*, withdraw_id: int, status: str, back_offset: int = 0, tg_
         except Exception:
             live_tg_user_id = 0
         if live_tg_user_id > 0:
-            kb.button(text="\U0001f504 \u0628\u0631\u0648\u0632\u0631\u0633\u0627\u0646\u06cc \u0645\u0648\u062c\u0648\u062f\u06cc", callback_data=f"admin:withdraw:live:{withdraw_id}:{live_tg_user_id}")
-        kb.button(text="\u2705 \u067e\u0631\u062f\u0627\u062e\u062a \u0646\u0647\u0627\u06cc\u06cc \u0628\u0627 \u0631\u0633\u06cc\u062f", callback_data=f"admin:withdraw:send-receipt:{withdraw_id}:{st}:{back_offset}")
+            kb.button(text="🔄 بروزرسانی موجودی", callback_data=f"admin:withdraw:live:{withdraw_id}:{live_tg_user_id}")
+        kb.button(text="✅ پرداخت نهایی با رسید", callback_data=f"admin:withdraw:send-receipt:{withdraw_id}:{st}:{back_offset}")
     elif st == "PAID":
         pass
 

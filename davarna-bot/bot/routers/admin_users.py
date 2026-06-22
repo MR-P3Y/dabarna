@@ -18,13 +18,14 @@ from bot.keyboards.admin_users import (
 from bot.services.admin_topics import now_stamp, send_to_topic
 from bot.services.api_client import ApiClient, ApiError
 from bot.services.html import h
+from bot.services.jalali import format_jalali_datetime
 from bot.services.telegram_safe import safe_edit_or_send
 from bot.services.ui import panel
 
 router = Router()
 
-_FA_DIGITS = "\u06f0\u06f1\u06f2\u06f3\u06f4\u06f5\u06f6\u06f7\u06f8\u06f9"
-_AR_DIGITS = "\u0660\u0661\u0662\u0663\u0664\u0665\u0666\u0667\u0668\u0669"
+_FA_DIGITS = "۰۱۲۳۴۵۶۷۸۹"
+_AR_DIGITS = "٠١٢٣٤٥٦٧٨٩"
 _FA_TO_EN = str.maketrans(_FA_DIGITS + _AR_DIGITS, "0123456789" * 2)
 _COMPOSE_KIND_LABEL: dict[str, str] = {
     "deposit_reject": "رد واریز",
@@ -128,7 +129,7 @@ def _profile_text(profile: dict) -> str:
     member_txt = str(membership.get("status") or "UNKNOWN")
     restriction_txt = "فعال ⛔" if bool(restriction.get("active")) else "غیرفعال ✅"
     restriction_reason = str(restriction.get("reason") or "—")
-    restriction_until = str(restriction.get("until") or "—")
+    restriction_until = format_jalali_datetime(restriction.get("until"), default="—")
 
     return panel(
         "🧾 پروفایل کاربر",
@@ -142,7 +143,7 @@ def _profile_text(profile: dict) -> str:
         f"📊 تعداد بازی: <b>{_to_int(stats.get('games_participated'))}</b>\n"
         f"🃏 مجموع کارت: <b>{_to_int(stats.get('cards_purchased'))}</b>\n"
         f"🏆 برد کل: <b>{h(_fmt_toman(stats.get('wins_total_amount')))}</b>\n"
-        f"⏱ آخرین فعالیت: <code>{h(str(stats.get('last_activity_at') or '—'))}</code>\n\n"
+        f"⏱ آخرین فعالیت: <code>{h(format_jalali_datetime(stats.get('last_activity_at'), default='—'))}</code>\n\n"
         f"🚫 محدودیت: <b>{h(restriction_txt)}</b>\n"
         f"📝 علت محدودیت: <code>{h(restriction_reason)}</code>\n"
         f"🕓 پایان محدودیت: <code>{h(restriction_until)}</code>",
@@ -163,7 +164,7 @@ def _financial_text(payload: dict) -> str:
     lines.append("")
     lines.append("🕘 آخرین رویدادهای مالی:")
     for item in timeline[:8]:
-        created_at = str(item.get("created_at") or "—")
+        created_at = format_jalali_datetime(item.get("created_at"), default="—")
         etype = str(item.get("entry_type") or "-")
         p = item.get("payload") or {}
         amount = _to_int(p.get("amount"), 0)
@@ -189,7 +190,7 @@ def _games_text(payload: dict) -> str:
         f"🃏 کارت خریداری‌شده: <b>{_to_int(summary.get('cards_purchased'))}</b>",
         f"💸 مجموع هزینه: <b>{h(_fmt_toman(summary.get('total_spent')))}</b>",
         f"🏆 مجموع برد: <b>{h(_fmt_toman(summary.get('total_win_amount')))}</b>",
-        f"⏱ آخرین برد: <code>{h(str(summary.get('last_win_at') or '—'))}</code>",
+        f"⏱ آخرین برد: <code>{h(format_jalali_datetime(summary.get('last_win_at'), default='—'))}</code>",
         "",
         "📌 آخرین بازی‌ها:",
     ]
@@ -512,7 +513,7 @@ async def admin_users_restrict_submit(m: Message, state: FSMContext, api: ApiCli
         detail_lines=[
             f"⛔ وضعیت: <b>{'فعال' if bool(restriction.get('active')) else 'غیرفعال'}</b>",
             f"📝 دلیل: <code>{h(reason)}</code>",
-            f"⏳ زمان: <code>{h(str(restriction.get('until') or 'بدون زمان'))}</code>",
+            f"⏳ زمان: <code>{h(format_jalali_datetime(restriction.get('until'), default='بدون زمان'))}</code>",
             f"🎛 اکشن‌ها: <code>{h(', '.join(restriction.get('actions') or []))}</code>",
         ],
     )

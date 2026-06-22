@@ -3,12 +3,14 @@ from __future__ import annotations
 import asyncio
 from datetime import datetime
 from typing import Literal
+from zoneinfo import ZoneInfo
 
 from aiogram import Bot
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError, TelegramNetworkError, TelegramRetryAfter
 from aiogram.types import InlineKeyboardMarkup
 
 from bot.config import settings
+from bot.services.jalali import format_jalali_datetime
 from bot.services.notify_store import get_meta_marker, set_meta_marker
 
 TopicName = Literal["general", "winners", "withdraw", "deposit", "income", "games", "alerts", "antifraud", "game_audit", "users"]
@@ -44,7 +46,12 @@ def topic_id(name: TopicName) -> int | None:
 
 
 def now_stamp() -> str:
-    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    tz_name = str(settings.ADMIN_TOPIC_TIMEZONE or "Asia/Tehran").strip() or "Asia/Tehran"
+    try:
+        now = datetime.now(ZoneInfo(tz_name))
+    except Exception:
+        now = datetime.now()
+    return format_jalali_datetime(now, seconds=True)
 
 
 async def send_to_topic(

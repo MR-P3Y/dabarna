@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import asyncio
 import logging
@@ -22,6 +22,7 @@ from aiogram.exceptions import (
 from bot.config import settings
 from bot.services.api_client import ApiClient
 from bot.services.admin_topics import ensure_topic_rules, forum_enabled, now_stamp, send_to_topic
+from bot.services.jalali import format_jalali_datetime
 from bot.services.user_topics import (
     game_topic_title as user_game_topic_title,
     send_to_topic as send_to_user_topic,
@@ -175,7 +176,7 @@ def _event_time_text(event: dict | None) -> str:
     dt = _parse_dt((event or {}).get("created_at"))
     if dt is None:
         return now_stamp()
-    return dt.strftime("%Y-%m-%d %H:%M:%S UTC")
+    return format_jalali_datetime(dt, seconds=True, tz_name=str(settings.ADMIN_TOPIC_TIMEZONE or "Asia/Tehran"))
 
 
 def _called_numbers_from_report(report: dict) -> list[int]:
@@ -625,9 +626,9 @@ async def _send_income_daily_summary(bot: Bot, api: ApiClient, *, now_local: dat
     text = panel(
         "گزارش درآمد روزانه",
         "#درآمد #گزارش_روزانه\n"
-        f"🕒 زمان ارسال: <code>{now_local.strftime('%Y-%m-%d %H:%M:%S')}</code>\n"
-        f"🗓 از: <code>{from_at}</code>\n"
-        f"🗓 تا: <code>{to_at}</code>\n\n"
+        f"🕒 زمان ارسال: <code>{format_jalali_datetime(now_local, seconds=True)}</code>\n"
+        f"🗓 از: <code>{format_jalali_datetime(from_at, seconds=True)}</code>\n"
+        f"🗓 تا: <code>{format_jalali_datetime(to_at, seconds=True)}</code>\n\n"
         f"🎮 تعداد بازی‌های بازه: <b>{_fmt_amount(games_count)}</b>\n"
         f"🧾 تعداد خرید کارت: <b>{_fmt_amount(purchases_count)}</b>\n"
         f"🎫 تعداد کارت فروخته‌شده: <b>{_fmt_amount(cards_sold)}</b>\n"

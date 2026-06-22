@@ -59,20 +59,20 @@
 }
 
 html[data-theme="light"] {
-  --bg: #f7f1e5;
-  --bg-soft: radial-gradient(135% 125% at 10% 6%, #fff8ec 0%, #f3ead6 34%, #e9f0ff 68%, #f7f1e5 100%);
-  --text: #17264a;
-  --muted: #5d6f96;
-  --accent: #1f4cd7;
-  --accent-2: #c88f2f;
-  --glass: rgba(255, 255, 255, 0.84);
-  --glass-border: rgba(30, 51, 97, 0.2);
+  --bg: #f5f7fb;
+  --bg-soft: radial-gradient(120% 105% at 12% 4%, #fff7e9 0%, #f6f8ff 40%, #eef3fb 74%, #f7f9fc 100%);
+  --text: #101b32;
+  --muted: #3f506f;
+  --accent: #173fbd;
+  --accent-2: #9a6613;
+  --glass: rgba(255, 255, 255, 0.96);
+  --glass-border: rgba(25, 40, 72, 0.26);
   --danger: #b72248;
-  --success: #0c7d63;
-  --shadow: 0 16px 34px rgba(22, 36, 71, 0.16);
-  --lux-gold: #c88f2f;
-  --lux-gold-soft: rgba(200, 143, 47, 0.18);
-  --lux-blue-soft: rgba(31, 76, 215, 0.14);
+  --success: #087055;
+  --shadow: 0 14px 30px rgba(22, 36, 71, 0.18);
+  --lux-gold: #9a6613;
+  --lux-gold-soft: rgba(154, 102, 19, 0.18);
+  --lux-blue-soft: rgba(23, 63, 189, 0.14);
 }
 
 * {
@@ -694,11 +694,19 @@ body {
   font-weight: 800;
   color: var(--text);
   direction: ltr;
+  unicode-bidi: isolate;
   text-align: left;
   letter-spacing: 0.8px;
   max-width: 100%;
   overflow-wrap: anywhere;
   word-break: break-word;
+}
+
+.ltr-number {
+  direction: ltr;
+  unicode-bidi: isolate;
+  display: inline-block;
+  letter-spacing: 0.4px;
 }
 
 .withdraw-review-card {
@@ -2259,11 +2267,11 @@ html[data-theme="light"] body {
 }
 
 html[data-theme="light"] .glass {
-  background: linear-gradient(155deg, rgba(255, 255, 255, 0.92), rgba(251, 245, 232, 0.8));
-  border-color: rgba(27, 47, 90, 0.2);
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.98), rgba(247, 250, 255, 0.94));
+  border-color: rgba(24, 39, 70, 0.25);
   box-shadow:
-    0 14px 34px rgba(24, 40, 76, 0.14),
-    inset 0 1px 0 rgba(255, 255, 255, 0.92);
+    0 14px 30px rgba(24, 40, 76, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.96);
 }
 
 html[data-theme="light"] .panel,
@@ -2285,8 +2293,8 @@ html[data-theme="light"] .history-modal-head,
 html[data-theme="light"] .history-modal-card-item,
 html[data-theme="light"] .winner-modal-card,
 html[data-theme="light"] .history-modal-card {
-  background: linear-gradient(155deg, rgba(255, 255, 255, 0.94), rgba(250, 243, 228, 0.82));
-  border-color: rgba(33, 53, 98, 0.18);
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.98), rgba(247, 250, 255, 0.92));
+  border-color: rgba(27, 45, 82, 0.26);
 }
 
 html[data-theme="light"] .theme-mode-text {
@@ -2305,7 +2313,18 @@ html[data-theme="light"] .tx-sub,
 html[data-theme="light"] .trust-chip .label,
 html[data-theme="light"] .kpi .label,
 html[data-theme="light"] .live-insight .k {
-  color: #5b6d93;
+  color: #405171;
+}
+
+html[data-theme="light"] h1,
+html[data-theme="light"] h2,
+html[data-theme="light"] h3,
+html[data-theme="light"] label,
+html[data-theme="light"] .panel strong,
+html[data-theme="light"] .history-item strong,
+html[data-theme="light"] .destination-selected-title,
+html[data-theme="light"] .admin-action-block-title {
+  color: #101b32;
 }
 
 html[data-theme="light"] .quick-guide {
@@ -2380,6 +2399,23 @@ html[data-theme="light"] .small-btn.is-active {
   color: #173980;
 }
 
+html[data-theme="light"] .price-chip,
+html[data-theme="light"] .topic-chip {
+  border-color: rgba(23, 63, 189, 0.28);
+  background: rgba(23, 63, 189, 0.08);
+  color: #173980;
+  font-weight: 800;
+}
+
+html[data-theme="light"] .price-chip.active,
+html[data-theme="light"] .topic-chip.active,
+html[data-theme="light"] .amount-preset.is-selected {
+  border-color: rgba(154, 102, 19, 0.62);
+  background: linear-gradient(135deg, rgba(255, 229, 140, 0.72), rgba(65, 211, 178, 0.42));
+  color: #10243e;
+  box-shadow: 0 0 0 1px rgba(154, 102, 19, 0.18);
+}
+
 html[data-theme="light"] .admin-status-pill.is-ok {
   color: #157457;
   border-color: rgba(18, 122, 90, 0.42);
@@ -2414,19 +2450,24 @@ html[data-theme="light"] .small-select:focus {
 html[data-theme="light"] .deposit-step-body select.has-selection {
   border-color: rgba(200, 143, 47, 0.72);
   box-shadow: 0 0 0 2px rgba(200, 143, 47, 0.14);
-  background: rgba(200, 143, 47, 0.12);
+  background: #fffaf0;
 }
 
 html[data-theme="light"] .destination-selected-card {
-  border-color: rgba(200, 143, 47, 0.54);
-  background: linear-gradient(150deg, rgba(200, 143, 47, 0.16), rgba(31, 76, 215, 0.1));
+  border-color: rgba(154, 102, 19, 0.54);
+  background: linear-gradient(150deg, rgba(255, 248, 232, 0.95), rgba(239, 246, 255, 0.92));
 }
 
 html[data-theme="light"] .destination-selected-head,
 html[data-theme="light"] .status-pill,
 html[data-theme="light"] .winner-note,
 html[data-theme="light"] .winner-banner strong {
-  color: #8d6110;
+  color: #76500c;
+}
+
+html[data-theme="light"] .destination-selected-number,
+html[data-theme="light"] .ltr-number {
+  color: #101b32;
 }
 
 html[data-theme="light"] .status-pill {
@@ -2668,6 +2709,45 @@ html[data-theme="light"] .mini-toast {
   bottom: 12%;
   background: rgba(45, 212, 191, 0.2);
   animation-delay: 0.4s;
+}
+
+html[data-theme="light"] .app-splash {
+  background:
+    radial-gradient(55% 42% at 18% 14%, rgba(255, 223, 135, 0.42), transparent 72%),
+    radial-gradient(50% 42% at 84% 20%, rgba(68, 195, 178, 0.26), transparent 72%),
+    linear-gradient(145deg, #eef3fb, #f9fbff 48%, #e8eef8);
+}
+
+html[data-theme="light"] .splash-card {
+  background: rgba(255, 255, 255, 0.96);
+  border-color: rgba(24, 39, 70, 0.22);
+  box-shadow: 0 26px 72px rgba(26, 42, 76, 0.22);
+}
+
+html[data-theme="light"] .splash-logo {
+  border-color: rgba(24, 39, 70, 0.18);
+  box-shadow: 0 0 0 6px rgba(23, 63, 189, 0.06), 0 16px 38px rgba(25, 42, 78, 0.2);
+}
+
+html[data-theme="light"] .splash-title {
+  color: #14264a;
+}
+
+html[data-theme="light"] .splash-subtitle,
+html[data-theme="light"] .splash-status {
+  color: #405171;
+}
+
+html[data-theme="light"] .splash-loader {
+  background: rgba(24, 39, 70, 0.1);
+}
+
+html[data-theme="light"] .splash-orb-a {
+  background: rgba(255, 211, 105, 0.34);
+}
+
+html[data-theme="light"] .splash-orb-b {
+  background: rgba(45, 174, 158, 0.24);
 }
 
 @keyframes splashLoading {

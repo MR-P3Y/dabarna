@@ -1,4 +1,4 @@
-﻿from aiogram import Router, F
+from aiogram import Router, F
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import BufferedInputFile, CallbackQuery, Message
@@ -25,6 +25,7 @@ from bot.keyboards.admin_finance import (
 from bot.services.api_client import ApiClient, ApiError
 from bot.services.admin_topics import forum_enabled, send_to_topic
 from bot.services.html import h
+from bot.services.jalali import format_jalali_datetime, jalali_date_to_gregorian_text
 from bot.services.telegram_safe import safe_edit_or_send
 from bot.services.tg_display import resolve_tg_identity
 from bot.services.ui import panel
@@ -33,8 +34,8 @@ from bot.states.admin_reject import AdminRejectSG
 router = Router()
 
 ADMIN_PAGE_SIZE = 5
-_FA_DIGITS = "\u06f0\u06f1\u06f2\u06f3\u06f4\u06f5\u06f6\u06f7\u06f8\u06f9"
-_AR_DIGITS = "\u0660\u0661\u0662\u0663\u0664\u0665\u0666\u0667\u0668\u0669"
+_FA_DIGITS = "۰۱۲۳۴۵۶۷۸۹"
+_AR_DIGITS = "٠١٢٣٤٥٦٧٨٩"
 _FA_DIGITS_TRANS = str.maketrans("0123456789", _FA_DIGITS)
 _FA_TO_EN_DIGITS_TRANS = str.maketrans(_FA_DIGITS + _AR_DIGITS, "0123456789" * 2)
 
@@ -159,8 +160,8 @@ def _deposit_filter_summary(flt: DepositFilter) -> str:
     if not _is_deposit_filter_active(flt):
         return "فیلتر: <b>بدون فیلتر</b>"
 
-    created_from = h(flt.created_from or "—")
-    created_to = h(flt.created_to or "—")
+    created_from = h(format_jalali_datetime(flt.created_from, default="—"))
+    created_to = h(format_jalali_datetime(flt.created_to, default="—"))
     min_amount = _fmt_toman(flt.min_amount) if flt.min_amount is not None else "—"
     max_amount = _fmt_toman(flt.max_amount) if flt.max_amount is not None else "—"
     return (
@@ -176,8 +177,8 @@ def _withdraw_filter_summary(flt: DepositFilter) -> str:
     if not _is_deposit_filter_active(flt):
         return "فیلتر برداشت: <b>بدون فیلتر</b>"
 
-    created_from = h(flt.created_from or "—")
-    created_to = h(flt.created_to or "—")
+    created_from = h(format_jalali_datetime(flt.created_from, default="—"))
+    created_to = h(format_jalali_datetime(flt.created_to, default="—"))
     min_amount = _fmt_toman(flt.min_amount) if flt.min_amount is not None else "—"
     max_amount = _fmt_toman(flt.max_amount) if flt.max_amount is not None else "—"
     return (
@@ -199,8 +200,8 @@ def _parse_deposit_filter_text(raw_text: str) -> DepositFilter | None:
     min_match = re.search(r"(?:حداقل|min)\s*[:=]?\s*([0-9,]+)", txt, flags=re.IGNORECASE)
     max_match = re.search(r"(?:حداکثر|max)\s*[:=]?\s*([0-9,]+)", txt, flags=re.IGNORECASE)
 
-    created_from = from_match.group(1) if from_match else None
-    created_to = to_match.group(1) if to_match else None
+    created_from = jalali_date_to_gregorian_text(from_match.group(1)) if from_match else None
+    created_to = jalali_date_to_gregorian_text(to_match.group(1)) if to_match else None
 
     min_amount = None
     if min_match:
@@ -260,10 +261,14 @@ def _parse_admin_datetime_text(raw: str, *, end_of_day_if_date_only: bool) -> da
     normalized = re.sub(r"\s+", " ", normalized)
 
     if re.fullmatch(r"\d{4}-\d{2}-\d{2}", normalized):
-        d = datetime.strptime(normalized, "%Y-%m-%d")
+        d = datetime.strptime(jalali_date_to_gregorian_text(normalized), "%Y-%m-%d")
         if end_of_day_if_date_only:
             return d.replace(hour=23, minute=59, second=59)
         return d.replace(hour=0, minute=0, second=0)
+
+    if " " in normalized:
+        date_part, time_part = normalized.split(" ", 1)
+        normalized = f"{jalali_date_to_gregorian_text(date_part)} {time_part}"
 
     for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M"):
         try:
@@ -467,7 +472,7 @@ def _withdraw_detail_panel_text(
         f"🏦 شبا: <code>{h(str(wr.get('iban') or '—'))}</code>\n"
         f"🏛 حساب: <code>{h(str(wr.get('account_number') or '—'))}</code>\n"
         f"🔖 پیگیری پرداخت: <code>{h(str(wr.get('paid_tracking') or '—'))}</code>\n"
-        f"⏱ {wr.get('created_at')}\n",
+        f"⏱ {h(format_jalali_datetime(wr.get('created_at'), default='—'))}\n",
     )
     if extra_note:
         text += f"\n{extra_note}"
@@ -658,10 +663,10 @@ async def admin_finance_sales_range_open(cq: CallbackQuery, state: FSMContext, i
             "📊 گزارش فروش بازه‌ای",
             "بازه زمانی را دستی وارد کن.\n\n"
             "فرمت پیشنهادی:\n"
-            "<code>از: 2026-02-18 00:00\n"
-            "تا: 2026-02-18 23:59</code>\n\n"
+            "<code>از: 1405/04/01 00:00\n"
+            "تا: 1405/04/01 23:59</code>\n\n"
             "یا یک‌خطی:\n"
-            "<code>2026-02-18 00:00 تا 2026-02-18 23:59</code>\n\n"
+            "<code>1405/04/01 00:00 تا 1405/04/01 23:59</code>\n\n"
             "نکته:\n"
             "اگر فقط تاریخ وارد شود،\n"
             "برای «از» ساعت <b>00:00</b> و برای «تا» ساعت <b>23:59:59</b> در نظر گرفته می‌شود.",
@@ -704,10 +709,10 @@ async def admin_finance_sales_range_submit(
                 "گزارش فروش بازه‌ای",
                 "فرمت ورودی نامعتبر است.\n\n"
                 "نمونه درست:\n"
-                "<code>از: 2026-02-18 00:00\n"
-                "تا: 2026-02-18 23:59</code>\n\n"
+                "<code>از: 1405/04/01 00:00\n"
+                "تا: 1405/04/01 23:59</code>\n\n"
                 "یا:\n"
-                "<code>2026-02-18 00:00 تا 2026-02-18 23:59</code>",
+                "<code>1405/04/01 00:00 تا 1405/04/01 23:59</code>",
             ),
             reply_markup=admin_finance_sales_range_kb(),
             parse_mode="HTML",
@@ -752,8 +757,8 @@ async def admin_finance_sales_range_submit(
     col_events = _to_int(str(summary.get("col_win_events_count") or ""), 0)
 
     report_body = (
-        f"🗓 از: <code>{h(from_at)}</code>\n"
-        f"🗓 تا: <code>{h(to_at)}</code>\n\n"
+        f"🗓 از: <code>{h(format_jalali_datetime(from_at, seconds=True))}</code>\n"
+        f"🗓 تا: <code>{h(format_jalali_datetime(to_at, seconds=True))}</code>\n\n"
         f"🎮 تعداد بازی‌های بازه: <b>{_fmt_count(games_count)}</b>\n"
         f"🧾 تعداد خرید کارت: <b>{_fmt_count(purchases_count)}</b>\n"
         f"🎫 تعداد کارت فروخته‌شده: <b>{_fmt_count(cards_sold)}</b>\n"
@@ -834,9 +839,9 @@ async def admin_deposits_filter_manual(cq: CallbackQuery, state: FSMContext, is_
         panel(
             "فیلتر دستی واریز",
             "فرمت ورودی:\n"
-            "<code>از=2026-02-01 تا=2026-02-15 حداقل=100000 حداکثر=800000</code>\n\n"
+            "<code>از=1405/04/01 تا=1405/04/15 حداقل=100000 حداکثر=800000</code>\n\n"
             "هر بخشی اختیاری است. مثال:\n"
-            "<code>از=2026-02-10 حداقل=50000</code>",
+            "<code>از=1405/04/10 حداقل=50000</code>",
         ),
         reply_markup=admin_cancel_kb(),
         parse_mode="HTML",
@@ -895,7 +900,7 @@ async def admin_deposits_filter_apply(
                 "فیلتر واریز",
                 "ورودی نامعتبر است.\n"
                 "مثال درست:\n"
-                "<code>از=2026-02-01 تا=2026-02-15 حداقل=100000 حداکثر=800000</code>",
+                "<code>از=1405/04/01 تا=1405/04/15 حداقل=100000 حداکثر=800000</code>",
             ),
             reply_markup=admin_cancel_kb(),
             parse_mode="HTML",
@@ -973,9 +978,9 @@ async def admin_withdraws_filter_manual(cq: CallbackQuery, state: FSMContext, is
         panel(
             "فیلتر دستی برداشت",
             "فرمت ورودی:\n"
-            "<code>از=2026-02-01 تا=2026-02-15 حداقل=100000 حداکثر=800000</code>\n\n"
+            "<code>از=1405/04/01 تا=1405/04/15 حداقل=100000 حداکثر=800000</code>\n\n"
             "هر بخشی اختیاری است. مثال:\n"
-            "<code>از=2026-02-10 حداقل=50000</code>",
+            "<code>از=1405/04/10 حداقل=50000</code>",
         ),
         reply_markup=admin_cancel_kb(),
         parse_mode="HTML",
@@ -1034,7 +1039,7 @@ async def admin_withdraws_filter_apply(
                 "فیلتر برداشت",
                 "ورودی نامعتبر است.\n"
                 "مثال درست:\n"
-                "<code>از=2026-02-01 تا=2026-02-15 حداقل=100000 حداکثر=800000</code>",
+                "<code>از=1405/04/01 تا=1405/04/15 حداقل=100000 حداکثر=800000</code>",
             ),
             reply_markup=admin_cancel_kb(),
             parse_mode="HTML",
@@ -1132,7 +1137,7 @@ async def admin_deposit_view(cq: CallbackQuery, api: ApiClient, is_admin: bool =
             f"{destination_block}"
             f"🔐 هش رسید: <code>{h(str(it.get('receipt_hash') or '—'))}</code>\n"
             f"{duplicate_note}"
-            f"⏱ {it.get('created_at')}\n",
+            f"⏱ {h(format_jalali_datetime(it.get('created_at'), default='—'))}\n",
         )
         item_kb = deposit_item_kb(deposit_id, back_offset=back_offset)
         try:
@@ -1660,7 +1665,7 @@ async def admin_withdraw_view(cq: CallbackQuery, api: ApiClient, is_admin: bool 
             f"🏦 شبا: <code>{h(str(wr.get('iban') or '—'))}</code>\n"
             f"🏛 حساب: <code>{h(str(wr.get('account_number') or '—'))}</code>\n"
             f"🔖 پیگیری پرداخت: <code>{h(str(wr.get('paid_tracking') or '—'))}</code>\n"
-            f"⏱ {wr.get('created_at')}\n",
+            f"⏱ {h(format_jalali_datetime(wr.get('created_at'), default='—'))}\n",
         )
         await safe_edit_or_send(
             cq.message,
@@ -1785,7 +1790,7 @@ async def admin_withdraw_approve(cq: CallbackQuery, api: ApiClient, is_admin: bo
                 wr=wr,
                 status=status_u,
                 user_display_name=display_name,
-                extra_note="\u2705 \u0628\u0631\u062f\u0627\u0634\u062a \u062a\u0627\u06cc\u06cc\u062f \u0634\u062f. \u0647\u0646\u0648\u0632 \u067e\u06cc\u0627\u0645\u06cc \u0628\u0631\u0627\u06cc \u06a9\u0627\u0631\u0628\u0631 \u0627\u0631\u0633\u0627\u0644 \u0646\u0634\u062f\u0647\u061b \u067e\u06cc\u0627\u0645 \u06a9\u0627\u0631\u0628\u0631 \u0641\u0642\u0637 \u062f\u0631 \u0645\u0631\u062d\u0644\u0647 \u067e\u0631\u062f\u0627\u062e\u062a \u0646\u0647\u0627\u06cc\u06cc \u06cc\u0627 \u0631\u062f \u0627\u0631\u0633\u0627\u0644 \u0645\u06cc\u200c\u0634\u0648\u062f.",
+                extra_note="✅ برداشت تایید شد. هنوز پیامی برای کاربر ارسال نشده؛ پیام کاربر فقط در مرحله پرداخت نهایی یا رد ارسال می‌شود.",
             ),
             reply_markup=withdraw_item_kb(withdraw_id=withdraw_id, status=status_u, back_offset=back_offset, tg_user_id=_to_int(wr.get("tg_user_id"), 0)),
             parse_mode="HTML",
@@ -1895,10 +1900,10 @@ async def admin_withdraw_send_receipt_start(
     await safe_edit_or_send(
         cq.message,
         panel(
-            "\u067e\u0631\u062f\u0627\u062e\u062a \u0646\u0647\u0627\u06cc\u06cc \u0628\u0631\u062f\u0627\u0634\u062a",
-            f"\u0628\u0631\u0627\u06cc \u0628\u0631\u062f\u0627\u0634\u062a <b>#{withdraw_id}</b> \u0631\u0633\u06cc\u062f \u0646\u0647\u0627\u06cc\u06cc \u0631\u0627 \u0628\u0641\u0631\u0633\u062a.\n"
-            "\u0628\u0627 \u0627\u0631\u0633\u0627\u0644 \u0645\u062a\u0646 \u06cc\u0627 \u0639\u06a9\u0633\u060c \u0628\u0631\u062f\u0627\u0634\u062a PAID \u0645\u06cc\u200c\u0634\u0648\u062f \u0648 \u0641\u0642\u0637 \u06cc\u06a9 \u067e\u06cc\u0627\u0645 \u0646\u0647\u0627\u06cc\u06cc \u0628\u0631\u0627\u06cc \u06a9\u0627\u0631\u0628\u0631 \u0627\u0631\u0633\u0627\u0644 \u0645\u06cc\u200c\u0634\u0648\u062f.\n\n"
-            "\u0628\u0631\u0627\u06cc \u0644\u063a\u0648: <code>\u0644\u063a\u0648</code> \u06cc\u0627 <code>/cancel</code>",
+            "پرداخت نهایی برداشت",
+            f"برای برداشت <b>#{withdraw_id}</b> رسید نهایی را بفرست.\n"
+            "با ارسال متن یا عکس، برداشت PAID می‌شود و فقط یک پیام نهایی برای کاربر ارسال می‌شود.\n\n"
+            "برای لغو: <code>لغو</code> یا <code>/cancel</code>",
         ),
         reply_markup=withdraw_receipt_prompt_kb(withdraw_id=withdraw_id, status=status_u, back_offset=back_offset),
         parse_mode="HTML",
@@ -1941,7 +1946,7 @@ async def admin_withdraw_send_receipt_submit(m: Message, state: FSMContext, api:
             status_u = "PAID"
         except ApiError as e:
             await m.answer(
-                panel("\u062e\u0637\u0627", f"<code>{e.status}</code>\n<code>{e.detail}</code>"),
+                panel("خطا", f"<code>{e.status}</code>\n<code>{e.detail}</code>"),
                 parse_mode="HTML",
                 reply_markup=withdraw_item_kb(withdraw_id=withdraw_id, status=status_u, back_offset=back_offset),
             )
@@ -1949,10 +1954,10 @@ async def admin_withdraw_send_receipt_submit(m: Message, state: FSMContext, api:
 
     amount_text = _fmt_toman(amount)
     base_caption = (
-        f"\U0001f9fe \u0634\u0645\u0627\u0631\u0647 \u0628\u0631\u062f\u0627\u0634\u062a: <b>{withdraw_id}</b>\n"
-        f"\U0001f4b5 \u0645\u0628\u0644\u063a: <b>{amount_text}</b>\n"
-        f"\U0001f516 \u06a9\u062f \u067e\u06cc\u06af\u06cc\u0631\u06cc: <code>{h(tracking)}</code>\n"
-        "\u2705 \u0628\u0631\u062f\u0627\u0634\u062a \u0634\u0645\u0627 \u067e\u0631\u062f\u0627\u062e\u062a \u0634\u062f."
+        f"🧾 شماره برداشت: <b>{withdraw_id}</b>\n"
+        f"💵 مبلغ: <b>{amount_text}</b>\n"
+        f"🔖 کد پیگیری: <code>{h(tracking)}</code>\n"
+        "✅ برداشت شما پرداخت شد."
     )
 
     try:
@@ -2000,7 +2005,7 @@ async def admin_withdraw_send_receipt_submit(m: Message, state: FSMContext, api:
 
     await state.clear()
     await m.answer(
-        panel("\u067e\u0631\u062f\u0627\u062e\u062a \u0646\u0647\u0627\u06cc\u06cc \u0634\u062f \u2705", f"\u0628\u0631\u062f\u0627\u0634\u062a <b>#{withdraw_id}</b> \u067e\u0631\u062f\u0627\u062e\u062a \u0634\u062f \u0648 \u0641\u0642\u0637 \u067e\u06cc\u0627\u0645 \u0646\u0647\u0627\u06cc\u06cc \u0628\u0631\u0627\u06cc \u06a9\u0627\u0631\u0628\u0631 \u0627\u0631\u0633\u0627\u0644 \u0634\u062f."),
+        panel("پرداخت نهایی شد ✅", f"برداشت <b>#{withdraw_id}</b> پرداخت شد و فقط پیام نهایی برای کاربر ارسال شد."),
         parse_mode="HTML",
         reply_markup=withdraw_item_kb(withdraw_id=withdraw_id, status="PAID", back_offset=back_offset),
     )
@@ -2022,4 +2027,3 @@ async def admin_cancel(cq: CallbackQuery, state: FSMContext, is_admin: bool = Fa
         parse_mode="HTML",
     )
     await cq.answer()
-

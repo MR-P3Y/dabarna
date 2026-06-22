@@ -7,6 +7,7 @@ from aiogram.types import CallbackQuery
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from bot.services.api_client import ApiClient, ApiError
+from bot.services.jalali import format_jalali_datetime
 from bot.services.telegram_safe import safe_edit_or_send
 from bot.services.ui import panel
 
@@ -29,15 +30,7 @@ def _fmt_amount(value: object) -> str:
 
 
 def _fmt_datetime(value: object) -> str:
-    raw = str(value or "").strip()
-    if not raw:
-        return "نامشخص"
-    normalized = raw.replace("T", " ").replace("-", "/")
-    if "." in normalized:
-        normalized = normalized.split(".", 1)[0]
-    if len(normalized) >= 16:
-        normalized = normalized[:16]
-    return _to_fa_digits(normalized)
+    return format_jalali_datetime(value, default="نامشخص")
 
 
 def _tx_direction_meta(direction: object) -> tuple[str, str, str]:

@@ -135,14 +135,14 @@ const headerWalletBalance = document.getElementById("headerWalletBalance");
 const headerUserStatus = document.getElementById("headerUserStatus");
 
 const STATUS_LABELS = {
-  LOBBY: "\u062f\u0631 \u0627\u0646\u062a\u0638\u0627\u0631 \u0634\u0631\u0648\u0639",
-  RUNNING: "\u062f\u0631 \u062d\u0627\u0644 \u0627\u062c\u0631\u0627",
-  ENDED: "\u067e\u0627\u06cc\u0627\u0646\u200c\u06cc\u0627\u0641\u062a\u0647",
-  CANCELLED: "\u0644\u063a\u0648 \u0634\u062f\u0647",
-  ACTIVE: "\u0641\u0639\u0627\u0644",
-  PENDING: "\u062f\u0631 \u0627\u0646\u062a\u0638\u0627\u0631",
-  APPROVED: "\u062a\u0627\u06cc\u06cc\u062f \u0634\u062f\u0647",
-  REJECTED: "\u0631\u062f \u0634\u062f\u0647",
+  LOBBY: "در انتظار شروع",
+  RUNNING: "در حال اجرا",
+  ENDED: "پایان‌یافته",
+  CANCELLED: "لغو شده",
+  ACTIVE: "فعال",
+  PENDING: "در انتظار",
+  APPROVED: "تایید شده",
+  REJECTED: "رد شده",
 };
 
 const DEPOSIT_STATUS_LABELS = {
@@ -161,21 +161,21 @@ const WITHDRAW_STATUS_LABELS = {
 };
 
 const EVENT_KIND_LABELS = {
-  GAME_CREATED: "\u0627\u06cc\u062c\u0627\u062f \u0628\u0627\u0632\u06cc",
-  GAME_STARTED: "\u0634\u0631\u0648\u0639 \u0628\u0627\u0632\u06cc",
-  GAME_ENDED: "\u067e\u0627\u06cc\u0627\u0646 \u0628\u0627\u0632\u06cc",
-  GAME_CANCELLED: "\u0644\u063a\u0648 \u0628\u0627\u0632\u06cc",
-  GAME_LOBBY_CLOSED: "\u0628\u0633\u062a\u0647 \u0634\u062f\u0646 \u0644\u0627\u0628\u06cc",
-  NUMBER_CALLED: "\u0627\u0639\u0644\u0627\u0645 \u0639\u062f\u062f",
-  NUMBER_UNDONE: "\u062d\u0630\u0641 \u0622\u062e\u0631\u06cc\u0646 \u0639\u062f\u062f",
-  CARDS_PURCHASED: "\u062e\u0631\u06cc\u062f \u06a9\u0627\u0631\u062a",
-  CARD_BOUGHT: "\u062e\u0631\u06cc\u062f \u06a9\u0627\u0631\u062a",
+  GAME_CREATED: "ایجاد بازی",
+  GAME_STARTED: "شروع بازی",
+  GAME_ENDED: "پایان بازی",
+  GAME_CANCELLED: "لغو بازی",
+  GAME_LOBBY_CLOSED: "بسته شدن لابی",
+  NUMBER_CALLED: "اعلام عدد",
+  NUMBER_UNDONE: "حذف آخرین عدد",
+  CARDS_PURCHASED: "خرید کارت",
+  CARD_BOUGHT: "خرید کارت",
   PRIZE_COL: "برد ستونی(تورنا)",
   PRIZE_ROW: "برد سطری(تمام)",
-  CLAIM_SUBMITTED: "\u062b\u0628\u062a \u0627\u062f\u0639\u0627",
-  CLAIM_APPROVED: "\u062a\u0627\u06cc\u06cc\u062f \u0627\u062f\u0639\u0627",
-  CLAIM_REJECTED: "\u0631\u062f \u0627\u062f\u0639\u0627",
-  WINNER_DECLARED: "\u0627\u0639\u0644\u0627\u0645 \u0628\u0631\u0646\u062f\u0647",
+  CLAIM_SUBMITTED: "ثبت ادعا",
+  CLAIM_APPROVED: "تایید ادعا",
+  CLAIM_REJECTED: "رد ادعا",
+  WINNER_DECLARED: "اعلام برنده",
 };
 
 const ACTIVE_GAME_STATUSES = new Set(["LOBBY", "RUNNING"]);
@@ -188,93 +188,93 @@ const CARD_HISTORY_LIMIT = 10;
 const LIVE_EVENTS_LIMIT = 15;
 
 const UI_TEXT = {
-  brandTitle: "\u062f\u0628\u0631\u0646\u0627 \u062d\u0644\u06cc\u0645 \u06cc\u06af\u0646 \u0637\u06cc\u0627\u0631",
-  headerUserLabel: "\u06a9\u0627\u0631\u0628\u0631",
-  headerWalletMiniLabel: "\u06a9\u06cc\u0641 \u067e\u0648\u0644",
-  gamesTitle: "\u0628\u0627\u0632\u06cc\u200c\u0647\u0627",
-  refreshGamesBtn: "\u0628\u0647\u200c\u0631\u0648\u0632\u0631\u0633\u0627\u0646\u06cc",
+  brandTitle: "دبرنا حلیم یگن طیار",
+  headerUserLabel: "کاربر",
+  headerWalletMiniLabel: "کیف پول",
+  gamesTitle: "بازی‌ها",
+  refreshGamesBtn: "به‌روزرسانی",
   gamesHint:
-    "\u0648\u0631\u0648\u062f \u0633\u0631\u06cc\u0639 \u0628\u0647 \u0628\u0627\u0632\u06cc\u200c\u0647\u0627\u06cc \u0641\u0639\u0627\u0644\u060c \u0645\u0634\u0627\u0647\u062f\u0647 \u0622\u0645\u0627\u0631 \u0632\u0646\u062f\u0647 \u0648 \u062e\u0631\u06cc\u062f \u06a9\u0627\u0631\u062a.",
+    "ورود سریع به بازی‌های فعال، مشاهده آمار زنده و خرید کارت.",
   gamesGuideText:
-    "\u0628\u0627\u0632\u06cc \u0641\u0639\u0627\u0644 \u0631\u0627 \u0627\u0646\u062a\u062e\u0627\u0628 \u06a9\u0646\u06cc\u062f\u060c \u0648\u0627\u0631\u062f \u0648\u0636\u0639\u06cc\u062a \u0632\u0646\u062f\u0647 \u0634\u0648\u06cc\u062f \u0648 \u062e\u0631\u06cc\u062f \u06a9\u0627\u0631\u062a \u0631\u0627 \u0627\u0646\u062c\u0627\u0645 \u062f\u0647\u06cc\u062f.",
-  recentStatsTitle: "\u0622\u0645\u0627\u0631 \u06f5 \u0628\u0627\u0632\u06cc \u0627\u062e\u06cc\u0631",
-  trustPanelTitle: "\u0633\u06cc\u0633\u062a\u0645 \u0627\u0639\u062a\u0645\u0627\u062f",
-  liveTitle: "\u0648\u0636\u0639\u06cc\u062a \u0632\u0646\u062f\u0647 \u0628\u0627\u0632\u06cc",
-  buyQtyLabel: "\u062a\u0639\u062f\u0627\u062f \u06a9\u0627\u0631\u062a",
-  buyCardsBtn: "\u062e\u0631\u06cc\u062f \u06a9\u0627\u0631\u062a",
-  cardsTitle: "\u06a9\u0627\u0631\u062a\u200c\u0647\u0627\u06cc \u0645\u0646",
-  refreshCardsBtn: "\u0628\u0647\u200c\u0631\u0648\u0632\u0631\u0633\u0627\u0646\u06cc",
+    "بازی فعال را انتخاب کنید، وارد وضعیت زنده شوید و خرید کارت را انجام دهید.",
+  recentStatsTitle: "آمار ۵ بازی اخیر",
+  trustPanelTitle: "سیستم اعتماد",
+  liveTitle: "وضعیت زنده بازی",
+  buyQtyLabel: "تعداد کارت",
+  buyCardsBtn: "خرید کارت",
+  cardsTitle: "کارت‌های من",
+  refreshCardsBtn: "به‌روزرسانی",
   cardsHint:
-    "\u06a9\u0627\u0631\u062a\u200c\u0647\u0627\u06cc \u0628\u0627\u0632\u06cc \u0641\u0639\u0627\u0644 \u0628\u0627 \u0647\u0627\u06cc\u0644\u0627\u06cc\u062a \u0639\u062f\u062f\u0647\u0627\u06cc \u062e\u0648\u0627\u0646\u062f\u0647\u200c\u0634\u062f\u0647 \u0646\u0645\u0627\u06cc\u0634 \u062f\u0627\u062f\u0647 \u0645\u06cc\u200c\u0634\u0648\u0646\u062f.",
+    "کارت‌های بازی فعال با هایلایت عددهای خوانده‌شده نمایش داده می‌شوند.",
   cardsGuideText:
-    "\u06a9\u0627\u0631\u062a\u200c\u0647\u0627\u06cc \u062e\u0631\u06cc\u062f\u0627\u0631\u06cc\u200c\u0634\u062f\u0647\u060c \u0627\u0639\u062f\u0627\u062f \u062e\u0648\u0627\u0646\u062f\u0647\u200c\u0634\u062f\u0647 \u0648 \u062a\u0627\u0631\u06cc\u062e\u0686\u0647 \u0628\u0631\u062f \u0631\u0627 \u0627\u06cc\u0646\u062c\u0627 \u0628\u0628\u06cc\u0646\u06cc\u062f.",
-  cardsActiveTitle: "\u06a9\u0627\u0631\u062a\u200c\u0647\u0627\u06cc \u062e\u0631\u06cc\u062f\u0627\u0631\u06cc\u200c\u0634\u062f\u0647 \u0628\u0627\u0632\u06cc\u200c\u0647\u0627\u06cc \u0641\u0639\u0627\u0644",
-  cardsHistoryTitle: "\u062a\u0627\u0631\u06cc\u062e\u0686\u0647 \u062e\u0631\u06cc\u062f \u06a9\u0627\u0631\u062a (\u06f1\u06f0 \u0645\u0648\u0631\u062f \u0622\u062e\u0631)",
-  cardsHistoryMeta: "\u0627\u0633\u06a9\u0631\u0648\u0644\u200c\u067e\u0630\u06cc\u0631",
-  cardsWinsTitle: "\u062a\u0627\u06cc\u0645\u200c\u0644\u0627\u06cc\u0646 \u0628\u0631\u062f\u0647\u0627",
-  walletTitle: "\u06a9\u06cc\u0641 \u067e\u0648\u0644",
-  refreshWalletBtn: "\u0628\u0647\u200c\u0631\u0648\u0632\u0631\u0633\u0627\u0646\u06cc",
+    "کارت‌های خریداری‌شده، اعداد خوانده‌شده و تاریخچه برد را اینجا ببینید.",
+  cardsActiveTitle: "کارت‌های خریداری‌شده بازی‌های فعال",
+  cardsHistoryTitle: "تاریخچه خرید کارت (۱۰ مورد آخر)",
+  cardsHistoryMeta: "اسکرول‌پذیر",
+  cardsWinsTitle: "تایم‌لاین بردها",
+  walletTitle: "کیف پول",
+  refreshWalletBtn: "به‌روزرسانی",
   walletGuideText:
-    "\u0628\u0631\u0627\u06cc \u0648\u0627\u0631\u06cc\u0632 \u06cc\u0627 \u0628\u0631\u062f\u0627\u0634\u062a\u060c \u0645\u0631\u0627\u062d\u0644 \u0631\u0627 \u0628\u0647 \u062a\u0631\u062a\u06cc\u0628 \u0627\u0646\u062c\u0627\u0645 \u062f\u0647\u06cc\u062f \u0648 \u0648\u0636\u0639\u06cc\u062a \u062f\u0631\u062e\u0648\u0627\u0633\u062a\u200c\u0647\u0627 \u0631\u0627 \u067e\u06cc\u06af\u06cc\u0631\u06cc \u06a9\u0646\u06cc\u062f.",
-  walletBalanceLabel: "\u0645\u0648\u062c\u0648\u062f\u06cc \u0641\u0639\u0644\u06cc",
-  depositFlowTitle: "\u0648\u0627\u0631\u06cc\u0632 \u0628\u0647 \u06a9\u06cc\u0641 \u067e\u0648\u0644",
+    "برای واریز یا برداشت، مراحل را به ترتیب انجام دهید و وضعیت درخواست‌ها را پیگیری کنید.",
+  walletBalanceLabel: "موجودی فعلی",
+  depositFlowTitle: "واریز به کیف پول",
   depositFlowDesc:
-    "\u06f1) \u0645\u0628\u0644\u063a \u062f\u0644\u062e\u0648\u0627\u0647 \u062a\u0648\u0645\u0627\u0646 \u0648\u0627\u0631\u062f \u06a9\u0646\u06cc\u062f. \u06f2) \u06a9\u0627\u0631\u062a \u0645\u0642\u0635\u062f \u0631\u0627 \u0627\u0646\u062a\u062e\u0627\u0628 \u06a9\u0646\u06cc\u062f. \u06f3) \u0631\u0633\u06cc\u062f \u0631\u0627 \u0622\u067e\u0644\u0648\u062f \u06a9\u0646\u06cc\u062f. \u06f4) \u062b\u0628\u062a \u0646\u0647\u0627\u06cc\u06cc.",
-  depositAmountLabel: "\u0645\u0628\u0644\u063a \u0648\u0627\u0631\u06cc\u0632 (\u062a\u0648\u0645\u0627\u0646)",
-  depositDestinationLabel: "\u0627\u0646\u062a\u062e\u0627\u0628 \u06a9\u0627\u0631\u062a \u0645\u0639\u0631\u0641\u06cc\u200c\u0634\u062f\u0647",
-  copyDepositCardBtn: "\u06a9\u067e\u06cc \u0634\u0645\u0627\u0631\u0647 \u06a9\u0627\u0631\u062a",
-  depositReceiptLabel: "\u0622\u067e\u0644\u0648\u062f \u0631\u0633\u06cc\u062f",
-  depositSubmitLabel: "\u062b\u0628\u062a \u0648\u0627\u0631\u06cc\u0632\u06cc",
-  submitDepositBtn: "\u062b\u0628\u062a \u0648\u0627\u0631\u06cc\u0632\u06cc",
-  withdrawFlowTitle: "\u0628\u0631\u062f\u0627\u0634\u062a \u0627\u0632 \u06a9\u06cc\u0641 \u067e\u0648\u0644",
+    "۱) مبلغ دلخواه تومان وارد کنید. ۲) کارت مقصد را انتخاب کنید. ۳) رسید را آپلود کنید. ۴) ثبت نهایی.",
+  depositAmountLabel: "مبلغ واریز (تومان)",
+  depositDestinationLabel: "انتخاب کارت معرفی‌شده",
+  copyDepositCardBtn: "کپی شماره کارت",
+  depositReceiptLabel: "آپلود رسید",
+  depositSubmitLabel: "ثبت واریزی",
+  submitDepositBtn: "ثبت واریزی",
+  withdrawFlowTitle: "برداشت از کیف پول",
   withdrawFlowDesc:
-    "\u06f1) \u0645\u0628\u0644\u063a \u06f2) \u0627\u0637\u0644\u0627\u0639\u0627\u062a \u0645\u0642\u0635\u062f \u06f3) \u0628\u0627\u0632\u0628\u06cc\u0646\u06cc \u06f4) \u062b\u0628\u062a \u0646\u0647\u0627\u06cc\u06cc",
-  withdrawLabel: "\u0645\u0628\u0644\u063a \u0628\u0631\u062f\u0627\u0634\u062a (\u062a\u0648\u0645\u0627\u0646)",
-  withdrawTargetLabel: "\u0627\u0637\u0644\u0627\u0639\u0627\u062a \u0645\u0642\u0635\u062f \u0628\u0631\u062f\u0627\u0634\u062a",
-  withdrawFullNameLabel: "\u0646\u0627\u0645 \u0648 \u0646\u0627\u0645 \u062e\u0627\u0646\u0648\u0627\u062f\u06af\u06cc",
-  withdrawCardLabel: "\u0634\u0645\u0627\u0631\u0647 \u06a9\u0627\u0631\u062a",
-  withdrawIbanLabel: "\u0634\u0628\u0627 (\u0627\u062e\u062a\u06cc\u0627\u0631\u06cc)",
-  withdrawAccountLabel: "\u0634\u0645\u0627\u0631\u0647 \u062d\u0633\u0627\u0628 (\u0627\u062e\u062a\u06cc\u0627\u0631\u06cc)",
-  withdrawReviewLabel: "\u0628\u0627\u0632\u0628\u06cc\u0646\u06cc \u0627\u0637\u0644\u0627\u0639\u0627\u062a",
-  withdrawSubmitLabel: "\u062b\u0628\u062a \u0646\u0647\u0627\u06cc\u06cc \u0628\u0631\u062f\u0627\u0634\u062a",
-  submitWithdrawBtn: "\u062b\u0628\u062a \u0628\u0631\u062f\u0627\u0634\u062a",
-  depositRequestsTitle: "\u062f\u0631\u062e\u0648\u0627\u0633\u062a\u200c\u0647\u0627\u06cc \u0648\u0627\u0631\u06cc\u0632",
-  withdrawRequestsTitle: "\u062f\u0631\u062e\u0648\u0627\u0633\u062a\u200c\u0647\u0627\u06cc \u0628\u0631\u062f\u0627\u0634\u062a",
-  navGamesText: "\u0628\u0627\u0632\u06cc",
-  navCardsText: "\u06a9\u0627\u0631\u062a\u200c\u0647\u0627\u06cc \u0645\u0646",
-  navWalletText: "\u06a9\u06cc\u0641 \u067e\u0648\u0644",
-  navAdminText: "\u0645\u062f\u06cc\u0631\u06cc\u062a",
-  adminTitle: "\u067e\u0646\u0644 \u0645\u062f\u06cc\u0631\u06cc\u062a",
+    "۱) مبلغ ۲) اطلاعات مقصد ۳) بازبینی ۴) ثبت نهایی",
+  withdrawLabel: "مبلغ برداشت (تومان)",
+  withdrawTargetLabel: "اطلاعات مقصد برداشت",
+  withdrawFullNameLabel: "نام و نام خانوادگی",
+  withdrawCardLabel: "شماره کارت",
+  withdrawIbanLabel: "شبا (اختیاری)",
+  withdrawAccountLabel: "شماره حساب (اختیاری)",
+  withdrawReviewLabel: "بازبینی اطلاعات",
+  withdrawSubmitLabel: "ثبت نهایی برداشت",
+  submitWithdrawBtn: "ثبت برداشت",
+  depositRequestsTitle: "درخواست‌های واریز",
+  withdrawRequestsTitle: "درخواست‌های برداشت",
+  navGamesText: "بازی",
+  navCardsText: "کارت‌های من",
+  navWalletText: "کیف پول",
+  navAdminText: "مدیریت",
+  adminTitle: "پنل مدیریت",
   adminGuideText:
-    "\u0627\u06cc\u062c\u0627\u062f \u0628\u0627\u0632\u06cc\u060c \u0645\u062f\u06cc\u0631\u06cc\u062a \u0639\u0645\u0644\u06cc\u0627\u062a \u0648 \u0628\u0631\u0631\u0633\u06cc \u0648\u0627\u0631\u06cc\u0632/\u0628\u0631\u062f\u0627\u0634\u062a \u0627\u0632 \u0647\u0645\u06cc\u0646 \u0628\u062e\u0634 \u0627\u0646\u062c\u0627\u0645 \u0645\u06cc\u200c\u0634\u0648\u062f.",
-  adminCreateTitle: "\u0627\u06cc\u062c\u0627\u062f \u0628\u0627\u0632\u06cc \u062c\u062f\u06cc\u062f",
-  adminCreateHint: "\u0628\u0627 \u0627\u0646\u062a\u062e\u0627\u0628 \u062a\u0627\u067e\u06cc\u06a9 \u0648 \u0642\u06cc\u0645\u062a \u06a9\u0627\u0631\u062a\u060c \u0628\u0627\u0632\u06cc \u062c\u062f\u06cc\u062f \u0628\u0633\u0627\u0632\u06cc\u062f.",
-  adminCreateGroupLabel: "\u0634\u0646\u0627\u0633\u0647 \u06af\u0631\u0648\u0647",
-  adminCreateTopicLabel: "\u062a\u0627\u067e\u06cc\u06a9 \u0628\u0627\u0632\u06cc",
-  adminCreatePriceLabel: "\u0642\u06cc\u0645\u062a \u06a9\u0627\u0631\u062a (\u062a\u0648\u0645\u0627\u0646)",
-  adminCreateBtn: "\u0627\u06cc\u062c\u0627\u062f \u0628\u0627\u0632\u06cc \u0633\u0641\u0627\u0631\u0634\u06cc",
-  adminGamesTitle: "\u0628\u0627\u0632\u06cc\u200c\u0647\u0627\u06cc \u0642\u0627\u0628\u0644 \u0645\u062f\u06cc\u0631\u06cc\u062a",
-  adminActionsTitle: "\u0639\u0645\u0644\u06cc\u0627\u062a \u0628\u0627\u0632\u06cc",
-  adminCallLabel: "\u0639\u062f\u062f \u0628\u0631\u0627\u06cc \u0627\u0639\u0644\u0627\u0645",
-  adminUndoBtn: "\u062d\u0630\u0641 \u0622\u062e\u0631\u06cc\u0646 \u0639\u062f\u062f",
-  adminStartBtn: "\u0634\u0631\u0648\u0639 \u0628\u0627\u0632\u06cc",
-  adminCancelReasonLabel: "\u0639\u0644\u062a \u0644\u063a\u0648 \u0644\u0627\u0628\u06cc",
-  adminCloseLobbyBtn: "\u0644\u063a\u0648 \u0628\u0627\u0632\u06cc \u0642\u0628\u0644 \u0627\u0632 \u0634\u0631\u0648\u0639",
-  adminLiveLinkLabel: "\u0644\u06cc\u0646\u06a9 \u067e\u062e\u0634 \u0632\u0646\u062f\u0647",
-  adminSetLiveBtn: "\u062b\u0628\u062a \u0644\u06cc\u0646\u06a9 \u0644\u0627\u06cc\u0648",
-  adminClearLiveBtn: "\u062d\u0630\u0641 \u0644\u06cc\u0646\u06a9 \u0644\u0627\u06cc\u0648",
-  adminDepositsTitle: "\u0648\u0627\u0631\u06cc\u0632\u0647\u0627\u06cc \u062f\u0631 \u0627\u0646\u062a\u0638\u0627\u0631",
-  adminWithdrawsTitle: "\u0628\u0631\u062f\u0627\u0634\u062a\u200c\u0647\u0627\u06cc \u0645\u062f\u06cc\u0631\u06cc\u062a\u06cc",
-  adminUsersTitle: "\u0645\u062f\u06cc\u0631\u06cc\u062a \u06a9\u0627\u0631\u0628\u0631\u0627\u0646",
-  adminUsersSearchLabel: "\u062c\u0633\u062a\u062c\u0648 (\u0634\u0646\u0627\u0633\u0647 \u062a\u0644\u06af\u0631\u0627\u0645 / \u06cc\u0648\u0632\u0631\u0646\u06cc\u0645 / gid / dep / wdr)",
-  adminUsersSearchBtn: "\u062c\u0633\u062a\u062c\u0648",
-  adminUsersRefreshBtn: "\u0628\u0627\u0632\u062e\u0648\u0627\u0646\u06cc \u06a9\u0627\u0631\u0628\u0631 \u0627\u0646\u062a\u062e\u0627\u0628\u06cc",
-  superAdminTitle: "\u0645\u062f\u06cc\u0631\u06cc\u062a \u0627\u062f\u0645\u06cc\u0646\u200c\u0647\u0627 (\u0633\u0648\u067e\u0631 \u0627\u062f\u0645\u06cc\u0646)",
-  superAdminUserLabel: "\u0634\u0646\u0627\u0633\u0647 \u062a\u0644\u06af\u0631\u0627\u0645 \u06a9\u0627\u0631\u0628\u0631",
-  superAdminRoleLabel: "\u0646\u0642\u0634",
-  winnerModalTitle: "\u062a\u0628\u0631\u06cc\u06a9\u060c \u0634\u0645\u0627 \u0628\u0631\u0646\u062f\u0647 \u0634\u062f\u06cc\u062f",
-  winnerWalletBtn: "\u0645\u0634\u0627\u0647\u062f\u0647 \u062f\u0631 \u06a9\u06cc\u0641 \u067e\u0648\u0644",
-  winnerDismissBtn: "\u0628\u0633\u062a\u0646",
+    "ایجاد بازی، مدیریت عملیات و بررسی واریز/برداشت از همین بخش انجام می‌شود.",
+  adminCreateTitle: "ایجاد بازی جدید",
+  adminCreateHint: "با انتخاب تاپیک و قیمت کارت، بازی جدید بسازید.",
+  adminCreateGroupLabel: "شناسه گروه",
+  adminCreateTopicLabel: "تاپیک بازی",
+  adminCreatePriceLabel: "قیمت کارت (تومان)",
+  adminCreateBtn: "ایجاد بازی سفارشی",
+  adminGamesTitle: "بازی‌های قابل مدیریت",
+  adminActionsTitle: "عملیات بازی",
+  adminCallLabel: "عدد برای اعلام",
+  adminUndoBtn: "حذف آخرین عدد",
+  adminStartBtn: "شروع بازی",
+  adminCancelReasonLabel: "علت لغو لابی",
+  adminCloseLobbyBtn: "لغو بازی قبل از شروع",
+  adminLiveLinkLabel: "لینک پخش زنده",
+  adminSetLiveBtn: "ثبت لینک لایو",
+  adminClearLiveBtn: "حذف لینک لایو",
+  adminDepositsTitle: "واریزهای در انتظار",
+  adminWithdrawsTitle: "برداشت‌های مدیریتی",
+  adminUsersTitle: "مدیریت کاربران",
+  adminUsersSearchLabel: "جستجو (شناسه تلگرام / یوزرنیم / gid / dep / wdr)",
+  adminUsersSearchBtn: "جستجو",
+  adminUsersRefreshBtn: "بازخوانی کاربر انتخابی",
+  superAdminTitle: "مدیریت ادمین‌ها (سوپر ادمین)",
+  superAdminUserLabel: "شناسه تلگرام کاربر",
+  superAdminRoleLabel: "نقش",
+  winnerModalTitle: "تبریک، شما برنده شدید",
+  winnerWalletBtn: "مشاهده در کیف پول",
+  winnerDismissBtn: "بستن",
 };
 
 const ADMIN_CREATE_TOPIC_LABELS = {
@@ -709,14 +709,14 @@ function adminCreateTopicTitle(topic) {
 }
 
 const WALLET_REASON_LABELS = {
-  BUY_CARDS: "\u062e\u0631\u06cc\u062f \u06a9\u0627\u0631\u062a",
+  BUY_CARDS: "خرید کارت",
   PRIZE_COL: "برد ستونی(تورنا)",
   PRIZE_ROW: "برد سطری(تمام)",
-  DEPOSIT_APPROVED: "\u062a\u0627\u06cc\u06cc\u062f \u0648\u0627\u0631\u06cc\u0632",
-  WITHDRAW_APPROVED: "\u062a\u0627\u06cc\u06cc\u062f \u0628\u0631\u062f\u0627\u0634\u062a",
-  WITHDRAW_REJECTED: "\u0631\u062f \u0628\u0631\u062f\u0627\u0634\u062a",
-  GAME_CANCEL_REFUND: "\u0628\u0631\u06af\u0634\u062a \u0648\u062c\u0647 \u0644\u063a\u0648 \u0628\u0627\u0632\u06cc",
-  REFUND_GAME_CANCELLED: "\u0628\u0631\u06af\u0634\u062a \u0648\u062c\u0647 \u0644\u063a\u0648 \u0628\u0627\u0632\u06cc",
+  DEPOSIT_APPROVED: "تایید واریز",
+  WITHDRAW_APPROVED: "تایید برداشت",
+  WITHDRAW_REJECTED: "رد برداشت",
+  GAME_CANCEL_REFUND: "برگشت وجه لغو بازی",
+  REFUND_GAME_CANCELLED: "برگشت وجه لغو بازی",
 };
 
 function walletReasonLabel(reason) {
@@ -734,14 +734,26 @@ const WIN_PATTERN_LABELS = {
   ROW: "برد سطری(تمام)",
   COL: "برد ستونی(تورنا)",
   FULL: "برد سطری(تمام)",
-  "Ú©Ø§Ù…Ù„": "برد سطری(تمام)",
-  "ØªÙˆØ±Ù†Ø§": "برد ستونی(تورنا)",
-  "Ø®Ø·ÛŒ": "خطی",
-  "Ù†Ø§Ù…Ø´Ø®Øµ": "نامشخص",
 };
 
+function repairMojibakeText(raw) {
+  const text = String(raw || "");
+  const maybeBroken = Array.from(text).some((ch) => {
+    const code = ch.charCodeAt(0);
+    return code >= 0x00c0 && code <= 0x00ff;
+  });
+  if (!maybeBroken || typeof TextDecoder === "undefined") return text;
+  try {
+    const bytes = Uint8Array.from(Array.from(text).map((ch) => ch.charCodeAt(0) & 0xff));
+    const repaired = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+    return repaired || text;
+  } catch (_) {
+    return text;
+  }
+}
+
 function normalizeWinPatternLabel(raw) {
-  const val = String(raw || "").trim();
+  const val = repairMojibakeText(raw).trim();
   if (!val) return "-";
   if (WIN_PATTERN_LABELS[val]) return WIN_PATTERN_LABELS[val];
   const upper = val.toUpperCase();
@@ -924,6 +936,14 @@ function prettyCardNumber(raw) {
   return digits.replace(/(\d{4})(?=\d)/g, "$1-");
 }
 
+function ltrNumberHtml(value) {
+  return `<bdi dir="ltr" class="ltr-number">${safeText(value)}</bdi>`;
+}
+
+function ltrIsolateText(value) {
+  return `${String.fromCharCode(0x2066)}${String(value || "")}${String.fromCharCode(0x2069)}`;
+}
+
 function renderDepositDestinationHint() {
   const selectEl = getEl("depositDestinationSelect");
   const copyBtn = getEl("copyDepositCardBtn");
@@ -952,7 +972,7 @@ function renderDepositDestinationHint() {
       <div class="destination-selected-head">کارت انتخاب‌شده</div>
       <div class="destination-selected-title">${safeText(title)}</div>
       <div class="destination-selected-meta">${safeText(bank)} | ${safeText(owner)}</div>
-      <div class="destination-selected-number" dir="ltr">${safeText(card)}</div>
+      <div class="destination-selected-number">${ltrNumberHtml(card)}</div>
     `;
   }
 }
@@ -988,7 +1008,11 @@ async function copySelectedDepositCard() {
   }
   try {
     await copyTextToClipboard(rawCard);
-    setHint("depositDestinationHint", `شماره کارت ${prettyCardNumber(rawCard)} کپی شد.`, "success");
+    const hint = getEl("depositDestinationHint");
+    if (hint) {
+      hint.innerHTML = `شماره کارت ${ltrNumberHtml(prettyCardNumber(rawCard))} کپی شد.`;
+      hint.dataset.type = "success";
+    }
     setBadge("success", "شماره کارت کپی شد");
     showToast("شماره کارت با موفقیت کپی شد.", "success");
     triggerLightHaptic("success");
@@ -1280,6 +1304,8 @@ function formatFaDateTime(raw) {
     const d = new Date(String(raw));
     if (Number.isNaN(d.getTime())) return String(raw);
     return d.toLocaleString("fa-IR", {
+      calendar: "persian",
+      numberingSystem: "arabext",
       year: "numeric",
       month: "2-digit",
       day: "2-digit",
@@ -1389,9 +1415,9 @@ function buildWinnerNoticeText(event) {
   const payload = event?.payload || {};
   const amount = resolveWinnerAmount(payload);
   const kindLabel = resolveWinnerKindLabel(kind, payload);
-  const amountPart = amount > 0 ? ` | \u0645\u0628\u0644\u063a: ${toman(amount)}` : "";
-  const gamePart = gid > 0 ? ` \u062f\u0631 \u0628\u0627\u0632\u06cc #${gid}` : "";
-  return `\u062a\u0628\u0631\u06cc\u06a9! ${kindLabel}${gamePart}${amountPart}`;
+  const amountPart = amount > 0 ? ` | مبلغ: ${toman(amount)}` : "";
+  const gamePart = gid > 0 ? ` در بازی #${gid}` : "";
+  return `تبریک! ${kindLabel}${gamePart}${amountPart}`;
 }
 
 function resolveWinnerAmount(payload) {
@@ -1518,7 +1544,7 @@ function renderWinnerBannerFromState(gameId, st) {
 
   host.innerHTML = `
     <div class="winner-banner">
-      <strong>\u062a\u0628\u0631\u06cc\u06a9! \u0634\u0645\u0627 \u0628\u0631\u0646\u062f\u0647 \u0627\u06cc\u0646 \u0628\u0627\u0632\u06cc \u0634\u062f\u06cc\u062f</strong>
+      <strong>تبریک! شما برنده این بازی شدید</strong>
       <span>${safeText(notes.join(" | "))}</span>
     </div>
   `;
@@ -1595,7 +1621,7 @@ function renderLiveLink(st) {
   anchor.setAttribute("href", url);
   if (meta) {
     const updated = String(st?.live_link_updated_at || "").trim();
-    meta.textContent = updated ? `آخرین بروزرسانی: ${updated}` : "لینک لایو توسط مدیریت ثبت شده است.";
+    meta.textContent = updated ? `آخرین بروزرسانی: ${formatFaDateTime(updated)}` : "لینک لایو توسط مدیریت ثبت شده است.";
   }
 }
 
@@ -1644,7 +1670,7 @@ function renderLiveEvents(events) {
           return `
           <div class="${chipClass}">
             <strong>${safeText(eventKindLabel(e.kind))}</strong>
-            <div>${safeText(String(e.created_at || ""))}</div>
+            <div>${safeText(formatFaDateTime(e.created_at))}</div>
             ${winnerText}
           </div>`;
         })
@@ -1733,11 +1759,11 @@ function appendEvents(events) {
     .map((e) => {
       const mine = isMyWinnerEvent(e);
       const chipClass = mine ? "event-chip winner-event" : "event-chip";
-      const winnerText = mine ? '<div class="winner-note">\u062a\u0628\u0631\u06cc\u06a9! \u0627\u06cc\u0646 \u0628\u0631\u062f \u0628\u0631\u0627\u06cc \u0634\u0645\u0627 \u062b\u0628\u062a \u0634\u062f.</div>' : "";
+      const winnerText = mine ? '<div class="winner-note">تبریک! این برد برای شما ثبت شد.</div>' : "";
       return `
       <div class="${chipClass}">
         <strong>${safeText(eventKindLabel(e.kind))}</strong>
-        <div>${safeText(String(e.created_at || ""))}</div>
+        <div>${safeText(formatFaDateTime(e.created_at))}</div>
         ${winnerText}
       </div>`;
     })
@@ -1866,15 +1892,15 @@ async function refreshGames() {
 
 function localizeCardsShell() {
   const textMap = {
-    cardsTitle: "\u06a9\u0627\u0631\u062a\u200c\u0647\u0627\u06cc \u0645\u0646",
-    refreshCardsBtn: "\u0628\u0647\u200c\u0631\u0648\u0632\u0631\u0633\u0627\u0646\u06cc",
+    cardsTitle: "کارت‌های من",
+    refreshCardsBtn: "به‌روزرسانی",
     cardsHint:
-      "\u06a9\u0627\u0631\u062a\u200c\u0647\u0627\u06cc \u0628\u0627\u0632\u06cc\u200c\u0647\u0627\u06cc \u0641\u0639\u0627\u0644 \u0628\u0647 \u0635\u0648\u0631\u062a \u0632\u0646\u062f\u0647 \u0647\u0627\u06cc\u0644\u0627\u06cc\u062a \u0645\u06cc\u200c\u0634\u0648\u0646\u062f \u0648 \u06f1\u06f0 \u062e\u0631\u06cc\u062f \u0622\u062e\u0631 \u062f\u0631 \u062a\u0627\u0631\u06cc\u062e\u0686\u0647 \u0646\u0645\u0627\u06cc\u0634 \u062f\u0627\u062f\u0647 \u0645\u06cc\u200c\u0634\u0648\u062f.",
-    cardsPullHint: "\u0628\u0631\u0627\u06cc \u0646\u0648\u0633\u0627\u0632\u06cc\u060c \u0635\u0641\u062d\u0647 \u0631\u0627 \u06a9\u0645\u06cc \u0628\u0647 \u067e\u0627\u06cc\u06cc\u0646 \u0628\u06a9\u0634\u06cc\u062f.",
-    cardsLiveStatus: "\u062f\u0631 \u0627\u0646\u062a\u0638\u0627\u0631 \u0628\u0627\u0632\u06cc \u0641\u0639\u0627\u0644",
-    cardsActiveTitle: "\u06a9\u0627\u0631\u062a\u200c\u0647\u0627\u06cc \u062e\u0631\u06cc\u062f\u0627\u0631\u06cc\u200c\u0634\u062f\u0647 \u0628\u0627\u0632\u06cc\u200c\u0647\u0627\u06cc \u0641\u0639\u0627\u0644",
-    cardsHistoryTitle: "\u062a\u0627\u0631\u06cc\u062e\u0686\u0647 \u062e\u0631\u06cc\u062f \u06a9\u0627\u0631\u062a (\u06f1\u06f0 \u0645\u0648\u0631\u062f \u0622\u062e\u0631)",
-    cardsHistoryMeta: "\u0627\u0633\u06a9\u0631\u0648\u0644\u200c\u067e\u0630\u06cc\u0631",
+      "کارت‌های بازی‌های فعال به صورت زنده هایلایت می‌شوند و ۱۰ خرید آخر در تاریخچه نمایش داده می‌شود.",
+    cardsPullHint: "برای نوسازی، صفحه را کمی به پایین بکشید.",
+    cardsLiveStatus: "در انتظار بازی فعال",
+    cardsActiveTitle: "کارت‌های خریداری‌شده بازی‌های فعال",
+    cardsHistoryTitle: "تاریخچه خرید کارت (۱۰ مورد آخر)",
+    cardsHistoryMeta: "اسکرول‌پذیر",
   };
 
   Object.entries(textMap).forEach(([id, value]) => {
@@ -1891,12 +1917,12 @@ function renderCardsPullHint(textValue = "", stateName = "idle") {
     hint.textContent = textValue;
     return;
   }
-  hint.textContent = "\u0628\u0631\u0627\u06cc \u0646\u0648\u0633\u0627\u0632\u06cc\u060c \u0635\u0641\u062d\u0647 \u0631\u0627 \u06a9\u0645\u06cc \u0628\u0647 \u067e\u0627\u06cc\u06cc\u0646 \u0628\u06a9\u0634\u06cc\u062f.";
+  hint.textContent = "برای نوسازی، صفحه را کمی به پایین بکشید.";
 }
 
 function buildCalledStream(numbers, freshNumbers = [], limit = 42) {
   const list = Array.isArray(numbers) ? numbers : [];
-  if (!list.length) return '<div class="empty">\u0647\u0646\u0648\u0632 \u0639\u062f\u062f\u06cc \u0627\u0639\u0644\u0627\u0645 \u0646\u0634\u062f\u0647 \u0627\u0633\u062a.</div>';
+  if (!list.length) return '<div class="empty">هنوز عددی اعلام نشده است.</div>';
   const freshSet = new Set((freshNumbers || []).map((x) => Number(x)));
   return list
     .slice(-Math.max(1, Number(limit) || 42))
@@ -1960,7 +1986,7 @@ function renderCardsSkeleton() {
   const activeRoot = getEl("cardsActiveList");
   const historyRoot = getEl("cardsHistoryList");
   const activeMeta = getEl("cardsActiveMeta");
-  if (activeMeta) activeMeta.textContent = "\u062f\u0631 \u062d\u0627\u0644 \u0628\u0627\u0631\u06af\u0630\u0627\u0631\u06cc...";
+  if (activeMeta) activeMeta.textContent = "در حال بارگذاری...";
   if (activeRoot) {
     activeRoot.innerHTML = `
       <div class="cards-skeleton">
@@ -1985,33 +2011,33 @@ function renderCardsSkeleton() {
   const badgeStatus = getEl("cardsLiveStatus");
   const badgeLast = getEl("cardsLiveLast");
   const calledStream = getEl("cardsCalledStream");
-  if (badgeStatus) badgeStatus.textContent = "\u062f\u0631 \u062d\u0627\u0644 \u0647\u0645\u06af\u0627\u0645\u200c\u0633\u0627\u0632\u06cc \u0632\u0646\u062f\u0647";
+  if (badgeStatus) badgeStatus.textContent = "در حال همگام‌سازی زنده";
   if (badgeLast) badgeLast.textContent = "...";
-  if (calledStream) calledStream.innerHTML = '<div class="empty">\u062f\u0631 \u062d\u0627\u0644 \u062f\u0631\u06cc\u0627\u0641\u062a \u0627\u0639\u062f\u0627\u062f \u062e\u0648\u0627\u0646\u062f\u0647\u200c\u0634\u062f\u0647...</div>';
+  if (calledStream) calledStream.innerHTML = '<div class="empty">در حال دریافت اعداد خوانده‌شده...</div>';
 }
 
 function renderCardsEmpty() {
   const activeRoot = getEl("cardsActiveList");
   const historyRoot = getEl("cardsHistoryList");
   const activeMeta = getEl("cardsActiveMeta");
-  if (activeMeta) activeMeta.textContent = "\u06f0 \u06a9\u0627\u0631\u062a \u0641\u0639\u0627\u0644";
+  if (activeMeta) activeMeta.textContent = "۰ کارت فعال";
   if (activeRoot) {
     activeRoot.innerHTML = `
       <div class="empty-rich">
-        <div>\u0647\u0646\u0648\u0632 \u06a9\u0627\u0631\u062a\u06cc \u062e\u0631\u06cc\u062f\u0627\u0631\u06cc \u0646\u06a9\u0631\u062f\u0647\u200c\u0627\u06cc.</div>
-        <button id="goGamesFromCardsBtn" class="small-btn primary" type="button">\u0631\u0641\u062a\u0646 \u0628\u0647 \u0628\u0627\u0632\u06cc\u200c\u0647\u0627</button>
+        <div>هنوز کارتی خریداری نکرده‌ای.</div>
+        <button id="goGamesFromCardsBtn" class="small-btn primary" type="button">رفتن به بازی‌ها</button>
       </div>
     `;
   }
   if (historyRoot) {
-    historyRoot.innerHTML = '<div class="empty">\u062a\u0627\u0631\u06cc\u062e\u0686\u0647\u200c\u0627\u06cc \u0628\u0631\u0627\u06cc \u0646\u0645\u0627\u06cc\u0634 \u0648\u062c\u0648\u062f \u0646\u062f\u0627\u0631\u062f.</div>';
+    historyRoot.innerHTML = '<div class="empty">تاریخچه‌ای برای نمایش وجود ندارد.</div>';
   }
   const badgeStatus = getEl("cardsLiveStatus");
   const badgeLast = getEl("cardsLiveLast");
   const calledStream = getEl("cardsCalledStream");
-  if (badgeStatus) badgeStatus.textContent = "\u062f\u0631 \u0627\u0646\u062a\u0638\u0627\u0631 \u062e\u0631\u06cc\u062f \u06a9\u0627\u0631\u062a";
+  if (badgeStatus) badgeStatus.textContent = "در انتظار خرید کارت";
   if (badgeLast) badgeLast.textContent = "-";
-  if (calledStream) calledStream.innerHTML = '<div class="empty">\u067e\u0633 \u0627\u0632 \u062e\u0631\u06cc\u062f \u06a9\u0627\u0631\u062a \u062f\u0631 \u0628\u0627\u0632\u06cc \u0641\u0639\u0627\u0644\u060c \u0627\u0639\u062f\u0627\u062f \u0627\u06cc\u0646\u062c\u0627 \u0646\u0645\u0627\u06cc\u0634 \u062f\u0627\u062f\u0647 \u0645\u06cc\u200c\u0634\u0648\u0646\u062f.</div>';
+  if (calledStream) calledStream.innerHTML = '<div class="empty">پس از خرید کارت در بازی فعال، اعداد اینجا نمایش داده می‌شوند.</div>';
   bindCardsEmptyCta();
 }
 
@@ -2022,9 +2048,9 @@ function renderCardsBadge(activeGames) {
   if (!badgeStatus || !badgeLast || !calledStream) return;
 
   if (!activeGames.length) {
-    badgeStatus.textContent = "\u0628\u0627\u0632\u06cc \u0641\u0639\u0627\u0644\u06cc \u0628\u0631\u0627\u06cc \u067e\u0627\u06cc\u0634 \u0646\u06cc\u0633\u062a";
+    badgeStatus.textContent = "بازی فعالی برای پایش نیست";
     badgeLast.textContent = "-";
-    calledStream.innerHTML = '<div class="empty">\u0639\u062f\u062f\u06cc \u0628\u0631\u0627\u06cc \u0646\u0645\u0627\u06cc\u0634 \u0648\u062c\u0648\u062f \u0646\u062f\u0627\u0631\u062f.</div>';
+    calledStream.innerHTML = '<div class="empty">عددی برای نمایش وجود ندارد.</div>';
     return;
   }
 
@@ -2039,10 +2065,10 @@ function renderCardsBadge(activeGames) {
   const freshLast = g.freshNumbers.length ? g.freshNumbers[g.freshNumbers.length - 1] : null;
 
   if (freshLast !== null && freshLast !== undefined) {
-    badgeStatus.textContent = `\u0639\u062f\u062f \u062c\u062f\u06cc\u062f \u0631\u0633\u06cc\u062f | \u0628\u0627\u0632\u06cc #${g.gameId}`;
+    badgeStatus.textContent = `عدد جدید رسید | بازی #${g.gameId}`;
     badgeLast.textContent = String(freshLast);
   } else {
-    badgeStatus.textContent = `\u0622\u062e\u0631\u06cc\u0646 \u0639\u062f\u062f \u0628\u0627\u0632\u06cc #${g.gameId}`;
+    badgeStatus.textContent = `آخرین عدد بازی #${g.gameId}`;
     badgeLast.textContent = String(lastNum ?? "-");
   }
 
@@ -2055,11 +2081,11 @@ function renderCardsActive(activeGames) {
   if (!root) return;
 
   if (!activeGames.length) {
-    if (activeMeta) activeMeta.textContent = "\u06f0 \u06a9\u0627\u0631\u062a \u0641\u0639\u0627\u0644";
+    if (activeMeta) activeMeta.textContent = "۰ کارت فعال";
     root.innerHTML = `
       <div class="empty-rich">
-        <div>\u0641\u0639\u0644\u0627\u064b \u06a9\u0627\u0631\u062a \u0641\u0639\u0627\u0644\u06cc \u062f\u0631 \u0628\u0627\u0632\u06cc\u200c\u0647\u0627\u06cc \u062c\u0627\u0631\u06cc \u0646\u062f\u0627\u0631\u06cc.</div>
-        <button id="goGamesFromCardsBtn" class="small-btn" type="button">\u0645\u0634\u0627\u0647\u062f\u0647 \u0628\u0627\u0632\u06cc\u200c\u0647\u0627\u06cc \u0641\u0639\u0627\u0644</button>
+        <div>فعلاً کارت فعالی در بازی‌های جاری نداری.</div>
+        <button id="goGamesFromCardsBtn" class="small-btn" type="button">مشاهده بازی‌های فعال</button>
       </div>
     `;
     bindCardsEmptyCta();
@@ -2068,7 +2094,7 @@ function renderCardsActive(activeGames) {
 
   const totalCards = activeGames.reduce((acc, g) => acc + g.cards.length, 0);
   if (activeMeta) {
-    activeMeta.textContent = `${activeGames.length} \u0628\u0627\u0632\u06cc \u0641\u0639\u0627\u0644 | ${totalCards} \u06a9\u0627\u0631\u062a`;
+    activeMeta.textContent = `${activeGames.length} بازی فعال | ${totalCards} کارت`;
   }
 
   root.innerHTML = activeGames
@@ -2076,18 +2102,18 @@ function renderCardsActive(activeGames) {
       const calledSet = new Set((g.calledNumbers || []).map((x) => Number(x)));
       const freshSet = new Set((g.freshNumbers || []).map((x) => Number(x)));
       const calledTail = (g.calledNumbers || []).slice(-20);
-      const calledTailText = calledTail.length ? calledTail.join("\u060c ") : "\u0647\u0646\u0648\u0632 \u0639\u062f\u062f\u06cc \u0627\u0639\u0644\u0627\u0645 \u0646\u0634\u062f\u0647";
+      const calledTailText = calledTail.length ? calledTail.join("، ") : "هنوز عددی اعلام نشده";
       return `
         <div class="active-game-block game-emphasis-block active-game-block-ux21">
           <div class="active-game-head">
-            <h4>\u0628\u0627\u0632\u06cc #${g.gameId}</h4>
+            <h4>بازی #${g.gameId}</h4>
             <div class="active-game-meta">
               <span>${safeText(statusLabel(g.status))}</span>
-              <span>\u0622\u062e\u0631\u06cc\u0646 \u0639\u062f\u062f: <strong>${safeText(g.lastNumber ?? "-")}</strong></span>
-              <button class="small-btn open-from-cards" data-game-id="${g.gameId}" type="button">\u0648\u0631\u0648\u062f</button>
+              <span>آخرین عدد: <strong>${safeText(g.lastNumber ?? "-")}</strong></span>
+              <button class="small-btn open-from-cards" data-game-id="${g.gameId}" type="button">ورود</button>
             </div>
           </div>
-          <div class="history-meta">\u0627\u0639\u062f\u0627\u062f \u0627\u0639\u0644\u0627\u0645\u200c\u0634\u062f\u0647: ${safeText(calledTailText)}</div>
+          <div class="history-meta">اعداد اعلام‌شده: ${safeText(calledTailText)}</div>
           <div class="cards-active-grid">
             ${g.cards
               .map((c) => {
@@ -2114,12 +2140,12 @@ function renderCardsActive(activeGames) {
                 return `
                   <div class="${cardClass}">
                     <div class="card-pro-head">
-                      <strong>\u06a9\u0627\u0631\u062a #${c.card_id}</strong>
-                      <span>${safeText(c.created_at || "")}</span>
+                      <strong>کارت #${c.card_id}</strong>
+                      <span>${safeText(formatFaDateTime(c.created_at))}</span>
                     </div>
                     ${winnerLabel}
                     <div class="card-progress">
-                      <span>${calledCount} \u0627\u0632 ${total} \u0639\u062f\u062f \u06a9\u0627\u0631\u062a \u062e\u0648\u0627\u0646\u062f\u0647 \u0634\u062f\u0647</span>
+                      <span>${calledCount} از ${total} عدد کارت خوانده شده</span>
                       <div class="card-progress-bar"><i style="width:${percent}%"></i></div>
                     </div>
                     <div class="mini-card-grid">${buildCardGrid(nums, calledSet, freshSet, winnerCells)}</div>
@@ -2148,7 +2174,7 @@ function renderCardsHistory(items) {
   if (!root) return;
   const list = Array.isArray(items) ? items.slice(0, CARD_HISTORY_LIMIT) : [];
   if (!list.length) {
-    root.innerHTML = '<div class="empty">\u062a\u0627\u0631\u06cc\u062e\u0686\u0647 \u062e\u0631\u06cc\u062f \u06a9\u0627\u0631\u062a \u062e\u0627\u0644\u06cc \u0627\u0633\u062a.</div>';
+    root.innerHTML = '<div class="empty">تاریخچه خرید کارت خالی است.</div>';
     return;
   }
 
@@ -2156,11 +2182,11 @@ function renderCardsHistory(items) {
     .map(
       (c) => `
         <div class="history-item clickable" data-game-id="${Number(c.game_id || 0)}" data-card-id="${Number(c.card_id || 0)}">
-          <strong>\u0628\u0627\u0632\u06cc #${c.game_id} | \u06a9\u0627\u0631\u062a #${c.card_id}</strong>
+          <strong>بازی #${c.game_id} | کارت #${c.card_id}</strong>
           <div class="history-meta">
-            \u0648\u0636\u0639\u06cc\u062a \u0628\u0627\u0632\u06cc: ${safeText(statusLabel(c.game_status))}<br />
-            \u0642\u06cc\u0645\u062a \u06a9\u0627\u0631\u062a: ${toman(c.card_price)}<br />
-            \u0632\u0645\u0627\u0646 \u062e\u0631\u06cc\u062f: ${safeText(String(c.created_at || "-"))}
+            وضعیت بازی: ${safeText(statusLabel(c.game_status))}<br />
+            قیمت کارت: ${toman(c.card_price)}<br />
+            زمان خرید: ${safeText(formatFaDateTime(c.created_at))}
           </div>
           <div class="history-open-hint">برای مشاهده جزئیات کارت لمس کنید</div>
         </div>
@@ -2246,7 +2272,7 @@ async function openHistoryModalForGame(gameId, { cardId = 0, source = "history" 
             <div class="card-pro-head">
               <span class="card-id-stack"><strong>کارت #${safeText(c.card_id)}</strong><em>بازی #${gid}</em></span>
               <span class="card-game-badge">بازی #${gid}</span>
-              <span>${safeText(String(c.created_at || "-"))}</span>
+              <span>${safeText(formatFaDateTime(c.created_at))}</span>
             </div>
             ${winnerLabel ? `<span class="winner-kind-pill">${safeText(winnerLabel)}</span>` : ""}
             <div class="history-modal-result history-modal-result-ux21">${safeText(resultText)}</div>
@@ -2340,7 +2366,7 @@ async function refreshCards({ silent = false } = {}) {
   drawWinTimeline();
 
   if (!silent) {
-    setBadge("success", "\u06a9\u0627\u0631\u062a\u200c\u0647\u0627\u06cc \u0645\u0646 \u0628\u0647\u200c\u0631\u0648\u0632\u0631\u0633\u0627\u0646\u06cc \u0634\u062f");
+    setBadge("success", "کارت‌های من به‌روزرسانی شد");
   }
 }
 
@@ -2360,12 +2386,12 @@ function stopCardsPolling() {
 async function refreshCardsFromPull() {
   if (state.cardsPullBusy) return;
   state.cardsPullBusy = true;
-  renderCardsPullHint("\u062f\u0631 \u062d\u0627\u0644 \u0628\u0647\u200c\u0631\u0648\u0632\u0631\u0633\u0627\u0646\u06cc \u06a9\u0627\u0631\u062a\u200c\u0647\u0627...", "refresh");
+  renderCardsPullHint("در حال به‌روزرسانی کارت‌ها...", "refresh");
   try {
     await refreshCards({ silent: false });
   } finally {
     state.cardsPullBusy = false;
-    renderCardsPullHint("\u0628\u0631\u0627\u06cc \u0646\u0648\u0633\u0627\u0632\u06cc\u060c \u0635\u0641\u062d\u0647 \u0631\u0627 \u06a9\u0645\u06cc \u0628\u0647 \u067e\u0627\u06cc\u06cc\u0646 \u0628\u06a9\u0634\u06cc\u062f.", "idle");
+    renderCardsPullHint("برای نوسازی، صفحه را کمی به پایین بکشید.", "idle");
   }
 }
 
@@ -2397,9 +2423,9 @@ function wireCardsPullToRefresh() {
       const y = Number(e.touches?.[0]?.clientY || 0);
       deltaY = y - startY;
       if (deltaY > 84) {
-        renderCardsPullHint("\u0631\u0647\u0627 \u06a9\u0646\u06cc\u062f \u062a\u0627 \u06a9\u0627\u0631\u062a\u200c\u0647\u0627 \u0628\u0647\u200c\u0631\u0648\u0632\u0631\u0633\u0627\u0646\u06cc \u0634\u0648\u0646\u062f.", "ready");
+        renderCardsPullHint("رها کنید تا کارت‌ها به‌روزرسانی شوند.", "ready");
       } else if (deltaY > 26) {
-        renderCardsPullHint("\u0628\u0631\u0627\u06cc \u0646\u0648\u0633\u0627\u0632\u06cc \u0628\u06cc\u0634\u062a\u0631 \u0628\u0647 \u067e\u0627\u06cc\u06cc\u0646 \u0628\u06a9\u0634\u06cc\u062f.", "pull");
+        renderCardsPullHint("برای نوسازی بیشتر به پایین بکشید.", "pull");
       }
     },
     { passive: true }
@@ -2413,7 +2439,7 @@ function wireCardsPullToRefresh() {
       if (deltaY > 84) {
         refreshCardsFromPull().catch((e) => setBadge("error", e.message));
       } else {
-        renderCardsPullHint("\u0628\u0631\u0627\u06cc \u0646\u0648\u0633\u0627\u0632\u06cc\u060c \u0635\u0641\u062d\u0647 \u0631\u0627 \u06a9\u0645\u06cc \u0628\u0647 \u067e\u0627\u06cc\u06cc\u0646 \u0628\u06a9\u0634\u06cc\u062f.", "idle");
+        renderCardsPullHint("برای نوسازی، صفحه را کمی به پایین بکشید.", "idle");
       }
       deltaY = 0;
     },
@@ -2450,7 +2476,7 @@ function drawWallet(balancePayload, txPayload) {
   updateHeaderStatus();
 
   if (!txItems.length) {
-    txRoot.innerHTML = '<div class="empty">\u062a\u0631\u0627\u06a9\u0646\u0634\u06cc \u0628\u0631\u0627\u06cc \u0646\u0645\u0627\u06cc\u0634 \u0648\u062c\u0648\u062f \u0646\u062f\u0627\u0631\u062f.</div>';
+    txRoot.innerHTML = '<div class="empty">تراکنشی برای نمایش وجود ندارد.</div>';
     return;
   }
 
@@ -2466,7 +2492,7 @@ function drawWallet(balancePayload, txPayload) {
         <div class="${klass}">
           <div>
             <strong>${safeText(reason)}</strong><br />
-            <span class="meta">${safeText(String(tx.created_at || "-"))}</span>
+            <span class="meta">${safeText(formatFaDateTime(tx.created_at))}</span>
           </div>
           <div><strong>${sign}${toman(tx.amount || 0)}</strong></div>
         </div>
@@ -2481,17 +2507,17 @@ function drawDepositRequests(payload) {
 
   const items = Array.isArray(payload?.items) ? payload.items.slice(0, HISTORY_LIST_LIMIT) : [];
   if (!items.length) {
-    root.innerHTML = '<div class="empty">\u062f\u0631\u062e\u0648\u0627\u0633\u062a \u0648\u0627\u0631\u06cc\u0632\u06cc \u062b\u0628\u062a \u0646\u0634\u062f\u0647 \u0627\u0633\u062a.</div>';
+    root.innerHTML = '<div class="empty">درخواست واریزی ثبت نشده است.</div>';
     return;
   }
 
   root.innerHTML = items
     .map((d) => `
       <div class="item">
-        <h3>\u0648\u0627\u0631\u06cc\u0632\u06cc #${d.id}</h3>
-        <p>\u0648\u0636\u0639\u06cc\u062a: ${safeText(depositStatusLabel(d.status))} | \u0645\u0628\u0644\u063a: ${toman(d.amount || 0)}</p>
-        <div class="meta">\u06a9\u0627\u0631\u062a \u0645\u0642\u0635\u062f: ${safeText(String(d.destination_title || "-"))}</div>
-        <div class="meta">\u0632\u0645\u0627\u0646 \u062b\u0628\u062a: ${safeText(String(d.created_at || "-"))}</div>
+        <h3>واریزی #${d.id}</h3>
+        <p>وضعیت: ${safeText(depositStatusLabel(d.status))} | مبلغ: ${toman(d.amount || 0)}</p>
+        <div class="meta">کارت مقصد: ${safeText(String(d.destination_title || "-"))}</div>
+        <div class="meta">زمان ثبت: ${safeText(formatFaDateTime(d.created_at))}</div>
       </div>
     `)
     .join("");
@@ -2503,16 +2529,16 @@ function drawWithdrawRequests(payload) {
 
   const items = Array.isArray(payload?.items) ? payload.items.slice(0, HISTORY_LIST_LIMIT) : [];
   if (!items.length) {
-    root.innerHTML = '<div class="empty">\u062f\u0631\u062e\u0648\u0627\u0633\u062a \u0628\u0631\u062f\u0627\u0634\u062a\u06cc \u062b\u0628\u062a \u0646\u0634\u062f\u0647 \u0627\u0633\u062a.</div>';
+    root.innerHTML = '<div class="empty">درخواست برداشتی ثبت نشده است.</div>';
     return;
   }
 
   root.innerHTML = items
     .map((w) => `
       <div class="item">
-        <h3>\u0628\u0631\u062f\u0627\u0634\u062a #${w.id}</h3>
-        <p>\u0648\u0636\u0639\u06cc\u062a: ${safeText(withdrawStatusLabel(w.status))} | \u0645\u0628\u0644\u063a: ${toman(w.amount || 0)}</p>
-        <div class="meta">\u0632\u0645\u0627\u0646 \u062b\u0628\u062a: ${safeText(String(w.created_at || "-"))}</div>
+        <h3>برداشت #${w.id}</h3>
+        <p>وضعیت: ${safeText(withdrawStatusLabel(w.status))} | مبلغ: ${toman(w.amount || 0)}</p>
+        <div class="meta">زمان ثبت: ${safeText(formatFaDateTime(w.created_at))}</div>
       </div>
     `)
     .join("");
@@ -2556,7 +2582,7 @@ function drawWinTimeline() {
           <strong>${safeText(kind)} | ${safeText(toman(w.amount || 0))}</strong>
           <div class="history-meta">
             بازی: ${gid > 0 ? `#${gid}` : "-"}<br />
-            زمان: ${safeText(String(w.created_at || "-"))}
+            زمان: ${safeText(formatFaDateTime(w.created_at))}
           </div>
           <div id="adminWdrWalletStatus${safeText(w.id)}" class="withdraw-wallet-status">وضعیت کیف پول هنوز بروزرسانی نشده است.</div>
           <div class="history-open-hint">برای مشاهده جزئیات برد لمس کنید</div>
@@ -2624,7 +2650,7 @@ function drawDepositDestinations(payload) {
 
   el.innerHTML = items
     .map((it) => {
-      const label = `${it.title} | ${maskCard(it.card_number)}`;
+      const label = `${it.title} | ${ltrIsolateText(maskCard(it.card_number))}`;
       return `<option value="${safeText(it.id)}">${safeText(label)}</option>`;
     })
     .join("");
@@ -3081,7 +3107,7 @@ function renderAdminDeposits(payload) {
           کاربر: ${safeText(d.tg_username || d.tg_user_id || d.user_id)}<br />
           مبلغ: ${safeText(toman(d.amount || 0))}<br />
           مقصد: ${safeText(d.destination_title || "-")}<br />
-          زمان: ${safeText(String(d.created_at || "-"))}
+          زمان: ${safeText(formatFaDateTime(d.created_at))}
         </div>
         <div class="admin-item-actions">
           <button class="small-btn primary admin-dep-approve-btn" data-id="${safeText(d.id)}" type="button">تایید</button>
@@ -3209,7 +3235,7 @@ function renderAdminWithdraws(payload) {
             شبا: ${safeText(w.iban || "-")}<br />
             حساب: ${safeText(w.account_number || "-")}<br />
             پیگیری پرداخت: ${safeText(w.paid_tracking || "-")}<br />
-            زمان: ${safeText(String(w.created_at || "-"))}
+            زمان: ${safeText(formatFaDateTime(w.created_at))}
           </div>
           <div id="adminWdrWalletStatus${safeText(id)}" class="withdraw-wallet-status">
             ${renderWithdrawWalletStatusHtml(walletInfo)}
@@ -4616,7 +4642,7 @@ async function boot() {
   } catch (err) {
     clearMiniSession();
     state.authReady = false;
-    setBadge("error", String(err.message || "\u062e\u0637\u0627\u06cc \u0627\u062d\u0631\u0627\u0632 \u0647\u0648\u06cc\u062a"));
+    setBadge("error", String(err.message || "خطای احراز هویت"));
   }
 
   if (!authOk) return;

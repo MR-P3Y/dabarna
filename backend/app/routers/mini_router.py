@@ -618,9 +618,9 @@ def _mini_default_group_id() -> int | None:
 
 def _mini_configured_game_topics() -> list[tuple[str, str, int]]:
     raw: list[tuple[str, str, int | None]] = [
-        ("game_low", "\U0001F3AF \u0628\u0627\u0632\u06cc \u06f1 (\u0645\u0628\u0644\u063a \u067e\u0627\u06cc\u06cc\u0646)", USER_TOPIC_GAME_LOW_ID),
-        ("game_medium", "\U0001F3AF \u0628\u0627\u0632\u06cc \u06f2 (\u0645\u0628\u0644\u063a \u0645\u062a\u0648\u0633\u0637)", USER_TOPIC_GAME_MEDIUM_ID),
-        ("game_high", "\U0001F3AF \u0628\u0627\u0632\u06cc \u06f3 (\u0645\u0628\u0644\u063a \u0628\u0627\u0644\u0627)", USER_TOPIC_GAME_HIGH_ID),
+        ("game_low", "🎯 بازی ۱ (مبلغ پایین)", USER_TOPIC_GAME_LOW_ID),
+        ("game_medium", "🎯 بازی ۲ (مبلغ متوسط)", USER_TOPIC_GAME_MEDIUM_ID),
+        ("game_high", "🎯 بازی ۳ (مبلغ بالا)", USER_TOPIC_GAME_HIGH_ID),
     ]
     out: list[tuple[str, str, int]] = []
     seen: set[int] = set()
@@ -637,12 +637,12 @@ def _mini_configured_game_topics() -> list[tuple[str, str, int]]:
 
 def _mini_game_topic_title(topic_id: int | None) -> str:
     if topic_id is None:
-        return "\u062f\u0633\u062a\u0647 \u0639\u0645\u0648\u0645\u06cc"
+        return "دسته عمومی"
     tid = int(topic_id)
     for _key, title, configured_topic_id in _mini_configured_game_topics():
         if int(configured_topic_id) == tid:
             return str(title)
-    return f"\u062a\u0627\u067e\u06cc\u06a9 {tid}"
+    return f"تاپیک {tid}"
 
 
 def _mini_parse_optional_topic_id(raw: str | None) -> int | None:
@@ -714,21 +714,21 @@ def _mini_parse_env_int(name: str) -> int | None:
 
 def _mini_fmt_toman(amount: object) -> str:
     try:
-        return f"{int(amount or 0):,} \u062a\u0648\u0645\u0627\u0646"
+        return f"{int(amount or 0):,} تومان"
     except Exception:
-        return "0 \u062a\u0648\u0645\u0627\u0646"
+        return "0 تومان"
 
 
 def _mini_user_title(user: User | None, *, user_id: int) -> str:
     if user is None:
-        return f"\u06a9\u0627\u0631\u0628\u0631 #{int(user_id)}"
+        return f"کاربر #{int(user_id)}"
     username = str(getattr(user, "username", "") or "").strip()
     tg_user_id = getattr(user, "tg_user_id", None)
     if username:
         return f"@{html_escape(username)}"
     if tg_user_id is not None:
         return f"TG <code>{int(tg_user_id)}</code>"
-    return f"\u06a9\u0627\u0631\u0628\u0631 #{int(user_id)}"
+    return f"کاربر #{int(user_id)}"
 
 
 def _mini_mask_card(value: object) -> str:
@@ -740,20 +740,20 @@ def _mini_admin_deposit_keyboard(*, deposit_id: int, tg_user_id: int | None) -> 
     uid = int(tg_user_id or 0)
     buttons = [
         [
-            {"text": "\U0001f441 \u0645\u0634\u0627\u0647\u062f\u0647 \u062f\u0631\u062e\u0648\u0627\u0633\u062a", "callback_data": f"admin:deposits:view:{int(deposit_id)}:0"},
-            {"text": "\U0001f9fe \u0645\u0634\u0627\u0647\u062f\u0647 \u0631\u0633\u06cc\u062f", "callback_data": f"admin:deposit:receipt:{int(deposit_id)}"},
+            {"text": "👁 مشاهده درخواست", "callback_data": f"admin:deposits:view:{int(deposit_id)}:0"},
+            {"text": "🧾 مشاهده رسید", "callback_data": f"admin:deposit:receipt:{int(deposit_id)}"},
         ],
         [
-            {"text": "\u2705 \u062a\u0627\u06cc\u06cc\u062f \u0648\u0627\u0631\u06cc\u0632", "callback_data": f"admin:deposit:approve:{int(deposit_id)}:o:0"},
-            {"text": "\u274c \u0631\u062f \u0648\u0627\u0631\u06cc\u0632", "callback_data": f"admin:deposit:reject:{int(deposit_id)}:o:0"},
+            {"text": "✅ تایید واریز", "callback_data": f"admin:deposit:approve:{int(deposit_id)}:o:0"},
+            {"text": "❌ رد واریز", "callback_data": f"admin:deposit:reject:{int(deposit_id)}:o:0"},
         ],
     ]
     if uid > 0:
         buttons.insert(
             1,
             [
-                {"text": "\U0001f464 \u0645\u0634\u0627\u0647\u062f\u0647 \u067e\u0631\u0648\u0641\u0627\u06cc\u0644 \u06a9\u0627\u0631\u0628\u0631", "callback_data": f"admin:users:profile:{uid}"},
-                {"text": "\U0001f504 \u062a\u0627\u0632\u0647\u200c\u0633\u0627\u0632\u06cc \u0645\u0648\u062c\u0648\u062f\u06cc", "callback_data": f"admin:deposit:live:{int(deposit_id)}:{uid}"},
+                {"text": "👤 مشاهده پروفایل کاربر", "callback_data": f"admin:users:profile:{uid}"},
+                {"text": "🔄 تازه‌سازی موجودی", "callback_data": f"admin:deposit:live:{int(deposit_id)}:{uid}"},
             ],
         )
     return {"inline_keyboard": buttons}
@@ -762,18 +762,18 @@ def _mini_admin_deposit_keyboard(*, deposit_id: int, tg_user_id: int | None) -> 
 def _mini_admin_withdraw_keyboard(*, withdraw_id: int, tg_user_id: int | None) -> dict[str, Any]:
     uid = int(tg_user_id or 0)
     buttons = [
-        [{"text": "\U0001f441 \u0645\u0634\u0627\u0647\u062f\u0647 \u0628\u0631\u062f\u0627\u0634\u062a", "callback_data": f"admin:withdraws:view:{int(withdraw_id)}:PENDING:0"}],
+        [{"text": "👁 مشاهده برداشت", "callback_data": f"admin:withdraws:view:{int(withdraw_id)}:PENDING:0"}],
         [
-            {"text": "\u2705 \u062a\u0627\u06cc\u06cc\u062f \u0628\u0631\u062f\u0627\u0634\u062a", "callback_data": f"admin:withdraw:approve:{int(withdraw_id)}:PENDING:0"},
-            {"text": "\u274c \u0631\u062f \u0628\u0631\u062f\u0627\u0634\u062a", "callback_data": f"admin:withdraw:reject:{int(withdraw_id)}:PENDING:0"},
+            {"text": "✅ تایید برداشت", "callback_data": f"admin:withdraw:approve:{int(withdraw_id)}:PENDING:0"},
+            {"text": "❌ رد برداشت", "callback_data": f"admin:withdraw:reject:{int(withdraw_id)}:PENDING:0"},
         ],
     ]
     if uid > 0:
         buttons.insert(
             1,
             [
-                {"text": "\U0001f464 \u0645\u0634\u0627\u0647\u062f\u0647 \u067e\u0631\u0648\u0641\u0627\u06cc\u0644 \u06a9\u0627\u0631\u0628\u0631", "callback_data": f"admin:users:profile:{uid}"},
-                {"text": "\U0001f504 \u062a\u0627\u0632\u0647\u200c\u0633\u0627\u0632\u06cc \u0645\u0648\u062c\u0648\u062f\u06cc", "callback_data": f"admin:withdraw:live:{int(withdraw_id)}:{uid}"},
+                {"text": "👤 مشاهده پروفایل کاربر", "callback_data": f"admin:users:profile:{uid}"},
+                {"text": "🔄 تازه‌سازی موجودی", "callback_data": f"admin:withdraw:live:{int(withdraw_id)}:{uid}"},
             ],
         )
     return {"inline_keyboard": buttons}
@@ -805,15 +805,15 @@ def _mini_notify_admin_deposit_pending(*, db: Session, dr: DepositRequest) -> bo
     tg_user_id = int(getattr(user, "tg_user_id", 0) or 0) if user is not None else 0
 
     text = (
-        "\U0001f4e5 <b>\u062f\u0631\u062e\u0648\u0627\u0633\u062a \u0648\u0627\u0631\u06cc\u0632 \u062c\u062f\u06cc\u062f \u0627\u0632 Mini App</b>\n"
-        "#\u0648\u0627\u0631\u06cc\u0632 #\u0645\u06cc\u0646\u06cc_\u0627\u067e #\u062f\u0631\u062e\u0648\u0627\u0633\u062a_\u062c\u062f\u06cc\u062f\n"
-        f"\U0001f9fe \u0634\u0645\u0627\u0631\u0647 \u062f\u0631\u062e\u0648\u0627\u0633\u062a: <b>{int(dr.id)}</b>\n"
-        f"\U0001f464 \u06a9\u0627\u0631\u0628\u0631: {_mini_user_title(user, user_id=int(dr.user_id))}\n"
-        f"\U0001f4b5 \u0645\u0628\u0644\u063a: <b>{_mini_fmt_toman(dr.amount)}</b>\n"
-        f"\U0001f3e6 \u0645\u0642\u0635\u062f: <b>{dest_line}</b>\n"
-        f"\U0001f4ce \u0631\u0633\u06cc\u062f: <b>{'\u0622\u067e\u0644\u0648\u062f \u0634\u062f\u0647' if bool(dr.receipt_path or dr.receipt_file_id) else '\u0646\u062f\u0627\u0631\u062f'}</b>\n"
-        f"\U0001f4cc \u0648\u0636\u0639\u06cc\u062a: <b>{html_escape(str(dr.status))}</b>\n\n"
-        "\u062f\u06a9\u0645\u0647\u200c\u0647\u0627\u06cc \u0632\u06cc\u0631 \u0645\u062e\u0635\u0648\u0635 \u0647\u0645\u06cc\u0646 \u062f\u0631\u062e\u0648\u0627\u0633\u062a \u0647\u0633\u062a\u0646\u062f."
+        "📥 <b>درخواست واریز جدید از Mini App</b>\n"
+        "#واریز #مینی_اپ #درخواست_جدید\n"
+        f"🧾 شماره درخواست: <b>{int(dr.id)}</b>\n"
+        f"👤 کاربر: {_mini_user_title(user, user_id=int(dr.user_id))}\n"
+        f"💵 مبلغ: <b>{_mini_fmt_toman(dr.amount)}</b>\n"
+        f"🏦 مقصد: <b>{dest_line}</b>\n"
+        f"📎 رسید: <b>{'آپلود شده' if bool(dr.receipt_path or dr.receipt_file_id) else 'ندارد'}</b>\n"
+        f"📌 وضعیت: <b>{html_escape(str(dr.status))}</b>\n\n"
+        "دکمه‌های زیر مخصوص همین درخواست هستند."
     )
     return _mini_send_admin_topic_notice(
         topic_env="ADMIN_TOPIC_DEPOSIT_ID",
@@ -831,17 +831,17 @@ def _mini_notify_admin_withdraw_pending(*, db: Session, wr: WithdrawRequest) -> 
     wallet_balance = int(wallet_balance_raw or 0)
 
     text = (
-        "\U0001f4e4 <b>\u062f\u0631\u062e\u0648\u0627\u0633\u062a \u0628\u0631\u062f\u0627\u0634\u062a \u062c\u062f\u06cc\u062f \u0627\u0632 Mini App</b>\n"
-        "#\u0628\u0631\u062f\u0627\u0634\u062a #\u0645\u06cc\u0646\u06cc_\u0627\u067e #\u062f\u0631\u062e\u0648\u0627\u0633\u062a_\u062c\u062f\u06cc\u062f\n"
-        f"\U0001f9fe \u0634\u0645\u0627\u0631\u0647 \u0628\u0631\u062f\u0627\u0634\u062a: <b>{int(wr.id)}</b>\n"
-        f"\U0001f464 \u06a9\u0627\u0631\u0628\u0631: {_mini_user_title(user, user_id=int(wr.user_id))}\n"
-        f"\U0001f4b5 \u0645\u0628\u0644\u063a: <b>{_mini_fmt_toman(wr.amount)}</b>\n"
-        f"\U0001f45b \u0645\u0648\u062c\u0648\u062f\u06cc \u06a9\u06cc\u0641 \u067e\u0648\u0644: <b>{_mini_fmt_toman(wallet_balance)}</b>\n"
-        f"\U0001f465 \u0646\u0627\u0645 \u0635\u0627\u062d\u0628 \u062d\u0633\u0627\u0628: <b>{html_escape(str(wr.full_name or '-'))}</b>\n"
-        f"\U0001f4b3 \u06a9\u0627\u0631\u062a: <code>{_mini_mask_card(wr.card_number)}</code>\n"
-        f"\U0001f3e6 \u0634\u0628\u0627: <code>{html_escape(str(wr.iban or '-'))}</code>\n"
-        f"\U0001f4cc \u0648\u0636\u0639\u06cc\u062a: <b>{html_escape(str(wr.status))}</b>\n\n"
-        "\u062f\u06a9\u0645\u0647\u200c\u0647\u0627\u06cc \u0632\u06cc\u0631 \u0645\u062e\u0635\u0648\u0635 \u0647\u0645\u06cc\u0646 \u062f\u0631\u062e\u0648\u0627\u0633\u062a \u0647\u0633\u062a\u0646\u062f."
+        "📤 <b>درخواست برداشت جدید از Mini App</b>\n"
+        "#برداشت #مینی_اپ #درخواست_جدید\n"
+        f"🧾 شماره برداشت: <b>{int(wr.id)}</b>\n"
+        f"👤 کاربر: {_mini_user_title(user, user_id=int(wr.user_id))}\n"
+        f"💵 مبلغ: <b>{_mini_fmt_toman(wr.amount)}</b>\n"
+        f"👛 موجودی کیف پول: <b>{_mini_fmt_toman(wallet_balance)}</b>\n"
+        f"👥 نام صاحب حساب: <b>{html_escape(str(wr.full_name or '-'))}</b>\n"
+        f"💳 کارت: <code>{_mini_mask_card(wr.card_number)}</code>\n"
+        f"🏦 شبا: <code>{html_escape(str(wr.iban or '-'))}</code>\n"
+        f"📌 وضعیت: <b>{html_escape(str(wr.status))}</b>\n\n"
+        "دکمه‌های زیر مخصوص همین درخواست هستند."
     )
     return _mini_send_admin_topic_notice(
         topic_env="ADMIN_TOPIC_WITHDRAW_ID",
@@ -858,12 +858,12 @@ def _mini_send_game_created_notice(*, game: Game) -> bool:
     game_topic_id = int(game.tg_topic_id) if getattr(game, "tg_topic_id", None) is not None else None
     game_topic_title = _mini_game_topic_title(game_topic_id)
     text = (
-        "\U0001F4E3 <b>\u0628\u0627\u0632\u06cc \u062c\u062f\u06cc\u062f \u0622\u0645\u0627\u062f\u0647 \u062e\u0631\u06cc\u062f</b>\n"
-        "#\u0627\u0637\u0644\u0627\u0639\u06cc\u0647 #\u0628\u0627\u0632\u06cc_\u062c\u062f\u06cc\u062f\n"
-        f"\U0001F3AE \u0628\u0627\u0632\u06cc: <b>#{int(game.id)}</b>\n"
-        f"\U0001F9F5 \u062f\u0633\u062a\u0647 \u0628\u0627\u0632\u06cc: <b>{game_topic_title}</b>\n"
-        f"\U0001F4B3 \u0642\u06CC\u0645\u062A \u0647\u0631 \u06A9\u0627\u0631\u062A: <b>{int(game.card_price):,}</b> \u062A\u0648\u0645\u0627\u0646\n"
-        "\U0001F6D2 \u062E\u0631\u06CC\u062F \u06A9\u0627\u0631\u062A \u0628\u0631\u0627\u06CC \u0627\u06CC\u0646 \u0628\u0627\u0632\u06CC \u0628\u0627\u0632 \u0627\u0633\u062A."
+        "📣 <b>بازی جدید آماده خرید</b>\n"
+        "#اطلاعیه #بازی_جدید\n"
+        f"🎮 بازی: <b>#{int(game.id)}</b>\n"
+        f"🧵 دسته بازی: <b>{game_topic_title}</b>\n"
+        f"💳 قیمت هر کارت: <b>{int(game.card_price):,}</b> تومان\n"
+        "🛒 خرید کارت برای این بازی باز است."
     )
 
     sent_any = False
@@ -960,12 +960,12 @@ def _mini_notify_lobby_cancel_refunds(
             continue
 
         text = (
-            "\U0001F7E6 <b>\u062f\u0628\u0631\u0646\u0627 \u062d\u0644\u06cc\u0645 \u06cc\u06af\u0646 \u0637\u06cc\u0627\u0631 | \u06a9\u0646\u0633\u0644 \u0628\u0627\u0632\u06cc</b>\n\n"
-            f"\U0001F3AE \u0628\u0627\u0632\u06cc: <b>#{int(game_id)}</b>\n"
-            f"\U0001F4DD \u0639\u0644\u062a \u06a9\u0646\u0633\u0644: <b>{reason_html}</b>\n"
-            f"\U0001F0CF \u062a\u0639\u062f\u0627\u062f \u06a9\u0627\u0631\u062a \u0634\u0645\u0627: <b>{int(purchase_count)}</b>\n"
-            f"\U0001F4B0 \u0645\u0628\u0644\u063a \u0628\u0631\u06af\u0634\u062a\u06cc \u0628\u0647 \u06a9\u06cc\u0641 \u067e\u0648\u0644: <b>{int(amount):,}</b> \u062a\u0648\u0645\u0627\u0646\n\n"
-            "\u2705 \u0645\u0628\u0644\u063a \u0628\u0647 \u06a9\u06cc\u0641 \u067e\u0648\u0644 \u0634\u0645\u0627 \u0628\u0631\u06af\u0634\u062a \u062f\u0627\u062f\u0647 \u0634\u062f."
+            "🟦 <b>دبرنا حلیم یگن طیار | کنسل بازی</b>\n\n"
+            f"🎮 بازی: <b>#{int(game_id)}</b>\n"
+            f"📝 علت کنسل: <b>{reason_html}</b>\n"
+            f"🃏 تعداد کارت شما: <b>{int(purchase_count)}</b>\n"
+            f"💰 مبلغ برگشتی به کیف پول: <b>{int(amount):,}</b> تومان\n\n"
+            "✅ مبلغ به کیف پول شما برگشت داده شد."
         )
 
         delivered = False
