@@ -193,40 +193,6 @@ async def _notify_admins_new_deposit(
 
     kb = deposit_admin_alert_kb(deposit_id=deposit_id, tg_user_id=tg_user_id)
 
-    if dup_ids:
-        antifraud_text = panel(
-            "هشدار ضدتقلب: رسید تکراری",
-            "#ضدتقلب #رسید_تکراری\n"
-            f"🕒 زمان: <code>{created_at}</code>\n"
-            f"🧾 شماره درخواست: <b>{deposit_id}</b>\n"
-            f"👤 کاربر: {user_text}\n"
-            f"💵 مبلغ: <b>{_fmt_toman(amount)}</b>\n"
-            f"{destination_block}\n"
-            f"🔐 هش رسید: <code>{h(str(receipt_hash or '—'))}</code>\n"
-            f"📌 درخواست(های) مشابه: <code>{show_ids}</code>\n"
-            "لطفا قبل از تایید، بررسی ضدتقلب انجام شود.",
-        )
-        sent_af = await send_to_topic(
-            cq.bot,
-            name="antifraud",
-            text=antifraud_text,
-            reply_markup=kb,
-            parse_mode="HTML",
-            disable_notification=False,
-        )
-        if (not sent_af) and bool(settings.ADMIN_TOPIC_ENABLE_DM_FALLBACK):
-            admin_ids = sorted(int(uid) for uid in settings.admin_ids if int(uid) > 0)
-            for admin_tg_id in admin_ids:
-                try:
-                    await cq.bot.send_message(
-                        chat_id=int(admin_tg_id),
-                        text=antifraud_text,
-                        parse_mode="HTML",
-                        reply_markup=kb,
-                    )
-                except Exception:
-                    continue
-
     sent_to_topic = await send_to_topic(
         cq.bot,
         name="deposit",
@@ -551,35 +517,13 @@ async def deposit_confirm(
         destination_count = res.get("destination_count") or data.get("destination_count")
 
         await state.clear()
-        await safe_edit_or_send(
-            cq.message,
-            panel(
-                "ثبت شد ✅",
-                f"درخواست واریز ثبت شد.\n"
-                f"🧾 شماره: <b>{deposit_id}</b>\n"
-                f"💵 مبلغ: <b>{_fmt_toman(amount)}</b>\n"
-                f"{_destination_text(destination, slot=destination_slot, count=destination_count)}\n"
-                f"وضعیت: <b>{_deposit_status_fa(res.get('status'))}</b>\n\n"
-                "⏳ رسید شما در ساعات مشخص بررسی می‌شود.\n"
-                "از صبر و شکیبایی شما متشکریم 🙏",
-            ),
-            reply_markup=deposit_pending_kb(deposit_id),
-            parse_mode="HTML",
-        )
+        try:
+            await cq.message.edit_reply_markup(reply_markup=None)
+        except Exception:
+            pass
+        await cq.answer("درخواست واریز ثبت شد.", show_alert=False)
 
         duplicate_ids = [int(x) for x in (res.get("duplicate_of_ids") or []) if str(x).isdigit()]
-        if duplicate_ids:
-            show_ids = ", ".join(str(x) for x in duplicate_ids[:8])
-            await cq.message.answer(
-                panel(
-                    "هشدار رسید تکراری ⚠️",
-                    "رسید ارسالی با یک/چند رسید قبلی هش یکسان دارد.\n"
-                    f"درخواست(های) مشابه: <code>{show_ids}</code>\n"
-                    "اگر این مورد عمدی نیست، لطفا به پشتیبانی اطلاع بده.",
-                ),
-                parse_mode="HTML",
-            )
-
         await _notify_admins_new_deposit(
             cq,
             api,
@@ -593,6 +537,7 @@ async def deposit_confirm(
             receipt_hash=str(res.get("receipt_hash") or ""),
             duplicate_of_ids=duplicate_ids,
         )
+        return
     except ApiError as e:
         await safe_edit_or_send(
             cq.message,

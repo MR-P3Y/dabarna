@@ -376,7 +376,7 @@ def _parse_withdraw_view_ctx(data: str) -> tuple[int, str, int]:
 
 
 def _parse_withdraw_action_ctx(data: str) -> tuple[str, int, str, int]:
-    # admin:withdraw:{approve|reject|paid}:{withdraw_id}:{status}:{offset}
+    # admin:withdraw:{approve|reject|send-receipt}:{withdraw_id}:{status}:{offset}
     parts = data.split(":")
     action = parts[2] if len(parts) > 2 else ""
     withdraw_id = _to_int(parts[3] if len(parts) > 3 else None, -1)
@@ -472,33 +472,6 @@ def _withdraw_detail_panel_text(
     if extra_note:
         text += f"\n{extra_note}"
     return text
-
-
-async def _notify_withdraw_status(
-    cq: CallbackQuery,
-    *,
-    tg_user_id: int | None,
-    withdraw_id: int,
-    amount: int | None,
-    title: str,
-    body: str,
-) -> None:
-    if tg_user_id is None:
-        return
-    amount_text = _fmt_toman(amount) if amount is not None else "نامشخص"
-    try:
-        await cq.bot.send_message(
-            chat_id=int(tg_user_id),
-            text=panel(
-                title,
-                f"🧾 شماره: <b>{withdraw_id}</b>\n"
-                f"💵 مبلغ: <b>{amount_text}</b>\n"
-                f"{body}",
-            ),
-            parse_mode="HTML",
-        )
-    except Exception:
-        pass
 
 
 async def _render_deposits_page(cq: CallbackQuery, api: ApiClient, *, offset: int):
@@ -2032,48 +2005,6 @@ async def admin_withdraw_send_receipt_submit(m: Message, state: FSMContext, api:
         reply_markup=withdraw_item_kb(withdraw_id=withdraw_id, status="PAID", back_offset=back_offset),
     )
 
-@router.callback_query(F.data.startswith("admin:withdraw:paid:"))
-async def admin_withdraw_paid(cq: CallbackQuery, api: ApiClient, is_admin: bool = False):
-    if not require_admin(is_admin):
-        await cq.answer("اجازه دسترسی نداری.", show_alert=True)
-        return
-
-    action, withdraw_id, list_status, back_offset = _parse_withdraw_action_ctx(cq.data or "")
-    if action != "paid" or withdraw_id <= 0:
-        await cq.answer("درخواست نامعتبر است.", show_alert=True)
-        return
-
-    tg_user_id = None
-    amount = None
-    try:
-        before = await api.admin_get_withdraw(withdraw_id)
-        tg_user_id = _to_int(before.get("tg_user_id"), 0) or None
-        amount = _to_int(before.get("amount"), 0)
-    except ApiError:
-        pass
-
-    tracking = f"BOT-{withdraw_id}-{int(time.time())}"
-    try:
-        await api.admin_mark_withdraw_paid(withdraw_id, paid_tracking=tracking)
-        await _notify_withdraw_status(
-            cq,
-            tg_user_id=tg_user_id,
-            withdraw_id=withdraw_id,
-            amount=amount,
-            title="برداشت پرداخت شد ✅",
-            body=f"پرداخت بانکی ثبت شد.\n🔖 کد پیگیری: <code>{h(tracking)}</code>",
-        )
-        await _render_withdraws_page(cq, api, status=list_status, offset=back_offset)
-        await cq.answer("پرداخت ثبت شد ✅", show_alert=False)
-    except ApiError as e:
-        await safe_edit_or_send(
-            cq.message,
-            panel("خطا", f"<code>{e.status}</code>\n<code>{e.detail}</code>"),
-            parse_mode="HTML",
-        )
-        await cq.answer()
-
-
 @router.callback_query(F.data == "admin:cancel")
 async def admin_cancel(cq: CallbackQuery, state: FSMContext, is_admin: bool = False):
     if not require_admin(is_admin):
@@ -2091,7 +2022,4 @@ async def admin_cancel(cq: CallbackQuery, state: FSMContext, is_admin: bool = Fa
         parse_mode="HTML",
     )
     await cq.answer()
-
-
-
 

@@ -461,6 +461,10 @@ class MiniAdminWithdrawApproveIn(BaseModel):
     idempotency_key: str = Field(min_length=6)
 
 
+class MiniAdminDepositRejectIn(BaseModel):
+    reason: str | None = Field(default=None, max_length=200)
+
+
 class MiniAdminWithdrawPaidIn(BaseModel):
     paid_tracking: str = Field(min_length=2, max_length=128)
 
@@ -2477,23 +2481,41 @@ def mini_admin_approve_deposit(
         admin_user_id=int(ident.user_id),
         idempotency_key=str(payload.idempotency_key),
     )
+    deposit_id_int = int(dr.id)
+    wallet_tx_id = int(tx.id)
     db.commit()
-    return {"ok": True, "deposit_id": int(dr.id), "status": str(dr.status), "wallet_tx_id": int(tx.id)}
+    notify_result = _mini_notify_deposit_final_to_user(db, deposit_id=deposit_id_int, approved=True)
+    return {
+        "ok": True,
+        "deposit_id": deposit_id_int,
+        "status": "APPROVED",
+        "wallet_tx_id": wallet_tx_id,
+        "user_notify": notify_result,
+    }
 
 
 @router.post("/admin/deposits/{deposit_id}/reject")
 def mini_admin_reject_deposit(
     deposit_id: int,
+    payload: MiniAdminDepositRejectIn | None = None,
     ident: MiniAdminIdentity = Depends(get_mini_admin_identity),
     db: Session = Depends(get_db),
 ):
+    reason = str((payload.reason if payload else "") or "").strip() or "رد توسط ادمین"
     dr = FinanceService.reject_deposit(
         db=db,
         deposit_id=int(deposit_id),
         admin_user_id=int(ident.user_id),
     )
+    deposit_id_int = int(dr.id)
     db.commit()
-    return {"ok": True, "deposit_id": int(dr.id), "status": str(dr.status)}
+    notify_result = _mini_notify_deposit_final_to_user(
+        db,
+        deposit_id=deposit_id_int,
+        approved=False,
+        reason=reason,
+    )
+    return {"ok": True, "deposit_id": deposit_id_int, "status": "REJECTED", "user_notify": notify_result}
 
 
 @router.get("/admin/withdraws")
@@ -2857,6 +2879,74 @@ def _mini_send_plain_user_message(*, chat_id: int, text: str) -> bool:
         return False
 
 
+def _mini_tg_user_id_for_user(db: Session, user_id: int) -> int:
+    user = db.execute(select(User).where(User.id == int(user_id))).scalar_one_or_none()
+    return int(getattr(user, "tg_user_id", 0) or 0) if user is not None else 0
+
+
+def _mini_notify_deposit_final_to_user(
+    db: Session,
+    *,
+    deposit_id: int,
+    approved: bool,
+    reason: str | None = None,
+) -> dict[str, Any]:
+    dr = db.get(DepositRequest, int(deposit_id))
+    if dr is None:
+        return {"sent": False, "reason": "deposit_not_found"}
+
+    tg_user_id = _mini_tg_user_id_for_user(db, int(dr.user_id))
+    if tg_user_id <= 0:
+        return {"sent": False, "reason": "user_has_no_tg_user_id"}
+
+    if approved:
+        text = (
+            "🟦 <b>دورنای پیمون | واریز تایید شد</b>\n\n"
+            f"🧾 شماره واریز: <b>{int(dr.id)}</b>\n"
+            f"💵 مبلغ: <b>{int(dr.amount):,}</b> تومان\n\n"
+            "✅ واریز شما تایید شد و کیف پول شارژ شد."
+        )
+    else:
+        reason_text = html_escape(str(reason or "").strip() or "رد توسط ادمین")
+        text = (
+            "🟦 <b>دورنای پیمون | واریز رد شد</b>\n\n"
+            f"🧾 شماره واریز: <b>{int(dr.id)}</b>\n"
+            f"💵 مبلغ: <b>{int(dr.amount):,}</b> تومان\n"
+            f"📌 دلیل رد: <b>{reason_text}</b>\n\n"
+            "در صورت نیاز، با اصلاح اطلاعات و ثبت رسید معتبر دوباره درخواست ثبت کنید."
+        )
+
+    sent = _mini_send_plain_user_message(chat_id=int(tg_user_id), text=text)
+    return {"sent": bool(sent), "tg_user_id": int(tg_user_id), "kind": "text"}
+
+
+def _mini_notify_withdraw_rejected_to_user(
+    db: Session,
+    *,
+    withdraw_id: int,
+    reason: str | None,
+) -> dict[str, Any]:
+    wr = db.get(WithdrawRequest, int(withdraw_id))
+    if wr is None:
+        return {"sent": False, "reason": "withdraw_not_found"}
+
+    tg_user_id = _mini_tg_user_id_for_user(db, int(wr.user_id))
+    if tg_user_id <= 0:
+        return {"sent": False, "reason": "user_has_no_tg_user_id"}
+
+    reason_text = html_escape(str(reason or "").strip() or "رد توسط ادمین")
+    text = (
+        "🟦 <b>دورنای پیمون | برداشت رد شد</b>\n\n"
+        f"🧾 شماره برداشت: <b>{int(wr.id)}</b>\n"
+        f"💵 مبلغ: <b>{int(wr.amount):,}</b> تومان\n"
+        f"📌 دلیل رد: <b>{reason_text}</b>\n\n"
+        "در صورت نیاز می‌توانید اطلاعات را اصلاح کنید و دوباره درخواست برداشت ثبت کنید."
+    )
+
+    sent = _mini_send_plain_user_message(chat_id=int(tg_user_id), text=text)
+    return {"sent": bool(sent), "tg_user_id": int(tg_user_id), "kind": "text"}
+
+
 def _mini_withdraw_paid_user_message(
     *,
     withdraw_id: int,
@@ -2883,11 +2973,14 @@ def _mini_withdraw_paid_user_message(
 def _mini_notify_withdraw_paid_to_user(
     db: Session,
     *,
-    wr: WithdrawRequest,
+    withdraw_id: int,
     paid_tracking: str,
 ) -> dict[str, Any]:
-    user = db.execute(select(User).where(User.id == int(wr.user_id))).scalar_one_or_none()
-    tg_user_id = int(getattr(user, "tg_user_id", 0) or 0) if user is not None else 0
+    wr = db.get(WithdrawRequest, int(withdraw_id))
+    if wr is None:
+        return {"sent": False, "reason": "withdraw_not_found"}
+
+    tg_user_id = _mini_tg_user_id_for_user(db, int(wr.user_id))
     if tg_user_id <= 0:
         return {"sent": False, "reason": "user_has_no_tg_user_id"}
 
@@ -2946,20 +3039,21 @@ def mini_admin_paid_withdraw(
         admin_user_id=int(ident.user_id),
         paid_tracking=str(payload.paid_tracking),
     )
-    db.flush()
+    withdraw_id_int = int(wr.id)
+    paid_tracking = str(wr.paid_tracking or payload.paid_tracking or "")
+    db.commit()
 
     notify_result = _mini_notify_withdraw_paid_to_user(
         db,
-        wr=wr,
-        paid_tracking=str(payload.paid_tracking),
+        withdraw_id=withdraw_id_int,
+        paid_tracking=paid_tracking,
     )
 
-    db.commit()
     return {
         "ok": True,
-        "withdraw_id": int(wr.id),
-        "status": str(wr.status),
-        "paid_tracking": str(wr.paid_tracking or ""),
+        "withdraw_id": withdraw_id_int,
+        "status": "PAID",
+        "paid_tracking": paid_tracking,
         "user_notify": notify_result,
     }
 
@@ -2970,14 +3064,17 @@ def mini_admin_reject_withdraw(
     ident: MiniAdminIdentity = Depends(get_mini_admin_identity),
     db: Session = Depends(get_db),
 ):
+    reason = str((payload.reason if payload else "") or "").strip() or "رد توسط ادمین"
     wr = FinanceService.reject_withdraw(
         db=db,
         withdraw_id=int(withdraw_id),
         admin_user_id=int(ident.user_id),
-        reason=str((payload.reason if payload else "") or "").strip() or None,
+        reason=reason,
     )
+    withdraw_id_int = int(wr.id)
     db.commit()
-    return {"ok": True, "withdraw_id": int(wr.id), "status": str(wr.status)}
+    notify_result = _mini_notify_withdraw_rejected_to_user(db, withdraw_id=withdraw_id_int, reason=reason)
+    return {"ok": True, "withdraw_id": withdraw_id_int, "status": "REJECTED", "user_notify": notify_result}
 
 
 @router.get("/admin/super/admins")

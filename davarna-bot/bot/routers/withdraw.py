@@ -41,19 +41,6 @@ def _fmt_toman(value: object) -> str:
     return f"{_to_fa_digits(f'{n:,}'.replace(',', '٬'))} تومان"
 
 
-def _withdraw_status_fa(status: str | None) -> str:
-    s = str(status or "").upper()
-    if s == "PENDING":
-        return "در انتظار بررسی"
-    if s == "APPROVED":
-        return "تایید شده"
-    if s == "PAID":
-        return "پرداخت شده"
-    if s == "REJECTED":
-        return "رد شده"
-    return "نامشخص"
-
-
 def _friendly_withdraw_error(e: ApiError) -> str:
     detail_raw = str(getattr(e, "raw_detail", "") or e.detail or "")
     detail = detail_raw.lower()
@@ -427,22 +414,13 @@ async def confirm_withdraw(
             delay_sec=1.2,
         )
         req_id = int(res.get("id") or 0)
-        status = _withdraw_status_fa(res.get("status"))
 
         await state.clear()
-        await safe_edit_or_send(
-            cq.message,
-            panel(
-                "ثبت شد ✅",
-                f"درخواست برداشت ثبت شد.\n"
-                f"🧾 شماره: <b>{req_id}</b>\n"
-                f"💵 مبلغ: <b>{_fmt_toman(amount)}</b>\n"
-                f"وضعیت: <b>{status}</b>\n\n"
-                "⏳ واریزها در ساعات مشخص بانکی انجام می‌شود.\n"
-                "از صبر و شکیبایی شما متشکریم 🙏",
-            ),
-            parse_mode="HTML",
-        )
+        try:
+            await cq.message.edit_reply_markup(reply_markup=None)
+        except Exception:
+            pass
+        await cq.answer("درخواست برداشت ثبت شد.", show_alert=False)
 
         if req_id > 0:
             await _notify_admins_new_withdraw(
@@ -453,8 +431,6 @@ async def confirm_withdraw(
                 withdraw_id=req_id,
                 amount=amount,
             )
-
-        await cq.answer()
     except ApiError as e:
         await cq.answer()
         await safe_edit_or_send(
