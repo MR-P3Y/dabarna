@@ -104,16 +104,10 @@ def withdraw_item_kb(*, withdraw_id: int, status: str, back_offset: int = 0, tg_
         kb.button(text="✅ تایید برداشت", callback_data=f"admin:withdraw:approve:{withdraw_id}:{st}:{back_offset}")
         kb.button(text="❌ رد برداشت", callback_data=f"admin:withdraw:reject:{withdraw_id}:{st}:{back_offset}")
     elif st == "APPROVED":
-        try:
-            live_tg_user_id = int(tg_user_id or 0)
-        except Exception:
-            live_tg_user_id = 0
-        if live_tg_user_id > 0:
-            kb.button(text="?? ????????? ??????", callback_data=f"admin:withdraw:live:{withdraw_id}:{live_tg_user_id}")
-        kb.button(text="? ?????? ????? ?? ????", callback_data=f"admin:withdraw:send-receipt:{withdraw_id}:{st}:{back_offset}")
-        kb.button(text="?? ??? ?????? ???? ???", callback_data=f"admin:withdraw:paid:{withdraw_id}:{st}:{back_offset}")
+        kb.button(text="🧾 ارسال رسید به کاربر", callback_data=f"admin:withdraw:send-receipt:{withdraw_id}:{st}:{back_offset}")
+        kb.button(text="💸 ثبت پرداخت", callback_data=f"admin:withdraw:paid:{withdraw_id}:{st}:{back_offset}")
     elif st == "PAID":
-        pass
+        kb.button(text="🧾 ارسال رسید به کاربر", callback_data=f"admin:withdraw:send-receipt:{withdraw_id}:{st}:{back_offset}")
 
     kb.button(text="⬅️ بازگشت به لیست", callback_data=f"admin:withdraws:page:{st}:{back_offset}")
     kb.button(text="⬅️ ادمین مالی", callback_data="admin:finance")
