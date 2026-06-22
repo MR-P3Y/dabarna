@@ -42,13 +42,13 @@ logger = logging.getLogger(__name__)
 
 BOT_WELCOME_DESCRIPTION = (
     "سلام رفیق 👋\n"
-    "به «پیمون دورنا» خوش اومدی 🎯\n"
+    "به «دبرنا حلیم یگن طیار» خوش اومدی 🎯\n"
     "اینجا می تونی کارت بازی بخری 🃏، بازی زنده رو دنبال کنی 📡 "
     "و برای برد جایزه آماده بشی 🏆\n"
     "برای شروع، دکمه Start رو بزن تا بریم داخل بازی 🚀"
 )
 
-BOT_WELCOME_SHORT_DESCRIPTION = "دورنا | خرید کارت، اعلام زنده اعداد و جایزه 🃏🏆"
+BOT_WELCOME_SHORT_DESCRIPTION = "دبرنا حلیم یگن طیار | خرید کارت، اعلام زنده اعداد و جایزه 🃏🏆"
 
 
 async def _sync_bot_profile_texts(bot: Bot) -> None:

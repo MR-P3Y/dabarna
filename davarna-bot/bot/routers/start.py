@@ -13,7 +13,7 @@ router = Router()
 async def start(m: Message, is_admin: bool = False, is_super_admin: bool = False):
     name = m.from_user.full_name if m.from_user else "رفیق"
     text = panel(
-        "به دورنای پیمون خوش اومدی",
+        "به دبرنا حلیم یگن طیار خوش اومدی",
         f"سلام <b>{h(name)}</b> 👋\n\n"
         "اینجا هر عدد می‌تونه ورق بازی رو برگردونه! 🎯\n"
         "کارت بخر 🃏، بازی زنده رو دنبال کن 📡 و برای برد جایزه آماده شو 🏆\n\n"

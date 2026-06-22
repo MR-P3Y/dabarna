@@ -2901,7 +2901,7 @@ def _mini_notify_deposit_final_to_user(
 
     if approved:
         text = (
-            "🟦 <b>دورنای پیمون | واریز تایید شد</b>\n\n"
+            "🟦 <b>دبرنا حلیم یگن طیار | واریز تایید شد</b>\n\n"
             f"🧾 شماره واریز: <b>{int(dr.id)}</b>\n"
             f"💵 مبلغ: <b>{int(dr.amount):,}</b> تومان\n\n"
             "✅ واریز شما تایید شد و کیف پول شارژ شد."
@@ -2909,7 +2909,7 @@ def _mini_notify_deposit_final_to_user(
     else:
         reason_text = html_escape(str(reason or "").strip() or "رد توسط ادمین")
         text = (
-            "🟦 <b>دورنای پیمون | واریز رد شد</b>\n\n"
+            "🟦 <b>دبرنا حلیم یگن طیار | واریز رد شد</b>\n\n"
             f"🧾 شماره واریز: <b>{int(dr.id)}</b>\n"
             f"💵 مبلغ: <b>{int(dr.amount):,}</b> تومان\n"
             f"📌 دلیل رد: <b>{reason_text}</b>\n\n"
@@ -2936,7 +2936,7 @@ def _mini_notify_withdraw_rejected_to_user(
 
     reason_text = html_escape(str(reason or "").strip() or "رد توسط ادمین")
     text = (
-        "🟦 <b>دورنای پیمون | برداشت رد شد</b>\n\n"
+        "🟦 <b>دبرنا حلیم یگن طیار | برداشت رد شد</b>\n\n"
         f"🧾 شماره برداشت: <b>{int(wr.id)}</b>\n"
         f"💵 مبلغ: <b>{int(wr.amount):,}</b> تومان\n"
         f"📌 دلیل رد: <b>{reason_text}</b>\n\n"
@@ -2960,7 +2960,7 @@ def _mini_withdraw_paid_user_message(
     proof_line = f"\n🧾 متن رسید: <b>{proof_text_clean}</b>" if proof_text_clean else ""
     image_line = "\n🖼 تصویر فیش پرداخت پیوست شد." if has_image else ""
     return (
-        "🟦 <b>دورنای پیمون | برداشت پرداخت شد</b>\n\n"
+        "🟦 <b>دبرنا حلیم یگن طیار | برداشت پرداخت شد</b>\n\n"
         f"🧾 شماره برداشت: <b>{int(withdraw_id)}</b>\n"
         f"💵 مبلغ: <b>{int(amount):,}</b> تومان\n"
         f"🔖 پیگیری پرداخت: <code>{tracking_text}</code>"

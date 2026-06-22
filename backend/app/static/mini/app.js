@@ -649,7 +649,7 @@ function inferDisplayName() {
   const ln = String(tgUser?.last_name || "").trim();
   const full = `${fn} ${ln}`.trim();
   if (full) return full;
-  return "کاربر دورنا";
+  return "کاربر دبرنا حلیم یگن طیار";
 }
 
 function updateHeaderWallet(balance) {
@@ -4647,4 +4647,3 @@ boot().catch((err) => {
   setSplashStatus("خطا در آماده‌سازی. لطفاً دوباره تلاش کنید.");
   setTimeout(hideSplash, 900);
 });
-
