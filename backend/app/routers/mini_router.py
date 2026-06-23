@@ -92,6 +92,7 @@ from app.services.finance_service import FinanceService
 from app.services.game_event_service import GameEventService
 from app.services.game_service import GameService
 from app.services.wallet_service import WalletService
+from app.services.admin_audit_service import AdminAuditService
 from app.routers import admin_users_router
 
 router = APIRouter(prefix="/mini-api", tags=["mini"])
@@ -2359,6 +2360,7 @@ def mini_admin_games(
 @router.post("/admin/games/create")
 def mini_admin_create_game(
     payload: MiniAdminCreateGameIn,
+    request: Request,
     ident: MiniAdminIdentity = Depends(get_mini_admin_identity),
     db: Session = Depends(get_db),
 ):
@@ -2434,6 +2436,24 @@ def mini_admin_create_game(
             idem_setting_key,
             {"game_id": int(active.id), "created_by": int(ident.user_id), "reused_active": True},
         )
+        AdminAuditService.record(
+            db,
+            admin=_mini_to_admin_identity(ident),
+            action="game.create",
+            target_type="game",
+            target_id=int(active.id),
+            request=request,
+            details={
+                "game_id": int(active.id),
+                "tg_group_id": int(active.tg_group_id),
+                "tg_topic_id": int(active.tg_topic_id) if active.tg_topic_id is not None else None,
+                "card_price": int(active.card_price),
+                "requested_card_price": int(card_price),
+                "status": str(active.status),
+                "reused_active": True,
+                "idempotency_key": idem_key,
+            },
+        )
         db.commit()
         return {
             "ok": True,
@@ -2455,6 +2475,24 @@ def mini_admin_create_game(
         db,
         idem_setting_key,
         {"game_id": int(g.id), "created_by": int(ident.user_id), "reused_active": False},
+    )
+    AdminAuditService.record(
+        db,
+        admin=_mini_to_admin_identity(ident),
+        action="game.create",
+        target_type="game",
+        target_id=int(g.id),
+        request=request,
+        details={
+            "game_id": int(g.id),
+            "tg_group_id": int(g.tg_group_id),
+            "tg_topic_id": int(g.tg_topic_id) if g.tg_topic_id is not None else None,
+            "card_price": int(g.card_price),
+            "status": str(g.status),
+            "reused_active": False,
+            "source_game_id": int(payload.source_game_id) if payload.source_game_id is not None else None,
+            "idempotency_key": idem_key,
+        },
     )
     db.commit()
     db.refresh(g)
@@ -2482,15 +2520,35 @@ def mini_admin_create_game(
 def mini_admin_start_game(
     game_id: int,
     payload: MiniAdminActionIn,
+    request: Request,
     ident: MiniAdminIdentity = Depends(get_mini_admin_identity),
     db: Session = Depends(get_db),
 ):
     _mini_require_game_manage_access(db, int(game_id), ident)
+    before = db.execute(select(Game.status).where(Game.id == int(game_id))).scalar_one_or_none()
     game = GameService.start_game(
         db=db,
         game_id=int(game_id),
         admin_user_id=int(ident.user_id),
         idempotency_key=str(payload.idempotency_key),
+    )
+    AdminAuditService.record(
+        db,
+        admin=_mini_to_admin_identity(ident),
+        action="game.start",
+        target_type="game",
+        target_id=int(game.id),
+        request=request,
+        details={
+            "game_id": int(game.id),
+            "status_before": str(before) if before is not None else None,
+            "status_after": str(game.status),
+            "sold_amount": int(game.sold_amount),
+            "prize_pool": int(game.prize_pool),
+            "col_prize_amount": int(game.col_prize_amount),
+            "row_prize_amount": int(game.row_prize_amount),
+            "idempotency_key": str(payload.idempotency_key),
+        },
     )
     db.commit()
     db.refresh(game)
@@ -2501,6 +2559,7 @@ def mini_admin_start_game(
 def mini_admin_call_number(
     game_id: int,
     payload: MiniAdminCallIn,
+    request: Request,
     ident: MiniAdminIdentity = Depends(get_mini_admin_identity),
     db: Session = Depends(get_db),
 ):
@@ -2511,6 +2570,24 @@ def mini_admin_call_number(
         number=int(payload.number),
         admin_user_id=int(ident.user_id),
         idempotency_key=str(payload.idempotency_key),
+    )
+    AdminAuditService.record(
+        db,
+        admin=_mini_to_admin_identity(ident),
+        action="game.call",
+        target_type="game",
+        target_id=int(game_id),
+        request=request,
+        details={
+            "game_id": int(game_id),
+            "number": int(payload.number),
+            "called_count": int(out.get("called_count") or 0),
+            "col_paid": int(out.get("col_paid") or 0),
+            "row_paid": int(out.get("row_paid") or 0),
+            "row_winner_user_ids": [int(x) for x in (out.get("row_winner_user_ids") or [])],
+            "row_winner_card_ids": [int(x) for x in (out.get("row_winner_card_ids") or [])],
+            "idempotency_key": str(payload.idempotency_key),
+        },
     )
     db.commit()
     return {"ok": True, "result": out}
@@ -3400,6 +3477,7 @@ def mini_super_admin_list(
 @router.post("/admin/super/admins/grant")
 def mini_super_admin_grant(
     payload: MiniSuperGrantIn,
+    request: Request,
     ident: MiniAdminIdentity = Depends(get_mini_super_admin_identity),
     db: Session = Depends(get_db),
 ):
@@ -3412,9 +3490,24 @@ def mini_super_admin_grant(
         .where(UserRole.user_id == int(user.id))
         .where(UserRole.role_id == int(role_id))
     ).scalar_one_or_none()
+    already_had_role = exists is not None
     if exists is None:
         db.add(UserRole(user_id=int(user.id), role_id=int(role_id)))
         db.flush()
+    AdminAuditService.record(
+        db,
+        admin=_mini_to_admin_identity(ident),
+        action="admin.grant",
+        target_type="user",
+        target_id=int(user.id),
+        request=request,
+        details={
+            "user_id": int(user.id),
+            "tg_user_id": int(user.tg_user_id),
+            "role": str(payload.role),
+            "already_had_role": bool(already_had_role),
+        },
+    )
     db.commit()
     items = _mini_admin_account_items(db)
     item = next((x for x in items if int(x.get("tg_user_id") or 0) == int(payload.tg_user_id)), None)
@@ -3424,6 +3517,7 @@ def mini_super_admin_grant(
 @router.post("/admin/super/admins/revoke")
 def mini_super_admin_revoke(
     payload: MiniSuperRevokeIn,
+    request: Request,
     ident: MiniAdminIdentity = Depends(get_mini_super_admin_identity),
     db: Session = Depends(get_db),
 ):
@@ -3445,7 +3539,25 @@ def mini_super_admin_revoke(
         .where(UserRole.role_id.in_(target_role_ids))
     ).scalars().all()
     role_set = {int(x) for x in user_role_rows}
+    role_names_by_id = {int(v): str(k) for k, v in role_ids.items()}
+    removed_roles = [role_names_by_id.get(int(x), str(x)) for x in sorted(role_set)]
     if not role_set:
+        AdminAuditService.record(
+            db,
+            admin=_mini_to_admin_identity(ident),
+            action="admin.revoke",
+            target_type="user",
+            target_id=int(user.id),
+            request=request,
+            details={
+                "user_id": int(user.id),
+                "tg_user_id": int(user.tg_user_id),
+                "requested_role": str(payload.role),
+                "removed": 0,
+                "removed_roles": [],
+            },
+        )
+        db.commit()
         return {"ok": True, "removed": 0, "user_id": int(user.id), "tg_user_id": int(user.tg_user_id)}
 
     removing_super = int(role_ids["SUPER_ADMIN"]) in role_set
@@ -3459,6 +3571,21 @@ def mini_super_admin_revoke(
         delete(UserRole)
         .where(UserRole.user_id == int(user.id))
         .where(UserRole.role_id.in_(list(role_set)))
+    )
+    AdminAuditService.record(
+        db,
+        admin=_mini_to_admin_identity(ident),
+        action="admin.revoke",
+        target_type="user",
+        target_id=int(user.id),
+        request=request,
+        details={
+            "user_id": int(user.id),
+            "tg_user_id": int(user.tg_user_id),
+            "requested_role": str(payload.role),
+            "removed": int(res.rowcount or 0),
+            "removed_roles": removed_roles,
+        },
     )
     db.commit()
     return {

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Header
+from fastapi import APIRouter, Depends, HTTPException, Header, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 import json
@@ -18,6 +18,7 @@ from app.utils.messages import format_game_lobby, format_game_running, format_ro
 from app.utils.game_messages import build_private_cards_blocks, group_message_running, private_cards_preview
 from app.schemas.game_events import GameEventOut
 from app.utils.tg_text import chunk_text, paginate_blocks
+from app.services.admin_audit_service import AdminAuditService
 
 
 
@@ -72,6 +73,7 @@ def _to_game_out(g: Game) -> GameOut:
 @router.post("", response_model=GameOut)
 def create_game(
     payload: CreateGameIn,
+    request: Request,
     ident: AdminIdentity = Depends(require_admin_any),
     db: Session = Depends(get_db),
 ):
@@ -89,6 +91,21 @@ def create_game(
         tg_group_id=tg_group_id,
         tg_topic_id=payload.tg_topic_id,
         card_price=payload.card_price,
+    )
+    AdminAuditService.record(
+        db,
+        admin=ident,
+        action="game.create",
+        target_type="game",
+        target_id=int(g.id),
+        request=request,
+        details={
+            "game_id": int(g.id),
+            "tg_group_id": int(g.tg_group_id),
+            "tg_topic_id": int(g.tg_topic_id) if g.tg_topic_id is not None else None,
+            "card_price": int(g.card_price),
+            "status": str(g.status),
+        },
     )
     db.commit()
     return _to_game_out(g)
@@ -122,11 +139,31 @@ def buy_cards(
 def start_game(
     game_id: int,
     payload: StartGameIn,
+    request: Request,
     ident: AdminIdentity = Depends(require_admin_any),
     db: Session = Depends(get_db),
 ):
     admin_uid = _admin_user_id(ident)
+    before = db.execute(select(Game.status).where(Game.id == int(game_id))).scalar_one_or_none()
     g = GameService.start_game(db=db, game_id=game_id, admin_user_id=admin_uid, idempotency_key=payload.idempotency_key)
+    AdminAuditService.record(
+        db,
+        admin=ident,
+        action="game.start",
+        target_type="game",
+        target_id=int(g.id),
+        request=request,
+        details={
+            "game_id": int(g.id),
+            "status_before": str(before) if before is not None else None,
+            "status_after": str(g.status),
+            "sold_amount": int(g.sold_amount),
+            "prize_pool": int(g.prize_pool),
+            "col_prize_amount": int(g.col_prize_amount),
+            "row_prize_amount": int(g.row_prize_amount),
+            "idempotency_key": str(payload.idempotency_key),
+        },
+    )
     db.commit()
     return _to_game_out(g)
 
@@ -134,12 +171,31 @@ def start_game(
 def call_number(
     game_id: int,
     payload: CallNumberIn,
+    request: Request,
     ident: AdminIdentity = Depends(require_admin_any),
     db: Session = Depends(get_db),
 ):
     admin_uid = _admin_user_id(ident)
     res = GameService.call_number(
         db=db, game_id=game_id, number=payload.number, admin_user_id=admin_uid, idempotency_key=payload.idempotency_key
+    )
+    AdminAuditService.record(
+        db,
+        admin=ident,
+        action="game.call",
+        target_type="game",
+        target_id=int(game_id),
+        request=request,
+        details={
+            "game_id": int(game_id),
+            "number": int(payload.number),
+            "called_count": int(res.get("called_count") or 0),
+            "col_paid": int(res.get("col_paid") or 0),
+            "row_paid": int(res.get("row_paid") or 0),
+            "row_winner_user_ids": [int(x) for x in (res.get("row_winner_user_ids") or [])],
+            "row_winner_card_ids": [int(x) for x in (res.get("row_winner_card_ids") or [])],
+            "idempotency_key": str(payload.idempotency_key),
+        },
     )
     db.commit()
     return CallNumberOut(**res)

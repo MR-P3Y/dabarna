@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections import OrderedDict
 from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
@@ -13,6 +13,7 @@ from app.core.config import RBAC_OWNER_USER_ID
 from app.core.db import get_db
 from app.models.rbac import Role, UserRole
 from app.models.user import User
+from app.services.admin_audit_service import AdminAuditService
 
 router = APIRouter(prefix="/admin/rbac", tags=["admin-rbac"])
 
@@ -170,7 +171,8 @@ def list_admin_accounts(
 @router.post("/admins/grant", response_model=AdminAccountOut)
 def grant_admin_account(
     payload: GrantAdminIn,
-    _: AdminIdentity = Depends(_require_super_admin),
+    request: Request,
+    identity: AdminIdentity = Depends(_require_super_admin),
     db: Session = Depends(get_db),
 ):
     role_ids = _role_id_map(db)
@@ -182,9 +184,24 @@ def grant_admin_account(
         .where(UserRole.user_id == int(user.id))
         .where(UserRole.role_id == role_id)
     ).scalar_one_or_none()
+    already_had_role = existing is not None
     if existing is None:
         db.add(UserRole(user_id=int(user.id), role_id=role_id))
         db.flush()
+    AdminAuditService.record(
+        db,
+        admin=identity,
+        action="admin.grant",
+        target_type="user",
+        target_id=int(user.id),
+        request=request,
+        details={
+            "user_id": int(user.id),
+            "tg_user_id": int(user.tg_user_id),
+            "role": str(payload.role),
+            "already_had_role": bool(already_had_role),
+        },
+    )
     db.commit()
     return _build_admin_account(db, int(user.id))
 
@@ -192,6 +209,7 @@ def grant_admin_account(
 @router.post("/admins/revoke")
 def revoke_admin_account(
     payload: RevokeAdminIn,
+    request: Request,
     identity: AdminIdentity = Depends(_require_super_admin),
     db: Session = Depends(get_db),
 ):
@@ -214,7 +232,25 @@ def revoke_admin_account(
         .where(UserRole.role_id.in_(target_role_ids))
     ).scalars().all()
     role_set = {int(x) for x in user_role_rows}
+    role_names_by_id = {int(v): str(k) for k, v in role_ids.items()}
+    removed_roles = [role_names_by_id.get(int(x), str(x)) for x in sorted(role_set)]
     if not role_set:
+        AdminAuditService.record(
+            db,
+            admin=identity,
+            action="admin.revoke",
+            target_type="user",
+            target_id=int(user.id),
+            request=request,
+            details={
+                "user_id": int(user.id),
+                "tg_user_id": int(user.tg_user_id),
+                "requested_role": str(payload.role),
+                "removed": 0,
+                "removed_roles": [],
+            },
+        )
+        db.commit()
         return {"ok": True, "removed": 0, "user_id": int(user.id), "tg_user_id": int(user.tg_user_id)}
 
     removing_super = int(role_ids["SUPER_ADMIN"]) in role_set
@@ -228,6 +264,21 @@ def revoke_admin_account(
         delete(UserRole)
         .where(UserRole.user_id == int(user.id))
         .where(UserRole.role_id.in_(list(role_set)))
+    )
+    AdminAuditService.record(
+        db,
+        admin=identity,
+        action="admin.revoke",
+        target_type="user",
+        target_id=int(user.id),
+        request=request,
+        details={
+            "user_id": int(user.id),
+            "tg_user_id": int(user.tg_user_id),
+            "requested_role": str(payload.role),
+            "removed": int(delete_result.rowcount or 0),
+            "removed_roles": removed_roles,
+        },
     )
     db.commit()
     return {

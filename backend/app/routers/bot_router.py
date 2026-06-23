@@ -1,6 +1,6 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Header, Query # type: ignore
+from fastapi import APIRouter, Depends, HTTPException, Header, Query, Request # type: ignore
 from sqlalchemy.orm import Session # type: ignore
 from sqlalchemy import select, text, func # type: ignore
 from typing import Any, Optional
@@ -36,6 +36,7 @@ from app.services.user_service import UserService
 from app.services.finance_service import FinanceService
 from app.services.game_service import GameService
 from app.services.telegram_file_service import download_telegram_file
+from app.services.admin_audit_service import AdminAuditService
 
 router = APIRouter(prefix="/bot", tags=["bot"])
 _RECEIPT_HASH_CACHE: dict[str, tuple[float, str]] = {}
@@ -1975,6 +1976,7 @@ def list_bot_admin_game_participants(
 @router.post("/admin/games/{game_id}/ensure-active", response_model=BotAdminGameOut)
 def ensure_bot_admin_game_active(
     game_id: int,
+    request: Request,
     db: Session = Depends(get_db),
     admin: AdminIdentity = Depends(get_admin_identity),
 ):
@@ -2007,6 +2009,23 @@ def ensure_bot_admin_game_active(
             tg_topic_id=int(src_game.tg_topic_id) if getattr(src_game, "tg_topic_id", None) is not None else None,
             card_price=int(src_game.card_price),
         )
+        AdminAuditService.record(
+            db,
+            admin=admin,
+            action="game.create",
+            target_type="game",
+            target_id=int(created.id),
+            request=request,
+            details={
+                "game_id": int(created.id),
+                "source_game_id": int(src_game.id),
+                "tg_group_id": int(created.tg_group_id),
+                "tg_topic_id": int(created.tg_topic_id) if created.tg_topic_id is not None else None,
+                "card_price": int(created.card_price),
+                "status": str(created.status),
+                "source": "bot.ensure_active",
+            },
+        )
         db.commit()
         db.refresh(created)
         return _to_bot_admin_game_out(created)
@@ -2024,16 +2043,36 @@ def ensure_bot_admin_game_active(
 def start_bot_admin_game(
     game_id: int,
     payload: BotAdminStartIn,
+    request: Request,
     db: Session = Depends(get_db),
     admin: AdminIdentity = Depends(get_admin_identity),
 ):
     admin_uid = _require_admin_user_id(admin)
     try:
+        before = db.execute(select(Game.status).where(Game.id == int(game_id))).scalar_one_or_none()
         game = GameService.start_game(
             db=db,
             game_id=game_id,
             admin_user_id=admin_uid,
             idempotency_key=payload.idempotency_key,
+        )
+        AdminAuditService.record(
+            db,
+            admin=admin,
+            action="game.start",
+            target_type="game",
+            target_id=int(game.id),
+            request=request,
+            details={
+                "game_id": int(game.id),
+                "status_before": str(before) if before is not None else None,
+                "status_after": str(game.status),
+                "sold_amount": int(game.sold_amount),
+                "prize_pool": int(game.prize_pool),
+                "col_prize_amount": int(game.col_prize_amount),
+                "row_prize_amount": int(game.row_prize_amount),
+                "idempotency_key": str(payload.idempotency_key),
+            },
         )
         db.commit()
         db.refresh(game)
@@ -2052,6 +2091,7 @@ def start_bot_admin_game(
 def call_number_on_bot_admin_game(
     game_id: int,
     payload: BotAdminCallIn,
+    request: Request,
     db: Session = Depends(get_db),
     admin: AdminIdentity = Depends(get_admin_identity),
 ):
@@ -2063,6 +2103,24 @@ def call_number_on_bot_admin_game(
             number=payload.number,
             admin_user_id=admin_uid,
             idempotency_key=payload.idempotency_key,
+        )
+        AdminAuditService.record(
+            db,
+            admin=admin,
+            action="game.call",
+            target_type="game",
+            target_id=int(game_id),
+            request=request,
+            details={
+                "game_id": int(game_id),
+                "number": int(payload.number),
+                "called_count": int(res.get("called_count") or 0),
+                "col_paid": int(res.get("col_paid") or 0),
+                "row_paid": int(res.get("row_paid") or 0),
+                "row_winner_user_ids": [int(x) for x in (res.get("row_winner_user_ids") or [])],
+                "row_winner_card_ids": [int(x) for x in (res.get("row_winner_card_ids") or [])],
+                "idempotency_key": str(payload.idempotency_key),
+            },
         )
         db.commit()
         return BotAdminCallOut(**res)
