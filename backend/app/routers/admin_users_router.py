@@ -8,7 +8,7 @@ from urllib import parse as url_parse
 from urllib import request as url_request
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
@@ -22,6 +22,7 @@ from app.models.rbac import Role, UserRole
 from app.models.settings import AppSetting
 from app.models.user import User
 from app.models.wallet import Wallet, WalletTx
+from app.services.admin_audit_service import AdminAuditService
 from app.services.wallet_service import WalletService
 
 router = APIRouter(prefix="/admin/users", tags=["admin-users"])
@@ -769,6 +770,7 @@ def admin_user_games_history(
 def admin_user_restrict(
     tg_user_id: int,
     payload: RestrictIn,
+    request: Request,
     admin: AdminIdentity = Depends(require_admin_any),
     db: Session = Depends(get_db),
 ):
@@ -784,6 +786,7 @@ def admin_user_restrict(
     key = str(int(user.tg_user_id))
     current = restrictions.get(key) if isinstance(restrictions.get(key), dict) else {}
     current = dict(current or {})
+    previous_state = _restriction_state(current)
     current.update({
         "active": True,
         "reason": str(payload.reason).strip(),
@@ -798,6 +801,25 @@ def admin_user_restrict(
     })
     restrictions[key] = current
     _setting_set_json(db, USER_RESTRICTIONS_KEY, restrictions)
+    new_state = _restriction_state(current)
+    AdminAuditService.record(
+        db,
+        admin=admin,
+        action="user.restrict",
+        target_type="user",
+        target_id=int(user.id),
+        request=request,
+        details={
+            "user_id": int(user.id),
+            "tg_user_id": int(user.tg_user_id),
+            "roles": roles,
+            "previous_active": bool(previous_state.get("active")),
+            "new_active": bool(new_state.get("active")),
+            "reason": str(payload.reason).strip(),
+            "actions": new_state.get("actions"),
+            "until": new_state.get("until"),
+        },
+    )
     db.commit()
 
     return {"ok": True, "user": _user_basic(user), "roles": roles, "restriction": _restriction_state(current)}
@@ -807,6 +829,7 @@ def admin_user_restrict(
 def admin_user_unrestrict(
     tg_user_id: int,
     payload: UnrestrictIn,
+    request: Request,
     admin: AdminIdentity = Depends(require_admin_any),
     db: Session = Depends(get_db),
 ):
@@ -818,6 +841,7 @@ def admin_user_unrestrict(
     key = str(int(user.tg_user_id))
     current = restrictions.get(key) if isinstance(restrictions.get(key), dict) else {}
     current = dict(current or {})
+    previous_state = _restriction_state(current)
     current.update({
         "active": False,
         "lifted_at": _to_str_dt(_now()),
@@ -826,6 +850,24 @@ def admin_user_unrestrict(
     })
     restrictions[key] = current
     _setting_set_json(db, USER_RESTRICTIONS_KEY, restrictions)
+    new_state = _restriction_state(current)
+    AdminAuditService.record(
+        db,
+        admin=admin,
+        action="user.unrestrict",
+        target_type="user",
+        target_id=int(user.id),
+        request=request,
+        details={
+            "user_id": int(user.id),
+            "tg_user_id": int(user.tg_user_id),
+            "roles": roles,
+            "previous_active": bool(previous_state.get("active")),
+            "new_active": bool(new_state.get("active")),
+            "reason": str(payload.reason or "").strip() or None,
+            "lifted_at": new_state.get("lifted_at"),
+        },
+    )
     db.commit()
 
     return {"ok": True, "user": _user_basic(user), "roles": roles, "restriction": _restriction_state(current)}
@@ -835,6 +877,7 @@ def admin_user_unrestrict(
 def admin_user_wallet_adjust(
     tg_user_id: int,
     payload: WalletAdjustIn,
+    request: Request,
     admin: AdminIdentity = Depends(require_admin_any),
     db: Session = Depends(get_db),
 ):
@@ -909,6 +952,27 @@ def admin_user_wallet_adjust(
             disable_notification=False,
         )
 
+    AdminAuditService.record(
+        db,
+        admin=admin,
+        action="wallet.adjust",
+        target_type="user",
+        target_id=int(user.id),
+        request=request,
+        details={
+            "user_id": int(user.id),
+            "tg_user_id": int(user.tg_user_id),
+            "wallet_tx_id": int(tx.id),
+            "amount": int(amount),
+            "direction": "CREDIT" if amount > 0 else "DEBIT",
+            "reason": str(payload.reason).strip(),
+            "before_balance": before_balance,
+            "after_balance": after_balance,
+            "idempotency_key": idem,
+            "notify_user": bool(payload.notify_user),
+            "notify_ok": bool(notify_result.get("ok", False)),
+        },
+    )
     db.commit()
     return {
         "ok": True,

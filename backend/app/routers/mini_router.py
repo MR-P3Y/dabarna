@@ -16,7 +16,7 @@ from urllib import error as urllib_error
 from urllib import request as urllib_request
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, func, select
@@ -2211,6 +2211,7 @@ def mini_admin_user_games_history(
 def mini_admin_user_restrict(
     tg_user_id: int,
     payload: admin_users_router.RestrictIn,
+    request: Request,
     ident: MiniAdminIdentity = Depends(get_mini_admin_identity),
     db: Session = Depends(get_db),
 ):
@@ -2218,6 +2219,7 @@ def mini_admin_user_restrict(
     return admin_users_router.admin_user_restrict(
         tg_user_id=int(tg_user_id),
         payload=payload,
+        request=request,
         admin=_mini_to_admin_identity(ident),
         db=db,
     )
@@ -2227,6 +2229,7 @@ def mini_admin_user_restrict(
 def mini_admin_user_unrestrict(
     tg_user_id: int,
     payload: admin_users_router.UnrestrictIn,
+    request: Request,
     ident: MiniAdminIdentity = Depends(get_mini_admin_identity),
     db: Session = Depends(get_db),
 ):
@@ -2234,6 +2237,7 @@ def mini_admin_user_unrestrict(
     return admin_users_router.admin_user_unrestrict(
         tg_user_id=int(tg_user_id),
         payload=payload,
+        request=request,
         admin=_mini_to_admin_identity(ident),
         db=db,
     )
@@ -2243,6 +2247,7 @@ def mini_admin_user_unrestrict(
 def mini_admin_user_wallet_adjust(
     tg_user_id: int,
     payload: admin_users_router.WalletAdjustIn,
+    request: Request,
     ident: MiniAdminIdentity = Depends(get_mini_admin_identity),
     db: Session = Depends(get_db),
 ):
@@ -2250,6 +2255,7 @@ def mini_admin_user_wallet_adjust(
     return admin_users_router.admin_user_wallet_adjust(
         tg_user_id=int(tg_user_id),
         payload=payload,
+        request=request,
         admin=_mini_to_admin_identity(ident),
         db=db,
     )
