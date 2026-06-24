@@ -40,7 +40,7 @@ async def lifespan(app: FastAPI):
     if cfg.CRYPTO_PAYMENTS_ENABLED:
         for warning in cfg.crypto_config_warnings():
             log.warning("crypto configuration: %s", warning)
-        if cfg.CRYPTO_AUTO_CONFIRM_ENABLED and CryptoDepositService.enabled_options():
+        if cfg.CRYPTO_AUTO_CONFIRM_ENABLED and CryptoDepositService.configured_options():
             task = asyncio.create_task(
                 run_crypto_worker_forever(stop_event),
                 name="crypto-deposit-worker",

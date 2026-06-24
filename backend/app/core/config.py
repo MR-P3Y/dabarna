@@ -317,6 +317,15 @@ CRYPTO_RATE_MAX_DEVIATION_PERCENT = _safe_decimal("CRYPTO_RATE_MAX_DEVIATION_PER
 CRYPTO_RATE_BUFFER_PERCENT = _safe_decimal("CRYPTO_RATE_BUFFER_PERCENT", "0")
 CRYPTO_HTTP_TIMEOUT_SEC = _safe_positive_int("CRYPTO_HTTP_TIMEOUT_SEC", 12, minimum=3)
 CRYPTO_SCAN_LOOKBACK_HOURS = _safe_positive_int("CRYPTO_SCAN_LOOKBACK_HOURS", 24, minimum=1)
+CRYPTO_PENDING_ALERT_MINUTES = _safe_positive_int("CRYPTO_PENDING_ALERT_MINUTES", 10, minimum=2)
+CRYPTO_DAILY_USER_MAX_COUNT = _safe_nonnegative_int("CRYPTO_DAILY_USER_MAX_COUNT", 5)
+CRYPTO_DAILY_USER_MAX_TOMAN = _safe_nonnegative_int("CRYPTO_DAILY_USER_MAX_TOMAN", 100_000_000)
+CRYPTO_DAILY_TIMEZONE = (os.getenv("CRYPTO_DAILY_TIMEZONE", "Asia/Tehran") or "Asia/Tehran").strip()
+CRYPTO_RECONCILIATION_LOOKBACK_HOURS = _safe_positive_int(
+    "CRYPTO_RECONCILIATION_LOOKBACK_HOURS",
+    24,
+    minimum=1,
+)
 
 CRYPTO_NOBITEX_BASE_URL = (
     os.getenv("CRYPTO_NOBITEX_BASE_URL", "https://api.nobitex.ir") or "https://api.nobitex.ir"
@@ -336,6 +345,10 @@ CRYPTO_TRONGRID_BASE_URL = (
     os.getenv("CRYPTO_TRONGRID_BASE_URL", "https://api.trongrid.io") or "https://api.trongrid.io"
 ).strip().rstrip("/")
 TRONGRID_API_KEY = (os.getenv("TRONGRID_API_KEY", "") or "").strip()
+CRYPTO_TRON_EXPLORER_TX_BASE = (
+    os.getenv("CRYPTO_TRON_EXPLORER_TX_BASE", "https://tronscan.org/#/transaction")
+    or "https://tronscan.org/#/transaction"
+).strip().rstrip("/")
 
 CRYPTO_TON_ENABLED = _safe_bool("CRYPTO_TON_ENABLED", True)
 CRYPTO_TON_ADDRESS = (os.getenv("CRYPTO_TON_ADDRESS", "") or "").strip()
@@ -344,6 +357,10 @@ CRYPTO_TONCENTER_BASE_URL = (
     os.getenv("CRYPTO_TONCENTER_BASE_URL", "https://toncenter.com") or "https://toncenter.com"
 ).strip().rstrip("/")
 TONCENTER_API_KEY = (os.getenv("TONCENTER_API_KEY", "") or "").strip()
+CRYPTO_TON_EXPLORER_TX_BASE = (
+    os.getenv("CRYPTO_TON_EXPLORER_TX_BASE", "https://tonviewer.com/transaction")
+    or "https://tonviewer.com/transaction"
+).strip().rstrip("/")
 
 
 def crypto_config_warnings() -> list[str]:

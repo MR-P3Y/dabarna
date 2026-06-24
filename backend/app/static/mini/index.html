@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>مینی‌اپ دبرنا حلیم یگن طیار</title>
-    <link rel="stylesheet" href="./styles.css?v=20260623localhints1" />
+    <link rel="stylesheet" href="./styles.css?v=20260624crypto3" />
   </head>
   <body>
     <div id="appSplash" class="app-splash" aria-label="در حال آماده‌سازی مینی‌اپ">
@@ -470,6 +470,26 @@
                   <span class="accordion-icon">▾</span>
                 </summary>
                 <div class="accordion-body">
+                  <div class="super-crypto-control">
+                    <div class="super-crypto-copy">
+                      <strong>پرداخت ارز دیجیتال کاربران</strong>
+                      <span id="superCryptoStatusText">در حال دریافت وضعیت...</span>
+                    </div>
+                    <button
+                      id="superCryptoToggleBtn"
+                      class="small-btn"
+                      type="button"
+                      role="switch"
+                      aria-checked="false"
+                    >بررسی وضعیت</button>
+                  </div>
+                  <div id="superCryptoHint" class="step-hint"></div>
+                  <div class="admin-action-row super-crypto-ops">
+                    <button id="superCryptoHealthBtn" class="small-btn" type="button">سلامت سرویس‌ها</button>
+                    <button id="superCryptoReconcileBtn" class="small-btn" type="button">تطبیق ۲۴ ساعت اخیر</button>
+                  </div>
+                  <div id="superCryptoOpsResult" class="super-crypto-ops-result hidden"></div>
+
                   <div class="action-form">
                     <label id="superAdminUserLabel" for="superAdminTgUserInput">شناسه تلگرام کاربر</label>
                     <input id="superAdminTgUserInput" type="number" min="1" />
@@ -610,6 +630,6 @@
     <div id="miniToast" class="mini-toast hidden" role="status" aria-live="polite"></div>
 
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="./app.js?v=20260623localhints1" type="module"></script>
+    <script src="./app.js?v=20260624crypto3" type="module"></script>
   </body>
 </html>

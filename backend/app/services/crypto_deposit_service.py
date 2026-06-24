@@ -4,19 +4,22 @@ import re
 import secrets
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal, ROUND_UP
+from zoneinfo import ZoneInfo
 
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core import config as cfg
 from app.models.crypto import CryptoDepositRequest
+from app.models.settings import AppSetting
 from app.models.wallet import WalletTx
 from app.services.crypto_chain_service import ChainTransfer
 from app.services.crypto_rate_service import CryptoRateService, CryptoRateUnavailable
 from app.services.wallet_service import WalletService
 
 OPEN_STATUSES = ("WAITING_PAYMENT", "CONFIRMING")
+CRYPTO_RUNTIME_SETTING_KEY = "crypto_payments_runtime_enabled"
 
 
 def _utcnow() -> datetime:
@@ -25,9 +28,7 @@ def _utcnow() -> datetime:
 
 class CryptoDepositService:
     @staticmethod
-    def enabled_options() -> list[dict[str, object]]:
-        if not cfg.CRYPTO_PAYMENTS_ENABLED:
-            return []
+    def configured_options() -> list[dict[str, object]]:
         out: list[dict[str, object]] = []
         warnings = set(cfg.crypto_config_warnings())
         tron_invalid = any(message.startswith("CRYPTO_TRON_USDT_") for message in warnings)
@@ -53,6 +54,40 @@ class CryptoDepositService:
         return out
 
     @staticmethod
+    def runtime_enabled(db: Session) -> bool:
+        row = db.get(AppSetting, CRYPTO_RUNTIME_SETTING_KEY)
+        if row is None:
+            return False
+        value = row.v_json
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, dict):
+            value = value.get("enabled")
+        if isinstance(value, str):
+            return value.strip().lower() in {"1", "true", "yes", "on"}
+        if isinstance(value, (int, float)):
+            return bool(value)
+        return False
+
+    @staticmethod
+    def runtime_status(db: Session) -> dict[str, object]:
+        options = CryptoDepositService.configured_options()
+        master_enabled = bool(cfg.CRYPTO_PAYMENTS_ENABLED)
+        runtime_enabled = CryptoDepositService.runtime_enabled(db)
+        return {
+            "master_enabled": master_enabled,
+            "runtime_enabled": runtime_enabled,
+            "configured": bool(options),
+            "enabled": bool(master_enabled and runtime_enabled and options),
+            "options": options,
+        }
+
+    @staticmethod
+    def enabled_options(db: Session) -> list[dict[str, object]]:
+        status = CryptoDepositService.runtime_status(db)
+        return list(status["options"]) if bool(status["enabled"]) else []
+
+    @staticmethod
     def create_invoice(
         db: Session,
         *,
@@ -61,7 +96,9 @@ class CryptoDepositService:
         network: str,
     ) -> CryptoDepositRequest:
         if not cfg.CRYPTO_PAYMENTS_ENABLED:
-            raise HTTPException(status_code=503, detail="واریز با ارز دیجیتال فعلاً غیرفعال است.")
+            raise HTTPException(status_code=503, detail="واریز ارز دیجیتال در تنظیمات سرور فعال نیست.")
+        if not CryptoDepositService.runtime_enabled(db):
+            raise HTTPException(status_code=503, detail="واریز ارز دیجیتال توسط مدیریت موقتاً غیرفعال شده است.")
 
         amount_toman = int(amount_toman or 0)
         if amount_toman < int(cfg.CRYPTO_MIN_TOMAN_AMOUNT):
@@ -75,7 +112,12 @@ class CryptoDepositService:
                 detail=f"حداکثر مبلغ واریز ارز دیجیتال {int(cfg.CRYPTO_MAX_TOMAN_AMOUNT):,} تومان است.",
             )
 
-        spec = CryptoDepositService._network_spec(network)
+        CryptoDepositService._enforce_daily_user_limits(
+            db,
+            user_id=int(user_id),
+            requested_toman=amount_toman,
+        )
+        spec = CryptoDepositService._network_spec(db, network)
         try:
             quote = CryptoRateService.get_live_quote(str(spec["asset"]))
         except CryptoRateUnavailable as exc:
@@ -222,12 +264,24 @@ class CryptoDepositService:
         invoice.confirmed_at = now
         invoice.last_checked_at = now
         invoice.updated_at = now
+        expected = Decimal(invoice.amount_crypto)
+        difference = transfer.amount - expected
+        invoice.variance_amount_crypto = abs(difference)
 
-        if transfer.amount < Decimal(invoice.amount_crypto):
+        if difference < 0:
+            invoice.payment_variance = "UNDERPAID"
             invoice.status = "NEEDS_REVIEW"
             invoice.failure_reason = "مبلغ دریافتی کمتر از مبلغ فاکتور است."
             db.flush()
             return invoice
+        if difference > 0:
+            invoice.payment_variance = "OVERPAID"
+            invoice.status = "NEEDS_REVIEW"
+            invoice.failure_reason = "مبلغ دریافتی بیشتر از مبلغ فاکتور است و نیازمند تایید ادمین است."
+            db.flush()
+            return invoice
+        else:
+            invoice.payment_variance = "EXACT"
 
         if int(invoice.amount_toman) >= int(cfg.CRYPTO_ADMIN_REVIEW_TOMAN_THRESHOLD):
             invoice.status = "NEEDS_REVIEW"
@@ -312,7 +366,8 @@ class CryptoDepositService:
         invoice.status = "CREDITED"
         invoice.wallet_tx_id = int(tx.id)
         invoice.credited_at = now
-        invoice.failure_reason = None
+        if invoice.payment_variance != "OVERPAID":
+            invoice.failure_reason = None
         invoice.updated_at = now
         db.flush()
         return invoice
@@ -328,12 +383,29 @@ class CryptoDepositService:
             )
         ).scalar_one_or_none()
         if claimed:
-            if Decimal(claimed.amount_crypto) != transfer.amount:
-                return None
             if not CryptoDepositService._transfer_is_in_window(claimed, transfer):
                 return None
-            if claimed.memo and transfer.memo and claimed.memo != transfer.memo:
+            if claimed.memo and claimed.memo != transfer.memo:
                 return None
+
+        if transfer.memo and claimed is None:
+            memo_candidates = db.execute(
+                select(CryptoDepositRequest)
+                .where(
+                    CryptoDepositRequest.network == transfer.network,
+                    CryptoDepositRequest.asset == transfer.asset,
+                    CryptoDepositRequest.memo == transfer.memo,
+                    CryptoDepositRequest.status.in_(OPEN_STATUSES),
+                )
+                .order_by(CryptoDepositRequest.id.asc())
+            ).scalars().all()
+            valid_memo_matches = [
+                invoice
+                for invoice in memo_candidates
+                if CryptoDepositService._transfer_is_in_window(invoice, transfer)
+            ]
+            if len(valid_memo_matches) == 1:
+                return valid_memo_matches[0]
 
         candidates = db.execute(
             select(CryptoDepositRequest)
@@ -359,10 +431,6 @@ class CryptoDepositService:
             return claimed
         if len(valid) == 1:
             return valid[0]
-        if transfer.memo:
-            memo_matches = [invoice for invoice in valid if invoice.memo == transfer.memo]
-            if len(memo_matches) == 1:
-                return memo_matches[0]
         return None
 
     @staticmethod
@@ -378,14 +446,61 @@ class CryptoDepositService:
         return True
 
     @staticmethod
-    def _network_spec(network: str) -> dict[str, object]:
+    def _network_spec(db: Session, network: str) -> dict[str, object]:
         normalized = str(network or "").strip().upper()
-        for item in CryptoDepositService.enabled_options():
+        for item in CryptoDepositService.enabled_options(db):
             if item["network"] == normalized:
                 return item
         if normalized not in ("TRON", "TON"):
             raise HTTPException(status_code=400, detail="شبکه ارز دیجیتال نامعتبر است.")
         raise HTTPException(status_code=503, detail="این شبکه برای واریز تنظیم نشده است.")
+
+    @staticmethod
+    def _daily_window() -> tuple[datetime, datetime]:
+        try:
+            local_tz = ZoneInfo(str(cfg.CRYPTO_DAILY_TIMEZONE or "Asia/Tehran"))
+        except Exception:
+            local_tz = timezone.utc
+        now_local = datetime.now(local_tz)
+        start_local = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
+        end_local = start_local + timedelta(days=1)
+        return (
+            start_local.astimezone(timezone.utc).replace(tzinfo=None),
+            end_local.astimezone(timezone.utc).replace(tzinfo=None),
+        )
+
+    @staticmethod
+    def _enforce_daily_user_limits(
+        db: Session,
+        *,
+        user_id: int,
+        requested_toman: int,
+    ) -> None:
+        start_at, end_at = CryptoDepositService._daily_window()
+        count, total = db.execute(
+            select(
+                func.count(CryptoDepositRequest.id),
+                func.coalesce(func.sum(CryptoDepositRequest.amount_toman), 0),
+            ).where(
+                CryptoDepositRequest.user_id == int(user_id),
+                CryptoDepositRequest.created_at >= start_at,
+                CryptoDepositRequest.created_at < end_at,
+            )
+        ).one()
+        max_count = int(cfg.CRYPTO_DAILY_USER_MAX_COUNT)
+        max_toman = int(cfg.CRYPTO_DAILY_USER_MAX_TOMAN)
+        if max_count > 0 and int(count or 0) >= max_count:
+            raise HTTPException(
+                status_code=429,
+                detail=f"سقف روزانه صدور فاکتور ارز دیجیتال ({max_count} فاکتور) تکمیل شده است.",
+            )
+        projected = int(total or 0) + int(requested_toman)
+        if max_toman > 0 and projected > max_toman:
+            remaining = max(0, max_toman - int(total or 0))
+            raise HTTPException(
+                status_code=429,
+                detail=f"سقف مبلغ روزانه ارز دیجیتال تکمیل شده است. ظرفیت باقی‌مانده: {remaining:,} تومان.",
+            )
 
     @staticmethod
     def _unique_open_amount(

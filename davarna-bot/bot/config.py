@@ -36,6 +36,8 @@ class Settings(BaseSettings):
     ADMIN_TOPIC_DAILY_REVENUE_HOUR_LOCAL: int = 15
     ADMIN_TOPIC_TIMEZONE: str = "Asia/Tehran"
     ADMIN_TOPIC_AUTO_PIN_RULES: bool = True
+    ADMIN_CRYPTO_HEALTH_INTERVAL_SEC: int = 300
+    ADMIN_CRYPTO_RECONCILIATION_HOUR_LOCAL: int = 16
     USER_FORUM_CHAT_ID: int | None = None
     USER_TOPIC_ANNOUNCE_ID: int | None = None
     USER_TOPIC_GAME_LOW_ID: int | None = None

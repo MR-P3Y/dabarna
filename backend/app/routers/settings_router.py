@@ -10,6 +10,7 @@ from app.core.admin_guard import require_admin_any, AdminIdentity
 from app.models.settings import AppSetting
 from app.models.game import Game
 from app.services.admin_audit_service import AdminAuditService
+from app.services.crypto_deposit_service import CRYPTO_RUNTIME_SETTING_KEY
 
 router = APIRouter(prefix="/admin/settings", tags=["admin-settings"])
 
@@ -47,6 +48,12 @@ def update_setting(
     ident: AdminIdentity = Depends(require_admin_any),
     db: Session = Depends(get_db),
 ):
+    if key == CRYPTO_RUNTIME_SETTING_KEY:
+        raise HTTPException(
+            status_code=403,
+            detail="این تنظیم فقط از کنترل اختصاصی سوپرادمین قابل تغییر است.",
+        )
+
     # سوپرادمین هست، اما باز هم قانون قفل را اعمال می‌کنیم
     if key in LOCK_WHEN_ANY_RUNNING and _has_running_game(db):
         raise HTTPException(status_code=409, detail=f"setting '{key}' is locked while a game is RUNNING")

@@ -20,10 +20,15 @@ CRYPTO_AUTO_CONFIRM_ENABLED=true
 CRYPTO_CONFIRM_INTERVAL_SEC=45
 CRYPTO_INVOICE_EXPIRE_MINUTES=15
 CRYPTO_PAYMENT_GRACE_MINUTES=5
+CRYPTO_PENDING_ALERT_MINUTES=10
 
 CRYPTO_MIN_TOMAN_AMOUNT=50000
 CRYPTO_MAX_TOMAN_AMOUNT=50000000
 CRYPTO_ADMIN_REVIEW_TOMAN_THRESHOLD=20000000
+CRYPTO_DAILY_USER_MAX_COUNT=5
+CRYPTO_DAILY_USER_MAX_TOMAN=100000000
+CRYPTO_DAILY_TIMEZONE=Asia/Tehran
+CRYPTO_RECONCILIATION_LOOKBACK_HOURS=24
 
 CRYPTO_RATE_PROVIDER_PRIMARY=nobitex
 CRYPTO_RATE_PROVIDER_FALLBACK=wallex
@@ -35,10 +40,26 @@ CRYPTO_TRON_USDT_ENABLED=true
 CRYPTO_TRON_USDT_ADDRESS=
 CRYPTO_TRON_USDT_CONTRACT=TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t
 TRONGRID_API_KEY=
+CRYPTO_TRON_EXPLORER_TX_BASE=https://tronscan.org/#/transaction
 
 CRYPTO_TON_ENABLED=true
 CRYPTO_TON_ADDRESS=
 TONCENTER_API_KEY=
+CRYPTO_TON_EXPLORER_TX_BASE=https://tonviewer.com/transaction
+```
+
+`CRYPTO_TRON_USDT_ADDRESS` and `CRYPTO_TON_ADDRESS` are public receiving
+addresses. Set them only in `.env.prod`; never enter a private key, recovery
+phrase, or wallet password. `CRYPTO_PAYMENTS_ENABLED=true` is the server-side
+master switch. After the backend restarts, the owner super admin can turn user
+access on or off from the mini-app without another deployment. The first
+runtime state is off until the super admin enables it.
+
+Optional bot monitoring settings belong in `./davarna-bot/.env.prod`:
+
+```env
+ADMIN_CRYPTO_HEALTH_INTERVAL_SEC=300
+ADMIN_CRYPTO_RECONCILIATION_HOUR_LOCAL=16
 ```
 
 The backend fetches a live best-ask quote when each invoice is created, locks

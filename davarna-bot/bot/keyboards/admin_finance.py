@@ -14,6 +14,8 @@ def admin_finance_menu_kb(*, deposit_filter_active: bool = False, withdraw_filte
         kb.button(text="🧹 حذف فیلتر برداشت", callback_data="admin:withdraws:filter:clear")
     kb.button(text="✅ برداشت‌های تاییدشده", callback_data="admin:withdraws:approved")
     kb.button(text="📊 گزارش فروش بازه‌ای", callback_data="admin:finance:sales:range")
+    kb.button(text="🩺 سلامت سرویس‌های رمزارز", callback_data="admin:finance:crypto:health")
+    kb.button(text="🧮 تطبیق رمزارز ۲۴ ساعت", callback_data="admin:finance:crypto:reconcile")
     kb.button(text="⬅️ منو", callback_data="nav:menu")
     kb.adjust(1)
     return kb.as_markup()

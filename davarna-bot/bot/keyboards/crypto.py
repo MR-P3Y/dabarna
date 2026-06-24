@@ -26,12 +26,14 @@ def crypto_cancel_kb():
     return kb.as_markup()
 
 
-def crypto_invoice_kb(invoice_id: int, status: str):
+def crypto_invoice_kb(invoice_id: int, status: str, explorer_url: str | None = None):
     kb = InlineKeyboardBuilder()
     normalized = str(status or "").upper()
     if normalized in {"WAITING_PAYMENT", "CONFIRMING"}:
         kb.button(text="🔄 بررسی پرداخت", callback_data=f"crypto:status:{int(invoice_id)}")
         kb.button(text="🔗 ثبت هش تراکنش", callback_data=f"crypto:tx:{int(invoice_id)}")
+    if explorer_url:
+        kb.button(text="🌐 مشاهده تراکنش در Explorer", url=str(explorer_url))
     kb.button(text="⬅️ کیف پول", callback_data="menu:wallet")
     kb.adjust(1)
     return kb.as_markup()

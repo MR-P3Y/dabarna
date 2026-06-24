@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session # type: ignore
 from sqlalchemy import select, text, func # type: ignore
 from typing import Any, Optional
 from pydantic import BaseModel, Field
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from fastapi.responses import FileResponse
 import json
 import os
@@ -40,6 +40,8 @@ from app.services.game_service import GameService
 from app.services.telegram_file_service import download_telegram_file
 from app.services.admin_audit_service import AdminAuditService
 from app.services.crypto_deposit_service import CryptoDepositService
+from app.services.crypto_health_service import CryptoHealthService
+from app.services.crypto_reconciliation_service import CryptoReconciliationService
 from app.schemas.crypto import (
     CryptoAdminRejectIn,
     CryptoDepositCreateIn,
@@ -1094,15 +1096,18 @@ def create_withdraw_request(
 @router.get("/crypto/options")
 def bot_crypto_options(
     user: User = Depends(get_bot_user),
+    db: Session = Depends(get_db),
 ):
     _ = user
-    options = CryptoDepositService.enabled_options()
+    status = CryptoDepositService.runtime_status(db)
     return {
-        "enabled": bool(cfg.CRYPTO_PAYMENTS_ENABLED and options),
+        "enabled": bool(status["enabled"]),
         "min_toman_amount": int(cfg.CRYPTO_MIN_TOMAN_AMOUNT),
         "max_toman_amount": int(cfg.CRYPTO_MAX_TOMAN_AMOUNT),
         "invoice_expire_minutes": int(cfg.CRYPTO_INVOICE_EXPIRE_MINUTES),
-        "options": options,
+        "daily_user_max_count": int(cfg.CRYPTO_DAILY_USER_MAX_COUNT),
+        "daily_user_max_toman": int(cfg.CRYPTO_DAILY_USER_MAX_TOMAN),
+        "options": list(status["options"]) if bool(status["enabled"]) else [],
     }
 
 
@@ -1338,6 +1343,7 @@ def bot_crypto_notifications(
     db: Session = Depends(get_db),
 ):
     _ = token
+    pending_cutoff = datetime.utcnow() - timedelta(minutes=int(cfg.CRYPTO_PENDING_ALERT_MINUTES))
     admin_rows = db.execute(
         select(CryptoDepositRequest, User)
         .join(User, User.id == CryptoDepositRequest.user_id)
@@ -1358,6 +1364,27 @@ def bot_crypto_notifications(
         .order_by(CryptoDepositRequest.id.asc())
         .limit(int(limit))
     ).all()
+    pending_rows = db.execute(
+        select(CryptoDepositRequest, User)
+        .join(User, User.id == CryptoDepositRequest.user_id)
+        .where(
+            CryptoDepositRequest.pending_alert_notified_at.is_(None),
+            CryptoDepositRequest.status.in_(("WAITING_PAYMENT", "CONFIRMING")),
+            CryptoDepositRequest.created_at <= pending_cutoff,
+        )
+        .order_by(CryptoDepositRequest.id.asc())
+        .limit(int(limit))
+    ).all()
+    variance_rows = db.execute(
+        select(CryptoDepositRequest, User)
+        .join(User, User.id == CryptoDepositRequest.user_id)
+        .where(
+            CryptoDepositRequest.variance_alert_notified_at.is_(None),
+            CryptoDepositRequest.payment_variance.in_(("UNDERPAID", "OVERPAID")),
+        )
+        .order_by(CryptoDepositRequest.id.asc())
+        .limit(int(limit))
+    ).all()
     return {
         "admin": [
             crypto_deposit_dict(row, tg_user_id=int(user.tg_user_id), tg_username=user.username)
@@ -1366,6 +1393,14 @@ def bot_crypto_notifications(
         "user": [
             crypto_deposit_dict(row, tg_user_id=int(user.tg_user_id), tg_username=user.username)
             for row, user in user_rows
+        ],
+        "pending": [
+            crypto_deposit_dict(row, tg_user_id=int(user.tg_user_id), tg_username=user.username)
+            for row, user in pending_rows
+        ],
+        "variance": [
+            crypto_deposit_dict(row, tg_user_id=int(user.tg_user_id), tg_username=user.username)
+            for row, user in variance_rows
         ],
     }
 
@@ -1391,10 +1426,45 @@ def bot_ack_crypto_notification(
         invoice.admin_notified_at = now
     elif normalized == "user":
         invoice.user_notified_at = now
+    elif normalized == "pending":
+        invoice.pending_alert_notified_at = now
+    elif normalized == "variance":
+        invoice.variance_alert_notified_at = now
     else:
         raise HTTPException(status_code=400, detail="مخاطب اعلان نامعتبر است.")
     db.commit()
     return {"ok": True, "invoice_id": int(invoice.id), "audience": normalized}
+
+
+@router.get("/admin/crypto-health")
+def bot_admin_crypto_health(
+    admin: AdminIdentity = Depends(get_admin_identity),
+):
+    _ = admin
+    return CryptoHealthService.check()
+
+
+@router.get("/admin/crypto-reconciliation")
+def bot_admin_crypto_reconciliation(
+    from_at: str | None = Query(default=None),
+    to_at: str | None = Query(default=None),
+    admin: AdminIdentity = Depends(get_admin_identity),
+    db: Session = Depends(get_db),
+):
+    _ = admin
+    end_at = _parse_date_or_datetime(to_at) if to_at else datetime.utcnow()
+    start_at = (
+        _parse_date_or_datetime(from_at)
+        if from_at
+        else end_at - timedelta(hours=int(cfg.CRYPTO_RECONCILIATION_LOOKBACK_HOURS))
+    )
+    if start_at is None or end_at is None or start_at > end_at:
+        raise HTTPException(status_code=400, detail="بازه گزارش تطبیق نامعتبر است.")
+    if start_at.tzinfo is not None:
+        start_at = start_at.astimezone(timezone.utc).replace(tzinfo=None)
+    if end_at.tzinfo is not None:
+        end_at = end_at.astimezone(timezone.utc).replace(tzinfo=None)
+    return CryptoReconciliationService.run(db, start_at=start_at, end_at=end_at)
 
 
 # ==================== GET /bot/deposit-destinations ====================

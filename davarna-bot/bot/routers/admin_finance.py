@@ -677,6 +677,72 @@ async def admin_finance_sales_range_open(cq: CallbackQuery, state: FSMContext, i
     await cq.answer("بازه را وارد کن", show_alert=False)
 
 
+@router.callback_query(F.data == "admin:finance:crypto:health")
+async def admin_finance_crypto_health(cq: CallbackQuery, api: ApiClient, is_admin: bool = False):
+    if not require_admin(is_admin):
+        await cq.answer("اجازه دسترسی نداری.", show_alert=True)
+        return
+    try:
+        out = await api.admin_crypto_health()
+    except ApiError as exc:
+        await cq.answer(exc.detail, show_alert=True)
+        return
+    failed_rates = [
+        f"{item.get('provider')}/{item.get('asset')}"
+        for item in out.get("rate_checks") or []
+        if not bool(item.get("ok"))
+    ]
+    failed_chains = [
+        str(item.get("network") or "")
+        for item in out.get("chain_checks") or []
+        if not bool(item.get("ok"))
+    ]
+    text = (
+        f"نرخ‌ها: <b>{('فعال با fallback؛ اختلال: ' + h('، '.join(failed_rates))) if out.get('rates_ok') and failed_rates else ('سالم' if out.get('rates_ok') else h('، '.join(failed_rates) or 'ناموفق'))}</b>\n"
+        f"شبکه‌ها: <b>{'سالم' if out.get('chains_ok') else h('، '.join(failed_chains) or 'ناموفق')}</b>\n"
+        f"وضعیت نهایی: <b>{('فعال با کاهش افزونگی' if out.get('degraded') else 'سالم') if out.get('ok') else 'نیازمند بررسی'}</b>"
+    )
+    await safe_edit_or_send(
+        cq.message,
+        panel("سلامت سرویس‌های رمزارز", text),
+        reply_markup=admin_finance_sales_range_kb(),
+        parse_mode="HTML",
+    )
+    await cq.answer()
+
+
+@router.callback_query(F.data == "admin:finance:crypto:reconcile")
+async def admin_finance_crypto_reconcile(cq: CallbackQuery, api: ApiClient, is_admin: bool = False):
+    if not require_admin(is_admin):
+        await cq.answer("اجازه دسترسی نداری.", show_alert=True)
+        return
+    end_at = datetime.now()
+    start_at = end_at - timedelta(hours=24)
+    try:
+        out = await api.admin_crypto_reconciliation(
+            from_at=start_at.strftime("%Y-%m-%d %H:%M:%S"),
+            to_at=end_at.strftime("%Y-%m-%d %H:%M:%S"),
+        )
+    except ApiError as exc:
+        await cq.answer(exc.detail, show_alert=True)
+        return
+    text = (
+        f"فاکتور شارژشده: <b>{_fmt_count(_to_int(str(out.get('credited_invoices_count') or 0), 0))}</b>\n"
+        f"مجموع شارژ: <b>{_fmt_toman(_to_int(str(out.get('credited_toman_total') or 0), 0))}</b>\n"
+        f"تراکنش بدون فاکتور: <b>{_fmt_count(_to_int(str(out.get('unmatched_onchain_count') or 0), 0))}</b>\n"
+        f"فاکتور بدون مشاهده زنجیره: <b>{_fmt_count(_to_int(str(out.get('missing_onchain_count') or 0), 0))}</b>\n"
+        f"مغایرت کیف پول: <b>{_fmt_count(_to_int(str(out.get('ledger_mismatch_count') or 0), 0))}</b>\n"
+        f"وضعیت نهایی: <b>{'سالم' if out.get('ok') else 'نیازمند بررسی'}</b>"
+    )
+    await safe_edit_or_send(
+        cq.message,
+        panel("تطبیق رمزارز ۲۴ ساعت اخیر", text),
+        reply_markup=admin_finance_sales_range_kb(),
+        parse_mode="HTML",
+    )
+    await cq.answer()
+
+
 @router.message(AdminFinanceSalesRangeSG.input)
 async def admin_finance_sales_range_submit(
     m: Message,
@@ -755,6 +821,12 @@ async def admin_finance_sales_range_submit(
     col_users = _to_int(str(summary.get("col_winner_users_count") or ""), 0)
     col_cards = _to_int(str(summary.get("col_winner_cards_count") or ""), 0)
     col_events = _to_int(str(summary.get("col_win_events_count") or ""), 0)
+    crypto_count = _to_int(str(summary.get("crypto_deposits_count") or ""), 0)
+    crypto_total = _to_int(str(summary.get("crypto_deposits_total") or ""), 0)
+    crypto_tron_count = _to_int(str(summary.get("crypto_tron_deposits_count") or ""), 0)
+    crypto_tron_total = _to_int(str(summary.get("crypto_tron_deposits_total") or ""), 0)
+    crypto_ton_count = _to_int(str(summary.get("crypto_ton_deposits_count") or ""), 0)
+    crypto_ton_total = _to_int(str(summary.get("crypto_ton_deposits_total") or ""), 0)
 
     report_body = (
         f"🗓 از: <code>{h(format_jalali_datetime(from_at, seconds=True))}</code>\n"
@@ -765,6 +837,12 @@ async def admin_finance_sales_range_submit(
         f"💰 مبلغ فروش کارت: <b>{_fmt_toman(sales_total)}</b>\n"
         f"🤖 کمیسیون ربات: <b>{_fmt_toman(commission_total)}</b>\n"
         f"🎁 مجموع جایزه (پس از کسر کمیسیون): <b>{_fmt_toman(prize_pool_total)}</b>\n\n"
+        f"💎 واریزی موفق ارز دیجیتال: <b>{_fmt_count(crypto_count)}</b> مورد | "
+        f"<b>{_fmt_toman(crypto_total)}</b>\n"
+        f"🟢 TRON / USDT: <b>{_fmt_count(crypto_tron_count)}</b> مورد | "
+        f"<b>{_fmt_toman(crypto_tron_total)}</b>\n"
+        f"🔵 TON: <b>{_fmt_count(crypto_ton_count)}</b> مورد | "
+        f"<b>{_fmt_toman(crypto_ton_total)}</b>\n\n"
         f"🏁 برندگان تمام: <b>{_fmt_count(row_users)}</b> کاربر | "
         f"<b>{_fmt_count(row_cards)}</b> کارت | <b>{_fmt_count(row_events)}</b> رویداد\n"
         f"🏆 برندگان تورنا: <b>{_fmt_count(col_users)}</b> کاربر | "

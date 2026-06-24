@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.responses import Response
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -23,6 +24,7 @@ from app.schemas.crypto import (
 from app.services.admin_audit_service import AdminAuditService
 from app.services.crypto_deposit_service import CryptoDepositService
 from app.services.crypto_worker import CryptoDepositWorker
+from app.services.crypto_qr_service import CryptoQrService
 
 router = APIRouter(prefix="/crypto", tags=["crypto"])
 
@@ -34,15 +36,18 @@ def _to_out(row: CryptoDepositRequest) -> CryptoDepositOut:
 @router.get("/options", response_model=CryptoOptionsOut)
 def crypto_options(
     current_user_id: int = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
 ):
     _ = current_user_id
-    options = CryptoDepositService.enabled_options()
+    status = CryptoDepositService.runtime_status(db)
     return CryptoOptionsOut(
-        enabled=bool(cfg.CRYPTO_PAYMENTS_ENABLED and options),
+        enabled=bool(status["enabled"]),
         min_toman_amount=int(cfg.CRYPTO_MIN_TOMAN_AMOUNT),
         max_toman_amount=int(cfg.CRYPTO_MAX_TOMAN_AMOUNT),
         invoice_expire_minutes=int(cfg.CRYPTO_INVOICE_EXPIRE_MINUTES),
-        options=options,
+        daily_user_max_count=int(cfg.CRYPTO_DAILY_USER_MAX_COUNT),
+        daily_user_max_toman=int(cfg.CRYPTO_DAILY_USER_MAX_TOMAN),
+        options=list(status["options"]) if bool(status["enabled"]) else [],
     )
 
 
@@ -108,6 +113,24 @@ def get_crypto_deposit(
             invoice_id=int(invoice_id),
             user_id=int(current_user_id),
         )
+    )
+
+
+@router.get("/deposits/{invoice_id}/qr")
+def get_crypto_deposit_qr(
+    invoice_id: int,
+    db: Session = Depends(get_db),
+    current_user_id: int = Depends(get_current_user_id),
+):
+    invoice = CryptoDepositService.get_owned(
+        db,
+        invoice_id=int(invoice_id),
+        user_id=int(current_user_id),
+    )
+    return Response(
+        content=CryptoQrService.png_bytes(invoice),
+        media_type="image/png",
+        headers={"Cache-Control": "private, no-store"},
     )
 
 

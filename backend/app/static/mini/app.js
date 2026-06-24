@@ -18,6 +18,7 @@ const state = {
   depositDestinations: [],
   cryptoOptions: null,
   cryptoCurrentInvoice: null,
+  cryptoQrObjectUrl: "",
   cardsPollTimer: null,
   cardsPrevCalledByGame: {},
   cardsLatestSeenEventByGame: {},
@@ -60,6 +61,7 @@ const state = {
     enabled: false,
     isSuper: false,
     roles: [],
+    cryptoSettings: null,
     selectedGameId: 0,
     gamesById: new Map(),
     liveLinksByGame: new Map(),
@@ -1196,6 +1198,29 @@ async function apiFetch(path, { method = "GET", body = null, headers = {} } = {}
     throw new Error(localizeApiError(detail));
   }
   return await resp.json();
+}
+
+async function apiFetchBlob(path) {
+  if (state.token) {
+    await refreshMiniSessionIfNeeded();
+  }
+  if (!state.token) {
+    throw new Error("نشست کاربری فعال نیست. مینی‌اپ را از منوی رسمی ربات باز کنید.");
+  }
+  const requestPath = `${String(path || "")}${String(path || "").includes("?") ? "&" : "?"}_=${Date.now()}`;
+  const resp = await fetchWithRetry(
+    requestPath,
+    {
+      method: "GET",
+      headers: { Authorization: `Bearer ${state.token}` },
+      cache: "no-store",
+    },
+    1
+  );
+  if (!resp.ok) {
+    throw new Error(localizeApiError(`HTTP ${resp.status}`));
+  }
+  return await resp.blob();
 }
 
 function filenameFromContentDisposition(headerValue, fallback = "receipt") {
@@ -2932,13 +2957,17 @@ function drawCryptoOptions(payload) {
   }).join("");
   setHint(
     "cryptoNetworkHint",
-    `نرخ هنگام صدور فاکتور دریافت می‌شود. مهلت پرداخت: ${safeText(payload.invoice_expire_minutes || 15)} دقیقه.`
+    `نرخ هنگام صدور فاکتور دریافت می‌شود. مهلت پرداخت: ${safeText(payload.invoice_expire_minutes || 15)} دقیقه. سقف روزانه: ${safeText(payload.daily_user_max_count || 0)} فاکتور و ${safeText(toman(payload.daily_user_max_toman || 0))}.`
   );
 }
 
 function renderCryptoInvoice(invoice) {
   const box = getEl("cryptoInvoiceBox");
   if (!box) return;
+  if (state.cryptoQrObjectUrl) {
+    URL.revokeObjectURL(state.cryptoQrObjectUrl);
+    state.cryptoQrObjectUrl = "";
+  }
   state.cryptoCurrentInvoice = invoice || null;
   if (!invoice) {
     box.classList.add("hidden");
@@ -2953,6 +2982,8 @@ function renderCryptoInvoice(invoice) {
   const memo = String(invoice.memo || "").trim();
   const txHash = String(invoice.tx_hash || "").trim();
   const reason = String(invoice.failure_reason || "").trim();
+  const variance = String(invoice.payment_variance || "").toUpperCase();
+  const explorerUrl = String(invoice.explorer_url || "").trim();
   box.innerHTML = `
     <div class="crypto-invoice-head">
       <strong>فاکتور #${safeText(id)}</strong>
@@ -2965,13 +2996,20 @@ function renderCryptoInvoice(invoice) {
       ${memo ? `<div class="wide"><span>Memo / Comment</span><code dir="ltr">${safeText(memo)}</code></div>` : ""}
       <div class="wide"><span>مهلت پرداخت</span><b>${safeText(formatFaDateTime(invoice.expires_at))}</b></div>
       ${txHash ? `<div class="wide"><span>هش تراکنش</span><code dir="ltr">${safeText(txHash)}</code></div>` : ""}
+      ${variance === "OVERPAID" ? `<div class="wide crypto-invoice-warning">مبلغ بیشتری از فاکتور دریافت شده و برای ادمین ثبت شده است.</div>` : ""}
+      ${variance === "UNDERPAID" ? `<div class="wide crypto-invoice-warning">مبلغ دریافتی کمتر از فاکتور است و نیازمند بررسی ادمین است.</div>` : ""}
       ${reason ? `<div class="wide crypto-invoice-warning">${safeText(reason)}</div>` : ""}
+    </div>
+    <div class="crypto-qr-wrap">
+      <img id="cryptoInvoiceQr" alt="QR پرداخت ارز دیجیتال" />
+      <span>QR پرداخت</span>
     </div>
     <div class="crypto-invoice-actions">
       <button class="small-btn crypto-copy-btn" data-copy="${safeText(amountCrypto)}" type="button">کپی مبلغ</button>
       <button class="small-btn crypto-copy-btn" data-copy="${safeText(invoice.destination_address || "")}" type="button">کپی آدرس</button>
       ${memo ? `<button class="small-btn crypto-copy-btn" data-copy="${safeText(memo)}" type="button">کپی Memo</button>` : ""}
       ${pending ? `<button class="small-btn primary" id="refreshCryptoInvoiceBtn" type="button">بررسی پرداخت</button>` : ""}
+      ${explorerUrl ? `<a class="small-btn crypto-explorer-link" href="${safeText(explorerUrl)}" target="_blank" rel="noopener noreferrer">مشاهده در Explorer</a>` : ""}
     </div>
     ${pending ? `
       <div class="crypto-tx-claim">
@@ -2982,6 +3020,18 @@ function renderCryptoInvoice(invoice) {
     <div id="cryptoInvoiceHint" class="step-hint"></div>
   `;
   box.classList.remove("hidden");
+  apiFetchBlob(`/mini-api/crypto/deposits/${id}/qr`)
+    .then((blob) => {
+      const img = getEl("cryptoInvoiceQr");
+      if (!img) return;
+      const objectUrl = URL.createObjectURL(blob);
+      state.cryptoQrObjectUrl = objectUrl;
+      img.src = objectUrl;
+    })
+    .catch(() => {
+      const qrWrap = box.querySelector(".crypto-qr-wrap");
+      if (qrWrap) qrWrap.classList.add("hidden");
+    });
   box.querySelectorAll(".crypto-copy-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
       copyTextToClipboard(String(btn.getAttribute("data-copy") || ""))
@@ -3575,6 +3625,7 @@ async function refreshAdminBootstrap() {
     state.admin.enabled = false;
     state.admin.isSuper = false;
     state.admin.roles = [];
+    state.admin.cryptoSettings = null;
     state.admin.selectedGameId = 0;
     state.admin.gamesById = new Map();
     state.admin.users.selectedTgUserId = 0;
@@ -4646,6 +4697,131 @@ function renderSuperAdminList(payload) {
     .join("");
 }
 
+function renderSuperCryptoSettings(payload) {
+  const settings = payload || {};
+  state.admin.cryptoSettings = settings;
+  const masterEnabled = Boolean(settings.master_enabled);
+  const runtimeEnabled = Boolean(settings.runtime_enabled);
+  const configured = Boolean(settings.configured);
+  const effectiveEnabled = Boolean(settings.enabled);
+  const networks = Array.isArray(settings.networks)
+    ? settings.networks.map((item) => `${item.asset || ""} / ${item.network || ""}`).filter(Boolean)
+    : [];
+
+  const statusEl = getEl("superCryptoStatusText");
+  if (statusEl) {
+    if (!masterEnabled) {
+      statusEl.textContent = "کلید اصلی سرور خاموش است؛ ابتدا .env.prod را تنظیم کنید.";
+    } else if (!configured) {
+      statusEl.textContent = "آدرس معتبر TRON یا TON در .env.prod تنظیم نشده است.";
+    } else {
+      statusEl.textContent = `${effectiveEnabled ? "فعال برای کاربران" : "غیرفعال برای کاربران"} | شبکه‌ها: ${networks.join("، ") || "-"}`;
+    }
+    statusEl.dataset.state = effectiveEnabled ? "on" : "off";
+  }
+
+  const button = getEl("superCryptoToggleBtn");
+  if (!button) return;
+  const canEnable = masterEnabled && configured;
+  const nextEnabled = !runtimeEnabled;
+  button.disabled = nextEnabled && !canEnable;
+  button.dataset.nextEnabled = nextEnabled ? "true" : "false";
+  button.setAttribute("aria-checked", runtimeEnabled ? "true" : "false");
+  button.textContent = runtimeEnabled ? "خاموش کردن پرداخت کریپتو" : "روشن کردن پرداخت کریپتو";
+  button.classList.toggle("danger", runtimeEnabled);
+  button.classList.toggle("primary", !runtimeEnabled && canEnable);
+}
+
+async function refreshSuperCryptoSettings() {
+  if (!state.admin.enabled || !state.admin.isSuper) return;
+  const out = await apiFetch("/mini-api/admin/super/crypto-settings");
+  renderSuperCryptoSettings(out);
+}
+
+async function toggleSuperCryptoSettings() {
+  if (!state.admin.enabled || !state.admin.isSuper) {
+    throw new Error("این عملیات فقط برای سوپرادمین مجاز است.");
+  }
+  const button = getEl("superCryptoToggleBtn");
+  const enabled = String(button?.dataset?.nextEnabled || "false") === "true";
+  if (button) button.disabled = true;
+  setHint(
+    "superCryptoHint",
+    enabled ? "در حال فعال‌سازی پرداخت ارز دیجیتال..." : "در حال غیرفعال‌سازی پرداخت ارز دیجیتال..."
+  );
+  try {
+    const out = await apiFetch("/mini-api/admin/super/crypto-settings", {
+      method: "PUT",
+      body: { enabled },
+    });
+    renderSuperCryptoSettings(out);
+    setHint(
+      "superCryptoHint",
+      enabled
+        ? "پرداخت ارز دیجیتال برای کاربران فعال شد."
+        : "صدور فاکتور جدید متوقف شد؛ فاکتورهای قبلی همچنان بررسی می‌شوند.",
+      "success"
+    );
+    await refreshWallet();
+  } finally {
+    if (button && state.admin.cryptoSettings) {
+      renderSuperCryptoSettings(state.admin.cryptoSettings);
+    } else if (button) {
+      button.disabled = false;
+    }
+  }
+}
+
+function renderSuperCryptoOpsResult(title, lines, ok) {
+  const root = getEl("superCryptoOpsResult");
+  if (!root) return;
+  root.innerHTML = `
+    <strong>${safeText(title)}</strong>
+    <div>${(lines || []).map((line) => safeText(line)).join("<br />")}</div>
+  `;
+  root.dataset.state = ok ? "ok" : "warning";
+  root.classList.remove("hidden");
+}
+
+async function checkSuperCryptoHealth() {
+  setHint("superCryptoHint", "در حال بررسی سرویس‌های نرخ و شبکه...");
+  const out = await apiFetch("/mini-api/admin/super/crypto-health");
+  const failedRates = (out.rate_checks || [])
+    .filter((item) => !item.ok)
+    .map((item) => `${item.provider}/${item.asset}`);
+  const failedChains = (out.chain_checks || [])
+    .filter((item) => !item.ok)
+    .map((item) => item.network);
+  renderSuperCryptoOpsResult(
+    "نتیجه سلامت سرویس‌ها",
+    [
+      `نرخ‌ها: ${out.rates_ok ? (failedRates.length ? `فعال با fallback؛ اختلال: ${failedRates.join("، ")}` : "سالم") : failedRates.join("، ") || "ناموفق"}`,
+      `شبکه‌ها: ${out.chains_ok ? "سالم" : failedChains.join("، ") || "ناموفق"}`,
+      `وضعیت نهایی: ${out.ok ? (out.degraded ? "فعال با کاهش افزونگی" : "سالم") : "نیازمند بررسی"}`,
+    ],
+    Boolean(out.ok && !out.degraded)
+  );
+  setHint("superCryptoHint", "بررسی سلامت تکمیل شد.", out.ok && !out.degraded ? "success" : "error");
+}
+
+async function checkSuperCryptoReconciliation() {
+  setHint("superCryptoHint", "در حال تطبیق بلاک‌چین و دفتر کیف پول...");
+  const out = await apiFetch("/mini-api/admin/super/crypto-reconciliation");
+  renderSuperCryptoOpsResult(
+    "تطبیق ۲۴ ساعت اخیر",
+    [
+      `فاکتور شارژشده: ${Number(out.credited_invoices_count || 0)} مورد`,
+      `مجموع شارژ: ${toman(out.credited_toman_total || 0)}`,
+      `تراکنش بدون فاکتور: ${Number(out.unmatched_onchain_count || 0)}`,
+      `فاکتور بدون مشاهده زنجیره: ${Number(out.missing_onchain_count || 0)}`,
+      `مغایرت کیف پول: ${Number(out.ledger_mismatch_count || 0)}`,
+      `وضعیت نهایی: ${out.ok ? "سالم" : "نیازمند بررسی"}`,
+    ],
+    Boolean(out.ok)
+  );
+  setHint("superCryptoHint", "تطبیق تکمیل شد.", out.ok ? "success" : "error");
+}
+
 async function refreshSuperAdminList() {
   if (!state.admin.enabled || !state.admin.isSuper) return;
   const out = await apiFetch("/mini-api/admin/super/admins");
@@ -4663,6 +4839,7 @@ async function refreshAdminPanel(options = {}) {
     refreshAdminWithdraws(),
     refreshAdminUsersPanel({ silent }),
     refreshSuperAdminList(),
+    refreshSuperCryptoSettings(),
   ]);
 }
 
@@ -5380,6 +5557,9 @@ async function boot() {
   bind("adminClearLiveBtn", "click", () => adminClearLiveLink().catch((e) => setAdminLocalError("adminLiveActionHint", e)));
   bind("superAdminGrantBtn", "click", () => superAdminGrant().catch((e) => setLocalError("superAdminHint", e)));
   bind("superAdminRevokeBtn", "click", () => superAdminRevoke().catch((e) => setLocalError("superAdminHint", e)));
+  bind("superCryptoToggleBtn", "click", () => toggleSuperCryptoSettings().catch((e) => setLocalError("superCryptoHint", e)));
+  bind("superCryptoHealthBtn", "click", () => checkSuperCryptoHealth().catch((e) => setLocalError("superCryptoHint", e)));
+  bind("superCryptoReconcileBtn", "click", () => checkSuperCryptoReconciliation().catch((e) => setLocalError("superCryptoHint", e)));
   bind("winsGameFilter", "change", drawWinTimeline);
   bind("winnerCloseBtn", "click", closeWinnerModal);
   bind("winnerDismissBtn", "click", closeWinnerModal);
@@ -5444,6 +5624,10 @@ async function boot() {
 
 
 window.addEventListener("beforeunload", () => {
+  if (state.cryptoQrObjectUrl) {
+    URL.revokeObjectURL(state.cryptoQrObjectUrl);
+    state.cryptoQrObjectUrl = "";
+  }
   stopMiniSocket();
   stopEventPolling();
   stopCardsPolling();

@@ -45,6 +45,8 @@ from bot.services.ui import panel
 logger = logging.getLogger(__name__)
 _crypto_admin_delivered: set[int] = set()
 _crypto_user_delivered: set[int] = set()
+_crypto_pending_delivered: set[int] = set()
+_crypto_variance_delivered: set[int] = set()
 
 
 @dataclass(slots=True)
@@ -191,6 +193,94 @@ async def _process_crypto_notifications(bot: Bot, api: ApiClient) -> None:
             _crypto_user_delivered.discard(invoice_id)
         except Exception:
             logger.exception("crypto user notification ack failed: invoice_id=%s", invoice_id)
+
+    for item in payload.get("pending") or []:
+        invoice_id = _to_int(item.get("id"), 0)
+        if invoice_id <= 0:
+            continue
+        if invoice_id in _crypto_pending_delivered:
+            try:
+                await api.bot_ack_crypto_notification(invoice_id, audience="pending")
+                _crypto_pending_delivered.discard(invoice_id)
+            except Exception:
+                logger.exception("crypto pending alert ack retry failed: invoice_id=%s", invoice_id)
+            continue
+        text = panel(
+            "هشدار فاکتور رمزارز معلق",
+            "#هشدار #رمزارز #پرداخت_معلق\n"
+            f"🧾 فاکتور: <b>{invoice_id}</b>\n"
+            f"👤 شناسه تلگرام: <code>{_to_int(item.get('tg_user_id'), 0)}</code>\n"
+            f"💵 مبلغ: <b>{_fmt_toman(item.get('amount_toman'))}</b>\n"
+            f"💎 مبلغ شبکه: <code>{html_escape(str(item.get('amount_crypto') or '0'))} "
+            f"{html_escape(str(item.get('asset') or ''))}</code>\n"
+            f"🌐 شبکه: <b>{html_escape(str(item.get('network') or '—'))}</b>\n"
+            f"وضعیت: <b>{html_escape(str(item.get('status') or '—'))}</b>",
+        )
+        sent = await send_to_topic(
+            bot,
+            name="alerts",
+            text=text,
+            parse_mode="HTML",
+            reply_markup=admin_crypto_item_kb(
+                invoice_id=invoice_id,
+                status=str(item.get("status") or ""),
+                tg_user_id=_to_int(item.get("tg_user_id"), 0),
+            ),
+        )
+        if not sent:
+            continue
+        _crypto_pending_delivered.add(invoice_id)
+        try:
+            await api.bot_ack_crypto_notification(invoice_id, audience="pending")
+            _crypto_pending_delivered.discard(invoice_id)
+        except Exception:
+            logger.exception("crypto pending alert ack failed: invoice_id=%s", invoice_id)
+
+    for item in payload.get("variance") or []:
+        invoice_id = _to_int(item.get("id"), 0)
+        if invoice_id <= 0:
+            continue
+        if invoice_id in _crypto_variance_delivered:
+            try:
+                await api.bot_ack_crypto_notification(invoice_id, audience="variance")
+                _crypto_variance_delivered.discard(invoice_id)
+            except Exception:
+                logger.exception("crypto variance alert ack retry failed: invoice_id=%s", invoice_id)
+            continue
+        variance = str(item.get("payment_variance") or "").upper()
+        variance_label = "پرداخت ناقص" if variance == "UNDERPAID" else "پرداخت اضافی"
+        text = panel(
+            f"هشدار {variance_label} رمزارز",
+            "#هشدار #رمزارز #اختلاف_مبلغ\n"
+            f"🧾 فاکتور: <b>{invoice_id}</b>\n"
+            f"👤 شناسه تلگرام: <code>{_to_int(item.get('tg_user_id'), 0)}</code>\n"
+            f"💎 مبلغ فاکتور: <code>{html_escape(str(item.get('amount_crypto') or '0'))} "
+            f"{html_escape(str(item.get('asset') or ''))}</code>\n"
+            f"💰 مبلغ دریافتی: <code>{html_escape(str(item.get('paid_amount_crypto') or '0'))} "
+            f"{html_escape(str(item.get('asset') or ''))}</code>\n"
+            f"📏 اختلاف: <code>{html_escape(str(item.get('variance_amount_crypto') or '0'))} "
+            f"{html_escape(str(item.get('asset') or ''))}</code>\n"
+            f"🔗 تراکنش: <code>{html_escape(str(item.get('tx_hash') or '—'))}</code>",
+        )
+        sent = await send_to_topic(
+            bot,
+            name="alerts",
+            text=text,
+            parse_mode="HTML",
+            reply_markup=admin_crypto_item_kb(
+                invoice_id=invoice_id,
+                status=str(item.get("status") or ""),
+                tg_user_id=_to_int(item.get("tg_user_id"), 0),
+            ),
+        )
+        if not sent:
+            continue
+        _crypto_variance_delivered.add(invoice_id)
+        try:
+            await api.bot_ack_crypto_notification(invoice_id, audience="variance")
+            _crypto_variance_delivered.discard(invoice_id)
+        except Exception:
+            logger.exception("crypto variance alert ack failed: invoice_id=%s", invoice_id)
 
 
 def _as_int_list(values: Any) -> list[int]:
@@ -743,6 +833,12 @@ async def _send_income_daily_summary(bot: Bot, api: ApiClient, *, now_local: dat
     row_cards = _to_int(summary.get("row_winner_cards_count"), 0)
     col_users = _to_int(summary.get("col_winner_users_count"), 0)
     col_cards = _to_int(summary.get("col_winner_cards_count"), 0)
+    crypto_count = _to_int(summary.get("crypto_deposits_count"), 0)
+    crypto_total = _to_int(summary.get("crypto_deposits_total"), 0)
+    crypto_tron_count = _to_int(summary.get("crypto_tron_deposits_count"), 0)
+    crypto_tron_total = _to_int(summary.get("crypto_tron_deposits_total"), 0)
+    crypto_ton_count = _to_int(summary.get("crypto_ton_deposits_count"), 0)
+    crypto_ton_total = _to_int(summary.get("crypto_ton_deposits_total"), 0)
 
     text = panel(
         "گزارش درآمد روزانه",
@@ -756,10 +852,124 @@ async def _send_income_daily_summary(bot: Bot, api: ApiClient, *, now_local: dat
         f"💰 فروش کارت: <b>{_fmt_amount(sales_total)}</b>\n"
         f"🤖 کمیسیون ربات: <b>{_fmt_amount(commission_total)}</b>\n"
         f"🎁 مجموع جایزه (بعد از کمیسیون): <b>{_fmt_amount(prize_pool_total)}</b>\n\n"
+        f"💎 واریزی موفق ارز دیجیتال: <b>{_fmt_amount(crypto_count)}</b> مورد | "
+        f"<b>{_fmt_amount(crypto_total)}</b> تومان\n"
+        f"🟢 TRON / USDT: <b>{_fmt_amount(crypto_tron_count)}</b> مورد | "
+        f"<b>{_fmt_amount(crypto_tron_total)}</b> تومان\n"
+        f"🔵 TON: <b>{_fmt_amount(crypto_ton_count)}</b> مورد | "
+        f"<b>{_fmt_amount(crypto_ton_total)}</b> تومان\n\n"
         f"🏁 برندگان تمام: <b>{_fmt_amount(row_users)}</b> کاربر | <b>{_fmt_amount(row_cards)}</b> کارت\n"
         f"🏆 برندگان تورنا: <b>{_fmt_amount(col_users)}</b> کاربر | <b>{_fmt_amount(col_cards)}</b> کارت",
     )
     await send_to_topic(bot, name="income", text=text, parse_mode="HTML")
+
+
+async def _process_crypto_health(bot: Bot, api: ApiClient) -> None:
+    health = await api.admin_crypto_health()
+    if not bool(health.get("configured")):
+        return
+    failed_rates = [
+        f"{item.get('provider')}/{item.get('asset')}"
+        for item in health.get("rate_checks") or []
+        if not bool(item.get("ok"))
+    ]
+    failed_chains = [
+        str(item.get("network") or "")
+        for item in health.get("chain_checks") or []
+        if not bool(item.get("ok"))
+    ]
+    fingerprint = json.dumps(
+        {
+            "ok": bool(health.get("ok")),
+            "degraded": bool(health.get("degraded")),
+            "rates": sorted(failed_rates),
+            "chains": sorted(failed_chains),
+        },
+        sort_keys=True,
+        ensure_ascii=False,
+    )
+    previous = get_meta_marker("crypto_health_fingerprint", "")
+    if fingerprint == previous:
+        return
+    set_meta_marker("crypto_health_fingerprint", fingerprint)
+
+    if bool(health.get("ok")) and not bool(health.get("degraded")):
+        if previous:
+            await send_to_topic(
+                bot,
+                name="alerts",
+                text=panel(
+                    "بازیابی سلامت سرویس‌های رمزارز",
+                    "#سلامت #رمزارز #بازیابی\n"
+                    "✅ سرویس‌های نرخ و شبکه دوباره در وضعیت سالم قرار گرفتند.",
+                ),
+                parse_mode="HTML",
+            )
+        return
+
+    rate_lines = "\n".join(f"• نرخ: <code>{html_escape(item)}</code>" for item in failed_rates) or "• نرخ: سالم"
+    chain_lines = "\n".join(f"• شبکه: <code>{html_escape(item)}</code>" for item in failed_chains) or "• شبکه: سالم"
+    available_with_fallback = bool(health.get("ok"))
+    await send_to_topic(
+        bot,
+        name="alerts",
+        text=panel(
+            "کاهش افزونگی سرویس‌های رمزارز" if available_with_fallback else "اختلال سرویس‌های رمزارز",
+            "#هشدار #سلامت #رمزارز\n"
+            f"{rate_lines}\n"
+            f"{chain_lines}\n\n"
+            + (
+                "سرویس فعال است اما بخشی از providerها در دسترس نیستند."
+                if available_with_fallback
+                else "تا رفع اختلال، صدور یا تایید خودکار فاکتور ممکن است با تاخیر انجام شود."
+            ),
+        ),
+        parse_mode="HTML",
+    )
+
+
+async def _send_crypto_reconciliation_summary(
+    bot: Bot,
+    api: ApiClient,
+    *,
+    now_local: datetime,
+) -> None:
+    start_local, end_local = _daily_revenue_window(now_local)
+    range_to = end_local - timedelta(seconds=1)
+    report = await api.admin_crypto_reconciliation(
+        from_at=start_local.strftime("%Y-%m-%d %H:%M:%S"),
+        to_at=range_to.strftime("%Y-%m-%d %H:%M:%S"),
+    )
+    unmatched = _to_int(report.get("unmatched_onchain_count"), 0)
+    missing = _to_int(report.get("missing_onchain_count"), 0)
+    ledger = _to_int(report.get("ledger_mismatch_count"), 0)
+    credited_count = _to_int(report.get("credited_invoices_count"), 0)
+    credited_total = _to_int(report.get("credited_toman_total"), 0)
+    ok = bool(report.get("ok"))
+    body = (
+        "#رمزارز #تطبیق_روزانه\n"
+        f"🗓 از: <code>{format_jalali_datetime(start_local, seconds=True)}</code>\n"
+        f"🗓 تا: <code>{format_jalali_datetime(range_to, seconds=True)}</code>\n\n"
+        f"✅ فاکتورهای شارژشده: <b>{_fmt_amount(credited_count)}</b> مورد | "
+        f"<b>{_fmt_amount(credited_total)}</b> تومان\n"
+        f"🔎 تراکنش زنجیره بدون فاکتور: <b>{_fmt_amount(unmatched)}</b>\n"
+        f"⛓ فاکتور بدون مشاهده در اسکن زنجیره: <b>{_fmt_amount(missing)}</b>\n"
+        f"📒 مغایرت دفتر کیف پول: <b>{_fmt_amount(ledger)}</b>\n\n"
+        f"وضعیت نهایی: <b>{'سالم' if ok else 'نیازمند بررسی'}</b>"
+    )
+    await send_to_topic(
+        bot,
+        name="income",
+        text=panel("گزارش تطبیق روزانه رمزارز", body),
+        parse_mode="HTML",
+    )
+    if not ok:
+        await send_to_topic(
+            bot,
+            name="alerts",
+            text=panel("هشدار مغایرت رمزارز", body),
+            parse_mode="HTML",
+        )
 
 
 async def _admin_forum_audit(bot: Bot, api: ApiClient) -> None:
@@ -860,6 +1070,17 @@ async def _admin_forum_audit(bot: Bot, api: ApiClient) -> None:
     if now_local.hour >= income_hour and get_meta_marker("admin_income_daily_summary_key", "") != income_day_key:
         await _send_income_daily_summary(bot, api, now_local=now_local)
         set_meta_marker("admin_income_daily_summary_key", income_day_key)
+
+    reconcile_hour = max(
+        0,
+        min(23, int(settings.ADMIN_CRYPTO_RECONCILIATION_HOUR_LOCAL or 16)),
+    )
+    if (
+        now_local.hour >= reconcile_hour
+        and get_meta_marker("admin_crypto_reconciliation_key", "") != income_day_key
+    ):
+        await _send_crypto_reconciliation_summary(bot, api, now_local=now_local)
+        set_meta_marker("admin_crypto_reconciliation_key", income_day_key)
 
 
 async def _queue_prize_notifications(
@@ -1315,6 +1536,7 @@ async def notifier_loop(
         _spawn_worker()
     next_admin_audit_ts = 0.0
     next_crypto_alert_ts = 0.0
+    next_crypto_health_ts = 0.0
     next_slow_scan_ts = 0.0
     next_adaptive_check_ts = float(time.time()) + adaptive_check_sec
     next_metrics_report_ts = float(time.time()) + metrics_report_sec
@@ -1507,6 +1729,16 @@ async def notifier_loop(
                     next_crypto_alert_ts = now_ts + mini_deposit_alert_interval_sec
                     with suppress(Exception):
                         await _process_crypto_notifications(bot, api)
+
+                if now_ts >= next_crypto_health_ts:
+                    next_crypto_health_ts = now_ts + max(
+                        60,
+                        int(settings.ADMIN_CRYPTO_HEALTH_INTERVAL_SEC or 300),
+                    )
+                    try:
+                        await _process_crypto_health(bot, api)
+                    except Exception:
+                        logger.exception("notifier: crypto health check failed")
 
             except Exception:
                 # Keep loop alive but do not swallow diagnostics.

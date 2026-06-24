@@ -17,7 +17,7 @@ from urllib import request as urllib_request
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
@@ -104,7 +104,13 @@ from app.services.game_event_service import GameEventService
 from app.services.game_service import GameService
 from app.services.wallet_service import WalletService
 from app.services.admin_audit_service import AdminAuditService
-from app.services.crypto_deposit_service import CryptoDepositService
+from app.services.crypto_deposit_service import (
+    CRYPTO_RUNTIME_SETTING_KEY,
+    CryptoDepositService,
+)
+from app.services.crypto_qr_service import CryptoQrService
+from app.services.crypto_health_service import CryptoHealthService
+from app.services.crypto_reconciliation_service import CryptoReconciliationService
 from app.routers import admin_users_router
 
 router = APIRouter(prefix="/mini-api", tags=["mini"])
@@ -505,6 +511,10 @@ class MiniSuperGrantIn(BaseModel):
 class MiniSuperRevokeIn(BaseModel):
     tg_user_id: int = Field(gt=0)
     role: Literal["ADMIN", "SUPER_ADMIN", "ALL"] = "ALL"
+
+
+class MiniSuperCryptoUpdateIn(BaseModel):
+    enabled: bool
 
 
 def _normalize_live_url(raw: str) -> str:
@@ -1915,15 +1925,18 @@ def my_wallet_txs(
 @router.get("/crypto/options", response_model=CryptoOptionsOut)
 def mini_crypto_options(
     user_id: int = Depends(get_mini_user_id),
+    db: Session = Depends(get_db),
 ):
     _ = user_id
-    options = CryptoDepositService.enabled_options()
+    status = CryptoDepositService.runtime_status(db)
     return CryptoOptionsOut(
-        enabled=bool(cfg.CRYPTO_PAYMENTS_ENABLED and options),
+        enabled=bool(status["enabled"]),
         min_toman_amount=int(cfg.CRYPTO_MIN_TOMAN_AMOUNT),
         max_toman_amount=int(cfg.CRYPTO_MAX_TOMAN_AMOUNT),
         invoice_expire_minutes=int(cfg.CRYPTO_INVOICE_EXPIRE_MINUTES),
-        options=options,
+        daily_user_max_count=int(cfg.CRYPTO_DAILY_USER_MAX_COUNT),
+        daily_user_max_toman=int(cfg.CRYPTO_DAILY_USER_MAX_TOMAN),
+        options=list(status["options"]) if bool(status["enabled"]) else [],
     )
 
 
@@ -1990,6 +2003,24 @@ def mini_get_crypto_deposit(
         user_id=int(user_id),
     )
     return CryptoDepositOut(**crypto_deposit_dict(invoice))
+
+
+@router.get("/crypto/deposits/{invoice_id}/qr")
+def mini_get_crypto_deposit_qr(
+    invoice_id: int,
+    user_id: int = Depends(get_mini_user_id),
+    db: Session = Depends(get_db),
+):
+    invoice = CryptoDepositService.get_owned(
+        db,
+        invoice_id=int(invoice_id),
+        user_id=int(user_id),
+    )
+    return Response(
+        content=CryptoQrService.png_bytes(invoice),
+        media_type="image/png",
+        headers={"Cache-Control": "private, no-store"},
+    )
 
 
 @router.post("/crypto/deposits/{invoice_id}/tx-hash", response_model=CryptoDepositOut)
@@ -3692,6 +3723,90 @@ def mini_super_admin_list(
     _ = ident
     items = _mini_admin_account_items(db)
     return {"total": len(items), "items": items}
+
+
+def _mini_super_crypto_status(db: Session) -> dict[str, Any]:
+    status = CryptoDepositService.runtime_status(db)
+    options = list(status.get("options") or [])
+    return {
+        "master_enabled": bool(status.get("master_enabled")),
+        "runtime_enabled": bool(status.get("runtime_enabled")),
+        "configured": bool(status.get("configured")),
+        "enabled": bool(status.get("enabled")),
+        "networks": [
+            {
+                "network": str(item.get("network") or ""),
+                "asset": str(item.get("asset") or ""),
+            }
+            for item in options
+        ],
+    }
+
+
+@router.get("/admin/super/crypto-settings")
+def mini_super_crypto_settings(
+    ident: MiniAdminIdentity = Depends(get_mini_super_admin_identity),
+    db: Session = Depends(get_db),
+):
+    _ = ident
+    return _mini_super_crypto_status(db)
+
+
+@router.put("/admin/super/crypto-settings")
+def mini_super_update_crypto_settings(
+    payload: MiniSuperCryptoUpdateIn,
+    request: Request,
+    ident: MiniAdminIdentity = Depends(get_mini_super_admin_identity),
+    db: Session = Depends(get_db),
+):
+    status_before = CryptoDepositService.runtime_status(db)
+    if payload.enabled and not bool(status_before["master_enabled"]):
+        raise HTTPException(
+            status_code=409,
+            detail="ابتدا CRYPTO_PAYMENTS_ENABLED=true را در .env.prod تنظیم و سرویس backend را بازسازی کنید.",
+        )
+    if payload.enabled and not bool(status_before["configured"]):
+        raise HTTPException(
+            status_code=409,
+            detail="هیچ آدرس معتبر TRON یا TON در .env.prod تنظیم نشده است.",
+        )
+
+    previous = bool(status_before["runtime_enabled"])
+    _setting_set_json(db, CRYPTO_RUNTIME_SETTING_KEY, bool(payload.enabled))
+    AdminAuditService.record(
+        db,
+        admin=_mini_to_admin_identity(ident),
+        action="settings.update",
+        target_type="app_setting",
+        target_id=None,
+        request=request,
+        details={
+            "key": CRYPTO_RUNTIME_SETTING_KEY,
+            "previous_enabled": previous,
+            "new_enabled": bool(payload.enabled),
+        },
+    )
+    db.commit()
+    return _mini_super_crypto_status(db)
+
+
+@router.get("/admin/super/crypto-health")
+def mini_super_crypto_health(
+    ident: MiniAdminIdentity = Depends(get_mini_super_admin_identity),
+):
+    _ = ident
+    return CryptoHealthService.check()
+
+
+@router.get("/admin/super/crypto-reconciliation")
+def mini_super_crypto_reconciliation(
+    ident: MiniAdminIdentity = Depends(get_mini_super_admin_identity),
+    db: Session = Depends(get_db),
+):
+    _ = ident
+    end_at = datetime.utcnow()
+    start_at = end_at - timedelta(hours=int(cfg.CRYPTO_RECONCILIATION_LOOKBACK_HOURS))
+    return CryptoReconciliationService.run(db, start_at=start_at, end_at=end_at)
 
 
 @router.post("/admin/super/admins/grant")

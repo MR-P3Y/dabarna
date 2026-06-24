@@ -653,7 +653,12 @@ class ApiClient:
             params={"limit": int(limit)},
             headers=self.bot_service_headers(),
         )
-        return data if isinstance(data, dict) else {"admin": [], "user": []}
+        return data if isinstance(data, dict) else {
+            "admin": [],
+            "user": [],
+            "pending": [],
+            "variance": [],
+        }
 
     async def bot_ack_crypto_notification(self, invoice_id: int, *, audience: str) -> dict:
         return await self._request(
@@ -661,6 +666,30 @@ class ApiClient:
             f"/bot/crypto/notifications/{int(invoice_id)}/{str(audience).lower()}/ack",
             headers=self.bot_service_headers(),
         )
+
+    async def admin_crypto_health(self) -> dict:
+        data = await self._request(
+            "GET",
+            "/bot/admin/crypto-health",
+            headers=self.admin_headers(),
+            timeout_sec=30.0,
+        )
+        return data if isinstance(data, dict) else {}
+
+    async def admin_crypto_reconciliation(
+        self,
+        *,
+        from_at: str,
+        to_at: str,
+    ) -> dict:
+        data = await self._request(
+            "GET",
+            "/bot/admin/crypto-reconciliation",
+            params={"from_at": str(from_at), "to_at": str(to_at)},
+            headers=self.admin_headers(),
+            timeout_sec=45.0,
+        )
+        return data if isinstance(data, dict) else {}
 
     async def bot_list_games(
         self,

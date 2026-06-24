@@ -100,6 +100,15 @@ class CryptoDepositHelperTests(unittest.TestCase):
                 ),
                 patch.object(
                     CryptoDepositService,
+                    "runtime_enabled",
+                    return_value=True,
+                ),
+                patch.object(
+                    CryptoDepositService,
+                    "_enforce_daily_user_limits",
+                ),
+                patch.object(
+                    CryptoDepositService,
                     "_unique_open_amount",
                     return_value=Decimal("2.000001"),
                 ),
@@ -119,6 +128,56 @@ class CryptoDepositHelperTests(unittest.TestCase):
         self.assertEqual(invoice.status, "WAITING_PAYMENT")
         self.assertTrue(invoice.memo.startswith("DAV-"))
         self.assertEqual(db.added, [invoice])
+
+    def test_runtime_setting_defaults_to_disabled(self):
+        db = SimpleNamespace(get=lambda model, key: None)
+        self.assertFalse(CryptoDepositService.runtime_enabled(db))
+
+    def test_runtime_setting_accepts_boolean_payload(self):
+        db = SimpleNamespace(
+            get=lambda model, key: SimpleNamespace(v_json={"enabled": True})
+        )
+        self.assertTrue(CryptoDepositService.runtime_enabled(db))
+
+    def test_daily_count_limit_rejects_new_invoice(self):
+        db = SimpleNamespace(
+            execute=lambda statement: SimpleNamespace(one=lambda: (5, 1_000_000))
+        )
+        old_count = cfg.CRYPTO_DAILY_USER_MAX_COUNT
+        old_total = cfg.CRYPTO_DAILY_USER_MAX_TOMAN
+        cfg.CRYPTO_DAILY_USER_MAX_COUNT = 5
+        cfg.CRYPTO_DAILY_USER_MAX_TOMAN = 100_000_000
+        try:
+            with self.assertRaises(HTTPException) as raised:
+                CryptoDepositService._enforce_daily_user_limits(
+                    db,
+                    user_id=10,
+                    requested_toman=100_000,
+                )
+        finally:
+            cfg.CRYPTO_DAILY_USER_MAX_COUNT = old_count
+            cfg.CRYPTO_DAILY_USER_MAX_TOMAN = old_total
+        self.assertEqual(raised.exception.status_code, 429)
+
+    def test_daily_amount_limit_rejects_projected_total(self):
+        db = SimpleNamespace(
+            execute=lambda statement: SimpleNamespace(one=lambda: (1, 900_000))
+        )
+        old_count = cfg.CRYPTO_DAILY_USER_MAX_COUNT
+        old_total = cfg.CRYPTO_DAILY_USER_MAX_TOMAN
+        cfg.CRYPTO_DAILY_USER_MAX_COUNT = 10
+        cfg.CRYPTO_DAILY_USER_MAX_TOMAN = 1_000_000
+        try:
+            with self.assertRaises(HTTPException) as raised:
+                CryptoDepositService._enforce_daily_user_limits(
+                    db,
+                    user_id=10,
+                    requested_toman=200_000,
+                )
+        finally:
+            cfg.CRYPTO_DAILY_USER_MAX_COUNT = old_count
+            cfg.CRYPTO_DAILY_USER_MAX_TOMAN = old_total
+        self.assertEqual(raised.exception.status_code, 429)
 
     def test_transfer_before_invoice_is_not_accepted(self):
         invoice = SimpleNamespace(
@@ -200,6 +259,104 @@ class CryptoDepositHelperTests(unittest.TestCase):
             )
         self.assertIsNone(repeated)
         repeated_credit.assert_not_called()
+
+    def test_underpayment_is_sent_to_review(self):
+        invoice = SimpleNamespace(
+            id=26,
+            user_id=10,
+            network="TRON",
+            asset="USDT",
+            amount_toman=500_000,
+            amount_crypto=Decimal("3.25"),
+            paid_amount_crypto=None,
+            memo=None,
+            tx_hash="c" * 64,
+            sender_address=None,
+            status="WAITING_PAYMENT",
+            wallet_tx_id=None,
+            failure_reason=None,
+            created_at=datetime(2026, 6, 24, 12, 0, 0),
+            expires_at=datetime(2026, 6, 24, 12, 15, 0),
+            detected_at=None,
+            confirmed_at=None,
+            credited_at=None,
+            last_checked_at=None,
+            updated_at=None,
+        )
+        transfer = ChainTransfer(
+            network="TRON",
+            asset="USDT",
+            tx_hash="c" * 64,
+            amount=Decimal("3.00"),
+            sender_address="TSender",
+            destination_address="TReceiver",
+            occurred_at=datetime(2026, 6, 24, 12, 5, 0),
+        )
+        db = _SequenceSession(
+            [
+                _FakeResult(scalar=invoice),
+                _FakeResult(scalar=invoice),
+                _FakeResult(rows=[]),
+                _FakeResult(scalar=invoice),
+                _FakeResult(scalar=None),
+            ]
+        )
+        result = CryptoDepositService.process_transfer(db, transfer)
+        self.assertIs(result, invoice)
+        self.assertEqual(invoice.status, "NEEDS_REVIEW")
+        self.assertEqual(invoice.payment_variance, "UNDERPAID")
+        self.assertEqual(invoice.variance_amount_crypto, Decimal("0.25"))
+
+    def test_overpayment_requires_review_and_records_variance(self):
+        invoice = SimpleNamespace(
+            id=27,
+            user_id=10,
+            network="TRON",
+            asset="USDT",
+            amount_toman=500_000,
+            amount_crypto=Decimal("3.25"),
+            paid_amount_crypto=None,
+            memo=None,
+            tx_hash="e" * 64,
+            sender_address=None,
+            status="WAITING_PAYMENT",
+            wallet_tx_id=None,
+            failure_reason=None,
+            created_at=datetime(2026, 6, 24, 12, 0, 0),
+            expires_at=datetime(2026, 6, 24, 12, 15, 0),
+            detected_at=None,
+            confirmed_at=None,
+            credited_at=None,
+            last_checked_at=None,
+            updated_at=None,
+        )
+        transfer = ChainTransfer(
+            network="TRON",
+            asset="USDT",
+            tx_hash="e" * 64,
+            amount=Decimal("3.50"),
+            sender_address="TSender",
+            destination_address="TReceiver",
+            occurred_at=datetime(2026, 6, 24, 12, 5, 0),
+        )
+        db = _SequenceSession(
+            [
+                _FakeResult(scalar=invoice),
+                _FakeResult(scalar=invoice),
+                _FakeResult(rows=[]),
+                _FakeResult(scalar=invoice),
+                _FakeResult(scalar=None),
+            ]
+        )
+        with patch(
+            "app.services.crypto_deposit_service.WalletService.credit",
+        ) as credit:
+            result = CryptoDepositService.process_transfer(db, transfer)
+        self.assertIs(result, invoice)
+        self.assertEqual(invoice.status, "NEEDS_REVIEW")
+        self.assertEqual(invoice.payment_variance, "OVERPAID")
+        self.assertEqual(invoice.variance_amount_crypto, Decimal("0.25"))
+        credit.assert_not_called()
 
 
 if __name__ == "__main__":

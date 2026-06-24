@@ -30,6 +30,12 @@ CryptoDepositStatus = Enum(
     "REJECTED",
     name="crypto_deposit_status",
 )
+CryptoPaymentVariance = Enum(
+    "EXACT",
+    "UNDERPAID",
+    "OVERPAID",
+    name="crypto_payment_variance",
+)
 
 
 class CryptoDepositRequest(Base):
@@ -40,6 +46,17 @@ class CryptoDepositRequest(Base):
         Index("ix_crypto_deposit_user_created", "user_id", "created_at"),
         Index("ix_crypto_deposit_status_expires", "status", "expires_at"),
         Index("ix_crypto_deposit_match", "network", "asset", "amount_crypto", "status"),
+        Index(
+            "ix_crypto_deposit_pending_alert",
+            "status",
+            "pending_alert_notified_at",
+            "created_at",
+        ),
+        Index(
+            "ix_crypto_deposit_variance_alert",
+            "payment_variance",
+            "variance_alert_notified_at",
+        ),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
@@ -64,6 +81,10 @@ class CryptoDepositRequest(Base):
     confirmed_at: Mapped[datetime | None] = mapped_column(TIMESTAMP, nullable=True)
     credited_at: Mapped[datetime | None] = mapped_column(TIMESTAMP, nullable=True)
     last_checked_at: Mapped[datetime | None] = mapped_column(TIMESTAMP, nullable=True)
+    payment_variance: Mapped[str | None] = mapped_column(CryptoPaymentVariance, nullable=True)
+    variance_amount_crypto: Mapped[Decimal | None] = mapped_column(Numeric(36, 18), nullable=True)
+    pending_alert_notified_at: Mapped[datetime | None] = mapped_column(TIMESTAMP, nullable=True)
+    variance_alert_notified_at: Mapped[datetime | None] = mapped_column(TIMESTAMP, nullable=True)
     admin_notified_at: Mapped[datetime | None] = mapped_column(TIMESTAMP, nullable=True)
     user_notified_at: Mapped[datetime | None] = mapped_column(TIMESTAMP, nullable=True)
     created_at: Mapped[datetime] = mapped_column(

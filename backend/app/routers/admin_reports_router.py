@@ -391,6 +391,41 @@ def games_sales_summary(
             col_winner_user_ids.update(winner_user_ids)
             col_winner_card_ids.update(winner_card_ids)
 
+    crypto_summary = {
+        "crypto_deposits_count": 0,
+        "crypto_deposits_total": 0,
+        "crypto_tron_deposits_count": 0,
+        "crypto_tron_deposits_total": 0,
+        "crypto_ton_deposits_count": 0,
+        "crypto_ton_deposits_total": 0,
+    }
+    crypto_deposits_included = tg_group_id is None and tg_topic_id is None
+    if crypto_deposits_included:
+        crypto_row = db.execute(
+            text(
+                """
+                SELECT
+                  COUNT(*) AS crypto_deposits_count,
+                  COALESCE(SUM(amount_toman), 0) AS crypto_deposits_total,
+                  SUM(CASE WHEN network = 'TRON' THEN 1 ELSE 0 END) AS crypto_tron_deposits_count,
+                  COALESCE(SUM(CASE WHEN network = 'TRON' THEN amount_toman ELSE 0 END), 0)
+                    AS crypto_tron_deposits_total,
+                  SUM(CASE WHEN network = 'TON' THEN 1 ELSE 0 END) AS crypto_ton_deposits_count,
+                  COALESCE(SUM(CASE WHEN network = 'TON' THEN amount_toman ELSE 0 END), 0)
+                    AS crypto_ton_deposits_total
+                FROM crypto_deposit_requests
+                WHERE status = 'CREDITED'
+                  AND credited_at >= :from_at
+                  AND credited_at <= :to_at
+                """
+            ),
+            params,
+        ).mappings().one()
+        crypto_summary = {
+            key: int(crypto_row.get(key) or 0)
+            for key in crypto_summary
+        }
+
     return {
         "from_at": start_at.isoformat(sep=" ", timespec="seconds"),
         "to_at": end_at.isoformat(sep=" ", timespec="seconds"),
@@ -408,4 +443,6 @@ def games_sales_summary(
         "col_winner_users_count": int(len(col_winner_user_ids)),
         "col_winner_cards_count": int(len(col_winner_card_ids)),
         "col_win_events_count": int(col_events_count),
+        "crypto_deposits_included": bool(crypto_deposits_included),
+        **crypto_summary,
     }
