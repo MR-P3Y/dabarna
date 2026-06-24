@@ -21,6 +21,7 @@ CRYPTO_CONFIRM_INTERVAL_SEC=45
 CRYPTO_INVOICE_EXPIRE_MINUTES=15
 CRYPTO_PAYMENT_GRACE_MINUTES=5
 CRYPTO_PENDING_ALERT_MINUTES=10
+CRYPTO_SCAN_LOOKBACK_HOURS=24
 
 CRYPTO_MIN_TOMAN_AMOUNT=50000
 CRYPTO_MAX_TOMAN_AMOUNT=50000000
@@ -35,15 +36,20 @@ CRYPTO_RATE_PROVIDER_FALLBACK=wallex
 CRYPTO_RATE_FAIL_ALLOW_STALE_SEC=0
 CRYPTO_RATE_MAX_DEVIATION_PERCENT=8
 CRYPTO_RATE_BUFFER_PERCENT=0
+CRYPTO_HTTP_TIMEOUT_SEC=12
 
 CRYPTO_TRON_USDT_ENABLED=true
 CRYPTO_TRON_USDT_ADDRESS=
 CRYPTO_TRON_USDT_CONTRACT=TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t
+CRYPTO_TRON_USDT_DECIMALS=6
+CRYPTO_TRONGRID_BASE_URL=https://api.trongrid.io
 TRONGRID_API_KEY=
 CRYPTO_TRON_EXPLORER_TX_BASE=https://tronscan.org/#/transaction
 
 CRYPTO_TON_ENABLED=true
 CRYPTO_TON_ADDRESS=
+CRYPTO_TON_DECIMALS=9
+CRYPTO_TONCENTER_BASE_URL=https://toncenter.com
 TONCENTER_API_KEY=
 CRYPTO_TON_EXPLORER_TX_BASE=https://tonviewer.com/transaction
 ```
@@ -61,6 +67,27 @@ Optional bot monitoring settings belong in `./davarna-bot/.env.prod`:
 ADMIN_CRYPTO_HEALTH_INTERVAL_SEC=300
 ADMIN_CRYPTO_RECONCILIATION_HOUR_LOCAL=16
 ```
+
+To configure the production files without printing wallet addresses or existing
+secrets, pass the two public receiving addresses to the deployment helper:
+
+```bash
+cd /opt/davarna
+chmod +x scripts/configure-crypto-env.sh
+
+read -rsp "Public TRON address: " CRYPTO_TRON_USDT_ADDRESS; echo
+read -rsp "Public TON address: " CRYPTO_TON_ADDRESS; echo
+export CRYPTO_TRON_USDT_ADDRESS CRYPTO_TON_ADDRESS
+
+./scripts/configure-crypto-env.sh
+unset CRYPTO_TRON_USDT_ADDRESS CRYPTO_TON_ADDRESS
+```
+
+The helper creates timestamped backups, updates the backend and bot env files
+idempotently, and never prints wallet addresses. Unreadable comments containing
+`??` are replaced with an English comment. If an actual env value contains
+`??`, the helper stops and prints only its key; fix that value in English before
+running it again.
 
 The backend fetches a live best-ask quote when each invoice is created, locks
 the Toman and crypto amounts until expiry, scans confirmed/finalized incoming

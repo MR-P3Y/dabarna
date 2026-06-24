@@ -352,7 +352,7 @@ CRYPTO_TRON_EXPLORER_TX_BASE = (
 
 CRYPTO_TON_ENABLED = _safe_bool("CRYPTO_TON_ENABLED", True)
 CRYPTO_TON_ADDRESS = (os.getenv("CRYPTO_TON_ADDRESS", "") or "").strip()
-CRYPTO_TON_DECIMALS = _safe_positive_int("CRYPTO_TON_DECIMALS", 6, minimum=1)
+CRYPTO_TON_DECIMALS = _safe_positive_int("CRYPTO_TON_DECIMALS", 9, minimum=1)
 CRYPTO_TONCENTER_BASE_URL = (
     os.getenv("CRYPTO_TONCENTER_BASE_URL", "https://toncenter.com") or "https://toncenter.com"
 ).strip().rstrip("/")
