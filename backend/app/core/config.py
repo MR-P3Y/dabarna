@@ -1,7 +1,12 @@
 import json
+import logging
 import os
+import re
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from dotenv import load_dotenv
+
+log = logging.getLogger(__name__)
 
 # مسیر فایل: ...\backend\app\core\config.py
 CORE_DIR = Path(__file__).resolve().parent          # ...\backend\app\core
@@ -235,3 +240,133 @@ MINI_SESSION_TTL_SEC = int(os.getenv("MINI_SESSION_TTL_SEC", "900") or "900")
 MINI_INITDATA_REPLAY_TTL_SEC = int(os.getenv("MINI_INITDATA_REPLAY_TTL_SEC", "900") or "900")
 MINI_RATE_LIMIT_EVENTS_PER_SEC = int(os.getenv("MINI_RATE_LIMIT_EVENTS_PER_SEC", "2") or "2")
 MINI_RATE_LIMIT_WRITE_PER_MIN = int(os.getenv("MINI_RATE_LIMIT_WRITE_PER_MIN", "20") or "20")
+
+# ---- Crypto deposits ----
+
+
+def _safe_bool(name: str, default: bool) -> bool:
+    raw = (os.getenv(name, "") or "").strip().lower()
+    if not raw:
+        return default
+    if raw in ("1", "true", "yes", "on"):
+        return True
+    if raw in ("0", "false", "no", "off"):
+        return False
+    log.warning("%s is invalid; using default=%s", name, default)
+    return default
+
+
+def _safe_positive_int(name: str, default: int, *, minimum: int = 1) -> int:
+    raw = (os.getenv(name, "") or "").strip()
+    if not raw:
+        return default
+    try:
+        value = int(raw)
+    except ValueError:
+        log.warning("%s is invalid; using default=%s", name, default)
+        return default
+    if value < minimum:
+        log.warning("%s is below %s; using default=%s", name, minimum, default)
+        return default
+    return value
+
+
+def _safe_nonnegative_int(name: str, default: int) -> int:
+    raw = (os.getenv(name, "") or "").strip()
+    if not raw:
+        return default
+    try:
+        value = int(raw)
+    except ValueError:
+        log.warning("%s is invalid; using default=%s", name, default)
+        return default
+    if value < 0:
+        log.warning("%s must be non-negative; using default=%s", name, default)
+        return default
+    return value
+
+
+def _safe_decimal(name: str, default: str) -> Decimal:
+    raw = (os.getenv(name, "") or "").strip() or default
+    try:
+        value = Decimal(raw)
+    except InvalidOperation:
+        log.warning("%s is invalid; using default=%s", name, default)
+        return Decimal(default)
+    if value < 0:
+        log.warning("%s must be non-negative; using default=%s", name, default)
+        return Decimal(default)
+    return value
+
+
+CRYPTO_PAYMENTS_ENABLED = _safe_bool("CRYPTO_PAYMENTS_ENABLED", False)
+CRYPTO_AUTO_CONFIRM_ENABLED = _safe_bool("CRYPTO_AUTO_CONFIRM_ENABLED", True)
+CRYPTO_CONFIRM_INTERVAL_SEC = _safe_positive_int("CRYPTO_CONFIRM_INTERVAL_SEC", 45, minimum=10)
+CRYPTO_INVOICE_EXPIRE_MINUTES = _safe_positive_int("CRYPTO_INVOICE_EXPIRE_MINUTES", 15, minimum=2)
+CRYPTO_PAYMENT_GRACE_MINUTES = _safe_nonnegative_int("CRYPTO_PAYMENT_GRACE_MINUTES", 5)
+CRYPTO_MIN_TOMAN_AMOUNT = _safe_positive_int("CRYPTO_MIN_TOMAN_AMOUNT", 50_000)
+CRYPTO_MAX_TOMAN_AMOUNT = _safe_positive_int("CRYPTO_MAX_TOMAN_AMOUNT", 50_000_000)
+CRYPTO_ADMIN_REVIEW_TOMAN_THRESHOLD = _safe_positive_int(
+    "CRYPTO_ADMIN_REVIEW_TOMAN_THRESHOLD",
+    20_000_000,
+)
+CRYPTO_RATE_PROVIDER_PRIMARY = (os.getenv("CRYPTO_RATE_PROVIDER_PRIMARY", "nobitex") or "nobitex").strip().lower()
+CRYPTO_RATE_PROVIDER_FALLBACK = (os.getenv("CRYPTO_RATE_PROVIDER_FALLBACK", "wallex") or "wallex").strip().lower()
+CRYPTO_RATE_FAIL_ALLOW_STALE_SEC = _safe_nonnegative_int("CRYPTO_RATE_FAIL_ALLOW_STALE_SEC", 0)
+CRYPTO_RATE_MAX_DEVIATION_PERCENT = _safe_decimal("CRYPTO_RATE_MAX_DEVIATION_PERCENT", "8")
+CRYPTO_RATE_BUFFER_PERCENT = _safe_decimal("CRYPTO_RATE_BUFFER_PERCENT", "0")
+CRYPTO_HTTP_TIMEOUT_SEC = _safe_positive_int("CRYPTO_HTTP_TIMEOUT_SEC", 12, minimum=3)
+CRYPTO_SCAN_LOOKBACK_HOURS = _safe_positive_int("CRYPTO_SCAN_LOOKBACK_HOURS", 24, minimum=1)
+
+CRYPTO_NOBITEX_BASE_URL = (
+    os.getenv("CRYPTO_NOBITEX_BASE_URL", "https://api.nobitex.ir") or "https://api.nobitex.ir"
+).strip().rstrip("/")
+CRYPTO_WALLEX_BASE_URL = (
+    os.getenv("CRYPTO_WALLEX_BASE_URL", "https://api.wallex.ir") or "https://api.wallex.ir"
+).strip().rstrip("/")
+
+CRYPTO_TRON_USDT_ENABLED = _safe_bool("CRYPTO_TRON_USDT_ENABLED", True)
+CRYPTO_TRON_USDT_ADDRESS = (os.getenv("CRYPTO_TRON_USDT_ADDRESS", "") or "").strip()
+CRYPTO_TRON_USDT_CONTRACT = (
+    os.getenv("CRYPTO_TRON_USDT_CONTRACT", "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t")
+    or "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
+).strip()
+CRYPTO_TRON_USDT_DECIMALS = _safe_positive_int("CRYPTO_TRON_USDT_DECIMALS", 6, minimum=1)
+CRYPTO_TRONGRID_BASE_URL = (
+    os.getenv("CRYPTO_TRONGRID_BASE_URL", "https://api.trongrid.io") or "https://api.trongrid.io"
+).strip().rstrip("/")
+TRONGRID_API_KEY = (os.getenv("TRONGRID_API_KEY", "") or "").strip()
+
+CRYPTO_TON_ENABLED = _safe_bool("CRYPTO_TON_ENABLED", True)
+CRYPTO_TON_ADDRESS = (os.getenv("CRYPTO_TON_ADDRESS", "") or "").strip()
+CRYPTO_TON_DECIMALS = _safe_positive_int("CRYPTO_TON_DECIMALS", 6, minimum=1)
+CRYPTO_TONCENTER_BASE_URL = (
+    os.getenv("CRYPTO_TONCENTER_BASE_URL", "https://toncenter.com") or "https://toncenter.com"
+).strip().rstrip("/")
+TONCENTER_API_KEY = (os.getenv("TONCENTER_API_KEY", "") or "").strip()
+
+
+def crypto_config_warnings() -> list[str]:
+    warnings: list[str] = []
+    if CRYPTO_MAX_TOMAN_AMOUNT < CRYPTO_MIN_TOMAN_AMOUNT:
+        warnings.append("CRYPTO_MAX_TOMAN_AMOUNT is below CRYPTO_MIN_TOMAN_AMOUNT")
+    if CRYPTO_TRON_USDT_ENABLED and not CRYPTO_TRON_USDT_ADDRESS:
+        warnings.append("CRYPTO_TRON_USDT_ADDRESS is missing; TRON deposits are unavailable")
+    elif CRYPTO_TRON_USDT_ENABLED and not re.fullmatch(
+        r"T[1-9A-HJ-NP-Za-km-z]{33}",
+        CRYPTO_TRON_USDT_ADDRESS,
+    ):
+        warnings.append("CRYPTO_TRON_USDT_ADDRESS is invalid; TRON deposits are unavailable")
+    if CRYPTO_TRON_USDT_ENABLED and not re.fullmatch(
+        r"T[1-9A-HJ-NP-Za-km-z]{33}",
+        CRYPTO_TRON_USDT_CONTRACT,
+    ):
+        warnings.append("CRYPTO_TRON_USDT_CONTRACT is invalid; TRON deposits are unavailable")
+    if CRYPTO_TON_ENABLED and not CRYPTO_TON_ADDRESS:
+        warnings.append("CRYPTO_TON_ADDRESS is missing; TON deposits are unavailable")
+    elif CRYPTO_TON_ENABLED and not (
+        re.fullmatch(r"[A-Za-z0-9_-]{48}", CRYPTO_TON_ADDRESS)
+        or re.fullmatch(r"-?\d+:[0-9A-Fa-f]{64}", CRYPTO_TON_ADDRESS)
+    ):
+        warnings.append("CRYPTO_TON_ADDRESS is invalid; TON deposits are unavailable")
+    return warnings

@@ -29,6 +29,7 @@ from bot.routers.fallback import router as fallback_router
 from bot.routers.cards import router as cards_router
 from bot.routers.withdraw import router as withdraw_router
 from bot.routers.deposit import router as deposit_router
+from bot.routers.crypto import router as crypto_router
 from bot.routers.admin_finance import router as admin_finance_router
 from bot.routers.purchase import router as purchase_router
 from bot.routers.join_gate import router as join_gate_router
@@ -141,6 +142,7 @@ async def main():
     dp.include_router(game_router)
     dp.include_router(cards_router)
     dp.include_router(deposit_router)
+    dp.include_router(crypto_router)
     dp.include_router(withdraw_router)
     dp.include_router(admin_finance_router)
     dp.include_router(purchase_router)

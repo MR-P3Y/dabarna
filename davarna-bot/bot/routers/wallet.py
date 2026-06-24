@@ -59,6 +59,7 @@ def _tx_reason_fa(
     mapping = {
         "DEPOSIT_MANUAL": "واریز دستی تاییدشده",
         "DEPOSIT_GATEWAY": "واریز از درگاه پرداخت",
+        "DEPOSIT_CRYPTO": "واریز تاییدشده رمزارز",
         "BUY_CARDS": "خرید کارت بازی",
         "PRIZE_COL": "دریافت جایزه برد تورنا",
         "PRIZE_ROW": "دریافت جایزه برد تمام",
@@ -93,6 +94,7 @@ def _tx_reason_fa(
 def _wallet_kb():
     kb = InlineKeyboardBuilder()
     kb.button(text="📥 واریز", callback_data="menu:deposit")
+    kb.button(text="💎 واریز رمزارز", callback_data="menu:crypto")
     kb.button(text="📤 برداشت", callback_data="menu:withdraw")
     kb.button(text="🔄 تازه‌سازی", callback_data="menu:wallet")
     kb.button(text="⬅️ منو", callback_data="nav:menu")

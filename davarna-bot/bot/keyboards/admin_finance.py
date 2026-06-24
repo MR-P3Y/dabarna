@@ -4,6 +4,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 def admin_finance_menu_kb(*, deposit_filter_active: bool = False, withdraw_filter_active: bool = False):
     kb = InlineKeyboardBuilder()
     kb.button(text="📥 واریزهای در انتظار", callback_data="admin:deposits:pending")
+    kb.button(text="💎 واریز رمزارز نیازمند بررسی", callback_data="admin:crypto:pending")
     kb.button(text="🔎 فیلتر واریز", callback_data="admin:deposits:filter")
     if deposit_filter_active:
         kb.button(text="🧹 حذف فیلتر واریز", callback_data="admin:deposits:filter:clear")

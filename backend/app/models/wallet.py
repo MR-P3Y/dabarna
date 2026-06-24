@@ -6,6 +6,7 @@ WalletTxDirection = Enum("CREDIT", "DEBIT", name="wallet_tx_direction")
 WalletTxReason = Enum(
     "DEPOSIT_MANUAL",
     "DEPOSIT_GATEWAY",
+    "DEPOSIT_CRYPTO",
     "BUY_CARDS",
     "PRIZE_COL",
     "PRIZE_ROW",

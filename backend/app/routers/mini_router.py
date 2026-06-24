@@ -22,6 +22,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
+from app.core import config as cfg
 from app.core.admin_guard import AdminIdentity, AdminScope
 from app.core.config import (
     ADMIN_TG_USER_IDS,
@@ -53,6 +54,7 @@ from app.core.mini_security import (
     verify_session_token,
 )
 from app.models.finance import DepositRequest, WithdrawRequest
+from app.models.crypto import CryptoDepositRequest
 from app.models.game import Game, GameCard
 from app.models.game_event import GameEvent
 from app.models.settings import AppSetting
@@ -88,11 +90,21 @@ from app.schemas.mini import (
     MiniWithdrawListOut,
     MiniWithdrawOut,
 )
+from app.schemas.crypto import (
+    CryptoAdminRejectIn,
+    CryptoDepositCreateIn,
+    CryptoDepositListOut,
+    CryptoDepositOut,
+    CryptoOptionsOut,
+    CryptoTxClaimIn,
+    crypto_deposit_dict,
+)
 from app.services.finance_service import FinanceService
 from app.services.game_event_service import GameEventService
 from app.services.game_service import GameService
 from app.services.wallet_service import WalletService
 from app.services.admin_audit_service import AdminAuditService
+from app.services.crypto_deposit_service import CryptoDepositService
 from app.routers import admin_users_router
 
 router = APIRouter(prefix="/mini-api", tags=["mini"])
@@ -1900,6 +1912,112 @@ def my_wallet_txs(
     ]
 
 
+@router.get("/crypto/options", response_model=CryptoOptionsOut)
+def mini_crypto_options(
+    user_id: int = Depends(get_mini_user_id),
+):
+    _ = user_id
+    options = CryptoDepositService.enabled_options()
+    return CryptoOptionsOut(
+        enabled=bool(cfg.CRYPTO_PAYMENTS_ENABLED and options),
+        min_toman_amount=int(cfg.CRYPTO_MIN_TOMAN_AMOUNT),
+        max_toman_amount=int(cfg.CRYPTO_MAX_TOMAN_AMOUNT),
+        invoice_expire_minutes=int(cfg.CRYPTO_INVOICE_EXPIRE_MINUTES),
+        options=options,
+    )
+
+
+@router.post("/crypto/deposits", response_model=CryptoDepositOut)
+def mini_create_crypto_deposit(
+    payload: CryptoDepositCreateIn,
+    user_id: int = Depends(get_mini_user_id),
+    db: Session = Depends(get_db),
+):
+    enforce_write_rate_limit(int(user_id))
+    try:
+        invoice = CryptoDepositService.create_invoice(
+            db,
+            user_id=int(user_id),
+            amount_toman=int(payload.amount_toman),
+            network=payload.network,
+        )
+        db.commit()
+        db.refresh(invoice)
+        return CryptoDepositOut(**crypto_deposit_dict(invoice))
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="صدور فاکتور ارز دیجیتال ناموفق بود.")
+
+
+@router.get("/crypto/deposits", response_model=CryptoDepositListOut)
+def mini_list_crypto_deposits(
+    limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    user_id: int = Depends(get_mini_user_id),
+    db: Session = Depends(get_db),
+):
+    total = db.execute(
+        select(func.count(CryptoDepositRequest.id)).where(
+            CryptoDepositRequest.user_id == int(user_id)
+        )
+    ).scalar_one()
+    rows = CryptoDepositService.list_owned(
+        db,
+        user_id=int(user_id),
+        limit=int(limit),
+        offset=int(offset),
+    )
+    return CryptoDepositListOut(
+        total=int(total or 0),
+        limit=int(limit),
+        offset=int(offset),
+        items=[CryptoDepositOut(**crypto_deposit_dict(row)) for row in rows],
+    )
+
+
+@router.get("/crypto/deposits/{invoice_id}", response_model=CryptoDepositOut)
+def mini_get_crypto_deposit(
+    invoice_id: int,
+    user_id: int = Depends(get_mini_user_id),
+    db: Session = Depends(get_db),
+):
+    invoice = CryptoDepositService.get_owned(
+        db,
+        invoice_id=int(invoice_id),
+        user_id=int(user_id),
+    )
+    return CryptoDepositOut(**crypto_deposit_dict(invoice))
+
+
+@router.post("/crypto/deposits/{invoice_id}/tx-hash", response_model=CryptoDepositOut)
+def mini_claim_crypto_tx_hash(
+    invoice_id: int,
+    payload: CryptoTxClaimIn,
+    user_id: int = Depends(get_mini_user_id),
+    db: Session = Depends(get_db),
+):
+    enforce_write_rate_limit(int(user_id))
+    try:
+        invoice = CryptoDepositService.claim_tx_hash(
+            db,
+            invoice_id=int(invoice_id),
+            user_id=int(user_id),
+            tx_hash=payload.tx_hash,
+        )
+        db.commit()
+        db.refresh(invoice)
+        return CryptoDepositOut(**crypto_deposit_dict(invoice))
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="ثبت هش تراکنش ناموفق بود.")
+
+
 @router.get("/deposit-destinations", response_model=MiniDepositDestinationListOut)
 def list_deposit_destinations(
     user_id: int = Depends(get_mini_user_id),
@@ -2781,6 +2899,108 @@ def mini_admin_clear_live_link(
     )
     db.commit()
     return {"ok": True, "game_id": int(game_id), "url": None, "updated_at": now}
+
+
+@router.get("/admin/crypto/deposits", response_model=CryptoDepositListOut)
+def mini_admin_list_crypto_deposits(
+    status: str | None = Query(default="NEEDS_REVIEW"),
+    limit: int = Query(default=40, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    ident: MiniAdminIdentity = Depends(get_mini_admin_identity),
+    db: Session = Depends(get_db),
+):
+    _ = ident
+    query = select(CryptoDepositRequest)
+    count_query = select(func.count(CryptoDepositRequest.id))
+    if status:
+        normalized = str(status).strip().upper()
+        query = query.where(CryptoDepositRequest.status == normalized)
+        count_query = count_query.where(CryptoDepositRequest.status == normalized)
+    total = db.execute(count_query).scalar_one()
+    rows = db.execute(
+        query.order_by(CryptoDepositRequest.id.desc()).offset(int(offset)).limit(int(limit))
+    ).scalars().all()
+    return CryptoDepositListOut(
+        total=int(total or 0),
+        limit=int(limit),
+        offset=int(offset),
+        items=[CryptoDepositOut(**crypto_deposit_dict(row)) for row in rows],
+    )
+
+
+@router.post("/admin/crypto/deposits/{invoice_id}/approve", response_model=CryptoDepositOut)
+def mini_admin_approve_crypto_deposit(
+    invoice_id: int,
+    request: Request,
+    ident: MiniAdminIdentity = Depends(get_mini_admin_identity),
+    db: Session = Depends(get_db),
+):
+    try:
+        invoice, tx = CryptoDepositService.approve_review(db, invoice_id=int(invoice_id))
+        invoice.admin_notified_at = datetime.utcnow()
+        AdminAuditService.record(
+            db,
+            admin=_mini_to_admin_identity(ident),
+            action="crypto.deposit.approve",
+            target_type="crypto_deposit_request",
+            target_id=int(invoice.id),
+            request=request,
+            details={
+                "user_id": int(invoice.user_id),
+                "amount_toman": int(invoice.amount_toman),
+                "tx_hash": invoice.tx_hash,
+                "wallet_tx_id": int(tx.id),
+            },
+        )
+        db.commit()
+        db.refresh(invoice)
+        return CryptoDepositOut(**crypto_deposit_dict(invoice))
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="تایید واریز ارز دیجیتال ناموفق بود.")
+
+
+@router.post("/admin/crypto/deposits/{invoice_id}/reject", response_model=CryptoDepositOut)
+def mini_admin_reject_crypto_deposit(
+    invoice_id: int,
+    payload: CryptoAdminRejectIn,
+    request: Request,
+    ident: MiniAdminIdentity = Depends(get_mini_admin_identity),
+    db: Session = Depends(get_db),
+):
+    try:
+        invoice = CryptoDepositService.reject_review(
+            db,
+            invoice_id=int(invoice_id),
+            reason=payload.reason,
+        )
+        invoice.admin_notified_at = datetime.utcnow()
+        AdminAuditService.record(
+            db,
+            admin=_mini_to_admin_identity(ident),
+            action="crypto.deposit.reject",
+            target_type="crypto_deposit_request",
+            target_id=int(invoice.id),
+            request=request,
+            details={
+                "user_id": int(invoice.user_id),
+                "amount_toman": int(invoice.amount_toman),
+                "tx_hash": invoice.tx_hash,
+                "reason": invoice.failure_reason,
+            },
+        )
+        db.commit()
+        db.refresh(invoice)
+        return CryptoDepositOut(**crypto_deposit_dict(invoice))
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="رد واریز ارز دیجیتال ناموفق بود.")
 
 
 @router.get("/admin/deposits")

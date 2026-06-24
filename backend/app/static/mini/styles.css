@@ -501,6 +501,7 @@ body {
   padding: 12px;
   display: grid;
   gap: 10px;
+  align-content: start;
   min-width: 0;
 }
 
@@ -768,10 +769,140 @@ body {
 
 #walletTxs,
 #depositRequestsList,
+#cryptoDepositRequestsList,
 #withdrawRequestsList {
   max-height: 280px;
   overflow: auto;
   padding-left: 2px;
+}
+
+.deposit-mode-switch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin: 10px 0;
+  padding: 4px;
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.deposit-mode-btn {
+  min-height: 38px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.deposit-mode-btn.active {
+  color: var(--text);
+  border-color: var(--glass-border);
+  background: rgba(100, 214, 255, 0.12);
+}
+
+.deposit-mode-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.deposit-mode-panel {
+  display: grid;
+  gap: 10px;
+}
+
+.crypto-invoice-box {
+  border: 1px solid rgba(45, 212, 191, 0.42);
+  border-radius: 8px;
+  padding: 10px;
+  background: rgba(45, 212, 191, 0.07);
+  min-width: 0;
+}
+
+.crypto-invoice-head,
+.crypto-invoice-actions,
+.crypto-tx-claim {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.crypto-invoice-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.crypto-invoice-grid > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid var(--glass-border);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.crypto-invoice-grid .wide {
+  grid-column: 1 / -1;
+}
+
+.crypto-invoice-grid span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.crypto-invoice-grid b,
+.crypto-invoice-grid code {
+  color: var(--text);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+}
+
+.crypto-invoice-warning {
+  color: var(--danger);
+}
+
+.crypto-tx-claim {
+  margin-top: 10px;
+  align-items: stretch;
+}
+
+.crypto-tx-claim input {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+html[data-theme="light"] .deposit-mode-switch,
+html[data-theme="light"] .crypto-invoice-grid > div {
+  background: rgba(14, 34, 67, 0.035);
+}
+
+html[data-theme="light"] .crypto-invoice-box {
+  background: rgba(13, 148, 136, 0.07);
+  border-color: rgba(13, 148, 136, 0.34);
+}
+
+@media (max-width: 540px) {
+  .crypto-invoice-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .crypto-invoice-grid .wide {
+    grid-column: auto;
+  }
+
+  .crypto-invoice-actions .small-btn,
+  .crypto-tx-claim .small-btn {
+    flex: 1 1 auto;
+  }
 }
 
 .item {
@@ -2471,7 +2602,8 @@ html[data-theme="light"] .topic-chip {
 
 html[data-theme="light"] .price-chip.active,
 html[data-theme="light"] .topic-chip.active,
-html[data-theme="light"] .amount-preset.is-selected {
+html[data-theme="light"] .amount-preset.is-selected,
+html[data-theme="light"] .crypto-amount-preset.is-selected {
   border-color: rgba(154, 102, 19, 0.62);
   background: linear-gradient(135deg, rgba(255, 229, 140, 0.72), rgba(65, 211, 178, 0.42));
   color: #10243e;
@@ -2885,7 +3017,8 @@ html[data-theme="light"] .splash-orb-b {
   gap: 8px;
 }
 
-.amount-preset {
+.amount-preset,
+.crypto-amount-preset {
   border: 1px solid var(--glass-border);
   border-radius: 12px;
   padding: 9px 8px;
@@ -2895,7 +3028,8 @@ html[data-theme="light"] .splash-orb-b {
   background: rgba(255,255,255,0.05);
 }
 
-.amount-preset.is-selected {
+.amount-preset.is-selected,
+.crypto-amount-preset.is-selected {
   color: #041226;
   border-color: rgba(255,255,255,0.34);
   background: linear-gradient(140deg, #ffd56f, #2dd4bf);

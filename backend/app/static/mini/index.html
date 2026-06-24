@@ -171,6 +171,12 @@
                   <p id="depositFlowDesc">۱) مبلغ دلخواه ۲) انتخاب کارت مقصد ۳) آپلود رسید ۴) ثبت نهایی</p>
                 </div>
 
+                <div class="deposit-mode-switch" role="tablist" aria-label="روش واریز">
+                  <button class="deposit-mode-btn active" data-deposit-mode="bank" role="tab" aria-selected="true" type="button">کارت بانکی</button>
+                  <button id="cryptoDepositModeBtn" class="deposit-mode-btn" data-deposit-mode="crypto" role="tab" aria-selected="false" type="button">ارز دیجیتال</button>
+                </div>
+
+                <div id="bankDepositPanel" class="deposit-mode-panel">
                 <div class="deposit-step">
                   <div class="deposit-step-no">1</div>
                   <div class="deposit-step-body">
@@ -214,6 +220,42 @@
                     <button id="submitDepositBtn" class="small-btn primary" type="button">ثبت واریزی</button>
                     <div id="depositSubmitHint" class="step-hint"></div>
                   </div>
+                </div>
+                </div>
+
+                <div id="cryptoDepositPanel" class="deposit-mode-panel hidden">
+                  <div class="deposit-step">
+                    <div class="deposit-step-no">1</div>
+                    <div class="deposit-step-body">
+                      <label for="cryptoAmountInput">مبلغ شارژ کیف پول (تومان)</label>
+                      <input id="cryptoAmountInput" type="number" min="1" inputmode="numeric" />
+                      <div class="amount-preset-row" aria-label="مبلغ‌های آماده رمزارز">
+                        <button class="crypto-amount-preset" data-amount="100000" type="button">۱۰۰ هزار</button>
+                        <button class="crypto-amount-preset" data-amount="500000" type="button">۵۰۰ هزار</button>
+                        <button class="crypto-amount-preset" data-amount="1000000" type="button">۱ میلیون</button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="deposit-step">
+                    <div class="deposit-step-no">2</div>
+                    <div class="deposit-step-body">
+                      <label for="cryptoNetworkSelect">شبکه پرداخت</label>
+                      <select id="cryptoNetworkSelect"></select>
+                      <div id="cryptoNetworkHint" class="step-hint"></div>
+                    </div>
+                  </div>
+
+                  <div class="deposit-step final">
+                    <div class="deposit-step-no">3</div>
+                    <div class="deposit-step-body">
+                      <label>صدور فاکتور لحظه‌ای</label>
+                      <button id="createCryptoInvoiceBtn" class="small-btn primary" type="button">دریافت مبلغ و آدرس پرداخت</button>
+                      <div id="cryptoSubmitHint" class="step-hint"></div>
+                    </div>
+                  </div>
+
+                  <div id="cryptoInvoiceBox" class="crypto-invoice-box hidden"></div>
                 </div>
               </div>
 
@@ -272,6 +314,11 @@
               <h2 id="depositRequestsTitle">درخواست‌های واریز</h2>
             </div>
             <div id="depositRequestsList" class="stack-list"></div>
+
+            <div class="panel-head mt-12">
+              <h2>واریزهای ارز دیجیتال</h2>
+            </div>
+            <div id="cryptoDepositRequestsList" class="stack-list"></div>
 
             <div class="panel-head mt-12">
               <h2 id="withdrawRequestsTitle">درخواست‌های برداشت</h2>
@@ -373,6 +420,17 @@
                 </summary>
                 <div class="accordion-body">
                   <div id="adminDepositsList" class="cards-history-scroll"></div>
+                </div>
+              </details>
+
+              <details class="accordion-item">
+                <summary class="accordion-head">
+                  <h3>واریز رمزارز نیازمند بررسی</h3>
+                  <span class="accordion-icon">▾</span>
+                </summary>
+                <div class="accordion-body">
+                  <div id="adminCryptoHint" class="step-hint"></div>
+                  <div id="adminCryptoDepositsList" class="cards-history-scroll"></div>
                 </div>
               </details>
 

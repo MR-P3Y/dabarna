@@ -164,6 +164,12 @@ class ApiClient:
             h["X-Tg-Username"] = tg_username
         return h
 
+    def bot_service_headers(self) -> dict:
+        token = (self.bot_service_token or "").strip()
+        if not token:
+            raise ApiError(401, "bot service token is not configured", raw_detail="bot service token is not configured")
+        return {"X-Bot-Token": token}
+
     def admin_headers(self) -> dict:
         tok = (self.admin_api_token or settings.ADMIN_API_TOKEN or "").strip()
         if not tok:
@@ -550,6 +556,110 @@ class ApiClient:
             "GET",
             f"/bot/deposit-requests/{deposit_id}",
             headers=self.bot_headers(tg_user_id, tg_username),
+        )
+
+    async def bot_crypto_options(self, tg_user_id: int, tg_username: str | None = None) -> dict:
+        return await self._request(
+            "GET",
+            "/bot/crypto/options",
+            headers=self.bot_headers(tg_user_id, tg_username),
+        )
+
+    async def bot_create_crypto_deposit(
+        self,
+        tg_user_id: int,
+        tg_username: str | None,
+        *,
+        amount_toman: int,
+        network: str,
+    ) -> dict:
+        return await self._request(
+            "POST",
+            "/bot/crypto/deposits",
+            json={"amount_toman": int(amount_toman), "network": str(network).upper()},
+            headers=self.bot_headers(tg_user_id, tg_username),
+            timeout_sec=20.0,
+        )
+
+    async def bot_get_crypto_deposit(
+        self,
+        tg_user_id: int,
+        tg_username: str | None,
+        *,
+        invoice_id: int,
+    ) -> dict:
+        return await self._request(
+            "GET",
+            f"/bot/crypto/deposits/{int(invoice_id)}",
+            headers=self.bot_headers(tg_user_id, tg_username),
+        )
+
+    async def bot_claim_crypto_tx_hash(
+        self,
+        tg_user_id: int,
+        tg_username: str | None,
+        *,
+        invoice_id: int,
+        tx_hash: str,
+    ) -> dict:
+        return await self._request(
+            "POST",
+            f"/bot/crypto/deposits/{int(invoice_id)}/tx-hash",
+            json={"tx_hash": str(tx_hash)},
+            headers=self.bot_headers(tg_user_id, tg_username),
+        )
+
+    async def admin_list_crypto_deposits(
+        self,
+        *,
+        status: str = "NEEDS_REVIEW",
+        limit: int = 50,
+        offset: int = 0,
+    ) -> dict:
+        data = await self._request(
+            "GET",
+            "/bot/admin/crypto-deposits",
+            params={"status": str(status), "limit": int(limit), "offset": int(offset)},
+            headers=self.admin_headers(),
+        )
+        return data if isinstance(data, dict) else {"items": []}
+
+    async def admin_get_crypto_deposit(self, invoice_id: int) -> dict:
+        return await self._request(
+            "GET",
+            f"/bot/admin/crypto-deposits/{int(invoice_id)}",
+            headers=self.admin_headers(),
+        )
+
+    async def admin_approve_crypto_deposit(self, invoice_id: int) -> dict:
+        return await self._request(
+            "POST",
+            f"/bot/admin/crypto-deposits/{int(invoice_id)}/approve",
+            headers=self.admin_headers(),
+        )
+
+    async def admin_reject_crypto_deposit(self, invoice_id: int, *, reason: str) -> dict:
+        return await self._request(
+            "POST",
+            f"/bot/admin/crypto-deposits/{int(invoice_id)}/reject",
+            json={"reason": str(reason)},
+            headers=self.admin_headers(),
+        )
+
+    async def bot_crypto_notifications(self, *, limit: int = 30) -> dict:
+        data = await self._request(
+            "GET",
+            "/bot/crypto/notifications",
+            params={"limit": int(limit)},
+            headers=self.bot_service_headers(),
+        )
+        return data if isinstance(data, dict) else {"admin": [], "user": []}
+
+    async def bot_ack_crypto_notification(self, invoice_id: int, *, audience: str) -> dict:
+        return await self._request(
+            "POST",
+            f"/bot/crypto/notifications/{int(invoice_id)}/{str(audience).lower()}/ack",
+            headers=self.bot_service_headers(),
         )
 
     async def bot_list_games(

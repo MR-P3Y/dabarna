@@ -6,6 +6,7 @@ from .settings import AppSetting
 from .game import Game, GamePurchase, GameCard, GameCalledNumber
 from .game_event import GameEvent
 from .admin_audit import AdminAuditLog
+from .crypto import CryptoDepositRequest
 
 __all__ = [
     "User",
@@ -16,4 +17,5 @@ __all__ = [
     "Game", "GamePurchase", "GameCard", "GameCalledNumber",
     "GameEvent",
     "AdminAuditLog",
+    "CryptoDepositRequest",
 ]

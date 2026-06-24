@@ -20,6 +20,7 @@ from aiogram.exceptions import (
 )
 
 from bot.config import settings
+from bot.keyboards.crypto import admin_crypto_item_kb
 from bot.services.api_client import ApiClient
 from bot.services.admin_topics import ensure_topic_rules, forum_enabled, now_stamp, send_to_topic
 from bot.services.jalali import format_jalali_datetime
@@ -42,6 +43,8 @@ from bot.services.tg_display import resolve_tg_identity
 from bot.services.ui import panel
 
 logger = logging.getLogger(__name__)
+_crypto_admin_delivered: set[int] = set()
+_crypto_user_delivered: set[int] = set()
 
 
 @dataclass(slots=True)
@@ -70,6 +73,124 @@ def _to_int(value: Any, default: int = 0) -> int:
         return int(value)
     except Exception:
         return default
+
+
+def _fmt_toman(value: Any) -> str:
+    return f"{_to_int(value, 0):,} تومان"
+
+
+async def _process_crypto_notifications(bot: Bot, api: ApiClient) -> None:
+    payload = await api.bot_crypto_notifications(limit=30)
+
+    for item in payload.get("admin") or []:
+        invoice_id = _to_int(item.get("id"), 0)
+        tg_user_id = _to_int(item.get("tg_user_id"), 0)
+        if invoice_id <= 0:
+            continue
+        if invoice_id in _crypto_admin_delivered:
+            try:
+                await api.bot_ack_crypto_notification(invoice_id, audience="admin")
+                _crypto_admin_delivered.discard(invoice_id)
+            except Exception:
+                logger.exception("crypto admin notification ack retry failed: invoice_id=%s", invoice_id)
+            continue
+        status = str(item.get("status") or "").upper()
+        display_name = await resolve_tg_identity(
+            bot,
+            tg_user_id,
+            username=str(item.get("tg_username") or "").strip() or None,
+        )
+        if status == "NEEDS_REVIEW":
+            title = "واریز رمزارز نیازمند بررسی"
+            status_line = "⚠️ وضعیت: <b>نیازمند بررسی ادمین</b>"
+        else:
+            title = "واریز رمزارز تایید خودکار"
+            status_line = "✅ وضعیت: <b>کیف پول خودکار شارژ شد</b>"
+        text = panel(
+            title,
+            "#واریز #رمزارز\n"
+            f"🧾 فاکتور: <b>{invoice_id}</b>\n"
+            f"👤 کاربر: <b>{html_escape(display_name)}</b>\n"
+            f"💵 مبلغ کیف پول: <b>{_fmt_toman(item.get('amount_toman'))}</b>\n"
+            f"💎 مبلغ شبکه: <code>{html_escape(str(item.get('paid_amount_crypto') or item.get('amount_crypto') or '0'))} "
+            f"{html_escape(str(item.get('asset') or ''))}</code>\n"
+            f"🌐 شبکه: <b>{html_escape(str(item.get('network') or '—'))}</b>\n"
+            f"🔗 تراکنش: <code>{html_escape(str(item.get('tx_hash') or '—'))}</code>\n"
+            f"{status_line}",
+        )
+        markup = admin_crypto_item_kb(
+            invoice_id=invoice_id,
+            status=status,
+            tg_user_id=tg_user_id,
+        )
+        sent = await send_to_topic(
+            bot,
+            name="deposit",
+            text=text,
+            reply_markup=markup,
+            parse_mode="HTML",
+            disable_notification=status != "NEEDS_REVIEW",
+        )
+        if not sent and bool(settings.ADMIN_TOPIC_ENABLE_DM_FALLBACK):
+            for admin_id in sorted(settings.admin_ids):
+                try:
+                    await bot.send_message(
+                        chat_id=int(admin_id),
+                        text=text,
+                        reply_markup=markup,
+                        parse_mode="HTML",
+                    )
+                    sent = True
+                    break
+                except Exception:
+                    continue
+        if sent:
+            _crypto_admin_delivered.add(invoice_id)
+            try:
+                await api.bot_ack_crypto_notification(invoice_id, audience="admin")
+                _crypto_admin_delivered.discard(invoice_id)
+            except Exception:
+                logger.exception("crypto admin notification ack failed: invoice_id=%s", invoice_id)
+
+    for item in payload.get("user") or []:
+        invoice_id = _to_int(item.get("id"), 0)
+        tg_user_id = _to_int(item.get("tg_user_id"), 0)
+        if invoice_id <= 0 or tg_user_id <= 0:
+            continue
+        if invoice_id in _crypto_user_delivered:
+            try:
+                await api.bot_ack_crypto_notification(invoice_id, audience="user")
+                _crypto_user_delivered.discard(invoice_id)
+            except Exception:
+                logger.exception("crypto user notification ack retry failed: invoice_id=%s", invoice_id)
+            continue
+        status = str(item.get("status") or "").upper()
+        if status == "CREDITED":
+            text = panel(
+                "واریز رمزارز تایید شد",
+                f"✅ وضعیت: <b>پرداخت تایید شد</b>\n"
+                f"💵 مبلغ افزوده‌شده: <b>{_fmt_toman(item.get('amount_toman'))}</b>\n"
+                f"🔗 کد پیگیری شبکه:\n<code>{html_escape(str(item.get('tx_hash') or '—'))}</code>",
+            )
+        elif status == "REJECTED":
+            text = panel(
+                "واریز رمزارز رد شد",
+                f"❌ وضعیت: <b>ردشده</b>\n"
+                f"💵 مبلغ درخواست: <b>{_fmt_toman(item.get('amount_toman'))}</b>\n"
+                f"علت: {html_escape(str(item.get('failure_reason') or 'تراکنش تایید نشد.'))}",
+            )
+        else:
+            continue
+        try:
+            await bot.send_message(chat_id=tg_user_id, text=text, parse_mode="HTML")
+        except Exception:
+            continue
+        _crypto_user_delivered.add(invoice_id)
+        try:
+            await api.bot_ack_crypto_notification(invoice_id, audience="user")
+            _crypto_user_delivered.discard(invoice_id)
+        except Exception:
+            logger.exception("crypto user notification ack failed: invoice_id=%s", invoice_id)
 
 
 def _as_int_list(values: Any) -> list[int]:
@@ -1193,6 +1314,7 @@ async def notifier_loop(
     for _ in range(int(send_workers)):
         _spawn_worker()
     next_admin_audit_ts = 0.0
+    next_crypto_alert_ts = 0.0
     next_slow_scan_ts = 0.0
     next_adaptive_check_ts = float(time.time()) + adaptive_check_sec
     next_metrics_report_ts = float(time.time()) + metrics_report_sec
@@ -1380,6 +1502,11 @@ async def notifier_loop(
                     next_admin_audit_ts = now_ts + max(30, int(settings.ADMIN_TOPIC_AUDIT_INTERVAL_SEC or 120))
                     with suppress(Exception):
                         await _admin_forum_audit(bot, api)
+
+                if now_ts >= next_crypto_alert_ts:
+                    next_crypto_alert_ts = now_ts + mini_deposit_alert_interval_sec
+                    with suppress(Exception):
+                        await _process_crypto_notifications(bot, api)
 
             except Exception:
                 # Keep loop alive but do not swallow diagnostics.

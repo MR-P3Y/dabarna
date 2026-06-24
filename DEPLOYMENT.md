@@ -7,6 +7,45 @@
 3. Required keys in `.env.prod`:
 - `NGINX_SERVER_NAME=davarna.peymoonnet.de`
 - `BACKEND_HOST_PORT=18080`
+
+## Crypto deposits
+
+Crypto deposits are disabled by default. Enable them only after public receiving
+addresses and read-only provider API keys are configured in `.env.prod`.
+Private keys and seed phrases must never be stored in this project.
+
+```env
+CRYPTO_PAYMENTS_ENABLED=true
+CRYPTO_AUTO_CONFIRM_ENABLED=true
+CRYPTO_CONFIRM_INTERVAL_SEC=45
+CRYPTO_INVOICE_EXPIRE_MINUTES=15
+CRYPTO_PAYMENT_GRACE_MINUTES=5
+
+CRYPTO_MIN_TOMAN_AMOUNT=50000
+CRYPTO_MAX_TOMAN_AMOUNT=50000000
+CRYPTO_ADMIN_REVIEW_TOMAN_THRESHOLD=20000000
+
+CRYPTO_RATE_PROVIDER_PRIMARY=nobitex
+CRYPTO_RATE_PROVIDER_FALLBACK=wallex
+CRYPTO_RATE_FAIL_ALLOW_STALE_SEC=0
+CRYPTO_RATE_MAX_DEVIATION_PERCENT=8
+CRYPTO_RATE_BUFFER_PERCENT=0
+
+CRYPTO_TRON_USDT_ENABLED=true
+CRYPTO_TRON_USDT_ADDRESS=
+CRYPTO_TRON_USDT_CONTRACT=TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t
+TRONGRID_API_KEY=
+
+CRYPTO_TON_ENABLED=true
+CRYPTO_TON_ADDRESS=
+TONCENTER_API_KEY=
+```
+
+The backend fetches a live best-ask quote when each invoice is created, locks
+the Toman and crypto amounts until expiry, scans confirmed/finalized incoming
+transactions, and credits the wallet idempotently. Invoices at or above
+`CRYPTO_ADMIN_REVIEW_TOMAN_THRESHOLD` require admin approval after chain
+confirmation.
 - `BACKUP_CHAT_ID=-100xxxxxxxxxx`
 - `BACKUP_BOT_TOKEN=` (optional; empty means reuse `TELEGRAM_BOT_TOKEN`)
 

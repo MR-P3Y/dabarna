@@ -16,6 +16,8 @@ const state = {
   miniSocketFinanceKey: "",
   tokenRefreshPromise: null,
   depositDestinations: [],
+  cryptoOptions: null,
+  cryptoCurrentInvoice: null,
   cardsPollTimer: null,
   cardsPrevCalledByGame: {},
   cardsLatestSeenEventByGame: {},
@@ -51,6 +53,8 @@ const state = {
     deposits: null,
     withdraws: null,
     destinations: null,
+    cryptoOptions: null,
+    cryptoDeposits: null,
   },
   admin: {
     enabled: false,
@@ -170,6 +174,15 @@ const WITHDRAW_STATUS_LABELS = {
   REJECTED: "رد شده",
   PAID: "پرداخت شده",
   CANCELLED: "لغو شده",
+};
+
+const CRYPTO_STATUS_LABELS = {
+  WAITING_PAYMENT: "در انتظار پرداخت",
+  CONFIRMING: "در حال تایید شبکه",
+  CREDITED: "تایید و شارژ شده",
+  EXPIRED: "منقضی شده",
+  NEEDS_REVIEW: "نیازمند بررسی ادمین",
+  REJECTED: "رد شده",
 };
 
 const EVENT_KIND_LABELS = {
@@ -706,6 +719,11 @@ function withdrawStatusLabel(value) {
   return WITHDRAW_STATUS_LABELS[key] || statusLabel(value);
 }
 
+function cryptoStatusLabel(value) {
+  const key = String(value || "").toUpperCase();
+  return CRYPTO_STATUS_LABELS[key] || statusLabel(value);
+}
+
 function eventKindLabel(value) {
   const key = String(value || "").toUpperCase();
   return EVENT_KIND_LABELS[key] || String(value || "رویداد");
@@ -725,6 +743,7 @@ const WALLET_REASON_LABELS = {
   PRIZE_COL: "برد ستونی(تورنا)",
   PRIZE_ROW: "برد سطری(تمام)",
   DEPOSIT_APPROVED: "تایید واریز",
+  DEPOSIT_CRYPTO: "واریز تاییدشده رمزارز",
   WITHDRAW_APPROVED: "تایید برداشت",
   WITHDRAW_REJECTED: "رد برداشت",
   GAME_CANCEL_REFUND: "برگشت وجه لغو بازی",
@@ -2867,6 +2886,188 @@ function drawDepositRequests(payload) {
     .join("");
 }
 
+function compactCryptoAmount(value) {
+  const raw = String(value ?? "0");
+  return raw.includes(".") ? raw.replace(/0+$/, "").replace(/\.$/, "") : raw;
+}
+
+function setDepositMode(mode) {
+  const normalized = mode === "crypto" ? "crypto" : "bank";
+  document.querySelectorAll(".deposit-mode-btn").forEach((btn) => {
+    const active = btn.getAttribute("data-deposit-mode") === normalized;
+    btn.classList.toggle("active", active);
+    btn.setAttribute("aria-selected", active ? "true" : "false");
+  });
+  getEl("bankDepositPanel")?.classList.toggle("hidden", normalized !== "bank");
+  getEl("cryptoDepositPanel")?.classList.toggle("hidden", normalized !== "crypto");
+  const description = getEl("depositFlowDesc");
+  if (description) {
+    description.textContent = normalized === "crypto"
+      ? "۱) مبلغ شارژ ۲) انتخاب شبکه ۳) دریافت مبلغ دقیق و آدرس پرداخت"
+      : "۱) مبلغ دلخواه ۲) انتخاب کارت مقصد ۳) آپلود رسید ۴) ثبت نهایی";
+  }
+}
+
+function drawCryptoOptions(payload) {
+  state.cryptoOptions = payload || null;
+  const enabled = Boolean(payload?.enabled && Array.isArray(payload?.options) && payload.options.length);
+  const modeBtn = getEl("cryptoDepositModeBtn");
+  if (modeBtn) {
+    modeBtn.disabled = !enabled;
+    modeBtn.title = enabled ? "واریز با ارز دیجیتال" : "واریز ارز دیجیتال فعال نیست";
+  }
+  const select = getEl("cryptoNetworkSelect");
+  if (!select) return;
+  if (!enabled) {
+    select.innerHTML = '<option value="">در حال حاضر غیرفعال است</option>';
+    setHint("cryptoNetworkHint", "واریز ارز دیجیتال روی سرور فعال نشده است.");
+    if (!getEl("cryptoDepositPanel")?.classList.contains("hidden")) setDepositMode("bank");
+    return;
+  }
+  select.innerHTML = payload.options.map((item) => {
+    const network = String(item.network || "");
+    const asset = String(item.asset || "");
+    const label = network === "TRON" ? "تتر (USDT) روی شبکه ترون" : `${asset} روی شبکه ${network}`;
+    return `<option value="${safeText(network)}">${safeText(label)}</option>`;
+  }).join("");
+  setHint(
+    "cryptoNetworkHint",
+    `نرخ هنگام صدور فاکتور دریافت می‌شود. مهلت پرداخت: ${safeText(payload.invoice_expire_minutes || 15)} دقیقه.`
+  );
+}
+
+function renderCryptoInvoice(invoice) {
+  const box = getEl("cryptoInvoiceBox");
+  if (!box) return;
+  state.cryptoCurrentInvoice = invoice || null;
+  if (!invoice) {
+    box.classList.add("hidden");
+    box.innerHTML = "";
+    return;
+  }
+  const id = Number(invoice.id || 0);
+  const status = String(invoice.status || "").toUpperCase();
+  const pending = status === "WAITING_PAYMENT" || status === "CONFIRMING";
+  const amountCrypto = compactCryptoAmount(invoice.amount_crypto);
+  const asset = String(invoice.asset || "");
+  const memo = String(invoice.memo || "").trim();
+  const txHash = String(invoice.tx_hash || "").trim();
+  const reason = String(invoice.failure_reason || "").trim();
+  box.innerHTML = `
+    <div class="crypto-invoice-head">
+      <strong>فاکتور #${safeText(id)}</strong>
+      <span class="status-pill">${safeText(cryptoStatusLabel(status))}</span>
+    </div>
+    <div class="crypto-invoice-grid">
+      <div><span>مبلغ شارژ</span><b>${safeText(toman(invoice.amount_toman || 0))}</b></div>
+      <div><span>مبلغ پرداخت</span><b dir="ltr">${safeText(amountCrypto)} ${safeText(asset)}</b></div>
+      <div class="wide"><span>آدرس مقصد</span><code dir="ltr">${safeText(invoice.destination_address || "-")}</code></div>
+      ${memo ? `<div class="wide"><span>Memo / Comment</span><code dir="ltr">${safeText(memo)}</code></div>` : ""}
+      <div class="wide"><span>مهلت پرداخت</span><b>${safeText(formatFaDateTime(invoice.expires_at))}</b></div>
+      ${txHash ? `<div class="wide"><span>هش تراکنش</span><code dir="ltr">${safeText(txHash)}</code></div>` : ""}
+      ${reason ? `<div class="wide crypto-invoice-warning">${safeText(reason)}</div>` : ""}
+    </div>
+    <div class="crypto-invoice-actions">
+      <button class="small-btn crypto-copy-btn" data-copy="${safeText(amountCrypto)}" type="button">کپی مبلغ</button>
+      <button class="small-btn crypto-copy-btn" data-copy="${safeText(invoice.destination_address || "")}" type="button">کپی آدرس</button>
+      ${memo ? `<button class="small-btn crypto-copy-btn" data-copy="${safeText(memo)}" type="button">کپی Memo</button>` : ""}
+      ${pending ? `<button class="small-btn primary" id="refreshCryptoInvoiceBtn" type="button">بررسی پرداخت</button>` : ""}
+    </div>
+    ${pending ? `
+      <div class="crypto-tx-claim">
+        <input id="cryptoTxHashInput" type="text" dir="ltr" placeholder="هش تراکنش (اختیاری)" />
+        <button id="submitCryptoTxHashBtn" class="small-btn" type="button">ثبت هش</button>
+      </div>
+    ` : ""}
+    <div id="cryptoInvoiceHint" class="step-hint"></div>
+  `;
+  box.classList.remove("hidden");
+  box.querySelectorAll(".crypto-copy-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      copyTextToClipboard(String(btn.getAttribute("data-copy") || ""))
+        .then(() => setHint("cryptoInvoiceHint", "کپی شد.", "success"))
+        .catch((e) => setLocalError("cryptoInvoiceHint", e));
+    });
+  });
+  getEl("refreshCryptoInvoiceBtn")?.addEventListener("click", () => {
+    refreshCryptoInvoice(id).catch((e) => setLocalError("cryptoInvoiceHint", e));
+  });
+  getEl("submitCryptoTxHashBtn")?.addEventListener("click", () => {
+    submitCryptoTxHash(id).catch((e) => setLocalError("cryptoInvoiceHint", e));
+  });
+}
+
+function drawCryptoDeposits(payload) {
+  const root = getEl("cryptoDepositRequestsList");
+  if (!root) return;
+  const items = Array.isArray(payload?.items) ? payload.items.slice(0, HISTORY_LIST_LIMIT) : [];
+  if (!items.length) {
+    root.innerHTML = '<div class="empty">واریز ارز دیجیتالی ثبت نشده است.</div>';
+    return;
+  }
+  root.innerHTML = items.map((item) => `
+    <div class="item crypto-history-item" data-id="${safeText(item.id)}">
+      <h3>فاکتور رمزارز #${safeText(item.id)}</h3>
+      <p>وضعیت: ${safeText(cryptoStatusLabel(item.status))} | مبلغ: ${safeText(toman(item.amount_toman || 0))}</p>
+      <div class="meta">${safeText(compactCryptoAmount(item.amount_crypto))} ${safeText(item.asset)} روی ${safeText(item.network)}</div>
+      <div class="meta">زمان ثبت: ${safeText(formatFaDateTime(item.created_at))}</div>
+      <div class="admin-item-actions">
+        <button class="small-btn crypto-history-open-btn" data-id="${safeText(item.id)}" type="button">مشاهده</button>
+      </div>
+    </div>
+  `).join("");
+  root.querySelectorAll(".crypto-history-open-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const id = Number(btn.getAttribute("data-id") || 0);
+      refreshCryptoInvoice(id, { scroll: true }).catch((e) => setLocalError("cryptoSubmitHint", e));
+    });
+  });
+}
+
+async function createCryptoInvoice() {
+  const amount_toman = parsePositiveInt(getVal("cryptoAmountInput"));
+  const network = String(getVal("cryptoNetworkSelect") || "").toUpperCase();
+  if (!amount_toman) throw new Error("مبلغ شارژ را وارد کنید.");
+  if (!network) throw new Error("شبکه پرداخت را انتخاب کنید.");
+  setHint("cryptoSubmitHint", "در حال دریافت نرخ لحظه‌ای و صدور فاکتور...");
+  const invoice = await apiFetch("/mini-api/crypto/deposits", {
+    method: "POST",
+    body: { amount_toman, network },
+  });
+  renderCryptoInvoice(invoice);
+  setHint("cryptoSubmitHint", "فاکتور صادر شد. مبلغ و آدرس را دقیق کپی کنید.", "success");
+  await refreshWallet();
+}
+
+async function refreshCryptoInvoice(invoiceId, { scroll = false } = {}) {
+  const id = Number(invoiceId || state.cryptoCurrentInvoice?.id || 0);
+  if (!id) throw new Error("فاکتور رمزارز انتخاب نشده است.");
+  setHint("cryptoInvoiceHint", "در حال بررسی شبکه...");
+  const invoice = await apiFetch(`/mini-api/crypto/deposits/${id}`);
+  renderCryptoInvoice(invoice);
+  if (scroll) {
+    setDepositMode("crypto");
+    getEl("cryptoInvoiceBox")?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+  if (String(invoice.status || "").toUpperCase() === "CREDITED") {
+    setHint("cryptoInvoiceHint", "پرداخت تایید شد و کیف پول شارژ شد.", "success");
+  }
+  await refreshWallet();
+}
+
+async function submitCryptoTxHash(invoiceId) {
+  const id = Number(invoiceId || 0);
+  const tx_hash = getVal("cryptoTxHashInput");
+  if (!tx_hash) throw new Error("هش تراکنش را وارد کنید.");
+  setHint("cryptoInvoiceHint", "در حال ثبت هش تراکنش...");
+  const invoice = await apiFetch(`/mini-api/crypto/deposits/${id}/tx-hash`, {
+    method: "POST",
+    body: { tx_hash },
+  });
+  renderCryptoInvoice(invoice);
+  setHint("cryptoInvoiceHint", "هش تراکنش ثبت شد و در بررسی خودکار قرار گرفت.", "success");
+}
+
 function drawWithdrawRequests(payload) {
   const root = getEl("withdrawRequestsList");
   if (!root) return;
@@ -2945,12 +3146,22 @@ function drawWinTimeline() {
 }
 
 async function refreshWallet() {
-  const [balanceSettled, txsSettled, depositsSettled, withdrawsSettled, destinationsSettled] = await Promise.allSettled([
+  const [
+    balanceSettled,
+    txsSettled,
+    depositsSettled,
+    withdrawsSettled,
+    destinationsSettled,
+    cryptoOptionsSettled,
+    cryptoDepositsSettled,
+  ] = await Promise.allSettled([
     apiFetch("/mini-api/me/wallet"),
     apiFetch(`/mini-api/me/wallet/txs?limit=${HISTORY_LIST_LIMIT}`),
     apiFetch(`/mini-api/me/deposits?limit=${HISTORY_LIST_LIMIT}`),
     apiFetch(`/mini-api/me/withdraws?limit=${HISTORY_LIST_LIMIT}`),
     apiFetch("/mini-api/deposit-destinations"),
+    apiFetch("/mini-api/crypto/options"),
+    apiFetch(`/mini-api/crypto/deposits?limit=${HISTORY_LIST_LIMIT}`),
   ]);
 
   const balance = balanceSettled.status === "fulfilled" ? balanceSettled.value : state.walletCache.balance;
@@ -2958,12 +3169,16 @@ async function refreshWallet() {
   const deposits = depositsSettled.status === "fulfilled" ? depositsSettled.value : state.walletCache.deposits;
   const withdraws = withdrawsSettled.status === "fulfilled" ? withdrawsSettled.value : state.walletCache.withdraws;
   const destinations = destinationsSettled.status === "fulfilled" ? destinationsSettled.value : state.walletCache.destinations;
+  const cryptoOptions = cryptoOptionsSettled.status === "fulfilled" ? cryptoOptionsSettled.value : state.walletCache.cryptoOptions;
+  const cryptoDeposits = cryptoDepositsSettled.status === "fulfilled" ? cryptoDepositsSettled.value : state.walletCache.cryptoDeposits;
 
   if (balanceSettled.status === "fulfilled") state.walletCache.balance = balanceSettled.value;
   if (txsSettled.status === "fulfilled") state.walletCache.txs = txsSettled.value;
   if (depositsSettled.status === "fulfilled") state.walletCache.deposits = depositsSettled.value;
   if (withdrawsSettled.status === "fulfilled") state.walletCache.withdraws = withdrawsSettled.value;
   if (destinationsSettled.status === "fulfilled") state.walletCache.destinations = destinationsSettled.value;
+  if (cryptoOptionsSettled.status === "fulfilled") state.walletCache.cryptoOptions = cryptoOptionsSettled.value;
+  if (cryptoDepositsSettled.status === "fulfilled") state.walletCache.cryptoDeposits = cryptoDepositsSettled.value;
 
   if (balance || txs) {
     drawWallet(balance || { balance: 0 }, txs || []);
@@ -2972,6 +3187,8 @@ async function refreshWallet() {
   if (deposits) drawDepositRequests(deposits);
   if (withdraws) drawWithdrawRequests(withdraws);
   if (destinations) drawDepositDestinations(destinations);
+  if (cryptoOptions) drawCryptoOptions(cryptoOptions);
+  if (cryptoDeposits) drawCryptoDeposits(cryptoDeposits);
   drawWinTimeline();
 }
 
@@ -3603,6 +3820,75 @@ async function refreshAdminDeposits() {
   if (!state.admin.enabled) return;
   const out = await apiFetch("/mini-api/admin/deposits?status=PENDING_REVIEW&limit=40");
   renderAdminDeposits(out);
+}
+
+function renderAdminCryptoDeposits(payload) {
+  const root = getEl("adminCryptoDepositsList");
+  if (!root) return;
+  const items = Array.isArray(payload?.items) ? payload.items : [];
+  if (!items.length) {
+    root.innerHTML = '<div class="empty">واریز رمزارزی نیازمند بررسی وجود ندارد.</div>';
+    return;
+  }
+  root.innerHTML = items.map((item) => `
+    <div class="history-item">
+      <strong>فاکتور رمزارز #${safeText(item.id)} | ${safeText(cryptoStatusLabel(item.status))}</strong>
+      <div class="history-meta">
+        مبلغ کیف پول: ${safeText(toman(item.amount_toman || 0))}<br />
+        مبلغ دریافتی: ${safeText(compactCryptoAmount(item.paid_amount_crypto || item.amount_crypto))} ${safeText(item.asset)}<br />
+        شبکه: ${safeText(item.network)}<br />
+        تراکنش: <span dir="ltr">${safeText(item.tx_hash || "-")}</span><br />
+        توضیح: ${safeText(item.failure_reason || "-")}
+      </div>
+      <div class="admin-item-actions">
+        <button class="small-btn primary admin-crypto-approve-btn" data-id="${safeText(item.id)}" type="button">تایید و شارژ</button>
+        <button class="small-btn danger admin-crypto-reject-btn" data-id="${safeText(item.id)}" type="button">رد</button>
+      </div>
+    </div>
+  `).join("");
+  root.querySelectorAll(".admin-crypto-approve-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      adminApproveCryptoDeposit(Number(btn.getAttribute("data-id") || 0))
+        .catch((e) => setLocalError("adminCryptoHint", e));
+    });
+  });
+  root.querySelectorAll(".admin-crypto-reject-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      adminRejectCryptoDeposit(Number(btn.getAttribute("data-id") || 0))
+        .catch((e) => setLocalError("adminCryptoHint", e));
+    });
+  });
+}
+
+async function refreshAdminCryptoDeposits() {
+  if (!state.admin.enabled) return;
+  const out = await apiFetch("/mini-api/admin/crypto/deposits?status=NEEDS_REVIEW&limit=40");
+  renderAdminCryptoDeposits(out);
+}
+
+async function adminApproveCryptoDeposit(invoiceId) {
+  const id = Number(invoiceId || 0);
+  if (!id) throw new Error("شناسه فاکتور رمزارز نامعتبر است.");
+  setHint("adminCryptoHint", "در حال تایید تراکنش و شارژ کیف پول...");
+  await apiFetch(`/mini-api/admin/crypto/deposits/${id}/approve`, { method: "POST" });
+  setHint("adminCryptoHint", `فاکتور رمزارز #${id} تایید و کیف پول شارژ شد.`, "success");
+  await Promise.allSettled([refreshAdminCryptoDeposits(), refreshWallet()]);
+}
+
+async function adminRejectCryptoDeposit(invoiceId) {
+  const id = Number(invoiceId || 0);
+  if (!id) throw new Error("شناسه فاکتور رمزارز نامعتبر است.");
+  const reason = window.prompt("علت رد واریز رمزارز را وارد کنید:");
+  if (reason === null) return;
+  const cleanReason = String(reason || "").trim();
+  if (cleanReason.length < 3) throw new Error("علت رد باید حداقل ۳ کاراکتر باشد.");
+  setHint("adminCryptoHint", "در حال رد واریز رمزارز...");
+  await apiFetch(`/mini-api/admin/crypto/deposits/${id}/reject`, {
+    method: "POST",
+    body: { reason: cleanReason },
+  });
+  setHint("adminCryptoHint", `فاکتور رمزارز #${id} رد شد.`, "success");
+  await refreshAdminCryptoDeposits();
 }
 
 
@@ -4373,6 +4659,7 @@ async function refreshAdminPanel(options = {}) {
     refreshAdminCreateOptions(),
     refreshAdminGames(),
     refreshAdminDeposits(),
+    refreshAdminCryptoDeposits(),
     refreshAdminWithdraws(),
     refreshAdminUsersPanel({ silent }),
     refreshSuperAdminList(),
@@ -4502,7 +4789,7 @@ async function adminCloseLobby() {
     hint = `بازی لابی لغو شد. بازگشت وجه: ${usersCount} کاربر (${toman(refundTotal)}). پیام خصوصی: موفق ${okCount} | ناموفق ${failCount} | بدون شناسه ${noTgCount}.`;
   }
   setAdminLocalHint("adminCloseLobbyHint", hint, "success");
-  await Promise.allSettled([refreshAdminGames(), refreshWallet(), refreshCards({ silent: true }), refreshAdminDeposits(), refreshAdminWithdraws()]);
+  await Promise.allSettled([refreshAdminGames(), refreshWallet(), refreshCards({ silent: true }), refreshAdminDeposits(), refreshAdminCryptoDeposits(), refreshAdminWithdraws()]);
 }
 
 async function adminSetLiveLink() {
@@ -4937,6 +5224,14 @@ function wireWalletDynamic() {
 
 
 function wireWalletUxHelpers() {
+  document.querySelectorAll(".deposit-mode-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      if (btn.disabled) return;
+      setDepositMode(btn.getAttribute("data-deposit-mode") || "bank");
+      triggerLightHaptic("success");
+    });
+  });
+
   document.querySelectorAll(".wallet-jump-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
       const target = btn.getAttribute("data-target") === "withdraw" ? ".withdraw-flow" : ".deposit-flow";
@@ -4954,6 +5249,18 @@ function wireWalletUxHelpers() {
       document.querySelectorAll(".amount-preset").forEach((b) => b.classList.remove("is-selected"));
       btn.classList.add("is-selected");
       setHint("depositSubmitHint", `مبلغ شارژ روی ${toman(amount)} تنظیم شد.`, "success");
+      triggerLightHaptic("success");
+    });
+  });
+
+  document.querySelectorAll(".crypto-amount-preset").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const amount = Number(btn.getAttribute("data-amount") || "0");
+      if (!amount) return;
+      setVal("cryptoAmountInput", String(amount));
+      document.querySelectorAll(".crypto-amount-preset").forEach((b) => b.classList.remove("is-selected"));
+      btn.classList.add("is-selected");
+      setHint("cryptoSubmitHint", `مبلغ شارژ روی ${toman(amount)} تنظیم شد.`, "success");
       triggerLightHaptic("success");
     });
   });
@@ -5047,6 +5354,7 @@ async function boot() {
   bind("refreshWalletBtn", "click", () => runManualRefresh("refreshWalletBtn", () => refreshWallet()).catch(() => {}));
   bind("buyCardsBtn", "click", () => buySelectedGame().catch((e) => setLocalError("buyStatusHint", e)));
   bind("submitDepositBtn", "click", () => submitDepositWithReceipt().catch((e) => setLocalError("depositSubmitHint", e)));
+  bind("createCryptoInvoiceBtn", "click", () => createCryptoInvoice().catch((e) => setLocalError("cryptoSubmitHint", e)));
   bind("depositDestinationSelect", "change", renderDepositDestinationHint);
   bind("copyDepositCardBtn", "click", () => copySelectedDepositCard().catch((e) => setLocalError("depositDestinationHint", e)));
   bind("submitWithdrawBtn", "click", () => createWithdraw().catch((e) => setLocalError("withdrawSubmitHint", e)));

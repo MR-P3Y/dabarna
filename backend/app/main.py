@@ -1,4 +1,7 @@
+import asyncio
+import logging
 import os
+from contextlib import asynccontextmanager
 from pathlib import Path
 from fastapi import FastAPI, Header
 from sqlalchemy import text
@@ -20,13 +23,43 @@ from app.routers.bot_router import router as bot_router
 from app.routers.admin_users_router import router as admin_users_router
 from app.routers.mini_router import router as mini_router
 from app.routers.admin_audit_router import router as admin_audit_router
+from app.routers.crypto_router import router as crypto_router
+from app.services.crypto_deposit_service import CryptoDepositService
+from app.services.crypto_worker import run_crypto_worker_forever
 
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
+log = logging.getLogger(__name__)
 
 
-app = FastAPI(title="Davarna API")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    stop_event = asyncio.Event()
+    task: asyncio.Task | None = None
+    if cfg.CRYPTO_PAYMENTS_ENABLED:
+        for warning in cfg.crypto_config_warnings():
+            log.warning("crypto configuration: %s", warning)
+        if cfg.CRYPTO_AUTO_CONFIRM_ENABLED and CryptoDepositService.enabled_options():
+            task = asyncio.create_task(
+                run_crypto_worker_forever(stop_event),
+                name="crypto-deposit-worker",
+            )
+            app.state.crypto_worker_task = task
+    try:
+        yield
+    finally:
+        stop_event.set()
+        if task is not None:
+            try:
+                await asyncio.wait_for(task, timeout=5)
+            except asyncio.TimeoutError:
+                task.cancel()
+            except asyncio.CancelledError:
+                pass
+
+
+app = FastAPI(title="Davarna API", lifespan=lifespan)
 _default_origins = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
@@ -53,6 +86,7 @@ app.include_router(bot_router)
 app.include_router(admin_users_router)
 app.include_router(mini_router)
 app.include_router(admin_audit_router)
+app.include_router(crypto_router)
 
 mini_dir = Path(__file__).resolve().parent / "static" / "mini"
 if mini_dir.exists():

@@ -14,6 +14,7 @@ from uuid import uuid4
 from urllib.parse import urlparse
 
 from app.core.db import get_db
+from app.core import config as cfg
 from app.core.config import (
     BOT_SERVICE_TOKEN,
     DEPOSIT_CARD_NUMBER,
@@ -30,6 +31,7 @@ from app.core.admin_guard import get_admin_identity, AdminIdentity, AdminScope
 from app.models.user import User
 from app.models.wallet import Wallet, WalletTx
 from app.models.finance import WithdrawRequest, DepositRequest
+from app.models.crypto import CryptoDepositRequest
 from app.models.game import Game, GameCard, GamePurchase
 from app.models.settings import AppSetting
 from app.services.user_service import UserService
@@ -37,6 +39,13 @@ from app.services.finance_service import FinanceService
 from app.services.game_service import GameService
 from app.services.telegram_file_service import download_telegram_file
 from app.services.admin_audit_service import AdminAuditService
+from app.services.crypto_deposit_service import CryptoDepositService
+from app.schemas.crypto import (
+    CryptoAdminRejectIn,
+    CryptoDepositCreateIn,
+    CryptoTxClaimIn,
+    crypto_deposit_dict,
+)
 
 router = APIRouter(prefix="/bot", tags=["bot"])
 _RECEIPT_HASH_CACHE: dict[str, tuple[float, str]] = {}
@@ -1077,6 +1086,315 @@ def create_withdraw_request(
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"withdraw create failed: {str(e)}")
+
+
+# ==================== Crypto deposits ====================
+
+
+@router.get("/crypto/options")
+def bot_crypto_options(
+    user: User = Depends(get_bot_user),
+):
+    _ = user
+    options = CryptoDepositService.enabled_options()
+    return {
+        "enabled": bool(cfg.CRYPTO_PAYMENTS_ENABLED and options),
+        "min_toman_amount": int(cfg.CRYPTO_MIN_TOMAN_AMOUNT),
+        "max_toman_amount": int(cfg.CRYPTO_MAX_TOMAN_AMOUNT),
+        "invoice_expire_minutes": int(cfg.CRYPTO_INVOICE_EXPIRE_MINUTES),
+        "options": options,
+    }
+
+
+@router.post("/crypto/deposits")
+def bot_create_crypto_deposit(
+    payload: CryptoDepositCreateIn,
+    user: User = Depends(get_bot_user),
+    db: Session = Depends(get_db),
+):
+    try:
+        invoice = CryptoDepositService.create_invoice(
+            db,
+            user_id=int(user.id),
+            amount_toman=int(payload.amount_toman),
+            network=payload.network,
+        )
+        db.commit()
+        db.refresh(invoice)
+        return crypto_deposit_dict(
+            invoice,
+            tg_user_id=int(user.tg_user_id),
+            tg_username=user.username,
+        )
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="صدور فاکتور ارز دیجیتال ناموفق بود.")
+
+
+@router.get("/crypto/deposits")
+def bot_list_crypto_deposits(
+    limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    user: User = Depends(get_bot_user),
+    db: Session = Depends(get_db),
+):
+    rows = CryptoDepositService.list_owned(
+        db,
+        user_id=int(user.id),
+        limit=int(limit),
+        offset=int(offset),
+    )
+    return {
+        "items": [
+            crypto_deposit_dict(
+                row,
+                tg_user_id=int(user.tg_user_id),
+                tg_username=user.username,
+            )
+            for row in rows
+        ]
+    }
+
+
+@router.get("/crypto/deposits/{invoice_id}")
+def bot_get_crypto_deposit(
+    invoice_id: int,
+    user: User = Depends(get_bot_user),
+    db: Session = Depends(get_db),
+):
+    invoice = CryptoDepositService.get_owned(
+        db,
+        invoice_id=int(invoice_id),
+        user_id=int(user.id),
+    )
+    return crypto_deposit_dict(
+        invoice,
+        tg_user_id=int(user.tg_user_id),
+        tg_username=user.username,
+    )
+
+
+@router.post("/crypto/deposits/{invoice_id}/tx-hash")
+def bot_claim_crypto_tx_hash(
+    invoice_id: int,
+    payload: CryptoTxClaimIn,
+    user: User = Depends(get_bot_user),
+    db: Session = Depends(get_db),
+):
+    try:
+        invoice = CryptoDepositService.claim_tx_hash(
+            db,
+            invoice_id=int(invoice_id),
+            user_id=int(user.id),
+            tx_hash=payload.tx_hash,
+        )
+        db.commit()
+        db.refresh(invoice)
+        return crypto_deposit_dict(
+            invoice,
+            tg_user_id=int(user.tg_user_id),
+            tg_username=user.username,
+        )
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="ثبت هش تراکنش ناموفق بود.")
+
+
+@router.get("/admin/crypto-deposits")
+def bot_admin_list_crypto_deposits(
+    status: str | None = Query(default="NEEDS_REVIEW"),
+    limit: int = Query(default=50, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    db: Session = Depends(get_db),
+    admin: AdminIdentity = Depends(get_admin_identity),
+):
+    _ = admin
+    query = (
+        select(CryptoDepositRequest, User)
+        .join(User, User.id == CryptoDepositRequest.user_id)
+    )
+    if status:
+        query = query.where(CryptoDepositRequest.status == str(status).strip().upper())
+    rows = db.execute(
+        query.order_by(CryptoDepositRequest.id.desc()).offset(int(offset)).limit(int(limit))
+    ).all()
+    return {
+        "items": [
+            crypto_deposit_dict(
+                invoice,
+                tg_user_id=int(user.tg_user_id),
+                tg_username=user.username,
+            )
+            for invoice, user in rows
+        ]
+    }
+
+
+@router.get("/admin/crypto-deposits/{invoice_id}")
+def bot_admin_get_crypto_deposit(
+    invoice_id: int,
+    db: Session = Depends(get_db),
+    admin: AdminIdentity = Depends(get_admin_identity),
+):
+    _ = admin
+    row = db.execute(
+        select(CryptoDepositRequest, User)
+        .join(User, User.id == CryptoDepositRequest.user_id)
+        .where(CryptoDepositRequest.id == int(invoice_id))
+    ).one_or_none()
+    if not row:
+        raise HTTPException(status_code=404, detail="فاکتور واریز ارز دیجیتال پیدا نشد.")
+    invoice, user = row
+    return crypto_deposit_dict(
+        invoice,
+        tg_user_id=int(user.tg_user_id),
+        tg_username=user.username,
+    )
+
+
+@router.post("/admin/crypto-deposits/{invoice_id}/approve")
+def bot_admin_approve_crypto_deposit(
+    invoice_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    admin: AdminIdentity = Depends(get_admin_identity),
+):
+    try:
+        invoice, tx = CryptoDepositService.approve_review(db, invoice_id=int(invoice_id))
+        invoice.admin_notified_at = datetime.utcnow()
+        AdminAuditService.record(
+            db,
+            admin=admin,
+            action="crypto.deposit.approve",
+            target_type="crypto_deposit_request",
+            target_id=int(invoice.id),
+            request=request,
+            details={
+                "user_id": int(invoice.user_id),
+                "amount_toman": int(invoice.amount_toman),
+                "tx_hash": invoice.tx_hash,
+                "wallet_tx_id": int(tx.id),
+            },
+        )
+        db.commit()
+        return crypto_deposit_dict(invoice)
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="تایید واریز ارز دیجیتال ناموفق بود.")
+
+
+@router.post("/admin/crypto-deposits/{invoice_id}/reject")
+def bot_admin_reject_crypto_deposit(
+    invoice_id: int,
+    payload: CryptoAdminRejectIn,
+    request: Request,
+    db: Session = Depends(get_db),
+    admin: AdminIdentity = Depends(get_admin_identity),
+):
+    try:
+        invoice = CryptoDepositService.reject_review(
+            db,
+            invoice_id=int(invoice_id),
+            reason=payload.reason,
+        )
+        invoice.admin_notified_at = datetime.utcnow()
+        AdminAuditService.record(
+            db,
+            admin=admin,
+            action="crypto.deposit.reject",
+            target_type="crypto_deposit_request",
+            target_id=int(invoice.id),
+            request=request,
+            details={
+                "user_id": int(invoice.user_id),
+                "amount_toman": int(invoice.amount_toman),
+                "tx_hash": invoice.tx_hash,
+                "reason": invoice.failure_reason,
+            },
+        )
+        db.commit()
+        return crypto_deposit_dict(invoice)
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="رد واریز ارز دیجیتال ناموفق بود.")
+
+
+@router.get("/crypto/notifications")
+def bot_crypto_notifications(
+    limit: int = Query(default=30, ge=1, le=100),
+    token: str = Depends(require_bot_token),
+    db: Session = Depends(get_db),
+):
+    _ = token
+    admin_rows = db.execute(
+        select(CryptoDepositRequest, User)
+        .join(User, User.id == CryptoDepositRequest.user_id)
+        .where(
+            CryptoDepositRequest.admin_notified_at.is_(None),
+            CryptoDepositRequest.status.in_(("NEEDS_REVIEW", "CREDITED")),
+        )
+        .order_by(CryptoDepositRequest.id.asc())
+        .limit(int(limit))
+    ).all()
+    user_rows = db.execute(
+        select(CryptoDepositRequest, User)
+        .join(User, User.id == CryptoDepositRequest.user_id)
+        .where(
+            CryptoDepositRequest.user_notified_at.is_(None),
+            CryptoDepositRequest.status.in_(("CREDITED", "REJECTED")),
+        )
+        .order_by(CryptoDepositRequest.id.asc())
+        .limit(int(limit))
+    ).all()
+    return {
+        "admin": [
+            crypto_deposit_dict(row, tg_user_id=int(user.tg_user_id), tg_username=user.username)
+            for row, user in admin_rows
+        ],
+        "user": [
+            crypto_deposit_dict(row, tg_user_id=int(user.tg_user_id), tg_username=user.username)
+            for row, user in user_rows
+        ],
+    }
+
+
+@router.post("/crypto/notifications/{invoice_id}/{audience}/ack")
+def bot_ack_crypto_notification(
+    invoice_id: int,
+    audience: str,
+    token: str = Depends(require_bot_token),
+    db: Session = Depends(get_db),
+):
+    _ = token
+    invoice = db.execute(
+        select(CryptoDepositRequest)
+        .where(CryptoDepositRequest.id == int(invoice_id))
+        .with_for_update()
+    ).scalar_one_or_none()
+    if not invoice:
+        raise HTTPException(status_code=404, detail="فاکتور واریز ارز دیجیتال پیدا نشد.")
+    normalized = str(audience or "").strip().lower()
+    now = datetime.utcnow()
+    if normalized == "admin":
+        invoice.admin_notified_at = now
+    elif normalized == "user":
+        invoice.user_notified_at = now
+    else:
+        raise HTTPException(status_code=400, detail="مخاطب اعلان نامعتبر است.")
+    db.commit()
+    return {"ok": True, "invoice_id": int(invoice.id), "audience": normalized}
 
 
 # ==================== GET /bot/deposit-destinations ====================
@@ -2738,4 +3056,3 @@ def admin_get_deposit_receipt(
 
     # FileResponse خودش content-type رو حدس می‌زنه
     return FileResponse(dr.receipt_path, filename=os.path.basename(dr.receipt_path))
-
