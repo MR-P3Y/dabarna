@@ -58,6 +58,17 @@ class CryptoRateService:
                 errors.append(f"{provider}: {exc}")
                 log.warning("crypto rate provider failed: provider=%s asset=%s error=%s", provider, normalized_asset, exc)
 
+        if normalized_asset == "TON":
+            try:
+                quote = cls._fetch_ton_cross(providers)
+                cls._validate_against_recent(quote)
+                with cls._lock:
+                    cls._last_good[normalized_asset] = quote
+                return quote
+            except Exception as exc:
+                errors.append(f"binance_cross: {exc}")
+                log.warning("crypto TON cross rate failed: error=%s", exc)
+
         stale = cls._allowed_stale_quote(normalized_asset)
         if stale is not None:
             log.warning(
@@ -126,6 +137,43 @@ class CryptoRateService:
             return Decimal(str(asks[0]["price"]))
         except (InvalidOperation, KeyError, TypeError):
             raise CryptoRateUnavailable("wallex ask price is invalid")
+
+    @classmethod
+    def _fetch_ton_cross(cls, providers: list[str] | None = None) -> CryptoRateQuote:
+        data = cls._http_get(
+            f"{cfg.CRYPTO_BINANCE_BASE_URL}/api/v3/depth",
+            params={"symbol": "TONUSDT", "limit": 5},
+        )
+        asks = data.get("asks")
+        if not isinstance(asks, list) or not asks:
+            raise CryptoRateUnavailable("binance TONUSDT order book has no asks")
+        try:
+            ton_usdt = Decimal(str(asks[0][0]))
+        except (InvalidOperation, IndexError, TypeError):
+            raise CryptoRateUnavailable("binance TONUSDT ask price is invalid")
+        if ton_usdt <= 0:
+            raise CryptoRateUnavailable("binance TONUSDT ask price is not positive")
+
+        provider_names = providers or [
+            str(cfg.CRYPTO_RATE_PROVIDER_PRIMARY or "").strip().lower(),
+            str(cfg.CRYPTO_RATE_PROVIDER_FALLBACK or "").strip().lower(),
+        ]
+        errors: list[str] = []
+        for provider in dict.fromkeys(name for name in provider_names if name):
+            try:
+                usdt_toman = cls._fetch(provider=provider, asset="USDT").rate_toman
+                rate = ton_usdt * usdt_toman
+                if rate <= 0:
+                    raise CryptoRateUnavailable("cross rate is not positive")
+                return CryptoRateQuote(
+                    asset="TON",
+                    rate_toman=rate,
+                    provider=f"binance+{provider}",
+                    fetched_at=_utcnow(),
+                )
+            except Exception as exc:
+                errors.append(f"{provider}: {exc}")
+        raise CryptoRateUnavailable("; ".join(errors) or "USDT/Toman rate is unavailable")
 
     @classmethod
     def _validate_against_recent(cls, quote: CryptoRateQuote) -> None:

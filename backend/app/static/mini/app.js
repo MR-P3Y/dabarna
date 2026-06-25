@@ -19,6 +19,10 @@ const state = {
   cryptoOptions: null,
   cryptoCurrentInvoice: null,
   cryptoQrObjectUrl: "",
+  cryptoCountdownTimer: null,
+  cryptoServerOffsetMs: 0,
+  cryptoInvoiceViewOpen: false,
+  cryptoExpiryRefreshId: 0,
   cardsPollTimer: null,
   cardsPrevCalledByGame: {},
   cardsLatestSeenEventByGame: {},
@@ -903,6 +907,14 @@ function localizeApiError(detail) {
   if (low.includes("json decode error")) {
     return "فرمت داده ارسالی نامعتبر است.";
   }
+  if (
+    low.includes("name or service not known") ||
+    low.includes("order book has no asks") ||
+    low.includes("rate provider") ||
+    low.includes("دریافت نرخ لحظه‌ای ممکن نشد")
+  ) {
+    return "نرخ لحظه‌ای این ارز موقتاً در دسترس نیست. چند لحظه دیگر دوباره تلاش کنید.";
+  }
   if (low.includes("input should be greater than")) {
     return "یکی از مقادیر ارسالی کمتر از حد مجاز است.";
   }
@@ -1497,14 +1509,12 @@ function formatDuration(sec) {
 function formatFaDateTime(raw) {
   if (!raw) return "-";
   try {
-    let text = String(raw).trim();
-    text = text.replace(/^(\d{4}-\d{2}-\d{2})\s+/, "$1T");
-    text = text.replace(/\.(\d{3})\d+/, ".$1");
-    const d = new Date(text);
+    const d = parseApiDate(raw);
     if (Number.isNaN(d.getTime())) return String(raw);
     return d.toLocaleString("fa-IR", {
       calendar: "persian",
       numberingSystem: "arabext",
+      timeZone: "Asia/Tehran",
       year: "numeric",
       month: "2-digit",
       day: "2-digit",
@@ -1515,6 +1525,16 @@ function formatFaDateTime(raw) {
   } catch (_) {
     return String(raw);
   }
+}
+
+function parseApiDate(raw) {
+  let text = String(raw || "").trim();
+  text = text.replace(/^(\d{4}-\d{2}-\d{2})\s+/, "$1T");
+  text = text.replace(/\.(\d{3})\d+/, ".$1");
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(?:\.\d+)?)?$/.test(text)) {
+    text += "Z";
+  }
+  return new Date(text);
 }
 
 function drawRecentStats(items) {
@@ -2916,6 +2936,10 @@ function compactCryptoAmount(value) {
   return raw.includes(".") ? raw.replace(/0+$/, "").replace(/\.$/, "") : raw;
 }
 
+function toFaDigits(value) {
+  return String(value ?? "").replace(/\d/g, (digit) => "۰۱۲۳۴۵۶۷۸۹"[Number(digit)]);
+}
+
 function setDepositMode(mode) {
   const normalized = mode === "crypto" ? "crypto" : "bank";
   document.querySelectorAll(".deposit-mode-btn").forEach((btn) => {
@@ -2941,27 +2965,184 @@ function drawCryptoOptions(payload) {
     modeBtn.disabled = !enabled;
     modeBtn.title = enabled ? "واریز با ارز دیجیتال" : "واریز ارز دیجیتال فعال نیست";
   }
-  const select = getEl("cryptoNetworkSelect");
-  if (!select) return;
+  const networkInput = getEl("cryptoNetworkSelect");
+  if (!networkInput) return;
+  const available = new Set(
+    (Array.isArray(payload?.options) ? payload.options : [])
+      .map((item) => String(item.network || "").toUpperCase())
+      .filter(Boolean)
+  );
+  document.querySelectorAll(".crypto-network-option").forEach((button) => {
+    const network = String(button.getAttribute("data-network") || "").toUpperCase();
+    const usable = enabled && available.has(network);
+    button.disabled = !usable;
+    button.classList.toggle("is-unavailable", !usable);
+  });
   if (!enabled) {
-    select.innerHTML = '<option value="">در حال حاضر غیرفعال است</option>';
+    networkInput.value = "";
     setHint("cryptoNetworkHint", "واریز ارز دیجیتال روی سرور فعال نشده است.");
     if (!getEl("cryptoDepositPanel")?.classList.contains("hidden")) setDepositMode("bank");
     return;
   }
-  select.innerHTML = payload.options.map((item) => {
-    const network = String(item.network || "");
-    const asset = String(item.asset || "");
-    const label = network === "TRON" ? "تتر (USDT) روی شبکه ترون" : `${asset} روی شبکه ${network}`;
-    return `<option value="${safeText(network)}">${safeText(label)}</option>`;
-  }).join("");
+  const current = String(networkInput.value || "").toUpperCase();
+  const selected = available.has(current) ? current : String(payload.options[0]?.network || "").toUpperCase();
+  selectCryptoNetwork(selected, { haptic: false });
+  const validity = getEl("cryptoInvoiceValidity");
+  if (validity) validity.textContent = `${toFaDigits(payload.invoice_expire_minutes || 15)} دقیقه`;
+  const daily = getEl("cryptoDailyLimit");
+  if (daily) daily.textContent = toman(payload.daily_user_max_toman || 0);
   setHint(
     "cryptoNetworkHint",
-    `نرخ هنگام صدور فاکتور دریافت می‌شود. مهلت پرداخت: ${safeText(payload.invoice_expire_minutes || 15)} دقیقه. سقف روزانه: ${safeText(payload.daily_user_max_count || 0)} فاکتور و ${safeText(toman(payload.daily_user_max_toman || 0))}.`
+    "فقط از شبکه انتخاب‌شده پرداخت کنید."
   );
 }
 
-function renderCryptoInvoice(invoice) {
+function selectCryptoNetwork(network, { haptic = true } = {}) {
+  const normalized = String(network || "").toUpperCase();
+  const input = getEl("cryptoNetworkSelect");
+  if (input) input.value = normalized;
+  document.querySelectorAll(".crypto-network-option").forEach((button) => {
+    const selected = !button.disabled && String(button.getAttribute("data-network") || "").toUpperCase() === normalized;
+    button.classList.toggle("is-selected", selected);
+    button.setAttribute("aria-checked", selected ? "true" : "false");
+  });
+  if (haptic) triggerLightHaptic("success");
+}
+
+function isCryptoInvoicePending(invoice) {
+  return ["WAITING_PAYMENT", "CONFIRMING"].includes(String(invoice?.status || "").toUpperCase());
+}
+
+function shortenCryptoAddress(value) {
+  const text = String(value || "");
+  if (text.length <= 24) return text;
+  return `${text.slice(0, 10)}…${text.slice(-9)}`;
+}
+
+function setCryptoClosingConfirmation(enabled) {
+  try {
+    if (enabled) tg?.enableClosingConfirmation?.();
+    else tg?.disableClosingConfirmation?.();
+  } catch (_) {}
+}
+
+function stopCryptoCountdown() {
+  if (state.cryptoCountdownTimer) clearInterval(state.cryptoCountdownTimer);
+  state.cryptoCountdownTimer = null;
+}
+
+function updateCryptoCountdown(invoice) {
+  const countdown = getEl("cryptoInvoiceCountdown");
+  if (!countdown) return;
+  const expiresAt = parseApiDate(invoice?.expires_at).getTime();
+  if (!Number.isFinite(expiresAt)) {
+    countdown.textContent = "--:--";
+    return;
+  }
+  const now = Date.now() + Number(state.cryptoServerOffsetMs || 0);
+  const remaining = Math.max(0, Math.ceil((expiresAt - now) / 1000));
+  const minutes = Math.floor(remaining / 60);
+  const seconds = remaining % 60;
+  countdown.textContent = `${toFaDigits(minutes)}:${toFaDigits(String(seconds).padStart(2, "0"))}`;
+  countdown.closest(".crypto-countdown")?.classList.toggle("is-urgent", remaining > 0 && remaining <= 120);
+  if (
+    remaining === 0 &&
+    isCryptoInvoicePending(invoice) &&
+    Number(state.cryptoExpiryRefreshId || 0) !== Number(invoice.id || 0)
+  ) {
+    state.cryptoExpiryRefreshId = Number(invoice.id || 0);
+    refreshCryptoInvoice(invoice.id, { open: true, silent: true }).catch(() => {});
+  }
+}
+
+function startCryptoCountdown(invoice) {
+  stopCryptoCountdown();
+  const serverNow = parseApiDate(invoice?.server_now).getTime();
+  state.cryptoServerOffsetMs = Number.isFinite(serverNow) ? serverNow - Date.now() : 0;
+  updateCryptoCountdown(invoice);
+  if (isCryptoInvoicePending(invoice)) {
+    state.cryptoCountdownTimer = setInterval(() => updateCryptoCountdown(invoice), 1000);
+  }
+}
+
+function cryptoTimeline(status) {
+  const key = String(status || "").toUpperCase();
+  const progress = key === "CREDITED"
+    ? 4
+    : key === "CONFIRMING"
+      ? 2
+      : key === "NEEDS_REVIEW"
+        ? 2
+        : 1;
+  const labels = ["صدور فاکتور", "مشاهده تراکنش", "تایید شبکه", "شارژ کیف پول"];
+  return labels.map((label, index) => {
+    const done = index < progress;
+    const active = index === progress && progress < 4;
+    const warning = key === "NEEDS_REVIEW" && index === 2;
+    return `
+      <div class="crypto-timeline-step${done ? " is-done" : ""}${active ? " is-active" : ""}${warning ? " is-warning" : ""}">
+        <i>${done ? "✓" : index + 1}</i>
+        <span>${safeText(warning ? "بررسی ادمین" : label)}</span>
+      </div>
+    `;
+  }).join("");
+}
+
+function setCryptoInvoiceView(open) {
+  const active = Boolean(open);
+  const wasOpen = Boolean(state.cryptoInvoiceViewOpen);
+  state.cryptoInvoiceViewOpen = active;
+  document.body.classList.toggle("crypto-payment-active", active);
+  getEl("view-wallet")?.classList.toggle("crypto-payment-active", active);
+  getEl("cryptoCreateView")?.classList.toggle("hidden", active);
+  getEl("cryptoInvoiceBox")?.classList.toggle("hidden", !active);
+  setCryptoClosingConfirmation(active && isCryptoInvoicePending(state.cryptoCurrentInvoice));
+  if (active && !wasOpen) {
+    requestAnimationFrame(() => {
+      getEl("cryptoInvoiceBox")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }
+  if (!active) {
+    stopCryptoCountdown();
+    syncCryptoActiveResume();
+  }
+}
+
+function syncCryptoActiveResume() {
+  const resume = getEl("cryptoActiveResume");
+  const invoice = state.cryptoCurrentInvoice;
+  const active = isCryptoInvoicePending(invoice);
+  resume?.classList.toggle("hidden", !active);
+  const meta = getEl("cryptoActiveResumeMeta");
+  if (meta && active) {
+    meta.textContent = `فاکتور #${invoice.id} • ${compactCryptoAmount(invoice.amount_crypto)} ${invoice.asset}`;
+  }
+  const createButton = getEl("createCryptoInvoiceBtn");
+  if (createButton) {
+    createButton.textContent = active ? "ادامه فاکتور فعال" : "دریافت نرخ و ادامه";
+  }
+}
+
+function closeCryptoInvoiceView() {
+  setCryptoInvoiceView(false);
+  getEl("cryptoCreateView")?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function rememberCryptoInvoice(invoice) {
+  if (!invoice) return;
+  state.cryptoCurrentInvoice = invoice;
+  if (Number(state.cryptoExpiryRefreshId || 0) !== Number(invoice.id || 0)) {
+    state.cryptoExpiryRefreshId = 0;
+  }
+  if (isCryptoInvoicePending(invoice)) {
+    try { localStorage.setItem("davarna_crypto_active_invoice_id", String(invoice.id)); } catch (_) {}
+  } else {
+    try { localStorage.removeItem("davarna_crypto_active_invoice_id"); } catch (_) {}
+  }
+  syncCryptoActiveResume();
+}
+
+function renderCryptoInvoice(invoice, { open = true } = {}) {
   const box = getEl("cryptoInvoiceBox");
   if (!box) return;
   if (state.cryptoQrObjectUrl) {
@@ -2970,10 +3151,11 @@ function renderCryptoInvoice(invoice) {
   }
   state.cryptoCurrentInvoice = invoice || null;
   if (!invoice) {
-    box.classList.add("hidden");
+    setCryptoInvoiceView(false);
     box.innerHTML = "";
     return;
   }
+  rememberCryptoInvoice(invoice);
   const id = Number(invoice.id || 0);
   const status = String(invoice.status || "").toUpperCase();
   const pending = status === "WAITING_PAYMENT" || status === "CONFIRMING";
@@ -2984,42 +3166,94 @@ function renderCryptoInvoice(invoice) {
   const reason = String(invoice.failure_reason || "").trim();
   const variance = String(invoice.payment_variance || "").toUpperCase();
   const explorerUrl = String(invoice.explorer_url || "").trim();
+  const network = String(invoice.network || "").toUpperCase();
+  const address = String(invoice.destination_address || "");
+  const paymentUri = String(invoice.payment_uri || "").trim();
+  const statusClass = status === "CREDITED"
+    ? "is-success"
+    : status === "NEEDS_REVIEW"
+      ? "is-warning"
+      : status === "EXPIRED" || status === "REJECTED"
+        ? "is-danger"
+        : "is-pending";
   box.innerHTML = `
-    <div class="crypto-invoice-head">
-      <strong>فاکتور #${safeText(id)}</strong>
-      <span class="status-pill">${safeText(cryptoStatusLabel(status))}</span>
+    <div class="crypto-payment-head">
+      <button id="closeCryptoInvoiceBtn" class="crypto-back-btn" type="button" aria-label="بازگشت به ساخت فاکتور">‹</button>
+      <div>
+        <span>شماره فاکتور</span>
+        <strong>#${safeText(id)}</strong>
+      </div>
+      <span class="crypto-payment-status ${statusClass}">${safeText(cryptoStatusLabel(status))}</span>
     </div>
-    <div class="crypto-invoice-grid">
-      <div><span>مبلغ شارژ</span><b>${safeText(toman(invoice.amount_toman || 0))}</b></div>
-      <div><span>مبلغ پرداخت</span><b dir="ltr">${safeText(amountCrypto)} ${safeText(asset)}</b></div>
-      <div class="wide"><span>آدرس مقصد</span><code dir="ltr">${safeText(invoice.destination_address || "-")}</code></div>
-      ${memo ? `<div class="wide"><span>Memo / Comment</span><code dir="ltr">${safeText(memo)}</code></div>` : ""}
-      <div class="wide"><span>مهلت پرداخت</span><b>${safeText(formatFaDateTime(invoice.expires_at))}</b></div>
-      ${txHash ? `<div class="wide"><span>هش تراکنش</span><code dir="ltr">${safeText(txHash)}</code></div>` : ""}
-      ${variance === "OVERPAID" ? `<div class="wide crypto-invoice-warning">مبلغ بیشتری از فاکتور دریافت شده و برای ادمین ثبت شده است.</div>` : ""}
-      ${variance === "UNDERPAID" ? `<div class="wide crypto-invoice-warning">مبلغ دریافتی کمتر از فاکتور است و نیازمند بررسی ادمین است.</div>` : ""}
-      ${reason ? `<div class="wide crypto-invoice-warning">${safeText(reason)}</div>` : ""}
-    </div>
-    <div class="crypto-qr-wrap">
-      <img id="cryptoInvoiceQr" alt="QR پرداخت ارز دیجیتال" />
-      <span>QR پرداخت</span>
-    </div>
-    <div class="crypto-invoice-actions">
-      <button class="small-btn crypto-copy-btn" data-copy="${safeText(amountCrypto)}" type="button">کپی مبلغ</button>
-      <button class="small-btn crypto-copy-btn" data-copy="${safeText(invoice.destination_address || "")}" type="button">کپی آدرس</button>
-      ${memo ? `<button class="small-btn crypto-copy-btn" data-copy="${safeText(memo)}" type="button">کپی Memo</button>` : ""}
-      ${pending ? `<button class="small-btn primary" id="refreshCryptoInvoiceBtn" type="button">بررسی پرداخت</button>` : ""}
-      ${explorerUrl ? `<a class="small-btn crypto-explorer-link" href="${safeText(explorerUrl)}" target="_blank" rel="noopener noreferrer">مشاهده در Explorer</a>` : ""}
-    </div>
+
     ${pending ? `
-      <div class="crypto-tx-claim">
-        <input id="cryptoTxHashInput" type="text" dir="ltr" placeholder="هش تراکنش (اختیاری)" />
-        <button id="submitCryptoTxHashBtn" class="small-btn" type="button">ثبت هش</button>
+      <div class="crypto-countdown">
+        <span>زمان باقی‌مانده برای پرداخت</span>
+        <strong id="cryptoInvoiceCountdown">--:--</strong>
       </div>
     ` : ""}
+
+    <div class="crypto-payment-amount">
+      <span>مبلغ دقیق پرداخت</span>
+      <div>
+        <strong dir="ltr">${safeText(amountCrypto)} ${safeText(asset)}</strong>
+        <button class="crypto-icon-copy crypto-copy-btn" data-copy="${safeText(amountCrypto)}" type="button" aria-label="کپی مبلغ">⧉</button>
+      </div>
+      <small>معادل شارژ: ${safeText(toman(invoice.amount_toman || 0))}</small>
+    </div>
+
+    <div class="crypto-qr-wrap">
+      <img id="cryptoInvoiceQr" alt="QR پرداخت ارز دیجیتال" />
+    </div>
+
+    <div class="crypto-address-block">
+      <span>آدرس مقصد • ${safeText(network === "TRON" ? "TRC20" : "TON Mainnet")}</span>
+      <div>
+        <code dir="ltr" title="${safeText(address)}">${safeText(shortenCryptoAddress(address))}</code>
+        <button class="crypto-icon-copy crypto-copy-btn" data-copy="${safeText(address)}" type="button" aria-label="کپی آدرس">⧉</button>
+      </div>
+    </div>
+
+    ${memo ? `
+      <div class="crypto-address-block">
+        <span>Memo / Comment</span>
+        <div>
+          <code dir="ltr">${safeText(memo)}</code>
+          <button class="crypto-icon-copy crypto-copy-btn" data-copy="${safeText(memo)}" type="button" aria-label="کپی Memo">⧉</button>
+        </div>
+      </div>
+    ` : ""}
+
+    <div class="crypto-network-warning">
+      فقط از شبکه <b dir="ltr">${safeText(network === "TRON" ? "TRON (TRC20)" : "TON Mainnet")}</b> استفاده کنید.
+    </div>
+
+    ${variance === "OVERPAID" ? `<div class="crypto-invoice-warning">مبلغ بیشتر از فاکتور دریافت شده و در صف بررسی ادمین است.</div>` : ""}
+    ${variance === "UNDERPAID" ? `<div class="crypto-invoice-warning">مبلغ پرداخت کمتر از فاکتور است و در صف بررسی ادمین قرار دارد.</div>` : ""}
+    ${reason ? `<div class="crypto-invoice-warning">${safeText(reason)}</div>` : ""}
+
+    ${pending ? `
+      <details class="crypto-tx-details">
+        <summary>ثبت هش تراکنش (اختیاری)</summary>
+        <div class="crypto-tx-claim">
+          <input id="cryptoTxHashInput" type="text" dir="ltr" placeholder="هش تراکنش را وارد کنید" />
+          <button id="submitCryptoTxHashBtn" class="small-btn" type="button">ثبت هش</button>
+        </div>
+      </details>
+    ` : txHash ? `<div class="crypto-tx-hash"><span>هش تراکنش</span><code dir="ltr">${safeText(txHash)}</code></div>` : ""}
+
+    <div class="crypto-payment-timeline">${cryptoTimeline(status)}</div>
+
+    <div class="crypto-invoice-secondary-actions">
+      ${paymentUri.startsWith("ton://") && pending ? `<a class="small-btn" href="${safeText(paymentUri)}">باز کردن کیف پول TON</a>` : ""}
+      ${explorerUrl ? `<a class="small-btn crypto-explorer-link" href="${safeText(explorerUrl)}" target="_blank" rel="noopener noreferrer">مشاهده در Explorer</a>` : ""}
+    </div>
+
+    ${pending ? `<button id="refreshCryptoInvoiceBtn" class="small-btn primary crypto-payment-done-btn" type="button">پرداخت را انجام دادم</button>` : ""}
     <div id="cryptoInvoiceHint" class="step-hint"></div>
   `;
-  box.classList.remove("hidden");
+  setCryptoInvoiceView(open);
+  if (open) startCryptoCountdown(invoice);
   apiFetchBlob(`/mini-api/crypto/deposits/${id}/qr`)
     .then((blob) => {
       const img = getEl("cryptoInvoiceQr");
@@ -3035,10 +3269,14 @@ function renderCryptoInvoice(invoice) {
   box.querySelectorAll(".crypto-copy-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
       copyTextToClipboard(String(btn.getAttribute("data-copy") || ""))
-        .then(() => setHint("cryptoInvoiceHint", "کپی شد.", "success"))
+        .then(() => {
+          setHint("cryptoInvoiceHint", "کپی شد.", "success");
+          triggerLightHaptic("success");
+        })
         .catch((e) => setLocalError("cryptoInvoiceHint", e));
     });
   });
+  getEl("closeCryptoInvoiceBtn")?.addEventListener("click", closeCryptoInvoiceView);
   getEl("refreshCryptoInvoiceBtn")?.addEventListener("click", () => {
     refreshCryptoInvoice(id).catch((e) => setLocalError("cryptoInvoiceHint", e));
   });
@@ -3053,7 +3291,14 @@ function drawCryptoDeposits(payload) {
   const items = Array.isArray(payload?.items) ? payload.items.slice(0, HISTORY_LIST_LIMIT) : [];
   if (!items.length) {
     root.innerHTML = '<div class="empty">واریز ارز دیجیتالی ثبت نشده است.</div>';
+    syncCryptoActiveResume();
     return;
+  }
+  const activeInvoice = items.find((item) => isCryptoInvoicePending(item));
+  if (activeInvoice && !isCryptoInvoicePending(state.cryptoCurrentInvoice)) {
+    rememberCryptoInvoice(activeInvoice);
+  } else {
+    syncCryptoActiveResume();
   }
   root.innerHTML = items.map((item) => `
     <div class="item crypto-history-item" data-id="${safeText(item.id)}">
@@ -3075,32 +3320,47 @@ function drawCryptoDeposits(payload) {
 }
 
 async function createCryptoInvoice() {
+  if (isCryptoInvoicePending(state.cryptoCurrentInvoice)) {
+    renderCryptoInvoice(state.cryptoCurrentInvoice, { open: true });
+    return;
+  }
   const amount_toman = parsePositiveInt(getVal("cryptoAmountInput"));
   const network = String(getVal("cryptoNetworkSelect") || "").toUpperCase();
   if (!amount_toman) throw new Error("مبلغ شارژ را وارد کنید.");
   if (!network) throw new Error("شبکه پرداخت را انتخاب کنید.");
   setHint("cryptoSubmitHint", "در حال دریافت نرخ لحظه‌ای و صدور فاکتور...");
-  const invoice = await apiFetch("/mini-api/crypto/deposits", {
-    method: "POST",
-    body: { amount_toman, network },
-  });
-  renderCryptoInvoice(invoice);
-  setHint("cryptoSubmitHint", "فاکتور صادر شد. مبلغ و آدرس را دقیق کپی کنید.", "success");
-  await refreshWallet();
+  try {
+    const invoice = await apiFetch("/mini-api/crypto/deposits", {
+      method: "POST",
+      body: { amount_toman, network },
+    });
+    renderCryptoInvoice(invoice, { open: true });
+    setHint("cryptoSubmitHint", "");
+    setHint("cryptoInvoiceHint", "فاکتور صادر شد. مبلغ و شبکه را پیش از پرداخت کنترل کنید.", "success");
+    triggerLightHaptic("success");
+    await refreshWallet();
+  } catch (err) {
+    setCryptoInvoiceView(false);
+    setHint("cryptoSubmitHint", localizeApiError(err?.message || err), "error");
+    throw err;
+  }
 }
 
-async function refreshCryptoInvoice(invoiceId, { scroll = false } = {}) {
+async function refreshCryptoInvoice(invoiceId, { scroll = false, open = true, silent = false } = {}) {
   const id = Number(invoiceId || state.cryptoCurrentInvoice?.id || 0);
   if (!id) throw new Error("فاکتور رمزارز انتخاب نشده است.");
-  setHint("cryptoInvoiceHint", "در حال بررسی شبکه...");
+  if (!silent) setHint("cryptoInvoiceHint", "در حال بررسی شبکه...");
   const invoice = await apiFetch(`/mini-api/crypto/deposits/${id}`);
-  renderCryptoInvoice(invoice);
+  renderCryptoInvoice(invoice, { open });
   if (scroll) {
     setDepositMode("crypto");
     getEl("cryptoInvoiceBox")?.scrollIntoView({ behavior: "smooth", block: "center" });
   }
   if (String(invoice.status || "").toUpperCase() === "CREDITED") {
     setHint("cryptoInvoiceHint", "پرداخت تایید شد و کیف پول شارژ شد.", "success");
+    triggerLightHaptic("success");
+  } else if (!silent && isCryptoInvoicePending(invoice)) {
+    setHint("cryptoInvoiceHint", "هنوز تراکنش تاییدشده‌ای برای این فاکتور مشاهده نشده است.");
   }
   await refreshWallet();
 }
@@ -5442,6 +5702,29 @@ function wireWalletUxHelpers() {
     });
   });
 
+  document.querySelectorAll(".crypto-network-option").forEach((button) => {
+    button.addEventListener("click", () => {
+      if (button.disabled) return;
+      selectCryptoNetwork(button.getAttribute("data-network") || "");
+    });
+  });
+
+  getEl("cryptoAmountInput")?.addEventListener("input", () => {
+    const current = parsePositiveInt(getVal("cryptoAmountInput"));
+    document.querySelectorAll(".crypto-amount-preset").forEach((button) => {
+      button.classList.toggle(
+        "is-selected",
+        Number(button.getAttribute("data-amount") || 0) === current
+      );
+    });
+  });
+
+  getEl("resumeCryptoInvoiceBtn")?.addEventListener("click", () => {
+    const id = Number(state.cryptoCurrentInvoice?.id || 0);
+    if (!id) return;
+    refreshCryptoInvoice(id, { open: true }).catch((e) => setLocalError("cryptoSubmitHint", e));
+  });
+
   const receiptInput = getEl("depositReceiptFileInput");
   if (receiptInput) {
     receiptInput.addEventListener("change", () => {
@@ -5624,6 +5907,7 @@ async function boot() {
 
 
 window.addEventListener("beforeunload", () => {
+  stopCryptoCountdown();
   if (state.cryptoQrObjectUrl) {
     URL.revokeObjectURL(state.cryptoQrObjectUrl);
     state.cryptoQrObjectUrl = "";

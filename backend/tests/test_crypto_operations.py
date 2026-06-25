@@ -15,9 +15,40 @@ from app.services.crypto_chain_service import ChainTransfer
 from app.services.crypto_qr_service import CryptoQrService
 from app.services.crypto_rate_service import CryptoRateQuote
 from app.services.crypto_reconciliation_service import CryptoReconciliationService
+from app.schemas.crypto import crypto_deposit_dict
 
 
 class CryptoOperationsTests(unittest.TestCase):
+    def test_crypto_payload_marks_utc_times_and_includes_server_clock(self):
+        invoice = SimpleNamespace(
+            id=1,
+            public_id="DAV-1",
+            user_id=2,
+            network="TRON",
+            asset="USDT",
+            amount_toman=100_000,
+            rate_toman_per_asset=Decimal("90000"),
+            amount_crypto=Decimal("1.1"),
+            paid_amount_crypto=None,
+            rate_provider="nobitex",
+            destination_address="TAddress",
+            memo=None,
+            tx_hash=None,
+            status="WAITING_PAYMENT",
+            wallet_tx_id=None,
+            failure_reason=None,
+            payment_variance=None,
+            variance_amount_crypto=None,
+            expires_at=datetime(2026, 6, 24, 12, 15, 0),
+            detected_at=None,
+            credited_at=None,
+            created_at=datetime(2026, 6, 24, 12, 0, 0),
+        )
+        payload = crypto_deposit_dict(invoice)
+        self.assertTrue(payload["created_at"].endswith("Z"))
+        self.assertTrue(payload["expires_at"].endswith("Z"))
+        self.assertTrue(payload["server_now"].endswith("Z"))
+
     def test_qr_png_is_generated_for_ton_payment_uri(self):
         invoice = SimpleNamespace(
             network="TON",

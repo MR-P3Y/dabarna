@@ -57,6 +57,31 @@ class CryptoHealthService:
                         }
                     )
 
+            if asset == "TON" and not asset_healthy[asset]:
+                started = time.perf_counter()
+                try:
+                    quote = CryptoRateService._fetch_ton_cross(providers)
+                    rate_checks.append(
+                        {
+                            "provider": quote.provider,
+                            "asset": asset,
+                            "ok": True,
+                            "latency_ms": int((time.perf_counter() - started) * 1000),
+                            "rate_toman": str(quote.rate_toman),
+                        }
+                    )
+                    asset_healthy[asset] = True
+                except Exception as exc:
+                    rate_checks.append(
+                        {
+                            "provider": "binance_cross",
+                            "asset": asset,
+                            "ok": False,
+                            "latency_ms": int((time.perf_counter() - started) * 1000),
+                            "error": CryptoHealthService._error_text(exc),
+                        }
+                    )
+
         chain_checks: list[dict[str, Any]] = []
         since = _utcnow() - timedelta(minutes=5)
         for network in networks:

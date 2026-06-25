@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import re
 import secrets
 from datetime import datetime, timedelta, timezone
@@ -20,6 +21,7 @@ from app.services.wallet_service import WalletService
 
 OPEN_STATUSES = ("WAITING_PAYMENT", "CONFIRMING")
 CRYPTO_RUNTIME_SETTING_KEY = "crypto_payments_runtime_enabled"
+log = logging.getLogger(__name__)
 
 
 def _utcnow() -> datetime:
@@ -121,7 +123,16 @@ class CryptoDepositService:
         try:
             quote = CryptoRateService.get_live_quote(str(spec["asset"]))
         except CryptoRateUnavailable as exc:
-            raise HTTPException(status_code=503, detail=str(exc))
+            log.warning(
+                "crypto invoice rate unavailable: asset=%s network=%s error=%s",
+                spec["asset"],
+                spec["network"],
+                exc,
+            )
+            raise HTTPException(
+                status_code=503,
+                detail=f"نرخ لحظه‌ای {spec['asset']} موقتاً در دسترس نیست. چند لحظه دیگر دوباره تلاش کنید.",
+            )
 
         buffer_multiplier = Decimal("1") + (cfg.CRYPTO_RATE_BUFFER_PERCENT / Decimal("100"))
         raw_amount = (Decimal(amount_toman) / quote.rate_toman) * buffer_multiplier

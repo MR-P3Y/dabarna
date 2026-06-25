@@ -333,6 +333,10 @@ CRYPTO_NOBITEX_BASE_URL = (
 CRYPTO_WALLEX_BASE_URL = (
     os.getenv("CRYPTO_WALLEX_BASE_URL", "https://api.wallex.ir") or "https://api.wallex.ir"
 ).strip().rstrip("/")
+CRYPTO_BINANCE_BASE_URL = (
+    os.getenv("CRYPTO_BINANCE_BASE_URL", "https://data-api.binance.vision")
+    or "https://data-api.binance.vision"
+).strip().rstrip("/")
 
 CRYPTO_TRON_USDT_ENABLED = _safe_bool("CRYPTO_TRON_USDT_ENABLED", True)
 CRYPTO_TRON_USDT_ADDRESS = (os.getenv("CRYPTO_TRON_USDT_ADDRESS", "") or "").strip()

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from decimal import Decimal
 
 from pydantic import BaseModel, Field
@@ -39,6 +40,7 @@ class CryptoDepositOut(BaseModel):
     variance_amount_crypto: str | None = None
     payment_uri: str
     explorer_url: str | None = None
+    server_now: str
     expires_at: str
     detected_at: str | None = None
     credited_at: str | None = None
@@ -77,7 +79,14 @@ def crypto_deposit_dict(row, *, tg_user_id: int | None = None, tg_username: str 
         return text.rstrip("0").rstrip(".") if "." in text else text
 
     def datetime_text(value) -> str | None:
-        return value.isoformat() if value is not None else None
+        if value is None:
+            return None
+        current = value
+        if current.tzinfo is None:
+            current = current.replace(tzinfo=timezone.utc)
+        else:
+            current = current.astimezone(timezone.utc)
+        return current.isoformat().replace("+00:00", "Z")
 
     out = {
         "id": int(row.id),
@@ -100,6 +109,7 @@ def crypto_deposit_dict(row, *, tg_user_id: int | None = None, tg_username: str 
         "variance_amount_crypto": decimal_text(row.variance_amount_crypto),
         "payment_uri": _payment_uri(row),
         "explorer_url": _explorer_url(row),
+        "server_now": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "expires_at": datetime_text(row.expires_at) or "",
         "detected_at": datetime_text(row.detected_at),
         "credited_at": datetime_text(row.credited_at),

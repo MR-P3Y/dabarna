@@ -50,6 +50,17 @@ class CryptoRateServiceTests(unittest.TestCase):
         self.assertEqual(quote.provider, "wallex")
         self.assertEqual(quote.rate_toman, Decimal("164500"))
 
+    def test_ton_cross_rate_uses_binance_and_usdt_toman(self):
+        responses = [
+            {"asks": [["3.25", "10"]]},
+            {"status": "ok", "asks": [["900000", "100"]]},
+        ]
+        with patch.object(CryptoRateService, "_http_get", side_effect=responses):
+            quote = CryptoRateService._fetch_ton_cross(["nobitex"])
+        self.assertEqual(quote.asset, "TON")
+        self.assertEqual(quote.provider, "binance+nobitex")
+        self.assertEqual(quote.rate_toman, Decimal("292500"))
+
 
 class DecimalQuoteFactory:
     @staticmethod

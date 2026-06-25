@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>مینی‌اپ دبرنا حلیم یگن طیار</title>
-    <link rel="stylesheet" href="./styles.css?v=20260624crypto3" />
+    <link rel="stylesheet" href="./styles.css?v=20260625crypto4" />
   </head>
   <body>
     <div id="appSplash" class="app-splash" aria-label="در حال آماده‌سازی مینی‌اپ">
@@ -224,33 +224,72 @@
                 </div>
 
                 <div id="cryptoDepositPanel" class="deposit-mode-panel hidden">
-                  <div class="deposit-step">
-                    <div class="deposit-step-no">1</div>
-                    <div class="deposit-step-body">
-                      <label for="cryptoAmountInput">مبلغ شارژ کیف پول (تومان)</label>
-                      <input id="cryptoAmountInput" type="number" min="1" inputmode="numeric" />
-                      <div class="amount-preset-row" aria-label="مبلغ‌های آماده رمزارز">
-                        <button class="crypto-amount-preset" data-amount="100000" type="button">۱۰۰ هزار</button>
-                        <button class="crypto-amount-preset" data-amount="500000" type="button">۵۰۰ هزار</button>
-                        <button class="crypto-amount-preset" data-amount="1000000" type="button">۱ میلیون</button>
+                  <div id="cryptoCreateView" class="crypto-create-view">
+                    <div id="cryptoActiveResume" class="crypto-active-resume hidden">
+                      <div>
+                        <strong>یک فاکتور فعال دارید</strong>
+                        <span id="cryptoActiveResumeMeta">برای ادامه پرداخت، فاکتور را باز کنید.</span>
+                      </div>
+                      <button id="resumeCryptoInvoiceBtn" class="small-btn" type="button">ادامه پرداخت</button>
+                    </div>
+
+                    <section class="crypto-create-section" aria-labelledby="cryptoNetworkTitle">
+                      <div class="crypto-section-head">
+                        <h4 id="cryptoNetworkTitle">انتخاب شبکه</h4>
+                        <p>شبکه‌ای را انتخاب کنید که از همان طریق پرداخت می‌کنید.</p>
+                      </div>
+                      <input id="cryptoNetworkSelect" type="hidden" value="" />
+                      <div id="cryptoNetworkChoices" class="crypto-network-choices" role="radiogroup" aria-label="شبکه پرداخت">
+                        <button class="crypto-network-option" data-network="TRON" type="button" role="radio" aria-checked="false">
+                          <span class="crypto-network-mark is-usdt">₮</span>
+                          <span class="crypto-network-copy">
+                            <strong>تتر <b dir="ltr">USDT</b></strong>
+                            <small dir="ltr">TRON • TRC20 • Mainnet</small>
+                          </span>
+                          <span class="crypto-network-radio" aria-hidden="true"></span>
+                        </button>
+                        <button class="crypto-network-option" data-network="TON" type="button" role="radio" aria-checked="false">
+                          <span class="crypto-network-mark is-ton">TON</span>
+                          <span class="crypto-network-copy">
+                            <strong>تون <b dir="ltr">TON</b></strong>
+                            <small dir="ltr">TON • Mainnet</small>
+                          </span>
+                          <span class="crypto-network-radio" aria-hidden="true"></span>
+                        </button>
+                      </div>
+                      <div id="cryptoNetworkHint" class="step-hint"></div>
+                    </section>
+
+                    <section class="crypto-create-section">
+                      <label class="crypto-amount-label" for="cryptoAmountInput">مبلغ واریز <span>(تومان)</span></label>
+                      <div class="crypto-amount-input-wrap">
+                        <input id="cryptoAmountInput" type="number" min="1" inputmode="numeric" placeholder="مبلغ را وارد کنید" />
+                        <span>تومان</span>
+                      </div>
+                      <div class="crypto-amount-presets" aria-label="مبلغ‌های آماده رمزارز">
+                        <button class="crypto-amount-preset" data-amount="100000" type="button">۱۰۰,۰۰۰</button>
+                        <button class="crypto-amount-preset" data-amount="500000" type="button">۵۰۰,۰۰۰</button>
+                        <button class="crypto-amount-preset" data-amount="1000000" type="button">۱,۰۰۰,۰۰۰</button>
+                      </div>
+                    </section>
+
+                    <div class="crypto-create-summary" aria-label="خلاصه شرایط فاکتور">
+                      <div>
+                        <span>نرخ لحظه‌ای</span>
+                        <strong>هنگام صدور دریافت می‌شود</strong>
+                      </div>
+                      <div>
+                        <span>اعتبار فاکتور</span>
+                        <strong id="cryptoInvoiceValidity">۱۵ دقیقه</strong>
+                      </div>
+                      <div>
+                        <span>سقف واریز روزانه</span>
+                        <strong id="cryptoDailyLimit">-</strong>
                       </div>
                     </div>
-                  </div>
 
-                  <div class="deposit-step">
-                    <div class="deposit-step-no">2</div>
-                    <div class="deposit-step-body">
-                      <label for="cryptoNetworkSelect">شبکه پرداخت</label>
-                      <select id="cryptoNetworkSelect"></select>
-                      <div id="cryptoNetworkHint" class="step-hint"></div>
-                    </div>
-                  </div>
-
-                  <div class="deposit-step final">
-                    <div class="deposit-step-no">3</div>
-                    <div class="deposit-step-body">
-                      <label>صدور فاکتور لحظه‌ای</label>
-                      <button id="createCryptoInvoiceBtn" class="small-btn primary" type="button">دریافت مبلغ و آدرس پرداخت</button>
+                    <div class="crypto-create-actions">
+                      <button id="createCryptoInvoiceBtn" class="small-btn primary crypto-primary-action" type="button">دریافت نرخ و ادامه</button>
                       <div id="cryptoSubmitHint" class="step-hint"></div>
                     </div>
                   </div>
@@ -630,6 +669,6 @@
     <div id="miniToast" class="mini-toast hidden" role="status" aria-live="polite"></div>
 
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="./app.js?v=20260624crypto3" type="module"></script>
+    <script src="./app.js?v=20260625crypto4" type="module"></script>
   </body>
 </html>
