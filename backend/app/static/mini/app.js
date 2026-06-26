@@ -32,6 +32,7 @@ const state = {
   cryptoTxDetailsOpen: false,
   cryptoInvoiceHintText: "",
   cryptoInvoiceHintType: "",
+  cryptoTxHashDraft: "",
   cardsPollTimer: null,
   cardsPrevCalledByGame: {},
   cardsLatestSeenEventByGame: {},
@@ -3184,10 +3185,12 @@ function captureCryptoInvoiceUiState(box) {
   if (!box) return null;
   const manual = box.querySelector(".crypto-manual-payment");
   const txDetails = box.querySelector(".crypto-tx-details");
+  const txInput = box.querySelector("#cryptoTxHashInput");
   const hint = box.querySelector("#cryptoInvoiceHint");
   return {
     manualOpen: manual ? Boolean(manual.open) : Boolean(state.cryptoManualPaymentOpen),
     txDetailsOpen: txDetails ? Boolean(txDetails.open) : Boolean(state.cryptoTxDetailsOpen),
+    txHashDraft: txInput ? String(txInput.value || "") : String(state.cryptoTxHashDraft || ""),
     hintText: hint ? String(hint.textContent || "") : String(state.cryptoInvoiceHintText || ""),
     hintType: hint ? String(hint.dataset?.type || "") : String(state.cryptoInvoiceHintType || ""),
   };
@@ -3215,9 +3218,21 @@ function restoreCryptoInvoiceUiState(box, invoice, captured = null) {
   }
 
   if (captured) {
+    state.cryptoTxHashDraft = String(captured.txHashDraft || state.cryptoTxHashDraft || "");
     state.cryptoInvoiceHintText = String(captured.hintText || state.cryptoInvoiceHintText || "");
     state.cryptoInvoiceHintType = String(captured.hintType || state.cryptoInvoiceHintType || "");
   }
+
+  const txInput = box.querySelector("#cryptoTxHashInput");
+  if (txInput) {
+    if (state.cryptoTxHashDraft && txInput.value !== state.cryptoTxHashDraft) {
+      txInput.value = state.cryptoTxHashDraft;
+    }
+    txInput.addEventListener("input", () => {
+      state.cryptoTxHashDraft = String(txInput.value || "");
+    });
+  }
+
   setHint("cryptoInvoiceHint", state.cryptoInvoiceHintText, state.cryptoInvoiceHintType);
 }
 
@@ -3480,6 +3495,7 @@ function renderCryptoInvoice(invoice, { open = true } = {}) {
     state.cryptoTxDetailsOpen = false;
     state.cryptoInvoiceHintText = "";
     state.cryptoInvoiceHintType = "";
+    state.cryptoTxHashDraft = "";
     setCryptoInvoiceView(false);
     box.innerHTML = "";
     return;
@@ -3493,6 +3509,7 @@ function renderCryptoInvoice(invoice, { open = true } = {}) {
     state.cryptoTxDetailsOpen = false;
     state.cryptoInvoiceHintText = "";
     state.cryptoInvoiceHintType = "";
+    state.cryptoTxHashDraft = "";
     clearCryptoQrObjectUrl();
   }
   const status = String(invoice.status || "").toUpperCase();
@@ -3511,6 +3528,10 @@ function renderCryptoInvoice(invoice, { open = true } = {}) {
   const option = cryptoOption(network);
   const paymentRequested = Boolean(invoice.payment_requested_at);
   const directAvailable = Boolean(option?.direct_payment_available) && !paymentRequested;
+  const manualFallbackPreferred = pending && !directAvailable && !paymentRequested;
+  if (!reuseUiState && manualFallbackPreferred) {
+    state.cryptoManualPaymentOpen = true;
+  }
   const canCancel = status === "WAITING_PAYMENT" && !paymentRequested && !txHash && !invoice.detected_at;
   const confirmations = Number(invoice.confirmation_count || 0);
   const requiredConfirmations = Math.max(1, Number(invoice.required_confirmations || 1));
@@ -3543,7 +3564,7 @@ function renderCryptoInvoice(invoice, { open = true } = {}) {
       <span>مبلغ دقیق پرداخت</span>
       <div>
         <strong dir="ltr">${safeText(amountCrypto)} ${safeText(asset)}</strong>
-        <button class="crypto-icon-copy crypto-copy-btn" data-copy="${safeText(amountCrypto)}" type="button" aria-label="کپی مبلغ">⧉</button>
+        <button class="crypto-copy-text-btn crypto-copy-btn" data-copy="${safeText(amountCrypto)}" data-copy-label="مبلغ" type="button">کپی مبلغ</button>
       </div>
       <small>معادل شارژ: ${safeText(toman(invoice.amount_toman || 0))}</small>
     </div>
@@ -3564,7 +3585,11 @@ function renderCryptoInvoice(invoice, { open = true } = {}) {
 
     ${pending ? `
       <details class="crypto-manual-payment">
-        <summary>پرداخت دستی با QR یا کپی آدرس</summary>
+        <summary>
+          <strong>پرداخت دستی با QR و کپی آدرس</strong>
+          <span>اگر کیف پول مستقیم باز نشد، از این بخش پرداخت کن.</span>
+        </summary>
+        <div class="crypto-manual-help">مبلغ دقیق، شبکه و آدرس مقصد را کنترل کن. برای TON اگر Memo نمایش داده شد، حتماً آن را هم بفرست.</div>
         <div class="crypto-qr-wrap">
           <img id="cryptoInvoiceQr" alt="QR پرداخت ارز دیجیتال" />
         </div>
@@ -3572,7 +3597,7 @@ function renderCryptoInvoice(invoice, { open = true } = {}) {
           <span>آدرس مقصد • ${safeText(network === "TRON" ? "TRC20" : "TON Mainnet")}</span>
           <div>
             <code dir="ltr" title="${safeText(address)}">${safeText(shortenCryptoAddress(address))}</code>
-            <button class="crypto-icon-copy crypto-copy-btn" data-copy="${safeText(address)}" type="button" aria-label="کپی آدرس">⧉</button>
+            <button class="crypto-copy-text-btn crypto-copy-btn" data-copy="${safeText(address)}" data-copy-label="آدرس" type="button">کپی آدرس</button>
           </div>
         </div>
         ${memo ? `
@@ -3580,7 +3605,7 @@ function renderCryptoInvoice(invoice, { open = true } = {}) {
             <span>Memo / Comment</span>
             <div>
               <code dir="ltr">${safeText(memo)}</code>
-              <button class="crypto-icon-copy crypto-copy-btn" data-copy="${safeText(memo)}" type="button" aria-label="کپی Memo">⧉</button>
+              <button class="crypto-copy-text-btn crypto-copy-btn" data-copy="${safeText(memo)}" data-copy-label="Memo" type="button">کپی Memo</button>
             </div>
           </div>
         ` : ""}
@@ -3591,7 +3616,7 @@ function renderCryptoInvoice(invoice, { open = true } = {}) {
         <span>هش تراکنش</span>
         <div>
           <code dir="ltr" title="${safeText(txHash)}">${safeText(shortenCryptoAddress(txHash))}</code>
-          <button class="crypto-icon-copy crypto-copy-btn" data-copy="${safeText(txHash)}" type="button" aria-label="کپی هش">⧉</button>
+          <button class="crypto-copy-text-btn crypto-copy-btn" data-copy="${safeText(txHash)}" data-copy-label="هش" type="button">کپی هش</button>
         </div>
       </div>
     ` : ""}
@@ -3605,12 +3630,16 @@ function renderCryptoInvoice(invoice, { open = true } = {}) {
     ${reason ? `<div class="crypto-invoice-warning">${safeText(reason)}</div>` : ""}
 
     ${status === "WAITING_PAYMENT" ? `
-      <details class="crypto-tx-details">
-        <summary>ثبت هش تراکنش (اختیاری)</summary>
+      <details class="crypto-tx-details crypto-tx-details-highlight">
+        <summary>
+          <strong>تراکنش را انجام دادی؟ هش را اینجا ثبت کن</strong>
+          <span>اختیاری است، ولی بررسی پرداخت را سریع‌تر می‌کند.</span>
+        </summary>
         <div class="crypto-tx-claim">
-          <input id="cryptoTxHashInput" type="text" dir="ltr" placeholder="هش تراکنش را وارد کنید" />
-          <button id="submitCryptoTxHashBtn" class="small-btn" type="button">ثبت هش</button>
+          <input id="cryptoTxHashInput" type="text" dir="ltr" value="${safeText(txHash || state.cryptoTxHashDraft || "")}" placeholder="Transaction Hash / TxID" autocomplete="off" autocapitalize="off" spellcheck="false" />
+          <button id="submitCryptoTxHashBtn" class="small-btn primary crypto-submit-hash-btn" type="button">${txHash ? "به‌روزرسانی هش" : "ثبت هش تراکنش"}</button>
         </div>
+        <div class="crypto-tx-claim-note">${txHash ? "هش فعلی ثبت شده؛ اگر اشتباه است، مقدار درست را جایگزین کن." : "هش را از رسید کیف پول کپی کن. بدون هش هم سیستم خودکار بررسی می‌کند."}</div>
       </details>
     ` : ""}
 
@@ -3652,9 +3681,10 @@ function renderCryptoInvoice(invoice, { open = true } = {}) {
   }
   box.querySelectorAll(".crypto-copy-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
+      const label = String(btn.getAttribute("data-copy-label") || "متن");
       copyTextToClipboard(String(btn.getAttribute("data-copy") || ""))
         .then(() => {
-          setCryptoInvoiceHint("کپی شد.", "success");
+          setCryptoInvoiceHint(`${label} کپی شد.`, "success");
           triggerLightHaptic("success");
         })
         .catch((e) => setLocalError("cryptoInvoiceHint", e));
@@ -3787,13 +3817,29 @@ async function submitCryptoTxHash(invoiceId) {
   const id = Number(invoiceId || 0);
   const tx_hash = getVal("cryptoTxHashInput");
   if (!tx_hash) throw new Error("هش تراکنش را وارد کنید.");
-  setCryptoInvoiceHint("در حال ثبت هش تراکنش...", "pending");
-  const invoice = await apiFetch(`/mini-api/crypto/deposits/${id}/tx-hash`, {
-    method: "POST",
-    body: { tx_hash },
-  });
-  renderCryptoInvoice(invoice);
-  setCryptoInvoiceHint("هش تراکنش ثبت شد و در بررسی خودکار قرار گرفت.", "success");
+  const btn = getEl("submitCryptoTxHashBtn");
+  const originalText = btn ? String(btn.textContent || "ثبت هش تراکنش") : "ثبت هش تراکنش";
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "در حال ثبت...";
+  }
+  try {
+    setCryptoInvoiceHint("در حال ثبت هش تراکنش...", "pending");
+    const invoice = await apiFetch(`/mini-api/crypto/deposits/${id}/tx-hash`, {
+      method: "POST",
+      body: { tx_hash },
+    });
+    state.cryptoTxHashDraft = "";
+    renderCryptoInvoice(invoice);
+    state.cryptoTxDetailsOpen = true;
+    setCryptoInvoiceHint("هش تراکنش ثبت شد و در بررسی خودکار قرار گرفت.", "success");
+  } finally {
+    const currentBtn = getEl("submitCryptoTxHashBtn");
+    if (currentBtn) {
+      currentBtn.disabled = false;
+      currentBtn.textContent = originalText;
+    }
+  }
 }
 
 function drawWithdrawRequests(payload) {

@@ -2178,7 +2178,9 @@ def mini_crypto_wallet_event(
             user_id=int(user_id),
             provider=payload.provider,
             wallet_address=payload.wallet_address,
-            payment_requested=event in {"PAYMENT_REQUESTED", "PAYMENT_SUBMITTED"},
+            # Opening/connecting a wallet must not lock the invoice.
+            # Lock only after the wallet SDK reports an actual submitted transaction.
+            payment_requested=event == "PAYMENT_SUBMITTED",
             clear_payment_requested=event == "PAYMENT_FAILED",
         )
     AdminAuditService.record_user(

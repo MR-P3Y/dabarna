@@ -1323,10 +1323,36 @@ body {
 }
 
 .crypto-manual-payment summary {
+  display: grid;
+  gap: 3px;
   padding: 11px;
   color: var(--muted);
   font-size: 11px;
   cursor: pointer;
+}
+
+.crypto-manual-payment summary strong,
+.crypto-tx-details summary strong {
+  color: var(--text);
+  font-size: 12px;
+}
+
+.crypto-manual-payment summary span,
+.crypto-tx-details summary span {
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+.crypto-manual-help {
+  margin: 0 10px 10px;
+  border: 1px solid rgba(246, 185, 67, 0.22);
+  border-radius: 8px;
+  padding: 8px 10px;
+  color: #f6d58a;
+  background: rgba(246, 185, 67, 0.07);
+  font-size: 10px;
+  line-height: 1.8;
 }
 
 .crypto-manual-payment[open] {
@@ -1353,6 +1379,25 @@ body {
   width: 30px;
   height: 30px;
   font-size: 20px;
+}
+
+.crypto-copy-text-btn {
+  min-height: 30px;
+  border: 1px solid rgba(91, 194, 225, 0.5);
+  border-radius: 999px;
+  padding: 0 10px;
+  background: rgba(91, 194, 225, 0.1);
+  color: #9deaff;
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 800;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.crypto-copy-text-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .crypto-qr-wrap {
@@ -1383,7 +1428,7 @@ body {
 .crypto-address-block > div {
   min-height: 46px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 32px;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 8px;
   padding: 0 10px;
@@ -1427,7 +1472,14 @@ body {
   overflow: hidden;
 }
 
+.crypto-tx-details-highlight {
+  border-color: rgba(45, 212, 191, 0.46);
+  background: rgba(45, 212, 191, 0.055);
+}
+
 .crypto-tx-details summary {
+  display: grid;
+  gap: 3px;
   padding: 10px;
   cursor: pointer;
   color: var(--text);
@@ -1437,8 +1489,20 @@ body {
 .crypto-tx-claim {
   display: flex;
   align-items: stretch;
+  flex-wrap: wrap;
   gap: 8px;
+  padding: 0 10px 8px;
+}
+
+.crypto-submit-hash-btn {
+  min-width: 118px;
+}
+
+.crypto-tx-claim-note {
   padding: 0 10px 10px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.7;
 }
 
 .crypto-tx-claim input {
@@ -1788,8 +1852,12 @@ html[data-theme="light"] .crypto-address-block > div {
 }
 
 @media (max-width: 540px) {
+  .crypto-tx-claim {
+    display: grid;
+  }
+
   .crypto-tx-claim .small-btn {
-    flex: 1 1 auto;
+    width: 100%;
   }
 
   .crypto-invoice-box {
