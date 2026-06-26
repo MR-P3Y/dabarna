@@ -20,12 +20,18 @@ const state = {
   cryptoOptions: null,
   cryptoCurrentInvoice: null,
   cryptoQrObjectUrl: "",
+  cryptoQrInvoiceId: 0,
   cryptoCountdownTimer: null,
   cryptoServerOffsetMs: 0,
   cryptoInvoiceViewOpen: false,
   cryptoExpiryRefreshId: 0,
   cryptoWalletCheckout: null,
   cryptoPaymentBusy: false,
+  cryptoRefreshBusy: false,
+  cryptoManualPaymentOpen: false,
+  cryptoTxDetailsOpen: false,
+  cryptoInvoiceHintText: "",
+  cryptoInvoiceHintType: "",
   cardsPollTimer: null,
   cardsPrevCalledByGame: {},
   cardsLatestSeenEventByGame: {},
@@ -958,6 +964,12 @@ function setHint(id, text, type = "") {
   el.dataset.type = String(type || "");
 }
 
+function setCryptoInvoiceHint(text, type = "") {
+  state.cryptoInvoiceHintText = String(text || "");
+  state.cryptoInvoiceHintType = String(type || "");
+  setHint("cryptoInvoiceHint", state.cryptoInvoiceHintText, state.cryptoInvoiceHintType);
+}
+
 const ADMIN_ACTION_HINT_IDS = ["adminCallActionHint", "adminCloseLobbyHint", "adminLiveActionHint", "adminActionHint"];
 
 function setAdminLocalHint(id, text, type = "") {
@@ -969,6 +981,10 @@ function setAdminLocalHint(id, text, type = "") {
 
 function setLocalError(hintId, err) {
   const message = String(err?.message || err || "خطا رخ داد.");
+  if (hintId === "cryptoInvoiceHint") {
+    setCryptoInvoiceHint(message, "error");
+    return;
+  }
   setHint(hintId, message, "error");
 }
 
@@ -3156,6 +3172,55 @@ function cryptoTimeline(status) {
   }).join("");
 }
 
+function clearCryptoQrObjectUrl() {
+  if (state.cryptoQrObjectUrl) {
+    try { URL.revokeObjectURL(state.cryptoQrObjectUrl); } catch (_) {}
+  }
+  state.cryptoQrObjectUrl = "";
+  state.cryptoQrInvoiceId = 0;
+}
+
+function captureCryptoInvoiceUiState(box) {
+  if (!box) return null;
+  const manual = box.querySelector(".crypto-manual-payment");
+  const txDetails = box.querySelector(".crypto-tx-details");
+  const hint = box.querySelector("#cryptoInvoiceHint");
+  return {
+    manualOpen: manual ? Boolean(manual.open) : Boolean(state.cryptoManualPaymentOpen),
+    txDetailsOpen: txDetails ? Boolean(txDetails.open) : Boolean(state.cryptoTxDetailsOpen),
+    hintText: hint ? String(hint.textContent || "") : String(state.cryptoInvoiceHintText || ""),
+    hintType: hint ? String(hint.dataset?.type || "") : String(state.cryptoInvoiceHintType || ""),
+  };
+}
+
+function restoreCryptoInvoiceUiState(box, invoice, captured = null) {
+  if (!box || !invoice) return;
+  const manual = box.querySelector(".crypto-manual-payment");
+  const txDetails = box.querySelector(".crypto-tx-details");
+
+  if (manual) {
+    state.cryptoManualPaymentOpen = Boolean(captured?.manualOpen ?? state.cryptoManualPaymentOpen);
+    manual.open = state.cryptoManualPaymentOpen;
+    manual.addEventListener("toggle", () => {
+      state.cryptoManualPaymentOpen = Boolean(manual.open);
+    });
+  }
+
+  if (txDetails) {
+    state.cryptoTxDetailsOpen = Boolean(captured?.txDetailsOpen ?? state.cryptoTxDetailsOpen);
+    txDetails.open = state.cryptoTxDetailsOpen;
+    txDetails.addEventListener("toggle", () => {
+      state.cryptoTxDetailsOpen = Boolean(txDetails.open);
+    });
+  }
+
+  if (captured) {
+    state.cryptoInvoiceHintText = String(captured.hintText || state.cryptoInvoiceHintText || "");
+    state.cryptoInvoiceHintType = String(captured.hintType || state.cryptoInvoiceHintType || "");
+  }
+  setHint("cryptoInvoiceHint", state.cryptoInvoiceHintText, state.cryptoInvoiceHintType);
+}
+
 function setCryptoInvoiceView(open) {
   const active = Boolean(open);
   const wasOpen = Boolean(state.cryptoInvoiceViewOpen);
@@ -3361,17 +3426,16 @@ async function payCryptoInvoiceDirect(invoiceId) {
     }
     subscribeCryptoSocket(invoice.id);
     await refreshCryptoInvoice(invoice.id, { silent: true }).catch(() => {});
-    setHint("cryptoInvoiceHint", "تراکنش ارسال شد. تایید شبکه به‌صورت زنده نمایش داده می‌شود.", "success");
+    setCryptoInvoiceHint("تراکنش ارسال شد. تایید شبکه به‌صورت زنده نمایش داده می‌شود.", "success");
   } catch (error) {
     if (!submitted) {
       cryptoWalletEvent("PAYMENT_FAILED", invoice, {
         detail: localizeApiError(error?.message || error),
       }).catch(() => {});
-      setHint("cryptoInvoiceHint", localizeApiError(error?.message || error), "error");
+      setCryptoInvoiceHint(localizeApiError(error?.message || error), "error");
     } else {
       subscribeCryptoSocket(invoice.id);
-      setHint(
-        "cryptoInvoiceHint",
+      setCryptoInvoiceHint(
         "تراکنش ارسال شده است و بررسی شبکه ادامه دارد. دوباره پرداخت نکنید.",
         "success"
       );
@@ -3405,20 +3469,35 @@ async function cancelCryptoInvoice(invoiceId) {
 function renderCryptoInvoice(invoice, { open = true } = {}) {
   const box = getEl("cryptoInvoiceBox");
   if (!box) return;
-  if (state.cryptoQrObjectUrl) {
-    URL.revokeObjectURL(state.cryptoQrObjectUrl);
-    state.cryptoQrObjectUrl = "";
-  }
+
+  const previousInvoiceId = Number(state.cryptoCurrentInvoice?.id || 0);
+  const previousUiState = captureCryptoInvoiceUiState(box);
   state.cryptoCurrentInvoice = invoice || null;
+
   if (!invoice) {
+    clearCryptoQrObjectUrl();
+    state.cryptoManualPaymentOpen = false;
+    state.cryptoTxDetailsOpen = false;
+    state.cryptoInvoiceHintText = "";
+    state.cryptoInvoiceHintType = "";
     setCryptoInvoiceView(false);
     box.innerHTML = "";
     return;
   }
+
   rememberCryptoInvoice(invoice);
   const id = Number(invoice.id || 0);
+  const reuseUiState = previousInvoiceId > 0 && previousInvoiceId === id;
+  if (!reuseUiState) {
+    state.cryptoManualPaymentOpen = false;
+    state.cryptoTxDetailsOpen = false;
+    state.cryptoInvoiceHintText = "";
+    state.cryptoInvoiceHintType = "";
+    clearCryptoQrObjectUrl();
+  }
   const status = String(invoice.status || "").toUpperCase();
   const pending = status === "WAITING_PAYMENT" || status === "CONFIRMING";
+  if (!pending) clearCryptoQrObjectUrl();
   const amountCrypto = compactCryptoAmount(invoice.amount_crypto);
   const asset = String(invoice.asset || "");
   const memo = String(invoice.memo || "").trim();
@@ -3548,25 +3627,34 @@ function renderCryptoInvoice(invoice, { open = true } = {}) {
   `;
   setCryptoInvoiceView(open);
   if (open) startCryptoCountdown(invoice);
+  restoreCryptoInvoiceUiState(box, invoice, reuseUiState ? previousUiState : null);
   if (pending) {
-    apiFetchBlob(`/mini-api/crypto/deposits/${id}/qr`)
-      .then((blob) => {
-        const img = getEl("cryptoInvoiceQr");
-        if (!img) return;
-        const objectUrl = URL.createObjectURL(blob);
-        state.cryptoQrObjectUrl = objectUrl;
-        img.src = objectUrl;
-      })
-      .catch(() => {
-        const qrWrap = box.querySelector(".crypto-qr-wrap");
-        if (qrWrap) qrWrap.classList.add("hidden");
-      });
+    const existingQr = getEl("cryptoInvoiceQr");
+    if (existingQr && state.cryptoQrObjectUrl && Number(state.cryptoQrInvoiceId || 0) === id) {
+      existingQr.src = state.cryptoQrObjectUrl;
+    } else {
+      clearCryptoQrObjectUrl();
+      apiFetchBlob(`/mini-api/crypto/deposits/${id}/qr`)
+        .then((blob) => {
+          const img = getEl("cryptoInvoiceQr");
+          if (!img || Number(state.cryptoCurrentInvoice?.id || 0) !== id) return;
+          clearCryptoQrObjectUrl();
+          const objectUrl = URL.createObjectURL(blob);
+          state.cryptoQrObjectUrl = objectUrl;
+          state.cryptoQrInvoiceId = id;
+          img.src = objectUrl;
+        })
+        .catch(() => {
+          const qrWrap = box.querySelector(".crypto-qr-wrap");
+          if (qrWrap) qrWrap.classList.add("hidden");
+        });
+    }
   }
   box.querySelectorAll(".crypto-copy-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
       copyTextToClipboard(String(btn.getAttribute("data-copy") || ""))
         .then(() => {
-          setHint("cryptoInvoiceHint", "کپی شد.", "success");
+          setCryptoInvoiceHint("کپی شد.", "success");
           triggerLightHaptic("success");
         })
         .catch((e) => setLocalError("cryptoInvoiceHint", e));
@@ -3643,7 +3731,7 @@ async function createCryptoInvoice() {
     });
     renderCryptoInvoice(invoice, { open: true });
     setHint("cryptoSubmitHint", "");
-    setHint("cryptoInvoiceHint", "فاکتور صادر شد. مبلغ و شبکه را پیش از پرداخت کنترل کنید.", "success");
+    setCryptoInvoiceHint("فاکتور صادر شد. مبلغ و شبکه را پیش از پرداخت کنترل کنید.", "success");
     triggerLightHaptic("success");
     await refreshWallet();
   } catch (err) {
@@ -3658,35 +3746,54 @@ async function createCryptoInvoice() {
 }
 
 async function refreshCryptoInvoice(invoiceId, { scroll = false, open = true, silent = false } = {}) {
+  if (state.cryptoRefreshBusy) return;
   const id = Number(invoiceId || state.cryptoCurrentInvoice?.id || 0);
   if (!id) throw new Error("فاکتور رمزارز انتخاب نشده است.");
-  if (!silent) setHint("cryptoInvoiceHint", "در حال بررسی شبکه...");
-  const invoice = await apiFetch(`/mini-api/crypto/deposits/${id}`);
-  renderCryptoInvoice(invoice, { open });
-  if (scroll) {
-    setDepositMode("crypto");
-    getEl("cryptoInvoiceBox")?.scrollIntoView({ behavior: "smooth", block: "center" });
+  state.cryptoRefreshBusy = true;
+
+  const btn = getEl("refreshCryptoInvoiceBtn");
+  const originalText = btn ? String(btn.textContent || "بررسی فوری پرداخت") : "بررسی فوری پرداخت";
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "در حال بررسی...";
   }
-  if (String(invoice.status || "").toUpperCase() === "CREDITED") {
-    setHint("cryptoInvoiceHint", "پرداخت تایید شد و کیف پول شارژ شد.", "success");
-    triggerLightHaptic("success");
-  } else if (!silent && isCryptoInvoicePending(invoice)) {
-    setHint("cryptoInvoiceHint", "هنوز تراکنش تاییدشده‌ای برای این فاکتور مشاهده نشده است.");
+
+  try {
+    if (!silent) setCryptoInvoiceHint("در حال بررسی شبکه...", "pending");
+    const invoice = await apiFetch(`/mini-api/crypto/deposits/${id}`);
+    renderCryptoInvoice(invoice, { open });
+    if (scroll) {
+      setDepositMode("crypto");
+      getEl("cryptoInvoiceBox")?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+    if (String(invoice.status || "").toUpperCase() === "CREDITED") {
+      setCryptoInvoiceHint("پرداخت تایید شد و کیف پول شارژ شد.", "success");
+      triggerLightHaptic("success");
+    } else if (!silent && isCryptoInvoicePending(invoice)) {
+      setCryptoInvoiceHint("هنوز تراکنش تاییدشده‌ای برای این فاکتور مشاهده نشده است.", "pending");
+    }
+    await refreshWallet();
+  } finally {
+    state.cryptoRefreshBusy = false;
+    const currentBtn = getEl("refreshCryptoInvoiceBtn");
+    if (currentBtn) {
+      currentBtn.disabled = false;
+      currentBtn.textContent = originalText;
+    }
   }
-  await refreshWallet();
 }
 
 async function submitCryptoTxHash(invoiceId) {
   const id = Number(invoiceId || 0);
   const tx_hash = getVal("cryptoTxHashInput");
   if (!tx_hash) throw new Error("هش تراکنش را وارد کنید.");
-  setHint("cryptoInvoiceHint", "در حال ثبت هش تراکنش...");
+  setCryptoInvoiceHint("در حال ثبت هش تراکنش...", "pending");
   const invoice = await apiFetch(`/mini-api/crypto/deposits/${id}/tx-hash`, {
     method: "POST",
     body: { tx_hash },
   });
   renderCryptoInvoice(invoice);
-  setHint("cryptoInvoiceHint", "هش تراکنش ثبت شد و در بررسی خودکار قرار گرفت.", "success");
+  setCryptoInvoiceHint("هش تراکنش ثبت شد و در بررسی خودکار قرار گرفت.", "success");
 }
 
 function drawWithdrawRequests(payload) {
@@ -6219,10 +6326,7 @@ async function boot() {
 
 window.addEventListener("beforeunload", () => {
   stopCryptoCountdown();
-  if (state.cryptoQrObjectUrl) {
-    URL.revokeObjectURL(state.cryptoQrObjectUrl);
-    state.cryptoQrObjectUrl = "";
-  }
+  clearCryptoQrObjectUrl();
   stopMiniSocket();
   stopEventPolling();
   stopCardsPolling();
