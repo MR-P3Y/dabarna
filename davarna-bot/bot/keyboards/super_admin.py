@@ -8,9 +8,11 @@ def super_admin_panel_kb() -> InlineKeyboardMarkup:
     kb.button(text="➕ افزودن ادمین", callback_data="super:admin:add")
     kb.button(text="➖ حذف ادمین", callback_data="super:admin:remove")
     kb.button(text="💳 مدیریت کارت‌های واریز", callback_data="super:deposit:cards")
+    kb.button(text="🟦 وضعیت کارت‌به‌کارت", callback_data="super:deposit:settings")
+    kb.button(text="🪙 مدیریت پرداخت رمزارزی", callback_data="super:crypto:settings")
     kb.button(text="🔄 تازه‌سازی", callback_data="super:admin:panel")
     kb.button(text="⬅️ منوی اصلی", callback_data="nav:menu")
-    kb.adjust(1, 1, 1, 1, 1, 1)
+    kb.adjust(1, 1, 1, 1, 1, 1, 1, 1)
     return kb.as_markup()
 
 
@@ -112,4 +114,34 @@ def super_admin_deposit_card_cancel_kb() -> InlineKeyboardMarkup:
     kb = InlineKeyboardBuilder()
     kb.button(text="❌ لغو", callback_data="super:deposit:cards")
     kb.adjust(1)
+    return kb.as_markup()
+
+
+
+def super_admin_bank_deposit_settings_kb(*, runtime_enabled: bool, can_enable: bool) -> InlineKeyboardMarkup:
+    kb = InlineKeyboardBuilder()
+    if runtime_enabled:
+        kb.button(text="🔴 خاموش کردن کارت‌به‌کارت", callback_data="super:deposit:settings:toggle")
+    else:
+        text = "🟢 روشن کردن کارت‌به‌کارت" if can_enable else "🟢 روشن کردن کارت‌به‌کارت (نیازمند کارت فعال)"
+        kb.button(text=text, callback_data="super:deposit:settings:toggle")
+    kb.button(text="🔄 تازه‌سازی", callback_data="super:deposit:settings")
+    kb.button(text="⬅️ پنل سوپرادمین", callback_data="super:admin:panel")
+    kb.adjust(1, 1, 1)
+    return kb.as_markup()
+
+
+def super_admin_crypto_settings_kb(*, runtime_enabled: bool, can_enable: bool) -> InlineKeyboardMarkup:
+    kb = InlineKeyboardBuilder()
+    if runtime_enabled:
+        kb.button(text="🔴 خاموش کردن پرداخت رمزارزی", callback_data="super:crypto:settings:toggle")
+    else:
+        text = "🟢 روشن کردن پرداخت رمزارزی" if can_enable else "🟢 روشن کردن پرداخت رمزارزی (نیازمند تنظیمات)"
+        kb.button(text=text, callback_data="super:crypto:settings:toggle")
+    kb.button(text="🧾 واریزهای نیازمند بررسی", callback_data="admin:crypto:pending")
+    kb.button(text="🩺 سلامت سرویس‌ها", callback_data="super:crypto:health")
+    kb.button(text="🧮 تطبیق ۲۴ ساعت اخیر", callback_data="super:crypto:reconcile")
+    kb.button(text="🔄 تازه‌سازی", callback_data="super:crypto:settings")
+    kb.button(text="⬅️ پنل سوپرادمین", callback_data="super:admin:panel")
+    kb.adjust(1, 1, 2, 1, 1)
     return kb.as_markup()

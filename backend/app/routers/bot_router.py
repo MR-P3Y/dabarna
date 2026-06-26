@@ -1630,6 +1630,94 @@ def admin_delete_deposit_destination(
     )
 
 
+class AdminRuntimeToggleIn(BaseModel):
+    enabled: bool
+
+
+def _admin_bank_deposit_runtime_status(db: Session) -> dict[str, object]:
+    runtime_enabled = _bank_deposit_enabled(db)
+    all_destinations = _deposit_destination_pool(db, include_inactive=True)
+    active_destinations = [it for it in all_destinations if bool(it.get("is_active", True))]
+    return {
+        "enabled": bool(runtime_enabled and active_destinations),
+        "runtime_enabled": bool(runtime_enabled),
+        "configured": bool(active_destinations),
+        "total_destinations_count": int(len(all_destinations)),
+        "active_destinations_count": int(len(active_destinations)),
+    }
+
+
+def _admin_crypto_runtime_status(db: Session) -> dict[str, object]:
+    status = CryptoDepositService.runtime_status(db)
+    warnings: list[str] = []
+    try:
+        warnings = [str(x) for x in cfg.crypto_config_warnings()]
+    except Exception:
+        warnings = []
+    return {
+        "master_enabled": bool(status.get("master_enabled")),
+        "runtime_enabled": bool(status.get("runtime_enabled")),
+        "configured": bool(status.get("configured")),
+        "enabled": bool(status.get("enabled")),
+        "networks": list(status.get("options") or []),
+        "config_warnings": warnings,
+    }
+
+
+@router.get("/admin/bank-deposit-settings")
+def admin_bank_deposit_settings(
+    db: Session = Depends(get_db),
+    admin: AdminIdentity = Depends(get_admin_identity),
+):
+    _require_super_admin_owner(admin)
+    return _admin_bank_deposit_runtime_status(db)
+
+
+@router.put("/admin/bank-deposit-settings")
+def admin_update_bank_deposit_settings(
+    payload: AdminRuntimeToggleIn,
+    db: Session = Depends(get_db),
+    admin: AdminIdentity = Depends(get_admin_identity),
+):
+    _require_super_admin_owner(admin)
+    current = _admin_bank_deposit_runtime_status(db)
+    if bool(payload.enabled) and int(current.get("active_destinations_count") or 0) <= 0:
+        raise HTTPException(status_code=409, detail="no active bank deposit destination is configured")
+    previous = bool(current.get("runtime_enabled"))
+    _setting_set_json(db, BANK_DEPOSIT_RUNTIME_SETTING_KEY, bool(payload.enabled))
+    db.commit()
+    out = _admin_bank_deposit_runtime_status(db)
+    out["changed"] = bool(previous != bool(out.get("runtime_enabled")))
+    return out
+
+
+@router.get("/admin/crypto-settings")
+def admin_crypto_settings(
+    db: Session = Depends(get_db),
+    admin: AdminIdentity = Depends(get_admin_identity),
+):
+    _require_super_admin_owner(admin)
+    return _admin_crypto_runtime_status(db)
+
+
+@router.put("/admin/crypto-settings")
+def admin_update_crypto_settings(
+    payload: AdminRuntimeToggleIn,
+    db: Session = Depends(get_db),
+    admin: AdminIdentity = Depends(get_admin_identity),
+):
+    _require_super_admin_owner(admin)
+    current = _admin_crypto_runtime_status(db)
+    if bool(payload.enabled) and (not bool(current.get("master_enabled")) or not bool(current.get("configured"))):
+        raise HTTPException(status_code=409, detail="crypto payments are not configured")
+    previous = bool(current.get("runtime_enabled"))
+    _setting_set_json(db, "crypto_payments_runtime_enabled", bool(payload.enabled))
+    db.commit()
+    out = _admin_crypto_runtime_status(db)
+    out["changed"] = bool(previous != bool(out.get("runtime_enabled")))
+    return out
+
+
 # ==================== POST /bot/deposit-requests (Create) ====================
 
 @router.post("/deposit-requests", response_model=DepositRequestOut)

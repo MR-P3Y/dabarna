@@ -286,6 +286,60 @@ class ApiClient:
             headers=self.super_admin_headers(),
         )
 
+
+    async def super_admin_get_bank_deposit_settings(self) -> dict:
+        data = await self._request(
+            "GET",
+            "/bot/admin/bank-deposit-settings",
+            headers=self.super_admin_headers(),
+        )
+        return data if isinstance(data, dict) else {}
+
+    async def super_admin_set_bank_deposit_settings(self, *, enabled: bool) -> dict:
+        data = await self._request(
+            "PUT",
+            "/bot/admin/bank-deposit-settings",
+            json={"enabled": bool(enabled)},
+            headers=self.super_admin_headers(),
+        )
+        return data if isinstance(data, dict) else {}
+
+    async def super_admin_get_crypto_settings(self) -> dict:
+        data = await self._request(
+            "GET",
+            "/bot/admin/crypto-settings",
+            headers=self.super_admin_headers(),
+        )
+        return data if isinstance(data, dict) else {}
+
+    async def super_admin_set_crypto_settings(self, *, enabled: bool) -> dict:
+        data = await self._request(
+            "PUT",
+            "/bot/admin/crypto-settings",
+            json={"enabled": bool(enabled)},
+            headers=self.super_admin_headers(),
+        )
+        return data if isinstance(data, dict) else {}
+
+    async def super_admin_crypto_health(self) -> dict:
+        data = await self._request(
+            "GET",
+            "/bot/admin/crypto-health",
+            headers=self.super_admin_headers(),
+            timeout_sec=30.0,
+        )
+        return data if isinstance(data, dict) else {}
+
+    async def super_admin_crypto_reconciliation(self, *, from_at: str, to_at: str) -> dict:
+        data = await self._request(
+            "GET",
+            "/bot/admin/crypto-reconciliation",
+            params={"from_at": str(from_at), "to_at": str(to_at)},
+            headers=self.super_admin_headers(),
+            timeout_sec=45.0,
+        )
+        return data if isinstance(data, dict) else {}
+
     async def admin_list_games(
         self,
         *,

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
+
 from aiogram import F, Router
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
@@ -13,6 +15,8 @@ from bot.keyboards.super_admin import (
     super_admin_deposit_card_item_kb,
     super_admin_deposit_cards_kb,
     super_admin_panel_kb,
+    super_admin_bank_deposit_settings_kb,
+    super_admin_crypto_settings_kb,
     super_admin_remove_confirm_kb,
 )
 from bot.services.admin_acl import (
@@ -762,3 +766,189 @@ async def super_deposit_card_payload_submit(
 
     await state.clear()
     await _show_deposit_cards_panel(m, api, notice=notice)
+
+
+
+def _onoff(value: object) -> str:
+    return "فعال 🟢" if bool(value) else "غیرفعال 🔴"
+
+
+async def _show_bank_deposit_settings(target: CallbackQuery | Message, api: ApiClient, *, notice: str = "") -> None:
+    try:
+        out = await api.super_admin_get_bank_deposit_settings()
+    except ApiError as e:
+        text = panel("👑 سوپرادمین | کارت‌به‌کارت", f"خطا در دریافت وضعیت:\n{e.detail}")
+        kb = super_admin_panel_kb()
+    else:
+        runtime_enabled = bool(out.get("runtime_enabled"))
+        active = int(out.get("active_destinations_count") or 0)
+        total = int(out.get("total_destinations_count") or 0)
+        lines = [
+            f"وضعیت نمایش برای کاربران: <b>{_onoff(out.get('enabled'))}</b>",
+            f"کلید مدیریتی: <b>{_onoff(runtime_enabled)}</b>",
+            f"کارت‌های فعال: <b>{active}</b> از <b>{total}</b>",
+        ]
+        if notice:
+            lines.insert(0, notice)
+            lines.insert(1, "")
+        text = panel("👑 سوپرادمین | کارت‌به‌کارت", "\n".join(lines))
+        kb = super_admin_bank_deposit_settings_kb(runtime_enabled=runtime_enabled, can_enable=active > 0)
+    if isinstance(target, CallbackQuery):
+        await safe_edit_or_send(target.message, text, reply_markup=kb, parse_mode="HTML")
+        await target.answer()
+    else:
+        await target.answer(text, reply_markup=kb, parse_mode="HTML")
+
+
+@router.callback_query(F.data == "super:deposit:settings")
+async def super_bank_deposit_settings_panel(cq: CallbackQuery, state: FSMContext, api: ApiClient, is_super_admin: bool = False):
+    if not _require_super_admin(is_super_admin):
+        await cq.answer("فقط سوپرادمین دسترسی دارد.", show_alert=True)
+        return
+    await state.clear()
+    await _show_bank_deposit_settings(cq, api)
+
+
+@router.callback_query(F.data == "super:deposit:settings:toggle")
+async def super_bank_deposit_settings_toggle(cq: CallbackQuery, api: ApiClient, is_super_admin: bool = False):
+    if not _require_super_admin(is_super_admin):
+        await cq.answer("فقط سوپرادمین دسترسی دارد.", show_alert=True)
+        return
+    try:
+        current = await api.super_admin_get_bank_deposit_settings()
+        next_enabled = not bool(current.get("runtime_enabled"))
+        await api.super_admin_set_bank_deposit_settings(enabled=next_enabled)
+    except ApiError as e:
+        await cq.answer(e.detail, show_alert=True)
+        return
+    notice = "✅ کارت‌به‌کارت برای کاربران روشن شد." if next_enabled else "✅ کارت‌به‌کارت برای کاربران خاموش شد."
+    await _show_bank_deposit_settings(cq, api, notice=notice)
+
+
+def _crypto_networks_text(items: object) -> str:
+    if not isinstance(items, list) or not items:
+        return "-"
+    out = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        asset = str(item.get("asset") or "").strip()
+        network = str(item.get("network") or "").strip()
+        label = " / ".join(x for x in [asset, network] if x)
+        if label:
+            out.append(label)
+    return "، ".join(out) or "-"
+
+
+async def _show_crypto_settings(target: CallbackQuery | Message, api: ApiClient, *, notice: str = "") -> None:
+    try:
+        out = await api.super_admin_get_crypto_settings()
+    except ApiError as e:
+        text = panel("👑 سوپرادمین | پرداخت رمزارزی", f"خطا در دریافت وضعیت:\n{e.detail}")
+        kb = super_admin_panel_kb()
+    else:
+        runtime_enabled = bool(out.get("runtime_enabled"))
+        master_enabled = bool(out.get("master_enabled"))
+        configured = bool(out.get("configured"))
+        lines = [
+            f"وضعیت نمایش برای کاربران: <b>{_onoff(out.get('enabled'))}</b>",
+            f"کلید مدیریتی: <b>{_onoff(runtime_enabled)}</b>",
+            f"کلید اصلی سرور: <b>{_onoff(master_enabled)}</b>",
+            f"تنظیم شبکه/آدرس: <b>{_onoff(configured)}</b>",
+            f"شبکه‌ها: <b>{_crypto_networks_text(out.get('networks'))}</b>",
+        ]
+        warnings = out.get("config_warnings")
+        if isinstance(warnings, list) and warnings:
+            lines.append(f"هشدار تنظیمات: <code>{' | '.join(str(x) for x in warnings[:4])}</code>")
+        if notice:
+            lines.insert(0, notice)
+            lines.insert(1, "")
+        text = panel("👑 سوپرادمین | پرداخت رمزارزی", "\n".join(lines))
+        kb = super_admin_crypto_settings_kb(
+            runtime_enabled=runtime_enabled,
+            can_enable=master_enabled and configured,
+        )
+    if isinstance(target, CallbackQuery):
+        await safe_edit_or_send(target.message, text, reply_markup=kb, parse_mode="HTML")
+        await target.answer()
+    else:
+        await target.answer(text, reply_markup=kb, parse_mode="HTML")
+
+
+@router.callback_query(F.data == "super:crypto:settings")
+async def super_crypto_settings_panel(cq: CallbackQuery, state: FSMContext, api: ApiClient, is_super_admin: bool = False):
+    if not _require_super_admin(is_super_admin):
+        await cq.answer("فقط سوپرادمین دسترسی دارد.", show_alert=True)
+        return
+    await state.clear()
+    await _show_crypto_settings(cq, api)
+
+
+@router.callback_query(F.data == "super:crypto:settings:toggle")
+async def super_crypto_settings_toggle(cq: CallbackQuery, api: ApiClient, is_super_admin: bool = False):
+    if not _require_super_admin(is_super_admin):
+        await cq.answer("فقط سوپرادمین دسترسی دارد.", show_alert=True)
+        return
+    try:
+        current = await api.super_admin_get_crypto_settings()
+        next_enabled = not bool(current.get("runtime_enabled"))
+        await api.super_admin_set_crypto_settings(enabled=next_enabled)
+    except ApiError as e:
+        await cq.answer(e.detail, show_alert=True)
+        return
+    notice = "✅ پرداخت رمزارزی برای کاربران روشن شد." if next_enabled else "✅ پرداخت رمزارزی برای کاربران خاموش شد."
+    await _show_crypto_settings(cq, api, notice=notice)
+
+
+@router.callback_query(F.data == "super:crypto:health")
+async def super_crypto_health(cq: CallbackQuery, api: ApiClient, is_super_admin: bool = False):
+    if not _require_super_admin(is_super_admin):
+        await cq.answer("فقط سوپرادمین دسترسی دارد.", show_alert=True)
+        return
+    try:
+        out = await api.super_admin_crypto_health()
+    except ApiError as e:
+        await cq.answer(e.detail, show_alert=True)
+        return
+    text = panel(
+        "👑 سوپرادمین | سلامت رمزارز",
+        "\n".join(
+            [
+                f"وضعیت کلی: <b>{_onoff(out.get('ok'))}</b>",
+                f"نرخ‌ها: <b>{_onoff(out.get('rates_ok'))}</b>",
+                f"شبکه‌ها: <b>{_onoff(out.get('chains_ok'))}</b>",
+                f"حالت کاهش افزونگی: <b>{'بله' if out.get('degraded') else 'خیر'}</b>",
+            ]
+        ),
+    )
+    await safe_edit_or_send(cq.message, text, reply_markup=super_admin_crypto_settings_kb(runtime_enabled=True, can_enable=True), parse_mode="HTML")
+    await cq.answer("بررسی انجام شد.")
+
+
+@router.callback_query(F.data == "super:crypto:reconcile")
+async def super_crypto_reconcile(cq: CallbackQuery, api: ApiClient, is_super_admin: bool = False):
+    if not _require_super_admin(is_super_admin):
+        await cq.answer("فقط سوپرادمین دسترسی دارد.", show_alert=True)
+        return
+    end = datetime.now(timezone.utc)
+    start = end - timedelta(hours=24)
+    try:
+        out = await api.super_admin_crypto_reconciliation(from_at=start.isoformat(), to_at=end.isoformat())
+    except ApiError as e:
+        await cq.answer(e.detail, show_alert=True)
+        return
+    text = panel(
+        "👑 سوپرادمین | تطبیق رمزارز",
+        "\n".join(
+            [
+                f"وضعیت کلی: <b>{_onoff(out.get('ok'))}</b>",
+                f"فاکتور شارژشده: <b>{int(out.get('credited_invoices_count') or 0)}</b>",
+                f"مجموع شارژ: <b>{int(out.get('credited_toman_total') or 0):,}</b> تومان",
+                f"تراکنش بدون فاکتور: <b>{int(out.get('unmatched_onchain_count') or 0)}</b>",
+                f"فاکتور بدون مشاهده زنجیره: <b>{int(out.get('missing_onchain_count') or 0)}</b>",
+                f"مغایرت کیف پول: <b>{int(out.get('ledger_mismatch_count') or 0)}</b>",
+            ]
+        ),
+    )
+    await safe_edit_or_send(cq.message, text, reply_markup=super_admin_crypto_settings_kb(runtime_enabled=True, can_enable=True), parse_mode="HTML")
+    await cq.answer("تطبیق انجام شد.")

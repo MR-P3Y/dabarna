@@ -5640,6 +5640,7 @@ async function refreshAdminPanel(options = {}) {
     refreshAdminUsersPanel({ silent }),
     refreshSuperAdminList(),
     refreshSuperCryptoSettings(),
+    refreshSuperBankDepositSettings(),
   ]);
 }
 
@@ -6404,6 +6405,7 @@ async function boot() {
   bind("superAdminGrantBtn", "click", () => superAdminGrant().catch((e) => setLocalError("superAdminHint", e)));
   bind("superAdminRevokeBtn", "click", () => superAdminRevoke().catch((e) => setLocalError("superAdminHint", e)));
   bind("superCryptoToggleBtn", "click", () => toggleSuperCryptoSettings().catch((e) => setLocalError("superCryptoHint", e)));
+  bind("superBankDepositToggleBtn", "click", () => toggleSuperBankDepositSettings().catch((e) => setLocalError("superBankDepositHint", e)));
   bind("superCryptoHealthBtn", "click", () => checkSuperCryptoHealth().catch((e) => setLocalError("superCryptoHint", e)));
   bind("superCryptoReconcileBtn", "click", () => checkSuperCryptoReconciliation().catch((e) => setLocalError("superCryptoHint", e)));
   bind("winsGameFilter", "change", drawWinTimeline);
