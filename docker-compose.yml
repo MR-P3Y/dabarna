@@ -123,11 +123,19 @@ services:
       API_BASE_URL: http://backend:8000
       REDIS_URL: redis://redis:6379/0
       TZ: Asia/Tehran
+    expose:
+      - "8080"
     volumes:
       - ./davarna-bot/storage:/app/storage
     init: true
     mem_limit: 512m
     logging: *default-logging
+    healthcheck:
+      test: ["CMD-SHELL", "if [ \"$${BOT_RUN_MODE:-polling}\" = \"webhook\" ]; then python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/healthz', timeout=5).read()\"; else exit 0; fi"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
     depends_on:
       backend:
         condition: service_healthy

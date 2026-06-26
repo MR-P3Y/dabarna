@@ -1,4 +1,4 @@
-﻿from pathlib import Path
+from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BASE_DIR = Path(__file__).resolve().parents[1]  # davarna-bot/
@@ -13,6 +13,14 @@ class Settings(BaseSettings):
     ADMIN_TG_USER_IDS: str | None = None
     SUPER_ADMIN_TG_USER_IDS: str | None = None
     TELEGRAM_BOT_TOKEN: str
+    BOT_RUN_MODE: str = "polling"
+    WEBHOOK_BASE_URL: str | None = None
+    WEBHOOK_PATH: str = "/telegram/webhook"
+    WEBHOOK_SECRET_TOKEN: str | None = None
+    WEBHOOK_HOST: str = "0.0.0.0"
+    WEBHOOK_PORT: int = 8080
+    WEBHOOK_DROP_PENDING_UPDATES: bool = False
+    WEBHOOK_ALLOWED_UPDATES: str = "message,callback_query"
     API_BASE_URL: str = "http://127.0.0.1:8000"
     REDIS_URL: str = "redis://localhost:6381/0"
     BOT_SERVICE_TOKEN: str | None = None
@@ -63,6 +71,14 @@ class Settings(BaseSettings):
     NOTIFIER_ADAPTIVE_CHECK_SEC: float = 180.0
     NOTIFIER_ADAPTIVE_MIN_JOBS: int = 120
     NOTIFIER_METRICS_REPORT_SEC: float = 60.0
+
+    @property
+    def webhook_allowed_updates(self) -> list[str]:
+        return [
+            item.strip()
+            for item in (self.WEBHOOK_ALLOWED_UPDATES or "").split(",")
+            if item.strip()
+        ]
 
     @property
     def admin_ids(self) -> set[int]:

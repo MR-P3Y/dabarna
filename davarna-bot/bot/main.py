@@ -3,8 +3,11 @@ import logging
 from contextlib import suppress
 
 import aiohttp
+from aiohttp import web
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
+from aiogram.types import BotCommand
+from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
 
 from bot.config import settings
 from bot.log import setup_logging
@@ -14,6 +17,7 @@ from bot.middlewares.throttling import ThrottlingMiddleware
 from bot.middlewares.user_context import UserContextMiddleware
 from bot.middlewares.api import ApiMiddleware
 from bot.middlewares.user_forum_isolation import UserForumIsolationMiddleware
+from bot.middlewares.blocked_user import BlockedUserMiddleware
 
 from bot.services.api_client import ApiClient
 from bot.workers.notifier import notifier_loop
@@ -52,6 +56,18 @@ BOT_WELCOME_DESCRIPTION = (
 BOT_WELCOME_SHORT_DESCRIPTION = "دبرنا حلیم یگن طیار | خرید کارت، اعلام زنده اعداد و جایزه 🃏🏆"
 
 
+BOT_COMMANDS: list[BotCommand] = [
+    BotCommand(command="start", description="شروع و منوی اصلی"),
+    BotCommand(command="games", description="مشاهده بازی های فعال"),
+    BotCommand(command="cards", description="کارت های من"),
+    BotCommand(command="wallet", description="کیف پول"),
+    BotCommand(command="deposit", description="افزایش موجودی"),
+    BotCommand(command="withdraw", description="برداشت وجه"),
+    BotCommand(command="rules", description="قوانین بازی"),
+    BotCommand(command="support", description="پشتیبانی"),
+]
+
+
 async def _sync_bot_profile_texts(bot: Bot) -> None:
     for language_code in (None, "fa"):
         kwargs = {"language_code": language_code} if language_code else {}
@@ -64,12 +80,67 @@ async def _sync_bot_profile_texts(bot: Bot) -> None:
                 description=BOT_WELCOME_DESCRIPTION,
                 **kwargs,
             )
+            await bot.set_my_commands(BOT_COMMANDS, **kwargs)
         except Exception as exc:
             logger.warning(
                 "Failed to set bot profile text (lang=%s): %s",
                 language_code or "default",
                 exc,
             )
+
+
+def _webhook_url() -> str:
+    if not settings.WEBHOOK_BASE_URL:
+        raise RuntimeError("WEBHOOK_BASE_URL is required when BOT_RUN_MODE=webhook")
+    if not settings.WEBHOOK_PATH.startswith("/"):
+        raise RuntimeError("WEBHOOK_PATH must start with /")
+    return settings.WEBHOOK_BASE_URL.rstrip("/") + settings.WEBHOOK_PATH
+
+
+async def _bot_health(_: web.Request) -> web.Response:
+    return web.json_response({"ok": True, "service": "bot"})
+
+
+async def _run_webhook(bot: Bot, dp: Dispatcher) -> None:
+    if not settings.WEBHOOK_SECRET_TOKEN:
+        raise RuntimeError("WEBHOOK_SECRET_TOKEN is required when BOT_RUN_MODE=webhook")
+
+    webhook_url = _webhook_url()
+    allowed_updates = settings.webhook_allowed_updates or ["message", "callback_query"]
+
+    await bot.set_webhook(
+        url=webhook_url,
+        allowed_updates=allowed_updates,
+        secret_token=settings.WEBHOOK_SECRET_TOKEN,
+        drop_pending_updates=bool(settings.WEBHOOK_DROP_PENDING_UPDATES),
+    )
+
+    app = web.Application()
+    app.router.add_get("/healthz", _bot_health)
+    SimpleRequestHandler(
+        dispatcher=dp,
+        bot=bot,
+        secret_token=settings.WEBHOOK_SECRET_TOKEN,
+    ).register(app, path=settings.WEBHOOK_PATH)
+    setup_application(app, dp, bot=bot)
+
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, settings.WEBHOOK_HOST, int(settings.WEBHOOK_PORT))
+    await site.start()
+
+    logger.info(
+        "Webhook mode enabled url=%s host=%s port=%s updates=%s",
+        webhook_url,
+        settings.WEBHOOK_HOST,
+        settings.WEBHOOK_PORT,
+        ",".join(allowed_updates),
+    )
+
+    try:
+        await asyncio.Event().wait()
+    finally:
+        await runner.cleanup()
 
 
 async def main():
@@ -125,6 +196,12 @@ async def main():
     # Middlewares
     dp.update.middleware(UserForumIsolationMiddleware(settings.USER_FORUM_CHAT_ID))
     dp.update.middleware(UserContextMiddleware())
+    dp.update.middleware(
+        BlockedUserMiddleware(
+            admin_ids=settings.admin_ids,
+            super_admin_ids=settings.super_admin_ids,
+        )
+    )
     dp.update.middleware(ThrottlingMiddleware(rate_limit_sec=0.6))
     dp.update.middleware(ApiMiddleware())
 
@@ -157,7 +234,11 @@ async def main():
     dp.include_router(fallback_router)
 
     try:
-        await dp.start_polling(bot)
+        if (settings.BOT_RUN_MODE or "polling").lower() == "webhook":
+            await _run_webhook(bot, dp)
+        else:
+            await bot.delete_webhook(drop_pending_updates=False)
+            await dp.start_polling(bot, allowed_updates=settings.webhook_allowed_updates or None)
     finally:
         notifier_task.cancel()
         with suppress(asyncio.CancelledError):

@@ -1,4 +1,5 @@
 server {
+    server_tokens off;
     listen 80;
     listen [::]:80;
     server_name ${NGINX_SERVER_NAME};
@@ -13,6 +14,7 @@ server {
 }
 
 server {
+    server_tokens off;
     listen 443 ssl http2;
     listen [::]:443 ssl http2;
     server_name ${NGINX_SERVER_NAME};
@@ -29,6 +31,28 @@ server {
     add_header X-Frame-Options "DENY" always;
     add_header X-Content-Type-Options "nosniff" always;
     add_header Referrer-Policy "same-origin" always;
+
+    location ^~ /telegram/webhook/ {
+        limit_except POST {
+            deny all;
+        }
+        proxy_pass http://bot:8080;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Telegram-Bot-Api-Secret-Token $http_x_telegram_bot_api_secret_token;
+        client_max_body_size 2m;
+        client_body_timeout 10s;
+        proxy_read_timeout 30s;
+        proxy_send_timeout 30s;
+        proxy_buffering off;
+    }
+
+    location ~ /\.(?!well-known/) {
+        return 404;
+    }
 
     location /mini-api/ws {
         proxy_pass http://backend:8000;
