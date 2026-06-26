@@ -27,7 +27,7 @@ def _truthy_blocked(value: Any) -> bool:
     if isinstance(value, int):
         return value != 0
     if isinstance(value, str):
-        return value.strip().lower() in {"1", "true", "yes", "blocked", "banned", "disabled", "suspended"}
+        return value.strip().lower() in {"1", "true", "yes", "blocked", "banned", "disabled", "suspended", "restricted"}
     return False
 
 
@@ -35,6 +35,11 @@ def _read_blocked_from_user_object(user: Any) -> bool:
     if not user:
         return False
     if isinstance(user, dict):
+        restriction = user.get("restriction")
+        if isinstance(restriction, dict) and _truthy_blocked(restriction.get("active")):
+            return True
+        if _truthy_blocked(user.get("active")) and ("actions" in user or "reason" in user or "until" in user):
+            return True
         for key in ("is_blocked", "blocked", "is_banned", "banned", "status"):
             if key in user and _truthy_blocked(user.get(key)):
                 return True
@@ -82,6 +87,7 @@ class BlockedUserMiddleware(BaseMiddleware):
         api = data.get("api")
         if api is not None:
             for method_name in (
+                "bot_get_user_restriction",
                 "get_user_by_telegram_id",
                 "get_user_by_tg_id",
                 "get_user_status_by_telegram_id",

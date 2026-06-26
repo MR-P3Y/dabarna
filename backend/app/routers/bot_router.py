@@ -42,6 +42,7 @@ from app.services.admin_audit_service import AdminAuditService
 from app.services.crypto_deposit_service import CryptoDepositService
 from app.services.crypto_health_service import CryptoHealthService
 from app.services.crypto_reconciliation_service import CryptoReconciliationService
+from app.services.user_restriction_service import require_not_restricted, restriction_state_for_tg_user_id
 from app.schemas.crypto import (
     CryptoAdminRejectIn,
     CryptoDepositCreateIn,
@@ -90,6 +91,16 @@ def get_bot_user(
     )
 
     return user
+
+
+@router.get("/users/{tg_user_id}/restriction")
+def bot_user_restriction(
+    tg_user_id: int,
+    token: str = Depends(require_bot_token),
+    db: Session = Depends(get_db),
+):
+    _ = token
+    return restriction_state_for_tg_user_id(db, int(tg_user_id))
 
 
 def _parse_bot_game_statuses(status: Optional[str]) -> list[str]:
@@ -1063,6 +1074,7 @@ def create_withdraw_request(
     user: User = Depends(get_bot_user),
     db: Session = Depends(get_db),
 ):
+    require_not_restricted(db, int(user.tg_user_id), "WITHDRAW")
     """
     Create a new withdraw request.
 
@@ -1129,6 +1141,7 @@ def bot_create_crypto_deposit(
     user: User = Depends(get_bot_user),
     db: Session = Depends(get_db),
 ):
+    require_not_restricted(db, int(user.tg_user_id), "DEPOSIT")
     try:
         invoice = CryptoDepositService.create_invoice(
             db,
@@ -1486,6 +1499,7 @@ def list_deposit_destinations(
     user: User = Depends(get_bot_user),
     db: Session = Depends(get_db),
 ):
+    require_not_restricted(db, int(user.tg_user_id), "DEPOSIT")
     if not _bank_deposit_enabled(db):
         raise HTTPException(status_code=503, detail="bank deposit disabled")
     pool = _deposit_destination_pool(db, include_inactive=False)
@@ -1507,6 +1521,7 @@ def get_deposit_destination(
     user: User = Depends(get_bot_user),
     db: Session = Depends(get_db),
 ):
+    require_not_restricted(db, int(user.tg_user_id), "DEPOSIT")
     pool = _deposit_destination_pool(db, include_inactive=False)
     if not pool:
         raise HTTPException(status_code=503, detail="deposit destination is not configured")
@@ -1726,6 +1741,7 @@ def create_deposit_request(
     user: User = Depends(get_bot_user),
     db: Session = Depends(get_db),
 ):
+    require_not_restricted(db, int(user.tg_user_id), "DEPOSIT")
     """
     Create a new deposit request.
 
@@ -1801,6 +1817,7 @@ def list_bot_games(
     user: User = Depends(get_bot_user),
     db: Session = Depends(get_db),
 ):
+    require_not_restricted(db, int(user.tg_user_id), "ACTIVE_GAMES")
     """
     List games for bot purchase flow.
 
@@ -1852,6 +1869,7 @@ def bot_purchase_cards(
     user: User = Depends(get_bot_user),
     db: Session = Depends(get_db),
 ):
+    require_not_restricted(db, int(user.tg_user_id), "BUY")
     """
     Purchase cards atomically (wallet debit + cards creation) with idempotency.
 

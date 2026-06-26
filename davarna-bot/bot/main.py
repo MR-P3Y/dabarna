@@ -196,6 +196,7 @@ async def main():
     # Middlewares
     dp.update.middleware(UserForumIsolationMiddleware(settings.USER_FORUM_CHAT_ID))
     dp.update.middleware(UserContextMiddleware())
+    dp.update.middleware(ApiMiddleware())
     dp.update.middleware(
         BlockedUserMiddleware(
             admin_ids=settings.admin_ids,
@@ -203,7 +204,6 @@ async def main():
         )
     )
     dp.update.middleware(ThrottlingMiddleware(rate_limit_sec=0.6))
-    dp.update.middleware(ApiMiddleware())
 
     if settings.USER_FORUM_CHAT_ID is not None:
         logger.info(

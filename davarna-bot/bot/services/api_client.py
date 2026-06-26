@@ -483,6 +483,15 @@ class ApiClient:
             headers=self.admin_headers(),
         )
 
+
+    async def bot_get_user_restriction(self, tg_user_id: int, tg_username: str | None = None) -> dict:
+        data = await self._request(
+            "GET",
+            f"/bot/users/{int(tg_user_id)}/restriction",
+            headers=self.bot_headers(tg_user_id, tg_username),
+        )
+        return data if isinstance(data, dict) else {"active": False}
+
     async def bot_sync_user(self, tg_user_id: int, tg_username: str | None = None) -> dict:
         return await self._request(
             "POST",
