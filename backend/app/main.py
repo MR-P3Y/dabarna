@@ -3,7 +3,8 @@ import logging
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
-from fastapi import FastAPI, Header
+from fastapi import FastAPI, Header, Request
+from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from app.core.db import engine
 from app.core import config as cfg
@@ -87,6 +88,23 @@ app.include_router(admin_users_router)
 app.include_router(mini_router)
 app.include_router(admin_audit_router)
 app.include_router(crypto_router)
+
+
+@app.get("/tonconnect-manifest.json", include_in_schema=False)
+def tonconnect_manifest(request: Request):
+    public_url = cfg.CRYPTO_PUBLIC_APP_URL or str(request.base_url).rstrip("/")
+    return JSONResponse(
+        {
+            "url": public_url,
+            "name": "Davarna",
+            "iconUrl": f"{public_url}/mini/assets/bot-logo.jpg",
+        },
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Cache-Control": "public, max-age=300",
+        },
+    )
+
 
 mini_dir = Path(__file__).resolve().parent / "static" / "mini"
 if mini_dir.exists():

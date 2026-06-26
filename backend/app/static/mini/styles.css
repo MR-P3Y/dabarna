@@ -984,6 +984,16 @@ body {
   text-align: left;
 }
 
+.crypto-network-health {
+  font-size: 9px;
+  line-height: 1.5;
+  color: #66ddb4;
+}
+
+.crypto-network-health[data-state="error"] {
+  color: #ff8298;
+}
+
 .crypto-network-radio {
   width: 20px;
   height: 20px;
@@ -1258,6 +1268,87 @@ body {
   font-size: 11px;
 }
 
+.crypto-invoice-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.crypto-invoice-facts > div {
+  min-height: 58px;
+  display: grid;
+  align-content: center;
+  gap: 4px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.crypto-invoice-facts > div:nth-child(odd) {
+  border-left: 1px solid var(--glass-border);
+}
+
+.crypto-invoice-facts > div:nth-last-child(-n + 2) {
+  border-bottom: 0;
+}
+
+.crypto-invoice-facts span {
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.crypto-invoice-facts strong {
+  font-size: 10px;
+  overflow-wrap: anywhere;
+}
+
+.crypto-direct-pay-btn {
+  width: 100%;
+  min-height: 52px;
+  font-size: 14px;
+}
+
+.crypto-direct-unavailable {
+  color: #ff9aae;
+  font-size: 10px;
+  line-height: 1.8;
+  text-align: center;
+}
+
+.crypto-manual-payment {
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.crypto-manual-payment summary {
+  padding: 11px;
+  color: var(--muted);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.crypto-manual-payment[open] {
+  padding-bottom: 12px;
+}
+
+.crypto-manual-payment[open] summary {
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.crypto-manual-payment .crypto-address-block,
+.crypto-manual-wallet-link {
+  margin: 10px 10px 0;
+}
+
+.crypto-manual-wallet-link {
+  display: block;
+  text-decoration: none;
+  text-align: center;
+}
+
 .crypto-icon-copy {
   width: 30px;
   height: 30px;
@@ -1443,9 +1534,194 @@ body {
 }
 
 .crypto-payment-done-btn {
-  position: sticky;
-  bottom: calc(8px + env(safe-area-inset-bottom));
-  z-index: 4;
+  border-color: var(--glass-border);
+  background: transparent;
+}
+
+.crypto-receipt {
+  display: grid;
+  justify-items: stretch;
+  gap: 14px;
+  padding-top: 4px;
+}
+
+.crypto-receipt-seal {
+  width: 62px;
+  height: 62px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  justify-self: center;
+  border: 1px solid rgba(102, 221, 180, 0.7);
+  border-radius: 50%;
+  background: rgba(102, 221, 180, 0.12);
+  color: #66ddb4;
+  font-size: 30px;
+  font-weight: 900;
+}
+
+.crypto-receipt-title {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  text-align: center;
+}
+
+.crypto-receipt-title strong {
+  font-size: 18px;
+}
+
+.crypto-receipt-title span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.crypto-receipt-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.crypto-receipt-grid > div,
+.crypto-receipt-hash {
+  display: grid;
+  gap: 5px;
+  padding: 10px;
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+}
+
+.crypto-receipt-grid span,
+.crypto-receipt-hash span {
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.crypto-receipt-grid strong {
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.crypto-receipt-hash code {
+  direction: ltr;
+  text-align: left;
+  overflow-wrap: anywhere;
+  font-size: 10px;
+}
+
+.crypto-receipt-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.crypto-receipt-actions a {
+  text-decoration: none;
+  text-align: center;
+}
+
+.crypto-confirm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10020;
+  display: grid;
+  align-items: end;
+  padding: 16px;
+  background: rgba(2, 8, 22, 0.72);
+}
+
+.crypto-confirm-dialog {
+  width: min(100%, 480px);
+  max-height: min(82vh, 620px);
+  overflow: auto;
+  justify-self: center;
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid rgba(91, 194, 225, 0.42);
+  border-radius: 8px;
+  background: #0b1935;
+  color: #f4f7ff;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.42);
+}
+
+.crypto-confirm-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.crypto-confirm-close {
+  width: 32px;
+  height: 32px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 24px;
+}
+
+.crypto-confirm-dialog > p {
+  margin: 0;
+  color: #c6d0e6;
+  font-size: 12px;
+  line-height: 1.9;
+}
+
+.crypto-confirm-summary {
+  display: grid;
+  gap: 8px;
+}
+
+.crypto-confirm-summary > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 10px;
+  border: 1px solid rgba(125, 160, 245, 0.2);
+  border-radius: 8px;
+}
+
+.crypto-confirm-summary span {
+  color: #9eacc9;
+  font-size: 10px;
+}
+
+.crypto-confirm-summary strong,
+.crypto-confirm-summary code {
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.crypto-confirm-check {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  align-items: start;
+  gap: 9px;
+  color: #d9e1f1;
+  font-size: 11px;
+  line-height: 1.8;
+}
+
+.crypto-confirm-check input {
+  width: 18px;
+  height: 18px;
+}
+
+.crypto-confirm-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+html[data-theme="light"] .crypto-confirm-dialog {
+  background: #ffffff;
+  color: #13213d;
+}
+
+html[data-theme="light"] .crypto-confirm-dialog > p,
+html[data-theme="light"] .crypto-confirm-check {
+  color: #435372;
 }
 
 body.crypto-payment-active {
@@ -1534,6 +1810,22 @@ html[data-theme="light"] .crypto-address-block > div {
 
   .crypto-amount-presets {
     grid-template-columns: 1fr;
+  }
+
+  .crypto-invoice-facts,
+  .crypto-receipt-grid,
+  .crypto-receipt-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .crypto-invoice-facts > div,
+  .crypto-invoice-facts > div:nth-child(odd) {
+    border-left: 0;
+    border-bottom: 1px solid var(--glass-border);
+  }
+
+  .crypto-invoice-facts > div:last-child {
+    border-bottom: 0;
   }
 }
 

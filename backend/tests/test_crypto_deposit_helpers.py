@@ -26,6 +26,9 @@ class _FakeSession:
     def flush(self):
         return None
 
+    def execute(self, statement):
+        return _FakeResult(rows=[])
+
 
 class _FakeResult:
     def __init__(self, *, scalar=None, rows=None):
@@ -43,6 +46,9 @@ class _FakeResult:
 
     def all(self):
         return self.rows
+
+    def first(self):
+        return self.rows[0] if self.rows else None
 
 
 class _SequenceSession:
@@ -95,8 +101,13 @@ class CryptoDepositHelperTests(unittest.TestCase):
         try:
             with (
                 patch(
-                    "app.services.crypto_deposit_service.CryptoRateService.get_live_quote",
-                    return_value=quote,
+                    "app.services.crypto_deposit_service.CryptoPreflightService.check",
+                    return_value={
+                        "healthy": True,
+                        "quote": quote,
+                        "estimated_network_fee": Decimal("0.01"),
+                        "estimated_network_fee_asset": "TON",
+                    },
                 ),
                 patch.object(
                     CryptoDepositService,
@@ -259,6 +270,166 @@ class CryptoDepositHelperTests(unittest.TestCase):
             )
         self.assertIsNone(repeated)
         repeated_credit.assert_not_called()
+
+    def test_unconfirmed_transfer_moves_invoice_to_confirming_without_credit(self):
+        invoice = SimpleNamespace(
+            id=28,
+            user_id=10,
+            network="TRON",
+            asset="USDT",
+            amount_toman=500_000,
+            amount_crypto=Decimal("3.25"),
+            paid_amount_crypto=None,
+            memo=None,
+            tx_hash=None,
+            sender_address=None,
+            status="WAITING_PAYMENT",
+            wallet_tx_id=None,
+            failure_reason=None,
+            created_at=datetime(2026, 6, 24, 12, 0, 0),
+            expires_at=datetime(2026, 6, 24, 12, 15, 0),
+            detected_at=None,
+            confirmed_at=None,
+            credited_at=None,
+            last_checked_at=None,
+            updated_at=None,
+        )
+        transfer = ChainTransfer(
+            network="TRON",
+            asset="USDT",
+            tx_hash="f" * 64,
+            amount=Decimal("3.25"),
+            sender_address="TSender",
+            destination_address="TReceiver",
+            occurred_at=datetime(2026, 6, 24, 12, 5, 0),
+            confirmed=False,
+            confirmations=0,
+        )
+        db = _SequenceSession(
+            [
+                _FakeResult(scalar=None),
+                _FakeResult(scalar=None),
+                _FakeResult(rows=[invoice]),
+                _FakeResult(scalar=invoice),
+                _FakeResult(scalar=None),
+            ]
+        )
+        with patch(
+            "app.services.crypto_deposit_service.WalletService.credit",
+        ) as credit:
+            result = CryptoDepositService.process_transfer(db, transfer)
+        self.assertIs(result, invoice)
+        self.assertEqual(invoice.status, "CONFIRMING")
+        self.assertEqual(invoice.confirmation_count, 0)
+        self.assertIsNotNone(invoice.detected_at)
+        credit.assert_not_called()
+
+    def test_user_can_cancel_only_untouched_waiting_invoice(self):
+        invoice = SimpleNamespace(
+            id=29,
+            user_id=10,
+            status="WAITING_PAYMENT",
+            tx_hash=None,
+            detected_at=None,
+            active_user_id=10,
+            cancelled_at=None,
+            failure_reason=None,
+            updated_at=None,
+        )
+        db = _SequenceSession([_FakeResult(scalar=invoice)])
+        result = CryptoDepositService.cancel_owned(
+            db,
+            invoice_id=29,
+            user_id=10,
+        )
+        self.assertIs(result, invoice)
+        self.assertEqual(invoice.status, "CANCELLED")
+        self.assertIsNone(invoice.active_user_id)
+        self.assertIsNotNone(invoice.cancelled_at)
+
+    def test_expired_confirming_invoice_releases_active_invoice_slot(self):
+        invoice = SimpleNamespace(
+            status="CONFIRMING",
+            active_user_id=10,
+            failure_reason=None,
+            updated_at=None,
+        )
+        db = _SequenceSession([_FakeResult(rows=[invoice])])
+        count = CryptoDepositService.expire_due(
+            db,
+            now=datetime(2026, 6, 24, 12, 30, 0),
+        )
+        self.assertEqual(count, 1)
+        self.assertEqual(invoice.status, "EXPIRED")
+        self.assertIsNone(invoice.active_user_id)
+
+    def test_failed_wallet_event_reopens_direct_payment(self):
+        invoice = SimpleNamespace(
+            id=31,
+            user_id=10,
+            status="WAITING_PAYMENT",
+            wallet_provider=None,
+            wallet_account_address=None,
+            payment_requested_at=datetime(2026, 6, 24, 12, 0, 0),
+            updated_at=None,
+        )
+        db = _SequenceSession([_FakeResult(scalar=invoice)])
+        result = CryptoDepositService.record_wallet_event(
+            db,
+            invoice_id=31,
+            user_id=10,
+            provider="TON_CONNECT",
+            wallet_address=None,
+            payment_requested=False,
+            clear_payment_requested=True,
+        )
+        self.assertIs(result, invoice)
+        self.assertIsNone(invoice.payment_requested_at)
+
+    def test_payment_requested_invoice_cannot_be_cancelled(self):
+        invoice = SimpleNamespace(
+            id=32,
+            user_id=10,
+            status="WAITING_PAYMENT",
+            tx_hash=None,
+            detected_at=None,
+            payment_requested_at=datetime(2026, 6, 24, 12, 0, 0),
+        )
+        db = _SequenceSession([_FakeResult(scalar=invoice)])
+        with self.assertRaises(HTTPException) as raised:
+            CryptoDepositService.cancel_owned(
+                db,
+                invoice_id=32,
+                user_id=10,
+            )
+        self.assertEqual(raised.exception.status_code, 409)
+
+    def test_existing_active_invoice_blocks_new_invoice(self):
+        active = SimpleNamespace(id=30)
+        db = _SequenceSession([_FakeResult(rows=[active])])
+        with (
+            patch.object(CryptoDepositService, "runtime_enabled", return_value=True),
+            patch.object(CryptoDepositService, "_enforce_daily_user_limits"),
+            patch.object(
+                CryptoDepositService,
+                "_network_spec",
+                return_value={
+                    "network": "TON",
+                    "asset": "TON",
+                    "address": "EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c",
+                    "decimals": 9,
+                },
+            ),
+            patch.object(cfg, "CRYPTO_PAYMENTS_ENABLED", True),
+        ):
+            with self.assertRaises(HTTPException) as raised:
+                CryptoDepositService.create_invoice(
+                    db,
+                    user_id=10,
+                    amount_toman=500_000,
+                    network="TON",
+                )
+        self.assertEqual(raised.exception.status_code, 409)
 
     def test_underpayment_is_sent_to_review(self):
         invoice = SimpleNamespace(

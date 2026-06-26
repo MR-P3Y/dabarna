@@ -9,6 +9,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Numeric,
+    Integer,
     String,
     TIMESTAMP,
     UniqueConstraint,
@@ -28,6 +29,7 @@ CryptoDepositStatus = Enum(
     "EXPIRED",
     "NEEDS_REVIEW",
     "REJECTED",
+    "CANCELLED",
     name="crypto_deposit_status",
 )
 CryptoPaymentVariance = Enum(
@@ -43,6 +45,7 @@ class CryptoDepositRequest(Base):
     __table_args__ = (
         UniqueConstraint("public_id", name="uq_crypto_deposit_public_id"),
         UniqueConstraint("network", "tx_hash", name="uq_crypto_deposit_network_tx"),
+        UniqueConstraint("active_user_id", name="uq_crypto_deposit_active_user"),
         Index("ix_crypto_deposit_user_created", "user_id", "created_at"),
         Index("ix_crypto_deposit_status_expires", "status", "expires_at"),
         Index("ix_crypto_deposit_match", "network", "asset", "amount_crypto", "status"),
@@ -62,6 +65,7 @@ class CryptoDepositRequest(Base):
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     public_id: Mapped[str] = mapped_column(String(32), nullable=False)
     user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id"), nullable=False)
+    active_user_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     network: Mapped[str] = mapped_column(CryptoNetwork, nullable=False)
     asset: Mapped[str] = mapped_column(CryptoAsset, nullable=False)
     amount_toman: Mapped[int] = mapped_column(BigInteger, nullable=False)
@@ -69,17 +73,26 @@ class CryptoDepositRequest(Base):
     amount_crypto: Mapped[Decimal] = mapped_column(Numeric(36, 18), nullable=False)
     paid_amount_crypto: Mapped[Decimal | None] = mapped_column(Numeric(36, 18), nullable=True)
     rate_provider: Mapped[str] = mapped_column(String(32), nullable=False)
+    rate_fetched_at: Mapped[datetime | None] = mapped_column(TIMESTAMP, nullable=True)
+    estimated_network_fee: Mapped[Decimal | None] = mapped_column(Numeric(36, 18), nullable=True)
+    estimated_network_fee_asset: Mapped[str | None] = mapped_column(String(12), nullable=True)
     destination_address: Mapped[str] = mapped_column(String(128), nullable=False)
     memo: Mapped[str | None] = mapped_column(String(64), nullable=True)
     tx_hash: Mapped[str | None] = mapped_column(String(160), nullable=True)
     sender_address: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    wallet_provider: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    wallet_account_address: Mapped[str | None] = mapped_column(String(160), nullable=True)
     status: Mapped[str] = mapped_column(CryptoDepositStatus, nullable=False)
+    confirmation_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    required_confirmations: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     wallet_tx_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("wallet_txs.id"), nullable=True)
     failure_reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
     expires_at: Mapped[datetime] = mapped_column(TIMESTAMP, nullable=False)
     detected_at: Mapped[datetime | None] = mapped_column(TIMESTAMP, nullable=True)
     confirmed_at: Mapped[datetime | None] = mapped_column(TIMESTAMP, nullable=True)
     credited_at: Mapped[datetime | None] = mapped_column(TIMESTAMP, nullable=True)
+    payment_requested_at: Mapped[datetime | None] = mapped_column(TIMESTAMP, nullable=True)
+    cancelled_at: Mapped[datetime | None] = mapped_column(TIMESTAMP, nullable=True)
     last_checked_at: Mapped[datetime | None] = mapped_column(TIMESTAMP, nullable=True)
     payment_variance: Mapped[str | None] = mapped_column(CryptoPaymentVariance, nullable=True)
     variance_amount_crypto: Mapped[Decimal | None] = mapped_column(Numeric(36, 18), nullable=True)

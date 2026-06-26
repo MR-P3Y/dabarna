@@ -30,6 +30,12 @@ CRYPTO_DAILY_USER_MAX_COUNT=5
 CRYPTO_DAILY_USER_MAX_TOMAN=100000000
 CRYPTO_DAILY_TIMEZONE=Asia/Tehran
 CRYPTO_RECONCILIATION_LOOKBACK_HOURS=24
+CRYPTO_PREFLIGHT_CACHE_SEC=30
+CRYPTO_DIRECT_WALLET_PAYMENTS_ENABLED=true
+CRYPTO_PUBLIC_APP_URL=https://davarna.peymoonnet.de
+CRYPTO_WALLETCONNECT_PROJECT_ID=
+CRYPTO_TRON_ESTIMATED_FEE_TRX=30
+CRYPTO_TON_ESTIMATED_FEE_TON=0.01
 
 CRYPTO_RATE_PROVIDER_PRIMARY=nobitex
 CRYPTO_RATE_PROVIDER_FALLBACK=wallex
@@ -62,6 +68,12 @@ master switch. After the backend restarts, the owner super admin can turn user
 access on or off from the mini-app without another deployment. The first
 runtime state is off until the super admin enables it.
 
+`CRYPTO_WALLETCONNECT_PROJECT_ID` is the public project ID from the
+WalletConnect dashboard. Add `https://davarna.peymoonnet.de` to that project's
+origin allowlist. If it is empty, direct TRON wallet payment is disabled while
+QR/copy payment remains available. TON Connect uses
+`https://davarna.peymoonnet.de/tonconnect-manifest.json`.
+
 Optional bot monitoring settings belong in `./davarna-bot/.env.prod`:
 
 ```env
@@ -78,10 +90,11 @@ chmod +x scripts/configure-crypto-env.sh
 
 read -rsp "Public TRON address: " CRYPTO_TRON_USDT_ADDRESS; echo
 read -rsp "Public TON address: " CRYPTO_TON_ADDRESS; echo
-export CRYPTO_TRON_USDT_ADDRESS CRYPTO_TON_ADDRESS
+read -rsp "WalletConnect project ID (public): " CRYPTO_WALLETCONNECT_PROJECT_ID; echo
+export CRYPTO_TRON_USDT_ADDRESS CRYPTO_TON_ADDRESS CRYPTO_WALLETCONNECT_PROJECT_ID
 
 ./scripts/configure-crypto-env.sh
-unset CRYPTO_TRON_USDT_ADDRESS CRYPTO_TON_ADDRESS
+unset CRYPTO_TRON_USDT_ADDRESS CRYPTO_TON_ADDRESS CRYPTO_WALLETCONNECT_PROJECT_ID
 ```
 
 The helper creates timestamped backups, updates the backend and bot env files

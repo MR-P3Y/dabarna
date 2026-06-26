@@ -15,6 +15,15 @@ class CryptoTxClaimIn(BaseModel):
     tx_hash: str = Field(min_length=20, max_length=160)
 
 
+class CryptoWalletEventIn(BaseModel):
+    event: str = Field(min_length=3, max_length=40)
+    provider: str = Field(min_length=3, max_length=32)
+    invoice_id: int | None = Field(default=None, gt=0)
+    wallet_address: str | None = Field(default=None, max_length=160)
+    client_event_id: str | None = Field(default=None, max_length=80)
+    detail: str | None = Field(default=None, max_length=240)
+
+
 class CryptoAdminRejectIn(BaseModel):
     reason: str | None = Field(default=None, max_length=255)
 
@@ -30,20 +39,31 @@ class CryptoDepositOut(BaseModel):
     amount_crypto: str
     paid_amount_crypto: str | None = None
     rate_provider: str
+    rate_fetched_at: str | None = None
+    estimated_network_fee: str | None = None
+    estimated_network_fee_asset: str | None = None
     destination_address: str
     memo: str | None = None
     tx_hash: str | None = None
+    wallet_provider: str | None = None
+    wallet_account_address: str | None = None
     status: str
+    confirmation_count: int = 0
+    required_confirmations: int = 1
     wallet_tx_id: int | None = None
     failure_reason: str | None = None
     payment_variance: str | None = None
     variance_amount_crypto: str | None = None
     payment_uri: str
     explorer_url: str | None = None
+    tracking_code: str
     server_now: str
     expires_at: str
     detected_at: str | None = None
+    confirmed_at: str | None = None
     credited_at: str | None = None
+    payment_requested_at: str | None = None
+    cancelled_at: str | None = None
     created_at: str
 
 
@@ -59,6 +79,15 @@ class CryptoOptionOut(BaseModel):
     asset: str
     address: str
     decimals: int
+    healthy: bool = True
+    unavailable_reason: str | None = None
+    rate_toman: str | None = None
+    rate_provider: str | None = None
+    checked_at: str | None = None
+    direct_payment_available: bool = False
+    direct_payment_reason: str | None = None
+    estimated_network_fee: str | None = None
+    estimated_network_fee_asset: str | None = None
 
 
 class CryptoOptionsOut(BaseModel):
@@ -68,6 +97,10 @@ class CryptoOptionsOut(BaseModel):
     invoice_expire_minutes: int
     daily_user_max_count: int
     daily_user_max_toman: int
+    walletconnect_project_id: str | None = None
+    ton_manifest_url: str = ""
+    tron_usdt_contract: str = ""
+    trongrid_base_url: str = ""
     options: list[CryptoOptionOut]
 
 
@@ -99,20 +132,35 @@ def crypto_deposit_dict(row, *, tg_user_id: int | None = None, tg_username: str 
         "amount_crypto": decimal_text(row.amount_crypto) or "0",
         "paid_amount_crypto": decimal_text(row.paid_amount_crypto),
         "rate_provider": str(row.rate_provider),
+        "rate_fetched_at": datetime_text(getattr(row, "rate_fetched_at", None)),
+        "estimated_network_fee": decimal_text(getattr(row, "estimated_network_fee", None)),
+        "estimated_network_fee_asset": getattr(row, "estimated_network_fee_asset", None),
         "destination_address": str(row.destination_address),
         "memo": row.memo,
         "tx_hash": row.tx_hash,
+        "wallet_provider": getattr(row, "wallet_provider", None),
+        "wallet_account_address": getattr(row, "wallet_account_address", None),
         "status": str(row.status),
+        "confirmation_count": int(getattr(row, "confirmation_count", 0) or 0),
+        "required_confirmations": int(getattr(row, "required_confirmations", 1) or 1),
         "wallet_tx_id": int(row.wallet_tx_id) if row.wallet_tx_id is not None else None,
         "failure_reason": row.failure_reason,
         "payment_variance": row.payment_variance,
         "variance_amount_crypto": decimal_text(row.variance_amount_crypto),
         "payment_uri": _payment_uri(row),
         "explorer_url": _explorer_url(row),
+        "tracking_code": (
+            str(row.public_id).upper()
+            if str(row.public_id).upper().startswith("DAV-")
+            else f"DAV-{str(row.public_id).upper()}"
+        ),
         "server_now": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "expires_at": datetime_text(row.expires_at) or "",
         "detected_at": datetime_text(row.detected_at),
+        "confirmed_at": datetime_text(getattr(row, "confirmed_at", None)),
         "credited_at": datetime_text(row.credited_at),
+        "payment_requested_at": datetime_text(getattr(row, "payment_requested_at", None)),
+        "cancelled_at": datetime_text(getattr(row, "cancelled_at", None)),
         "created_at": datetime_text(row.created_at) or "",
     }
     if tg_user_id is not None:

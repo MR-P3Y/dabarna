@@ -8,7 +8,7 @@ import hashlib
 import logging
 import time
 from html import escape as html_escape
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Literal
 from urllib.parse import urlparse
@@ -20,6 +20,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, W
 from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core import config as cfg
@@ -97,6 +98,7 @@ from app.schemas.crypto import (
     CryptoDepositOut,
     CryptoOptionsOut,
     CryptoTxClaimIn,
+    CryptoWalletEventIn,
     crypto_deposit_dict,
 )
 from app.services.finance_service import FinanceService
@@ -110,6 +112,7 @@ from app.services.crypto_deposit_service import (
 )
 from app.services.crypto_qr_service import CryptoQrService
 from app.services.crypto_health_service import CryptoHealthService
+from app.services.crypto_preflight_service import CryptoPreflightService
 from app.services.crypto_reconciliation_service import CryptoReconciliationService
 from app.routers import admin_users_router
 
@@ -1726,6 +1729,16 @@ def _mini_ws_live_key(snapshot: dict[str, Any]) -> str:
     )
 
 
+def _mini_ws_crypto_invoice_dict(*, user_id: int, invoice_id: int) -> dict[str, Any]:
+    with SessionLocal() as db:
+        invoice = CryptoDepositService.get_owned(
+            db,
+            invoice_id=int(invoice_id),
+            user_id=int(user_id),
+        )
+        return crypto_deposit_dict(invoice)
+
+
 @router.websocket("/ws")
 async def mini_ws(websocket: WebSocket):
     await websocket.accept()
@@ -1759,6 +1772,9 @@ async def mini_ws(websocket: WebSocket):
     last_live_key = ""
     last_finance_key = ""
     last_finance_check = 0.0
+    subscribed_crypto_invoice_id = 0
+    last_crypto_key = ""
+    last_crypto_check = 0.0
     last_heartbeat = 0.0
 
     while True:
@@ -1776,6 +1792,13 @@ async def mini_ws(websocket: WebSocket):
             elif msg_type == "unsubscribe_live":
                 subscribed_game_id = 0
                 last_live_key = ""
+            elif msg_type == "subscribe_crypto":
+                subscribed_crypto_invoice_id = max(0, int(msg.get("invoice_id") or 0))
+                last_crypto_key = ""
+                last_crypto_check = 0.0
+            elif msg_type == "unsubscribe_crypto":
+                subscribed_crypto_invoice_id = 0
+                last_crypto_key = ""
             elif msg_type == "subscribe_admin":
                 want_admin = bool(msg.get("enabled", True))
                 if want_admin:
@@ -1837,6 +1860,50 @@ async def mini_ws(websocket: WebSocket):
                 await websocket.send_json({"type": "admin_denied", "detail": str(exc.detail)})
             except Exception as exc:
                 log.warning("mini websocket finance status failed: %s", exc)
+
+        if subscribed_crypto_invoice_id > 0 and (now - last_crypto_check) >= 2.0:
+            last_crypto_check = now
+            try:
+                invoice = await asyncio.to_thread(
+                    _mini_ws_crypto_invoice_dict,
+                    user_id=int(user_id),
+                    invoice_id=int(subscribed_crypto_invoice_id),
+                )
+                crypto_key = json.dumps(
+                    {
+                        "status": invoice.get("status"),
+                        "tx_hash": invoice.get("tx_hash"),
+                        "confirmation_count": invoice.get("confirmation_count"),
+                        "failure_reason": invoice.get("failure_reason"),
+                        "updated": invoice.get("credited_at")
+                        or invoice.get("confirmed_at")
+                        or invoice.get("detected_at"),
+                    },
+                    sort_keys=True,
+                    separators=(",", ":"),
+                )
+                if crypto_key != last_crypto_key:
+                    last_crypto_key = crypto_key
+                    await websocket.send_json(
+                        {
+                            "type": "crypto_invoice",
+                            "invoice_id": int(subscribed_crypto_invoice_id),
+                            "invoice": invoice,
+                        }
+                    )
+                if str(invoice.get("status") or "") not in ("WAITING_PAYMENT", "CONFIRMING"):
+                    subscribed_crypto_invoice_id = 0
+            except HTTPException as exc:
+                await websocket.send_json(
+                    {
+                        "type": "crypto_error",
+                        "invoice_id": int(subscribed_crypto_invoice_id),
+                        "detail": str(exc.detail),
+                    }
+                )
+                subscribed_crypto_invoice_id = 0
+            except Exception as exc:
+                log.warning("mini websocket crypto invoice failed: %s", exc)
 
         if (now - last_heartbeat) >= 25.0:
             last_heartbeat = now
@@ -1924,11 +1991,40 @@ def my_wallet_txs(
 
 @router.get("/crypto/options", response_model=CryptoOptionsOut)
 def mini_crypto_options(
+    request: Request,
     user_id: int = Depends(get_mini_user_id),
     db: Session = Depends(get_db),
 ):
     _ = user_id
     status = CryptoDepositService.runtime_status(db)
+    options: list[dict[str, object]] = []
+    for spec in list(status["options"]):
+        check = CryptoPreflightService.check(spec, use_cache=True)
+        quote = check.get("quote")
+        network = str(spec["network"])
+        direct_available = bool(cfg.CRYPTO_DIRECT_WALLET_PAYMENTS_ENABLED)
+        direct_reason = None
+        if network == "TRON" and not cfg.CRYPTO_WALLETCONNECT_PROJECT_ID:
+            direct_available = False
+            direct_reason = "اتصال مستقیم TRON هنوز روی سرور پیکربندی نشده است."
+        checked_at = check.get("checked_at")
+        if isinstance(checked_at, datetime):
+            checked_at = checked_at.replace(tzinfo=timezone.utc).isoformat().replace("+00:00", "Z")
+        options.append(
+            {
+                **spec,
+                "healthy": bool(check.get("healthy")),
+                "unavailable_reason": check.get("reason"),
+                "rate_toman": str(quote.rate_toman) if quote is not None else None,
+                "rate_provider": str(quote.provider) if quote is not None else None,
+                "checked_at": checked_at,
+                "direct_payment_available": direct_available,
+                "direct_payment_reason": direct_reason,
+                "estimated_network_fee": str(check.get("estimated_network_fee")),
+                "estimated_network_fee_asset": check.get("estimated_network_fee_asset"),
+            }
+        )
+    public_url = cfg.CRYPTO_PUBLIC_APP_URL or str(request.base_url).rstrip("/")
     return CryptoOptionsOut(
         enabled=bool(status["enabled"]),
         min_toman_amount=int(cfg.CRYPTO_MIN_TOMAN_AMOUNT),
@@ -1936,7 +2032,11 @@ def mini_crypto_options(
         invoice_expire_minutes=int(cfg.CRYPTO_INVOICE_EXPIRE_MINUTES),
         daily_user_max_count=int(cfg.CRYPTO_DAILY_USER_MAX_COUNT),
         daily_user_max_toman=int(cfg.CRYPTO_DAILY_USER_MAX_TOMAN),
-        options=list(status["options"]) if bool(status["enabled"]) else [],
+        walletconnect_project_id=cfg.CRYPTO_WALLETCONNECT_PROJECT_ID or None,
+        ton_manifest_url=f"{public_url}/tonconnect-manifest.json",
+        tron_usdt_contract=cfg.CRYPTO_TRON_USDT_CONTRACT,
+        trongrid_base_url=cfg.CRYPTO_TRONGRID_BASE_URL,
+        options=options if bool(status["enabled"]) else [],
     )
 
 
@@ -1960,6 +2060,15 @@ def mini_create_crypto_deposit(
     except HTTPException:
         db.rollback()
         raise
+    except IntegrityError:
+        db.rollback()
+        active = CryptoDepositService.get_active_owned(db, user_id=int(user_id))
+        detail = (
+            f"فاکتور #{int(active.id)} هنوز فعال است."
+            if active is not None
+            else "یک فاکتور فعال دیگر برای این کاربر وجود دارد."
+        )
+        raise HTTPException(status_code=409, detail=detail)
     except Exception:
         db.rollback()
         raise HTTPException(status_code=500, detail="صدور فاکتور ارز دیجیتال ناموفق بود.")
@@ -1991,6 +2100,15 @@ def mini_list_crypto_deposits(
     )
 
 
+@router.get("/crypto/deposits/active", response_model=CryptoDepositOut | None)
+def mini_get_active_crypto_deposit(
+    user_id: int = Depends(get_mini_user_id),
+    db: Session = Depends(get_db),
+):
+    invoice = CryptoDepositService.get_active_owned(db, user_id=int(user_id))
+    return CryptoDepositOut(**crypto_deposit_dict(invoice)) if invoice is not None else None
+
+
 @router.get("/crypto/deposits/{invoice_id}", response_model=CryptoDepositOut)
 def mini_get_crypto_deposit(
     invoice_id: int,
@@ -2003,6 +2121,82 @@ def mini_get_crypto_deposit(
         user_id=int(user_id),
     )
     return CryptoDepositOut(**crypto_deposit_dict(invoice))
+
+
+@router.post("/crypto/deposits/{invoice_id}/cancel", response_model=CryptoDepositOut)
+def mini_cancel_crypto_deposit(
+    invoice_id: int,
+    request: Request,
+    user_id: int = Depends(get_mini_user_id),
+    db: Session = Depends(get_db),
+):
+    enforce_write_rate_limit(int(user_id))
+    try:
+        invoice = CryptoDepositService.cancel_owned(
+            db,
+            invoice_id=int(invoice_id),
+            user_id=int(user_id),
+        )
+        AdminAuditService.record_user(
+            db,
+            user_id=int(user_id),
+            action="crypto.invoice.cancelled",
+            target_type="crypto_deposit_request",
+            target_id=int(invoice.id),
+            request=request,
+        )
+        db.commit()
+        db.refresh(invoice)
+        return CryptoDepositOut(**crypto_deposit_dict(invoice))
+    except HTTPException:
+        db.rollback()
+        raise
+
+
+@router.post("/crypto/wallet-events")
+def mini_crypto_wallet_event(
+    payload: CryptoWalletEventIn,
+    request: Request,
+    user_id: int = Depends(get_mini_user_id),
+    db: Session = Depends(get_db),
+):
+    enforce_write_rate_limit(int(user_id))
+    event = str(payload.event or "").strip().upper()
+    allowed = {
+        "CONNECTED": "crypto.wallet.connected",
+        "PAYMENT_REQUESTED": "crypto.payment.requested",
+        "PAYMENT_SUBMITTED": "crypto.payment.submitted",
+        "PAYMENT_FAILED": "crypto.payment.failed",
+    }
+    if event not in allowed:
+        raise HTTPException(status_code=400, detail="رویداد اتصال کیف پول نامعتبر است.")
+    invoice = None
+    if payload.invoice_id is not None:
+        invoice = CryptoDepositService.record_wallet_event(
+            db,
+            invoice_id=int(payload.invoice_id),
+            user_id=int(user_id),
+            provider=payload.provider,
+            wallet_address=payload.wallet_address,
+            payment_requested=event in {"PAYMENT_REQUESTED", "PAYMENT_SUBMITTED"},
+            clear_payment_requested=event == "PAYMENT_FAILED",
+        )
+    AdminAuditService.record_user(
+        db,
+        user_id=int(user_id),
+        action=allowed[event],
+        target_type="crypto_deposit_request" if invoice is not None else "crypto_wallet",
+        target_id=int(invoice.id) if invoice is not None else None,
+        details={
+            "provider": str(payload.provider).strip().upper(),
+            "wallet_address": str(payload.wallet_address or "").strip() or None,
+            "client_event_id": payload.client_event_id,
+            "detail": payload.detail,
+        },
+        request=request,
+    )
+    db.commit()
+    return {"ok": True}
 
 
 @router.get("/crypto/deposits/{invoice_id}/qr")

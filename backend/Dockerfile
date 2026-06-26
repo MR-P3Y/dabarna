@@ -1,3 +1,12 @@
+FROM node:22-alpine AS frontend-build
+
+WORKDIR /frontend
+COPY frontend/package*.json ./
+RUN npm ci
+COPY frontend ./
+RUN npm run build
+
+
 FROM python:3.13-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -16,6 +25,7 @@ RUN apt-get update \
 COPY alembic.ini ./
 COPY alembic ./alembic
 COPY app ./app
+COPY --from=frontend-build /frontend/dist/ ./app/static/mini/
 
 RUN mkdir -p /app/storage/receipts
 

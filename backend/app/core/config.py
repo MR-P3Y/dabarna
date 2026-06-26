@@ -326,6 +326,26 @@ CRYPTO_RECONCILIATION_LOOKBACK_HOURS = _safe_positive_int(
     24,
     minimum=1,
 )
+CRYPTO_PREFLIGHT_CACHE_SEC = _safe_positive_int("CRYPTO_PREFLIGHT_CACHE_SEC", 30, minimum=5)
+CRYPTO_DIRECT_WALLET_PAYMENTS_ENABLED = _safe_bool(
+    "CRYPTO_DIRECT_WALLET_PAYMENTS_ENABLED",
+    True,
+)
+CRYPTO_WALLETCONNECT_PROJECT_ID = (
+    os.getenv("CRYPTO_WALLETCONNECT_PROJECT_ID", "") or ""
+).strip()
+CRYPTO_PUBLIC_APP_URL = (
+    os.getenv("CRYPTO_PUBLIC_APP_URL", "https://davarna.peymoonnet.de")
+    or "https://davarna.peymoonnet.de"
+).strip().rstrip("/")
+CRYPTO_TRON_ESTIMATED_FEE_TRX = _safe_decimal(
+    "CRYPTO_TRON_ESTIMATED_FEE_TRX",
+    "30",
+)
+CRYPTO_TON_ESTIMATED_FEE_TON = _safe_decimal(
+    "CRYPTO_TON_ESTIMATED_FEE_TON",
+    "0.01",
+)
 
 CRYPTO_NOBITEX_BASE_URL = (
     os.getenv("CRYPTO_NOBITEX_BASE_URL", "https://api.nobitex.ir") or "https://api.nobitex.ir"

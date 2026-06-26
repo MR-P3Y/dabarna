@@ -16,7 +16,7 @@ from app.models.crypto import CryptoDepositRequest
 from app.models.settings import AppSetting
 from app.models.wallet import WalletTx
 from app.services.crypto_chain_service import ChainTransfer
-from app.services.crypto_rate_service import CryptoRateService, CryptoRateUnavailable
+from app.services.crypto_preflight_service import CryptoPreflightService
 from app.services.wallet_service import WalletService
 
 OPEN_STATUSES = ("WAITING_PAYMENT", "CONFIRMING")
@@ -120,18 +120,36 @@ class CryptoDepositService:
             requested_toman=amount_toman,
         )
         spec = CryptoDepositService._network_spec(db, network)
-        try:
-            quote = CryptoRateService.get_live_quote(str(spec["asset"]))
-        except CryptoRateUnavailable as exc:
+        active = db.execute(
+            select(CryptoDepositRequest)
+            .where(
+                CryptoDepositRequest.user_id == int(user_id),
+                CryptoDepositRequest.status.in_(OPEN_STATUSES),
+            )
+            .order_by(CryptoDepositRequest.id.desc())
+            .with_for_update()
+        ).scalars().first()
+        if active is not None:
+            raise HTTPException(
+                status_code=409,
+                detail=f"فاکتور #{int(active.id)} هنوز فعال است. ابتدا همان فاکتور را تکمیل یا لغو کنید.",
+            )
+
+        preflight = CryptoPreflightService.check(spec, use_cache=False)
+        quote = preflight.get("quote")
+        if not bool(preflight.get("healthy")) or quote is None:
             log.warning(
-                "crypto invoice rate unavailable: asset=%s network=%s error=%s",
+                "crypto invoice preflight failed: asset=%s network=%s reason=%s",
                 spec["asset"],
                 spec["network"],
-                exc,
+                preflight.get("reason"),
             )
             raise HTTPException(
                 status_code=503,
-                detail=f"نرخ لحظه‌ای {spec['asset']} موقتاً در دسترس نیست. چند لحظه دیگر دوباره تلاش کنید.",
+                detail=str(
+                    preflight.get("reason")
+                    or "این شبکه موقتاً آماده پرداخت نیست. چند لحظه دیگر دوباره تلاش کنید."
+                ),
             )
 
         buffer_multiplier = Decimal("1") + (cfg.CRYPTO_RATE_BUFFER_PERCENT / Decimal("100"))
@@ -149,15 +167,21 @@ class CryptoDepositService:
         invoice = CryptoDepositRequest(
             public_id=public_id,
             user_id=int(user_id),
+            active_user_id=int(user_id),
             network=str(spec["network"]),
             asset=str(spec["asset"]),
             amount_toman=amount_toman,
             rate_toman_per_asset=quote.rate_toman,
             amount_crypto=amount_crypto,
             rate_provider=quote.provider + ("-stale" if quote.is_stale else ""),
+            rate_fetched_at=quote.fetched_at,
+            estimated_network_fee=preflight.get("estimated_network_fee"),
+            estimated_network_fee_asset=preflight.get("estimated_network_fee_asset"),
             destination_address=str(spec["address"]),
             memo=memo,
             status="WAITING_PAYMENT",
+            confirmation_count=0,
+            required_confirmations=1,
             expires_at=now + timedelta(minutes=int(cfg.CRYPTO_INVOICE_EXPIRE_MINUTES)),
             created_at=now,
             updated_at=now,
@@ -165,6 +189,17 @@ class CryptoDepositService:
         db.add(invoice)
         db.flush()
         return invoice
+
+    @staticmethod
+    def get_active_owned(db: Session, *, user_id: int) -> CryptoDepositRequest | None:
+        return db.execute(
+            select(CryptoDepositRequest)
+            .where(
+                CryptoDepositRequest.user_id == int(user_id),
+                CryptoDepositRequest.status.in_(OPEN_STATUSES),
+            )
+            .order_by(CryptoDepositRequest.id.desc())
+        ).scalars().first()
 
     @staticmethod
     def get_owned(db: Session, *, invoice_id: int, user_id: int) -> CryptoDepositRequest:
@@ -235,6 +270,80 @@ class CryptoDepositService:
         return invoice
 
     @staticmethod
+    def cancel_owned(
+        db: Session,
+        *,
+        invoice_id: int,
+        user_id: int,
+    ) -> CryptoDepositRequest:
+        invoice = db.execute(
+            select(CryptoDepositRequest)
+            .where(
+                CryptoDepositRequest.id == int(invoice_id),
+                CryptoDepositRequest.user_id == int(user_id),
+            )
+            .with_for_update()
+        ).scalar_one_or_none()
+        if not invoice:
+            raise HTTPException(status_code=404, detail="فاکتور واریز ارز دیجیتال پیدا نشد.")
+        if invoice.status != "WAITING_PAYMENT":
+            raise HTTPException(
+                status_code=400,
+                detail="فقط فاکتور پرداخت‌نشده قابل لغو است.",
+            )
+        if getattr(invoice, "payment_requested_at", None) is not None:
+            raise HTTPException(
+                status_code=409,
+                detail="درخواست پرداخت به کیف پول ارسال شده است. تا تایید یا خطای شبکه، فاکتور قابل لغو نیست.",
+            )
+        if invoice.tx_hash or invoice.detected_at:
+            raise HTTPException(
+                status_code=409,
+                detail="تراکنش این فاکتور در شبکه مشاهده شده و دیگر قابل لغو نیست.",
+            )
+        now = _utcnow()
+        invoice.status = "CANCELLED"
+        invoice.active_user_id = None
+        invoice.cancelled_at = now
+        invoice.failure_reason = "فاکتور توسط کاربر لغو شد."
+        invoice.updated_at = now
+        db.flush()
+        return invoice
+
+    @staticmethod
+    def record_wallet_event(
+        db: Session,
+        *,
+        invoice_id: int,
+        user_id: int,
+        provider: str,
+        wallet_address: str | None,
+        payment_requested: bool,
+        clear_payment_requested: bool = False,
+    ) -> CryptoDepositRequest:
+        invoice = db.execute(
+            select(CryptoDepositRequest)
+            .where(
+                CryptoDepositRequest.id == int(invoice_id),
+                CryptoDepositRequest.user_id == int(user_id),
+            )
+            .with_for_update()
+        ).scalar_one_or_none()
+        if not invoice:
+            raise HTTPException(status_code=404, detail="فاکتور واریز ارز دیجیتال پیدا نشد.")
+        if invoice.status not in OPEN_STATUSES:
+            raise HTTPException(status_code=400, detail="این فاکتور دیگر در انتظار پرداخت نیست.")
+        invoice.wallet_provider = str(provider or "").strip().upper()[:32] or None
+        invoice.wallet_account_address = str(wallet_address or "").strip()[:160] or None
+        if payment_requested:
+            invoice.payment_requested_at = _utcnow()
+        elif clear_payment_requested:
+            invoice.payment_requested_at = None
+        invoice.updated_at = _utcnow()
+        db.flush()
+        return invoice
+
+    @staticmethod
     def process_transfer(db: Session, transfer: ChainTransfer) -> CryptoDepositRequest | None:
         existing = db.execute(
             select(CryptoDepositRequest).where(
@@ -271,10 +380,19 @@ class CryptoDepositService:
         invoice.tx_hash = transfer.tx_hash
         invoice.sender_address = transfer.sender_address
         invoice.paid_amount_crypto = transfer.amount
-        invoice.detected_at = now
-        invoice.confirmed_at = now
+        invoice.detected_at = invoice.detected_at or now
+        invoice.confirmation_count = max(
+            int(getattr(invoice, "confirmation_count", 0) or 0),
+            int(transfer.confirmations or 0),
+        )
         invoice.last_checked_at = now
         invoice.updated_at = now
+        if not transfer.confirmed:
+            invoice.status = "CONFIRMING"
+            db.flush()
+            return invoice
+        invoice.confirmed_at = now
+        invoice.confirmation_count = max(1, int(transfer.confirmations or 1))
         expected = Decimal(invoice.amount_crypto)
         difference = transfer.amount - expected
         invoice.variance_amount_crypto = abs(difference)
@@ -282,12 +400,14 @@ class CryptoDepositService:
         if difference < 0:
             invoice.payment_variance = "UNDERPAID"
             invoice.status = "NEEDS_REVIEW"
+            invoice.active_user_id = None
             invoice.failure_reason = "مبلغ دریافتی کمتر از مبلغ فاکتور است."
             db.flush()
             return invoice
         if difference > 0:
             invoice.payment_variance = "OVERPAID"
             invoice.status = "NEEDS_REVIEW"
+            invoice.active_user_id = None
             invoice.failure_reason = "مبلغ دریافتی بیشتر از مبلغ فاکتور است و نیازمند تایید ادمین است."
             db.flush()
             return invoice
@@ -296,6 +416,7 @@ class CryptoDepositService:
 
         if int(invoice.amount_toman) >= int(cfg.CRYPTO_ADMIN_REVIEW_TOMAN_THRESHOLD):
             invoice.status = "NEEDS_REVIEW"
+            invoice.active_user_id = None
             invoice.failure_reason = "مبلغ فاکتور نیازمند تایید ادمین است."
             db.flush()
             return invoice
@@ -335,6 +456,7 @@ class CryptoDepositService:
         if invoice.status not in ("WAITING_PAYMENT", "NEEDS_REVIEW"):
             raise HTTPException(status_code=400, detail="این فاکتور قابل رد کردن نیست.")
         invoice.status = "REJECTED"
+        invoice.active_user_id = None
         invoice.failure_reason = str(reason or "رد شده توسط ادمین").strip()[:255]
         invoice.updated_at = _utcnow()
         db.flush()
@@ -347,13 +469,14 @@ class CryptoDepositService:
         rows = db.execute(
             select(CryptoDepositRequest)
             .where(
-                CryptoDepositRequest.status == "WAITING_PAYMENT",
+                CryptoDepositRequest.status.in_(OPEN_STATUSES),
                 CryptoDepositRequest.expires_at < cutoff,
             )
             .with_for_update()
         ).scalars().all()
         for invoice in rows:
             invoice.status = "EXPIRED"
+            invoice.active_user_id = None
             invoice.failure_reason = "مهلت پرداخت فاکتور تمام شده است."
             invoice.updated_at = current
         db.flush()
@@ -375,6 +498,7 @@ class CryptoDepositService:
         )
         now = _utcnow()
         invoice.status = "CREDITED"
+        invoice.active_user_id = None
         invoice.wallet_tx_id = int(tx.id)
         invoice.credited_at = now
         if invoice.payment_variance != "OVERPAID":

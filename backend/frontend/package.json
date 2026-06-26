@@ -1,0 +1,18 @@
+{
+  "name": "davarna-wallet-checkout",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\" && esbuild wallet-connect.js --bundle --format=esm --platform=browser --target=es2020 --inject:./buffer-shim.js --splitting --entry-names=wallet-connect --chunk-names=wallet-chunks/[name]-[hash] --minify --outdir=dist"
+  },
+  "dependencies": {
+    "@ton/core": "0.63.1",
+    "@tonconnect/ui": "3.0.0",
+    "@tronweb3/walletconnect-tron": "3.0.0",
+    "buffer": "6.0.3",
+    "tronweb": "6.0.2"
+  },
+  "devDependencies": {
+    "esbuild": "0.27.3"
+  }
+}

@@ -13,6 +13,7 @@ const state = {
   miniSocketManualClose: false,
   miniSocketConnected: false,
   miniSocketLiveGameId: 0,
+  miniSocketCryptoInvoiceId: 0,
   miniSocketFinanceKey: "",
   tokenRefreshPromise: null,
   depositDestinations: [],
@@ -23,6 +24,8 @@ const state = {
   cryptoServerOffsetMs: 0,
   cryptoInvoiceViewOpen: false,
   cryptoExpiryRefreshId: 0,
+  cryptoWalletCheckout: null,
+  cryptoPaymentBusy: false,
   cardsPollTimer: null,
   cardsPrevCalledByGame: {},
   cardsLatestSeenEventByGame: {},
@@ -189,6 +192,7 @@ const CRYPTO_STATUS_LABELS = {
   EXPIRED: "منقضی شده",
   NEEDS_REVIEW: "نیازمند بررسی ادمین",
   REJECTED: "رد شده",
+  CANCELLED: "لغو شده",
 };
 
 const EVENT_KIND_LABELS = {
@@ -2067,6 +2071,18 @@ function subscribeAdminSocket() {
   sendMiniSocket({ type: "subscribe_admin", enabled: true });
 }
 
+function subscribeCryptoSocket(invoiceId) {
+  const id = Number(invoiceId || state.cryptoCurrentInvoice?.id || 0);
+  state.miniSocketCryptoInvoiceId = id;
+  if (!id) return;
+  sendMiniSocket({ type: "subscribe_crypto", invoice_id: id });
+}
+
+function unsubscribeCryptoSocket() {
+  state.miniSocketCryptoInvoiceId = 0;
+  sendMiniSocket({ type: "unsubscribe_crypto" });
+}
+
 function scheduleMiniSocketReconnect() {
   if (state.miniSocketManualClose || !state.authReady || !state.token) return;
   if (state.miniSocketReconnectTimer) clearTimeout(state.miniSocketReconnectTimer);
@@ -2128,6 +2144,9 @@ function handleMiniSocketMessage(event) {
     state.miniSocketConnected = true;
     subscribeAdminSocket();
     if (state.selectedGameId) subscribeLiveSocket(state.selectedGameId);
+    if (state.miniSocketCryptoInvoiceId || isCryptoInvoicePending(state.cryptoCurrentInvoice)) {
+      subscribeCryptoSocket(state.miniSocketCryptoInvoiceId || state.cryptoCurrentInvoice?.id);
+    }
     return;
   }
   if (type === "live_snapshot") {
@@ -2142,6 +2161,19 @@ function handleMiniSocketMessage(event) {
   }
   if (type === "finance_status") {
     handleMiniSocketFinance(payload);
+    return;
+  }
+  if (type === "crypto_invoice") {
+    const invoice = payload?.invoice;
+    const id = Number(payload?.invoice_id || invoice?.id || 0);
+    if (!invoice || !id || Number(state.cryptoCurrentInvoice?.id || 0) !== id) return;
+    const previousStatus = String(state.cryptoCurrentInvoice?.status || "");
+    renderCryptoInvoice(invoice, { open: state.cryptoInvoiceViewOpen });
+    const nextStatus = String(invoice.status || "");
+    if (nextStatus !== previousStatus && nextStatus === "CREDITED") {
+      triggerLightHaptic("success");
+      refreshWallet().catch(() => {});
+    }
   }
 }
 
@@ -2967,16 +2999,33 @@ function drawCryptoOptions(payload) {
   }
   const networkInput = getEl("cryptoNetworkSelect");
   if (!networkInput) return;
-  const available = new Set(
+  const optionMap = new Map(
     (Array.isArray(payload?.options) ? payload.options : [])
-      .map((item) => String(item.network || "").toUpperCase())
-      .filter(Boolean)
+      .map((item) => [String(item.network || "").toUpperCase(), item])
+      .filter(([network]) => Boolean(network))
+  );
+  const healthy = new Set(
+    [...optionMap.entries()]
+      .filter(([, item]) => Boolean(item?.healthy))
+      .map(([network]) => network)
   );
   document.querySelectorAll(".crypto-network-option").forEach((button) => {
     const network = String(button.getAttribute("data-network") || "").toUpperCase();
-    const usable = enabled && available.has(network);
+    const option = optionMap.get(network);
+    const usable = enabled && Boolean(option?.healthy);
     button.disabled = !usable;
     button.classList.toggle("is-unavailable", !usable);
+    button.title = usable ? "شبکه آماده پرداخت است" : String(option?.unavailable_reason || "شبکه در دسترس نیست");
+    let health = button.querySelector(".crypto-network-health");
+    if (!health) {
+      health = document.createElement("span");
+      health.className = "crypto-network-health";
+      button.querySelector(".crypto-network-copy")?.appendChild(health);
+    }
+    health.textContent = usable
+      ? `آماده • نرخ ${toman(option?.rate_toman || 0)}`
+      : String(option?.unavailable_reason || "موقتاً غیرفعال");
+    health.dataset.state = usable ? "ok" : "error";
   });
   if (!enabled) {
     networkInput.value = "";
@@ -2985,16 +3034,24 @@ function drawCryptoOptions(payload) {
     return;
   }
   const current = String(networkInput.value || "").toUpperCase();
-  const selected = available.has(current) ? current : String(payload.options[0]?.network || "").toUpperCase();
+  const selected = healthy.has(current) ? current : ([...healthy][0] || "");
   selectCryptoNetwork(selected, { haptic: false });
   const validity = getEl("cryptoInvoiceValidity");
   if (validity) validity.textContent = `${toFaDigits(payload.invoice_expire_minutes || 15)} دقیقه`;
   const daily = getEl("cryptoDailyLimit");
   if (daily) daily.textContent = toman(payload.daily_user_max_toman || 0);
-  setHint(
-    "cryptoNetworkHint",
-    "فقط از شبکه انتخاب‌شده پرداخت کنید."
-  );
+  if (!selected) {
+    setHint("cryptoNetworkHint", "در حال حاضر هیچ شبکه سالمی برای ساخت فاکتور وجود ندارد.", "error");
+  } else {
+    setHint("cryptoNetworkHint", "سلامت نرخ و شبکه پیش از ساخت فاکتور بررسی شد.", "success");
+  }
+}
+
+function cryptoOption(network) {
+  const key = String(network || "").toUpperCase();
+  return (state.cryptoOptions?.options || []).find(
+    (item) => String(item?.network || "").toUpperCase() === key
+  ) || null;
 }
 
 function selectCryptoNetwork(network, { haptic = true } = {}) {
@@ -3006,6 +3063,17 @@ function selectCryptoNetwork(network, { haptic = true } = {}) {
     button.classList.toggle("is-selected", selected);
     button.setAttribute("aria-checked", selected ? "true" : "false");
   });
+  const option = cryptoOption(normalized);
+  if (option) {
+    const rateTime = option.checked_at ? formatFaDateTime(option.checked_at) : "همین لحظه";
+    setHint(
+      "cryptoNetworkHint",
+      option.healthy
+        ? `شبکه آماده است؛ نرخ در ${rateTime} بررسی شد.`
+        : String(option.unavailable_reason || "این شبکه موقتاً در دسترس نیست."),
+      option.healthy ? "success" : "error"
+    );
+  }
   if (haptic) triggerLightHaptic("success");
 }
 
@@ -3136,10 +3204,202 @@ function rememberCryptoInvoice(invoice) {
   }
   if (isCryptoInvoicePending(invoice)) {
     try { localStorage.setItem("davarna_crypto_active_invoice_id", String(invoice.id)); } catch (_) {}
+    subscribeCryptoSocket(invoice.id);
   } else {
     try { localStorage.removeItem("davarna_crypto_active_invoice_id"); } catch (_) {}
+    if (Number(state.miniSocketCryptoInvoiceId || 0) === Number(invoice.id || 0)) {
+      unsubscribeCryptoSocket();
+    }
   }
   syncCryptoActiveResume();
+}
+
+function cryptoReceiptMarkup(invoice) {
+  const txHash = String(invoice.tx_hash || "");
+  const explorerUrl = String(invoice.explorer_url || "");
+  return `
+    <div class="crypto-receipt">
+      <div class="crypto-receipt-seal">✓</div>
+      <div class="crypto-receipt-title">
+        <strong>پرداخت تایید شد</strong>
+        <span>کیف پول شما با موفقیت شارژ شد.</span>
+      </div>
+      <div class="crypto-receipt-grid">
+        <div><span>مبلغ شارژ</span><strong>${safeText(toman(invoice.amount_toman || 0))}</strong></div>
+        <div><span>مبلغ رمزارز</span><strong dir="ltr">${safeText(compactCryptoAmount(invoice.paid_amount_crypto || invoice.amount_crypto))} ${safeText(invoice.asset)}</strong></div>
+        <div><span>کد پیگیری داخلی</span><strong dir="ltr">${safeText(invoice.tracking_code || `DAV-${invoice.public_id}`)}</strong></div>
+        <div><span>تاریخ تایید</span><strong>${safeText(formatFaDateTime(invoice.credited_at || invoice.confirmed_at))}</strong></div>
+      </div>
+      ${txHash ? `
+        <div class="crypto-receipt-hash">
+          <span>هش تراکنش</span>
+          <code dir="ltr">${safeText(txHash)}</code>
+        </div>
+      ` : ""}
+      <div class="crypto-receipt-actions">
+        ${explorerUrl ? `<a class="small-btn primary" href="${safeText(explorerUrl)}" target="_blank" rel="noopener noreferrer">مشاهده در Explorer</a>` : ""}
+        <button id="receiptCloseCryptoInvoiceBtn" class="small-btn" type="button">بازگشت به کیف پول</button>
+      </div>
+    </div>
+  `;
+}
+
+function showCryptoConfirmation(invoice, { cancel = false } = {}) {
+  return new Promise((resolve) => {
+    const overlay = document.createElement("div");
+    overlay.className = "crypto-confirm-overlay";
+    const networkLabel = String(invoice.network || "").toUpperCase() === "TRON"
+      ? "TRON (TRC20) Mainnet"
+      : "TON Mainnet";
+    overlay.innerHTML = `
+      <div class="crypto-confirm-dialog" role="dialog" aria-modal="true">
+        <div class="crypto-confirm-head">
+          <strong>${cancel ? "لغو فاکتور" : "تایید نهایی پرداخت"}</strong>
+          <button class="crypto-confirm-close" type="button" aria-label="بستن">×</button>
+        </div>
+        ${cancel ? `
+          <p>این فاکتور پرداخت‌نشده لغو می‌شود و قابل استفاده نخواهد بود.</p>
+        ` : `
+          <div class="crypto-confirm-summary">
+            <div><span>شبکه</span><strong dir="ltr">${safeText(networkLabel)}</strong></div>
+            <div><span>مبلغ</span><strong dir="ltr">${safeText(compactCryptoAmount(invoice.amount_crypto))} ${safeText(invoice.asset)}</strong></div>
+            <div><span>مقصد</span><code dir="ltr">${safeText(shortenCryptoAddress(invoice.destination_address))}</code></div>
+          </div>
+          <label class="crypto-confirm-check">
+            <input type="checkbox" />
+            <span>مبلغ، شبکه و مقصد را بررسی کردم. کارمزد شبکه جداگانه توسط کیف پول محاسبه می‌شود.</span>
+          </label>
+        `}
+        <div class="crypto-confirm-actions">
+          <button class="small-btn crypto-confirm-cancel" type="button">انصراف</button>
+          <button class="small-btn ${cancel ? "danger" : "primary"} crypto-confirm-accept" type="button" ${cancel ? "" : "disabled"}>
+            ${cancel ? "لغو فاکتور" : "اتصال کیف پول و پرداخت"}
+          </button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    const finish = (accepted) => {
+      overlay.remove();
+      resolve(Boolean(accepted));
+    };
+    overlay.querySelector(".crypto-confirm-close")?.addEventListener("click", () => finish(false));
+    overlay.querySelector(".crypto-confirm-cancel")?.addEventListener("click", () => finish(false));
+    overlay.addEventListener("click", (event) => {
+      if (event.target === overlay) finish(false);
+    });
+    const checkbox = overlay.querySelector("input[type='checkbox']");
+    const accept = overlay.querySelector(".crypto-confirm-accept");
+    checkbox?.addEventListener("change", () => {
+      accept.disabled = !checkbox.checked;
+    });
+    accept?.addEventListener("click", () => finish(true));
+  });
+}
+
+async function cryptoWalletEvent(event, invoice, extra = {}) {
+  return apiFetch("/mini-api/crypto/wallet-events", {
+    method: "POST",
+    body: {
+      event,
+      provider: extra.provider || (String(invoice.network).toUpperCase() === "TON" ? "TON_CONNECT" : "WALLETCONNECT_TRON"),
+      invoice_id: Number(invoice.id),
+      wallet_address: extra.walletAddress || null,
+      client_event_id: extra.clientEventId || (globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`),
+      detail: extra.detail || null,
+    },
+  });
+}
+
+async function getCryptoWalletCheckout() {
+  if (state.cryptoWalletCheckout) return state.cryptoWalletCheckout;
+  const module = await import("./wallet-connect.js?v=20260625wallet2");
+  state.cryptoWalletCheckout = new module.CryptoWalletCheckout({
+    options: state.cryptoOptions,
+    theme: document.documentElement.dataset.theme || "dark",
+    onEvent: (event) => {
+      const invoice = state.cryptoCurrentInvoice;
+      if (!invoice || event?.event !== "CONNECTED") return;
+      cryptoWalletEvent("CONNECTED", invoice, event).catch(() => {});
+    },
+  });
+  return state.cryptoWalletCheckout;
+}
+
+async function payCryptoInvoiceDirect(invoiceId) {
+  if (state.cryptoPaymentBusy) return;
+  const invoice = state.cryptoCurrentInvoice;
+  if (!invoice || Number(invoice.id) !== Number(invoiceId)) return;
+  state.cryptoPaymentBusy = true;
+  if (!await showCryptoConfirmation(invoice)) {
+    state.cryptoPaymentBusy = false;
+    return;
+  }
+  const button = getEl("cryptoDirectPayBtn");
+  if (button) {
+    button.disabled = true;
+    button.textContent = "در حال اتصال به کیف پول...";
+  }
+  let submitted = false;
+  try {
+    await cryptoWalletEvent("PAYMENT_REQUESTED", invoice);
+    const checkout = await getCryptoWalletCheckout();
+    const result = await checkout.pay(invoice);
+    submitted = true;
+    await cryptoWalletEvent("PAYMENT_SUBMITTED", invoice, result).catch((error) => {
+      console.warn("[crypto] payment audit failed", error);
+    });
+    if (result?.txHash) {
+      try {
+        await apiFetch(`/mini-api/crypto/deposits/${invoice.id}/tx-hash`, {
+          method: "POST",
+          body: { tx_hash: result.txHash },
+        });
+      } catch (error) {
+        console.warn("[crypto] submitted transaction hash claim failed", error);
+      }
+    }
+    subscribeCryptoSocket(invoice.id);
+    await refreshCryptoInvoice(invoice.id, { silent: true }).catch(() => {});
+    setHint("cryptoInvoiceHint", "تراکنش ارسال شد. تایید شبکه به‌صورت زنده نمایش داده می‌شود.", "success");
+  } catch (error) {
+    if (!submitted) {
+      cryptoWalletEvent("PAYMENT_FAILED", invoice, {
+        detail: localizeApiError(error?.message || error),
+      }).catch(() => {});
+      setHint("cryptoInvoiceHint", localizeApiError(error?.message || error), "error");
+    } else {
+      subscribeCryptoSocket(invoice.id);
+      setHint(
+        "cryptoInvoiceHint",
+        "تراکنش ارسال شده است و بررسی شبکه ادامه دارد. دوباره پرداخت نکنید.",
+        "success"
+      );
+    }
+  } finally {
+    state.cryptoPaymentBusy = false;
+    const currentButton = getEl("cryptoDirectPayBtn");
+    if (currentButton) {
+      const paymentRequested = Boolean(state.cryptoCurrentInvoice?.payment_requested_at);
+      currentButton.disabled = paymentRequested || !Boolean(cryptoOption(invoice.network)?.direct_payment_available);
+      currentButton.textContent = paymentRequested
+        ? "تراکنش ارسال شده؛ منتظر تایید شبکه"
+        : String(invoice.network).toUpperCase() === "TON"
+        ? "اتصال کیف پول TON و پرداخت"
+        : "اتصال کیف پول TRON و پرداخت";
+    }
+  }
+}
+
+async function cancelCryptoInvoice(invoiceId) {
+  const invoice = state.cryptoCurrentInvoice;
+  if (!invoice || Number(invoice.id) !== Number(invoiceId)) return;
+  if (!await showCryptoConfirmation(invoice, { cancel: true })) return;
+  const cancelled = await apiFetch(`/mini-api/crypto/deposits/${invoice.id}/cancel`, {
+    method: "POST",
+  });
+  renderCryptoInvoice(cancelled, { open: true });
+  await refreshWallet();
 }
 
 function renderCryptoInvoice(invoice, { open = true } = {}) {
@@ -3169,11 +3429,17 @@ function renderCryptoInvoice(invoice, { open = true } = {}) {
   const network = String(invoice.network || "").toUpperCase();
   const address = String(invoice.destination_address || "");
   const paymentUri = String(invoice.payment_uri || "").trim();
+  const option = cryptoOption(network);
+  const paymentRequested = Boolean(invoice.payment_requested_at);
+  const directAvailable = Boolean(option?.direct_payment_available) && !paymentRequested;
+  const canCancel = status === "WAITING_PAYMENT" && !paymentRequested && !txHash && !invoice.detected_at;
+  const confirmations = Number(invoice.confirmation_count || 0);
+  const requiredConfirmations = Math.max(1, Number(invoice.required_confirmations || 1));
   const statusClass = status === "CREDITED"
     ? "is-success"
     : status === "NEEDS_REVIEW"
       ? "is-warning"
-      : status === "EXPIRED" || status === "REJECTED"
+      : status === "EXPIRED" || status === "REJECTED" || status === "CANCELLED"
         ? "is-danger"
         : "is-pending";
   box.innerHTML = `
@@ -3186,6 +3452,7 @@ function renderCryptoInvoice(invoice, { open = true } = {}) {
       <span class="crypto-payment-status ${statusClass}">${safeText(cryptoStatusLabel(status))}</span>
     </div>
 
+    ${status === "CREDITED" ? cryptoReceiptMarkup(invoice) : `
     ${pending ? `
       <div class="crypto-countdown">
         <span>زمان باقی‌مانده برای پرداخت</span>
@@ -3202,37 +3469,63 @@ function renderCryptoInvoice(invoice, { open = true } = {}) {
       <small>معادل شارژ: ${safeText(toman(invoice.amount_toman || 0))}</small>
     </div>
 
-    <div class="crypto-qr-wrap">
-      <img id="cryptoInvoiceQr" alt="QR پرداخت ارز دیجیتال" />
+    <div class="crypto-invoice-facts">
+      <div><span>نرخ قفل‌شده</span><strong>${safeText(toman(invoice.rate_toman_per_asset || 0))} / ${safeText(asset)}</strong></div>
+      <div><span>زمان دریافت نرخ</span><strong>${safeText(formatFaDateTime(invoice.rate_fetched_at || invoice.created_at))}</strong></div>
+      <div><span>تایید شبکه</span><strong>${toFaDigits(confirmations)} از ${toFaDigits(requiredConfirmations)}</strong></div>
+      <div><span>کارمزد تقریبی</span><strong dir="ltr">~ ${safeText(compactCryptoAmount(invoice.estimated_network_fee || 0))} ${safeText(invoice.estimated_network_fee_asset || "")}</strong></div>
     </div>
 
-    <div class="crypto-address-block">
-      <span>آدرس مقصد • ${safeText(network === "TRON" ? "TRC20" : "TON Mainnet")}</span>
-      <div>
-        <code dir="ltr" title="${safeText(address)}">${safeText(shortenCryptoAddress(address))}</code>
-        <button class="crypto-icon-copy crypto-copy-btn" data-copy="${safeText(address)}" type="button" aria-label="کپی آدرس">⧉</button>
-      </div>
-    </div>
+    ${status === "WAITING_PAYMENT" ? `
+      <button id="cryptoDirectPayBtn" class="small-btn primary crypto-direct-pay-btn" type="button" ${directAvailable ? "" : "disabled"}>
+        ${paymentRequested ? "تراکنش ارسال شده؛ منتظر تایید شبکه" : network === "TON" ? "اتصال کیف پول TON و پرداخت" : "اتصال کیف پول TRON و پرداخت"}
+      </button>
+      ${!directAvailable ? `<div class="crypto-direct-unavailable">${safeText(paymentRequested ? "دوباره پرداخت نکنید؛ وضعیت فاکتور خودکار به‌روزرسانی می‌شود." : option?.direct_payment_reason || "پرداخت مستقیم موقتاً در دسترس نیست؛ از QR استفاده کنید.")}</div>` : ""}
+    ` : ""}
 
-    ${memo ? `
+    ${pending ? `
+      <details class="crypto-manual-payment">
+        <summary>پرداخت دستی با QR یا کپی آدرس</summary>
+        <div class="crypto-qr-wrap">
+          <img id="cryptoInvoiceQr" alt="QR پرداخت ارز دیجیتال" />
+        </div>
+        <div class="crypto-address-block">
+          <span>آدرس مقصد • ${safeText(network === "TRON" ? "TRC20" : "TON Mainnet")}</span>
+          <div>
+            <code dir="ltr" title="${safeText(address)}">${safeText(shortenCryptoAddress(address))}</code>
+            <button class="crypto-icon-copy crypto-copy-btn" data-copy="${safeText(address)}" type="button" aria-label="کپی آدرس">⧉</button>
+          </div>
+        </div>
+        ${memo ? `
+          <div class="crypto-address-block">
+            <span>Memo / Comment</span>
+            <div>
+              <code dir="ltr">${safeText(memo)}</code>
+              <button class="crypto-icon-copy crypto-copy-btn" data-copy="${safeText(memo)}" type="button" aria-label="کپی Memo">⧉</button>
+            </div>
+          </div>
+        ` : ""}
+        ${paymentUri.startsWith("ton://") ? `<a class="small-btn crypto-manual-wallet-link" href="${safeText(paymentUri)}">باز کردن کیف پول TON</a>` : ""}
+      </details>
+    ` : txHash ? `
       <div class="crypto-address-block">
-        <span>Memo / Comment</span>
+        <span>هش تراکنش</span>
         <div>
-          <code dir="ltr">${safeText(memo)}</code>
-          <button class="crypto-icon-copy crypto-copy-btn" data-copy="${safeText(memo)}" type="button" aria-label="کپی Memo">⧉</button>
+          <code dir="ltr" title="${safeText(txHash)}">${safeText(shortenCryptoAddress(txHash))}</code>
+          <button class="crypto-icon-copy crypto-copy-btn" data-copy="${safeText(txHash)}" type="button" aria-label="کپی هش">⧉</button>
         </div>
       </div>
     ` : ""}
 
     <div class="crypto-network-warning">
-      فقط از شبکه <b dir="ltr">${safeText(network === "TRON" ? "TRON (TRC20)" : "TON Mainnet")}</b> استفاده کنید.
+      فقط از شبکه <b dir="ltr">${safeText(network === "TRON" ? "TRON (TRC20) Mainnet" : "TON Mainnet")}</b> استفاده کنید. کارمزد شبکه جدا از مبلغ فاکتور است.
     </div>
 
     ${variance === "OVERPAID" ? `<div class="crypto-invoice-warning">مبلغ بیشتر از فاکتور دریافت شده و در صف بررسی ادمین است.</div>` : ""}
     ${variance === "UNDERPAID" ? `<div class="crypto-invoice-warning">مبلغ پرداخت کمتر از فاکتور است و در صف بررسی ادمین قرار دارد.</div>` : ""}
     ${reason ? `<div class="crypto-invoice-warning">${safeText(reason)}</div>` : ""}
 
-    ${pending ? `
+    ${status === "WAITING_PAYMENT" ? `
       <details class="crypto-tx-details">
         <summary>ثبت هش تراکنش (اختیاری)</summary>
         <div class="crypto-tx-claim">
@@ -3240,32 +3533,35 @@ function renderCryptoInvoice(invoice, { open = true } = {}) {
           <button id="submitCryptoTxHashBtn" class="small-btn" type="button">ثبت هش</button>
         </div>
       </details>
-    ` : txHash ? `<div class="crypto-tx-hash"><span>هش تراکنش</span><code dir="ltr">${safeText(txHash)}</code></div>` : ""}
+    ` : ""}
 
     <div class="crypto-payment-timeline">${cryptoTimeline(status)}</div>
 
     <div class="crypto-invoice-secondary-actions">
-      ${paymentUri.startsWith("ton://") && pending ? `<a class="small-btn" href="${safeText(paymentUri)}">باز کردن کیف پول TON</a>` : ""}
       ${explorerUrl ? `<a class="small-btn crypto-explorer-link" href="${safeText(explorerUrl)}" target="_blank" rel="noopener noreferrer">مشاهده در Explorer</a>` : ""}
+      ${canCancel ? `<button id="cancelCryptoInvoiceBtn" class="small-btn danger" type="button">لغو فاکتور</button>` : ""}
     </div>
 
-    ${pending ? `<button id="refreshCryptoInvoiceBtn" class="small-btn primary crypto-payment-done-btn" type="button">پرداخت را انجام دادم</button>` : ""}
+    ${pending ? `<button id="refreshCryptoInvoiceBtn" class="small-btn crypto-payment-done-btn" type="button">بررسی فوری پرداخت</button>` : ""}
     <div id="cryptoInvoiceHint" class="step-hint"></div>
+    `}
   `;
   setCryptoInvoiceView(open);
   if (open) startCryptoCountdown(invoice);
-  apiFetchBlob(`/mini-api/crypto/deposits/${id}/qr`)
-    .then((blob) => {
-      const img = getEl("cryptoInvoiceQr");
-      if (!img) return;
-      const objectUrl = URL.createObjectURL(blob);
-      state.cryptoQrObjectUrl = objectUrl;
-      img.src = objectUrl;
-    })
-    .catch(() => {
-      const qrWrap = box.querySelector(".crypto-qr-wrap");
-      if (qrWrap) qrWrap.classList.add("hidden");
-    });
+  if (pending) {
+    apiFetchBlob(`/mini-api/crypto/deposits/${id}/qr`)
+      .then((blob) => {
+        const img = getEl("cryptoInvoiceQr");
+        if (!img) return;
+        const objectUrl = URL.createObjectURL(blob);
+        state.cryptoQrObjectUrl = objectUrl;
+        img.src = objectUrl;
+      })
+      .catch(() => {
+        const qrWrap = box.querySelector(".crypto-qr-wrap");
+        if (qrWrap) qrWrap.classList.add("hidden");
+      });
+  }
   box.querySelectorAll(".crypto-copy-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
       copyTextToClipboard(String(btn.getAttribute("data-copy") || ""))
@@ -3277,6 +3573,13 @@ function renderCryptoInvoice(invoice, { open = true } = {}) {
     });
   });
   getEl("closeCryptoInvoiceBtn")?.addEventListener("click", closeCryptoInvoiceView);
+  getEl("receiptCloseCryptoInvoiceBtn")?.addEventListener("click", closeCryptoInvoiceView);
+  getEl("cryptoDirectPayBtn")?.addEventListener("click", () => {
+    payCryptoInvoiceDirect(id).catch((e) => setLocalError("cryptoInvoiceHint", e));
+  });
+  getEl("cancelCryptoInvoiceBtn")?.addEventListener("click", () => {
+    cancelCryptoInvoice(id).catch((e) => setLocalError("cryptoInvoiceHint", e));
+  });
   getEl("refreshCryptoInvoiceBtn")?.addEventListener("click", () => {
     refreshCryptoInvoice(id).catch((e) => setLocalError("cryptoInvoiceHint", e));
   });
@@ -3328,6 +3631,10 @@ async function createCryptoInvoice() {
   const network = String(getVal("cryptoNetworkSelect") || "").toUpperCase();
   if (!amount_toman) throw new Error("مبلغ شارژ را وارد کنید.");
   if (!network) throw new Error("شبکه پرداخت را انتخاب کنید.");
+  const option = cryptoOption(network);
+  if (!option?.healthy) {
+    throw new Error(option?.unavailable_reason || "شبکه انتخاب‌شده موقتاً آماده پرداخت نیست.");
+  }
   setHint("cryptoSubmitHint", "در حال دریافت نرخ لحظه‌ای و صدور فاکتور...");
   try {
     const invoice = await apiFetch("/mini-api/crypto/deposits", {
@@ -3342,6 +3649,10 @@ async function createCryptoInvoice() {
   } catch (err) {
     setCryptoInvoiceView(false);
     setHint("cryptoSubmitHint", localizeApiError(err?.message || err), "error");
+    await refreshWallet().catch(() => {});
+    if (isCryptoInvoicePending(state.cryptoCurrentInvoice)) {
+      renderCryptoInvoice(state.cryptoCurrentInvoice, { open: true });
+    }
     throw err;
   }
 }

@@ -27,6 +27,8 @@ class ChainTransfer:
     destination_address: str
     occurred_at: datetime
     memo: str | None = None
+    confirmed: bool = True
+    confirmations: int = 1
 
 
 class CryptoChainService:
@@ -36,12 +38,13 @@ class CryptoChainService:
         *,
         network: str,
         since: datetime,
+        include_pending: bool = True,
     ) -> list[ChainTransfer]:
         normalized = str(network or "").strip().upper()
         if normalized == "TRON":
-            return cls._list_tron_usdt(since=since)
+            return cls._list_tron_usdt(since=since, include_pending=include_pending)
         if normalized == "TON":
-            return cls._list_ton(since=since)
+            return cls._list_ton(since=since, include_pending=include_pending)
         raise CryptoChainUnavailable(f"unsupported crypto network: {normalized}")
 
     @staticmethod
@@ -53,14 +56,18 @@ class CryptoChainService:
         )
 
     @classmethod
-    def _list_tron_usdt(cls, *, since: datetime) -> list[ChainTransfer]:
+    def _list_tron_usdt(
+        cls,
+        *,
+        since: datetime,
+        include_pending: bool = True,
+    ) -> list[ChainTransfer]:
         if not cfg.CRYPTO_TRON_USDT_ADDRESS:
             return []
         headers: dict[str, str] = {}
         if cfg.TRONGRID_API_KEY:
             headers["TRON-PRO-API-KEY"] = cfg.TRONGRID_API_KEY
-        params: dict[str, object] = {
-            "only_confirmed": "true",
+        base_params: dict[str, object] = {
             "only_to": "true",
             "limit": 200,
             "contract_address": cfg.CRYPTO_TRON_USDT_CONTRACT,
@@ -72,9 +79,25 @@ class CryptoChainService:
             f"{cfg.CRYPTO_TRON_USDT_ADDRESS}/transactions/trc20"
         )
         with cls._client() as client:
+            params = dict(base_params, only_confirmed="false" if include_pending else "true")
             response = client.get(url, params=params, headers=headers)
             response.raise_for_status()
             data = response.json()
+            confirmed_hashes: set[str] = set()
+            if include_pending:
+                confirmed_response = client.get(
+                    url,
+                    params=dict(base_params, only_confirmed="true"),
+                    headers=headers,
+                )
+                confirmed_response.raise_for_status()
+                confirmed_data = confirmed_response.json()
+                if isinstance(confirmed_data, dict):
+                    confirmed_hashes = {
+                        str(item.get("transaction_id") or "").strip()
+                        for item in (confirmed_data.get("data") or [])
+                        if isinstance(item, dict)
+                    }
         if not isinstance(data, dict) or data.get("success") is False:
             raise CryptoChainUnavailable("TronGrid returned an invalid response")
 
@@ -99,6 +122,7 @@ class CryptoChainService:
             tx_hash = str(row.get("transaction_id") or "").strip()
             if not tx_hash or amount <= 0:
                 continue
+            confirmed = not include_pending or tx_hash in confirmed_hashes
             out.append(
                 ChainTransfer(
                     network="TRON",
@@ -108,12 +132,19 @@ class CryptoChainService:
                     sender_address=str(row.get("from") or "").strip() or None,
                     destination_address=cfg.CRYPTO_TRON_USDT_ADDRESS,
                     occurred_at=occurred_at,
+                    confirmed=confirmed,
+                    confirmations=1 if confirmed else 0,
                 )
             )
         return out
 
     @classmethod
-    def _list_ton(cls, *, since: datetime) -> list[ChainTransfer]:
+    def _list_ton(
+        cls,
+        *,
+        since: datetime,
+        include_pending: bool = True,
+    ) -> list[ChainTransfer]:
         if not cfg.CRYPTO_TON_ADDRESS:
             return []
         headers: dict[str, str] = {}
@@ -136,7 +167,9 @@ class CryptoChainService:
         for row in data.get("transactions") or []:
             if not isinstance(row, dict):
                 continue
-            if str(row.get("finality") or "").lower() != "finalized":
+            finality = str(row.get("finality") or "").lower()
+            confirmed = finality == "finalized"
+            if not include_pending and not confirmed:
                 continue
             description = row.get("description") if isinstance(row.get("description"), dict) else {}
             if bool(description.get("aborted")):
@@ -165,6 +198,8 @@ class CryptoChainService:
                     destination_address=cfg.CRYPTO_TON_ADDRESS,
                     occurred_at=occurred_at,
                     memo=cls._ton_comment(in_msg),
+                    confirmed=confirmed,
+                    confirmations=1 if confirmed else 0,
                 )
             )
         return out

@@ -48,6 +48,8 @@ class CryptoOperationsTests(unittest.TestCase):
         self.assertTrue(payload["created_at"].endswith("Z"))
         self.assertTrue(payload["expires_at"].endswith("Z"))
         self.assertTrue(payload["server_now"].endswith("Z"))
+        self.assertEqual(payload["tracking_code"], "DAV-1")
+        self.assertEqual(payload["confirmation_count"], 0)
 
     def test_qr_png_is_generated_for_ton_payment_uri(self):
         invoice = SimpleNamespace(

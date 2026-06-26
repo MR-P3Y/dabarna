@@ -20,3 +20,7 @@ venv/
 # Local storage artifacts
 storage/receipts/
 
+frontend/node_modules/
+frontend/dist/
+app/static/mini/wallet-connect.js
+app/static/mini/wallet-chunks/
