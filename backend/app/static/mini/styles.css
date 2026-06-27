@@ -567,6 +567,73 @@ body {
   line-height: 1.8;
 }
 
+
+
+.wallet-guide-card {
+  border: 1px solid rgba(91, 194, 225, 0.28);
+  border-radius: 10px;
+  padding: 10px;
+  background: rgba(91, 194, 225, 0.055);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+
+.wallet-guide-badge {
+  border: 1px solid rgba(91, 194, 225, 0.5);
+  border-radius: 999px;
+  padding: 4px 8px;
+  color: #9deaff;
+  background: rgba(91, 194, 225, 0.08);
+  font-size: 10px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.wallet-guide-copy {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.wallet-guide-copy strong {
+  color: var(--text);
+  font-size: 12px;
+}
+
+.wallet-guide-copy p,
+.wallet-guide-copy ul {
+  margin: 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.75;
+}
+
+.wallet-guide-copy ul {
+  padding: 0 16px 0 0;
+}
+
+.bank-deposit-guide,
+.withdraw-guide-card {
+  margin: 0;
+}
+
+.withdraw-guide-card {
+  border-color: rgba(45, 212, 191, 0.3);
+  background: rgba(45, 212, 191, 0.055);
+}
+
+@media (max-width: 420px) {
+  .wallet-guide-card {
+    grid-template-columns: 1fr;
+  }
+
+  .wallet-guide-badge {
+    width: fit-content;
+  }
+}
+
 .deposit-step {
   border: 1px solid var(--glass-border);
   border-radius: 12px;

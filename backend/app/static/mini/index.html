@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>مینی‌اپ دبرنا حلیم یگن طیار</title>
-    <link rel="stylesheet" href="./styles.css?v=20260625crypto5" />
+    <link rel="stylesheet" href="./styles.css?v=20260627walletguides1" />
   </head>
   <body>
     <div id="appSplash" class="app-splash" aria-label="در حال آماده‌سازی مینی‌اپ">
@@ -177,14 +177,16 @@
                 </div>
 
                 <div id="bankDepositPanel" class="deposit-mode-panel">
-                  <div class="bank-deposit-guide" aria-label="راهنمای واریز کارت بانکی">
-                    <strong>راهنمای کوتاه واریز کارت بانکی</strong>
-                    <span>مبلغ را وارد کن، کارت مقصد را انتخاب و کپی کن، بعد رسید پرداخت را از گالری/فایل انتخاب کن. درخواست بعد از بررسی ادمین به کیف پولت اضافه می‌شود.</span>
-                    <ul>
-                      <li>مبلغ رسید باید با مبلغ ثبت‌شده یکی باشد.</li>
-                      <li>عکس رسید واضح باشد و شماره پیگیری/زمان پرداخت دیده شود.</li>
-                      <li>برای موبایل، معمولاً اسکرین‌شات رسید را از گالری انتخاب کن.</li>
-                    </ul>
+                  <div class="wallet-guide-card bank-deposit-guide" aria-label="راهنمای واریز کارت بانکی">
+                    <div class="wallet-guide-badge">راهنما</div>
+                    <div class="wallet-guide-copy">
+                      <strong>واریز کارت‌به‌کارت</strong>
+                      <p>مبلغ را وارد کن، کارت مقصد را کپی کن و رسید واضح را ثبت کن.</p>
+                      <ul>
+                        <li>مبلغ رسید با مبلغ ثبت‌شده یکی باشد.</li>
+                        <li>شماره پیگیری یا زمان پرداخت دیده شود.</li>
+                      </ul>
+                    </div>
                   </div>
 
                 <div class="deposit-step">
@@ -338,6 +340,18 @@
                 <div class="withdraw-flow-head">
                   <h3 id="withdrawFlowTitle">برداشت از کیف پول</h3>
                   <p id="withdrawFlowDesc">۱) مبلغ ۲) اطلاعات مقصد ۳) بازبینی ۴) ثبت نهایی</p>
+                </div>
+
+                <div class="wallet-guide-card withdraw-guide-card" aria-label="راهنمای برداشت از کیف پول">
+                  <div class="wallet-guide-badge">راهنما</div>
+                  <div class="wallet-guide-copy">
+                    <strong>برداشت به کارت بانکی</strong>
+                    <p>مبلغ را وارد کن، اطلاعات کارت خودت را بنویس و قبل از ثبت نهایی بازبینی کن.</p>
+                    <ul>
+                      <li>نام صاحب کارت با اطلاعات برداشت یکی باشد.</li>
+                      <li>بعد از بررسی ادمین، وضعیت برداشت همین‌جا نمایش داده می‌شود.</li>
+                    </ul>
+                  </div>
                 </div>
 
                 <div class="deposit-step">
@@ -557,7 +571,7 @@
                       role="switch"
                       aria-checked="true"
                       data-next-enabled="false"
-                    >خاموش کردن کارت‌به‌کارت</button>
+                    >خاموش کردن پرداخت کریپتو</button>
                   </div>
                   <div id="superCryptoHint" class="step-hint"></div>
                   <div class="admin-action-row super-crypto-ops">
@@ -573,11 +587,12 @@
                     </div>
                     <button
                       id="superBankDepositToggleBtn"
-                      class="small-btn"
+                      class="small-btn danger"
                       type="button"
                       role="switch"
-                      aria-checked="false"
-                    >بررسی وضعیت</button>
+                      aria-checked="true"
+                      data-next-enabled="false"
+                    >خاموش کردن کارت‌به‌کارت</button>
                   </div>
                   <div id="superBankDepositHint" class="step-hint"></div>
 
@@ -721,6 +736,6 @@
     <div id="miniToast" class="mini-toast hidden" role="status" aria-live="polite"></div>
 
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="./app.js?v=20260625crypto5" type="module"></script>
+    <script src="./app.js?v=20260627walletguides1" type="module"></script>
   </body>
 </html>
