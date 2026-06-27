@@ -1,16 +1,14 @@
 from __future__ import annotations
 
 import uuid
-from html import escape
-
 from aiogram import F, Router
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery
 
-from bot.config import settings
 from bot.keyboards.join_gate import join_gate_action_kb, join_gate_kb
 from bot.keyboards.purchase import after_purchase_kb, confirm_kb, games_list_kb, qty_kb
 from bot.services.api_client import ApiClient, ApiError
+from bot.services.join_gate import configured_join_group_id, join_gate_body, resolve_join_gate_target
 from bot.services.notify_store import get_user_subscription_map, is_subscribed
 from bot.services.tg_membership import is_member
 from bot.services.ui import panel
@@ -39,17 +37,6 @@ def _fa_status(status: str | None) -> str:
     return mapping.get(raw, "نامشخص")
 
 
-def _effective_group_id(game_group_id: int | None) -> int | None:
-    if settings.BOT_JOIN_GROUP_ID is not None:
-        return int(settings.BOT_JOIN_GROUP_ID)
-    return game_group_id
-
-
-def _join_invite_link() -> str | None:
-    raw = str(settings.BOT_JOIN_GROUP_INVITE_LINK or "").strip()
-    return raw or None
-
-
 @router.callback_query(F.data == "menu:buy")
 async def buy_entry(
     cq: CallbackQuery,
@@ -61,21 +48,21 @@ async def buy_entry(
     is_super_admin: bool = False,
 ):
     if not (is_admin or is_super_admin):
-        required_group_id = _effective_group_id(None)
+        required_group_id = configured_join_group_id()
         if required_group_id is not None:
             member_ok = await is_member(cq.bot, required_group_id, tg_user_id)
             if not member_ok:
+                join_target = await resolve_join_gate_target(cq.bot, required_group_id)
                 await cq.message.edit_text(
                     panel(
                         "عضویت اجباری",
-                        "برای ورود به بخش خرید کارت، ابتدا باید عضو گروه بازی باشید.\n"
-                        "بعد از عضویت، روی «✅ عضو شدم» بزن.",
+                        join_gate_body("برای ورود به بخش خرید کارت، ابتدا باید عضو گروه بازی باشید.", join_target),
                     ),
                     parse_mode="HTML",
                     reply_markup=join_gate_action_kb(
                         "buy",
                         required_group_id,
-                        invite_link=_join_invite_link(),
+                        invite_link=join_target.invite_link,
                     ),
                 )
                 await cq.answer("ابتدا عضو گروه بازی شوید.", show_alert=True)
@@ -146,7 +133,7 @@ async def buy_select_game(cq: CallbackQuery, state: FSMContext, api: ApiClient, 
     except (TypeError, ValueError):
         game_group_id = None
 
-    tg_group_id = _effective_group_id(game_group_id)
+    tg_group_id = configured_join_group_id(game_group_id)
 
     await state.update_data(
         game_id=game_id,
@@ -161,54 +148,13 @@ async def buy_select_game(cq: CallbackQuery, state: FSMContext, api: ApiClient, 
     if tg_group_id is not None:
         ok = await is_member(cq.bot, tg_group_id, tg_user_id)
         if not ok:
-            group_title: str | None = None
-            invite_link: str | None = None
-
-            try:
-                chat = await cq.bot.get_chat(tg_group_id)
-                raw_title = getattr(chat, "title", None) or getattr(chat, "full_name", None)
-                if raw_title:
-                    group_title = str(raw_title)
-
-                raw_invite = getattr(chat, "invite_link", None)
-                if isinstance(raw_invite, str) and raw_invite.strip():
-                    invite_link = raw_invite.strip()
-                else:
-                    username = getattr(chat, "username", None)
-                    if isinstance(username, str) and username.strip():
-                        invite_link = f"https://t.me/{username.strip()}"
-            except Exception:
-                invite_link = None
-
-            if not invite_link and settings.BOT_JOIN_GROUP_INVITE_LINK:
-                link = settings.BOT_JOIN_GROUP_INVITE_LINK.strip()
-                if link:
-                    invite_link = link
-
-            if not invite_link:
-                try:
-                    # Works when bot has permission to export invite links.
-                    generated = await cq.bot.export_chat_invite_link(tg_group_id)
-                    if isinstance(generated, str) and generated.strip():
-                        invite_link = generated.strip()
-                except Exception:
-                    pass
-
-            body = "برای خرید کارت این بازی باید عضو گروه مربوطه باشی."
-            if group_title:
-                body += f"\n👥 نام گروه: <b>{escape(group_title)}</b>"
-            if invite_link:
-                body += f"\n🆔 شناسه گروه: <a href=\"{escape(invite_link)}\"><code>{tg_group_id}</code></a>"
-                body += "\nبرای عضویت مستقیم، روی دکمه «🔗 عضویت در گروه» بزن."
-            else:
-                body += f"\n🆔 شناسه گروه: <code>{tg_group_id}</code>"
-                body += "\nلینک مستقیم گروه در دسترس نیست؛ از ادمین گروه لینک دعوت بگیر."
-            body += "\nبعد از عضویت، روی «✅ عضو شدم» بزن."
+            join_target = await resolve_join_gate_target(cq.bot, tg_group_id)
+            body = join_gate_body("برای خرید کارت این بازی باید عضو گروه مربوطه باشی.", join_target)
 
             await cq.message.edit_text(
                 panel("عضویت الزامی", body),
                 parse_mode="HTML",
-                reply_markup=join_gate_kb(game_id, tg_group_id, invite_link=invite_link),
+                reply_markup=join_gate_kb(game_id, tg_group_id, invite_link=join_target.invite_link),
             )
             await cq.answer("ابتدا عضو گروه شو.", show_alert=True)
             return

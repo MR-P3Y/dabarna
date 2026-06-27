@@ -111,6 +111,12 @@ confirmation.
 - `BACKUP_CHAT_ID=-100xxxxxxxxxx`
 - `BACKUP_BOT_TOKEN=` (optional; empty means reuse `TELEGRAM_BOT_TOKEN`)
 
+Required bot join-gate keys in `./davarna-bot/.env.prod`:
+- `BOT_JOIN_GROUP_ID=-100xxxxxxxxxx`
+- `BOT_JOIN_GROUP_INVITE_LINK=https://t.me/+xxxxxxxxxxxx`
+
+For private groups, `BOT_JOIN_GROUP_INVITE_LINK` is required unless the bot is an admin with invite-link permission.
+
 ## 2) Start Stack (without dockerized nginx)
 
 Project root:

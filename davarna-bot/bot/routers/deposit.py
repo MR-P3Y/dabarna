@@ -16,6 +16,7 @@ from bot.keyboards.common import back_to_menu_kb
 from bot.services.ui import panel
 from bot.services.validators import parse_amount
 from bot.services.api_client import ApiClient, ApiError
+from bot.services.join_gate import configured_join_group_id, join_gate_body, resolve_join_gate_target
 from bot.services.admin_topics import now_stamp, send_to_topic
 from bot.services.html import h
 from bot.services.telegram_safe import safe_edit_or_send
@@ -126,21 +127,6 @@ def _render_destination_choices(items: list[dict]) -> str:
     return "\n".join(lines)
 
 
-def _required_group_id() -> int | None:
-    raw = settings.BOT_JOIN_GROUP_ID
-    if raw is None:
-        return None
-    try:
-        return int(raw)
-    except Exception:
-        return None
-
-
-def _join_invite_link() -> str | None:
-    raw = str(settings.BOT_JOIN_GROUP_INVITE_LINK or "").strip()
-    return raw or None
-
-
 async def _notify_admins_new_deposit(
     cq: CallbackQuery,
     api: ApiClient,
@@ -235,21 +221,21 @@ async def deposit_start(
     is_super_admin: bool = False,
 ):
     if not (is_admin or is_super_admin):
-        required_group_id = _required_group_id()
+        required_group_id = configured_join_group_id()
         if required_group_id is not None:
             member_ok = await is_member(cq.bot, required_group_id, tg_user_id)
             if not member_ok:
+                join_target = await resolve_join_gate_target(cq.bot, required_group_id)
                 await safe_edit_or_send(
                     cq.message,
                     panel(
                         "عضویت اجباری",
-                        "برای ورود به بخش واریز، ابتدا باید عضو گروه بازی باشید.\n"
-                        "بعد از عضویت، روی «✅ عضو شدم» بزن.",
+                        join_gate_body("برای ورود به بخش واریز، ابتدا باید عضو گروه بازی باشید.", join_target),
                     ),
                     reply_markup=join_gate_action_kb(
                         "deposit",
                         required_group_id,
-                        invite_link=_join_invite_link(),
+                        invite_link=join_target.invite_link,
                     ),
                     parse_mode="HTML",
                 )

@@ -10,6 +10,7 @@ from bot.services.ui import panel
 router = Router()
 
 _ACTION_TARGETS: dict[str, tuple[str, str]] = {
+    "start": ("منوی اصلی", "nav:menu"),
     "games": ("بازی‌های فعال", "menu:games"),
     "buy": ("خرید کارت", "menu:buy"),
     "deposit": ("واریز", "menu:deposit"),

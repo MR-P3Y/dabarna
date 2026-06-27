@@ -4,11 +4,11 @@ from aiogram import Router, F
 from aiogram.filters import Command
 from aiogram.types import CallbackQuery, Message
 
-from bot.config import settings
 from bot.keyboards.active_games import active_game_detail_kb, active_games_list_kb
 from bot.keyboards.common import back_to_menu_kb
 from bot.keyboards.join_gate import join_gate_action_kb
 from bot.services.api_client import ApiClient, ApiError
+from bot.services.join_gate import configured_join_group_id, join_gate_body, resolve_join_gate_target
 from bot.services.tg_membership import is_member
 from bot.services.telegram_safe import safe_edit_or_send
 from bot.services.ui import panel
@@ -18,21 +18,6 @@ router = Router()
 ACTIVE_GAMES_PAGE_LIMIT = 8
 RECENT_NUMBERS_LIMIT = 10
 STATE_LAST_N = 200
-
-
-def _required_group_id() -> int | None:
-    raw = settings.BOT_JOIN_GROUP_ID
-    if raw is None:
-        return None
-    try:
-        return int(raw)
-    except Exception:
-        return None
-
-
-def _join_invite_link() -> str | None:
-    raw = str(settings.BOT_JOIN_GROUP_INVITE_LINK or "").strip()
-    return raw or None
 
 
 def _fa_status(status: str | None) -> str:
@@ -198,21 +183,21 @@ async def games_entry(
     is_super_admin: bool = False,
 ):
     if not (is_admin or is_super_admin):
-        required_group_id = _required_group_id()
+        required_group_id = configured_join_group_id()
         if required_group_id is not None:
             member_ok = await is_member(cq.bot, required_group_id, tg_user_id)
             if not member_ok:
+                join_target = await resolve_join_gate_target(cq.bot, required_group_id)
                 await safe_edit_or_send(
                     cq.message,
                     panel(
                         "عضویت اجباری",
-                        "برای مشاهده بازی‌های فعال ابتدا باید عضو گروه بازی باشید.\n"
-                        "بعد از عضویت، روی «✅ عضو شدم» بزن.",
+                        join_gate_body("برای مشاهده بازی‌های فعال ابتدا باید عضو گروه بازی باشید.", join_target),
                     ),
                     reply_markup=join_gate_action_kb(
                         "games",
                         required_group_id,
-                        invite_link=_join_invite_link(),
+                        invite_link=join_target.invite_link,
                     ),
                     parse_mode="HTML",
                 )
