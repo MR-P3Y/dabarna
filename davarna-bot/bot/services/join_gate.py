@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from dataclasses import dataclass
 from html import escape
@@ -55,8 +55,6 @@ async def resolve_join_gate_target(bot: Bot, chat_id: int) -> JoinGateTarget:
 
     if not invite_link:
         try:
-            # Telegram may revoke the previous primary invite link on export;
-            # cache the generated value so one process does not rotate it per user.
             generated = await bot.export_chat_invite_link(chat_id)
             if isinstance(generated, str) and generated.strip():
                 invite_link = generated.strip()
@@ -82,5 +80,4 @@ def join_gate_body(reason: str, target: JoinGateTarget) -> str:
         lines.append("لینک مستقیم گروه تنظیم نشده است؛ از ادمین گروه لینک دعوت بگیر.")
 
     lines.append("بعد از عضویت، روی «✅ عضو شدم» بزن.")
-    return "
-".join(lines)
+    return "\n".join(lines)
