@@ -7,6 +7,7 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.models.settings import AppSetting
+from app.models.user import User
 
 
 USER_RESTRICTIONS_KEY = "user_restrictions"
@@ -120,3 +121,10 @@ def require_not_restricted(db: Session, tg_user_id: int, action: str) -> None:
             "until": state.get("until"),
         },
     )
+
+
+def require_user_id_not_restricted(db: Session, user_id: int, action: str) -> None:
+    user = db.get(User, int(user_id))
+    if user is None:
+        return
+    require_not_restricted(db, int(user.tg_user_id), action)

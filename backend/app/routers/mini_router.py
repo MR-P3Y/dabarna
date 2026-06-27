@@ -114,7 +114,7 @@ from app.services.crypto_qr_service import CryptoQrService
 from app.services.crypto_health_service import CryptoHealthService
 from app.services.crypto_preflight_service import CryptoPreflightService
 from app.services.crypto_reconciliation_service import CryptoReconciliationService
-from app.services.user_restriction_service import require_not_restricted
+from app.services.user_restriction_service import require_not_restricted, require_user_id_not_restricted
 from app.routers import admin_users_router
 
 router = APIRouter(prefix="/mini-api", tags=["mini"])
@@ -1210,7 +1210,7 @@ def list_games(
     user_id: int = Depends(get_mini_user_id),
     db: Session = Depends(get_db),
 ):
-    require_not_restricted(db, int(user_id), "ACTIVE_GAMES")
+    require_user_id_not_restricted(db, int(user_id), "ACTIVE_GAMES")
     statuses = _parse_status_filter(status)
     where = [Game.status.in_(statuses)]
     if tg_group_id is not None:
@@ -1937,7 +1937,7 @@ def buy_cards(
     user_id: int = Depends(get_mini_user_id),
     db: Session = Depends(get_db),
 ):
-    require_not_restricted(db, int(user_id), "BUY")
+    require_user_id_not_restricted(db, int(user_id), "BUY")
     enforce_write_rate_limit(int(user_id))
     purchase, _cards, prize_pool = GameService.buy_cards(
         db=db,
@@ -2064,7 +2064,7 @@ def mini_create_crypto_deposit(
     user_id: int = Depends(get_mini_user_id),
     db: Session = Depends(get_db),
 ):
-    require_not_restricted(db, int(user_id), "DEPOSIT")
+    require_user_id_not_restricted(db, int(user_id), "DEPOSIT")
     enforce_write_rate_limit(int(user_id))
     try:
         invoice = CryptoDepositService.create_invoice(
@@ -2269,7 +2269,7 @@ def list_deposit_destinations(
     user_id: int = Depends(get_mini_user_id),
     db: Session = Depends(get_db),
 ):
-    require_not_restricted(db, int(user_id), "DEPOSIT")
+    require_user_id_not_restricted(db, int(user_id), "DEPOSIT")
     _ = user_id
     if not _bank_deposit_enabled(db):
         return MiniDepositDestinationListOut(
@@ -2304,7 +2304,7 @@ def create_deposit(
     user_id: int = Depends(get_mini_user_id),
     db: Session = Depends(get_db),
 ):
-    require_not_restricted(db, int(user_id), "DEPOSIT")
+    require_user_id_not_restricted(db, int(user_id), "DEPOSIT")
     enforce_write_rate_limit(int(user_id))
     if not _bank_deposit_enabled(db):
         raise HTTPException(status_code=503, detail="واریز کارت بانکی توسط مدیریت غیرفعال شده است.")
@@ -2374,7 +2374,7 @@ def upload_deposit_receipt(
     user_id: int = Depends(get_mini_user_id),
     db: Session = Depends(get_db),
 ):
-    require_not_restricted(db, int(user_id), "DEPOSIT")
+    require_user_id_not_restricted(db, int(user_id), "DEPOSIT")
     enforce_write_rate_limit(int(user_id))
 
     dr = db.execute(
@@ -2449,7 +2449,7 @@ def create_withdraw(
     user_id: int = Depends(get_mini_user_id),
     db: Session = Depends(get_db),
 ):
-    require_not_restricted(db, int(user_id), "WITHDRAW")
+    require_user_id_not_restricted(db, int(user_id), "WITHDRAW")
     enforce_write_rate_limit(int(user_id))
     body = payload.model_dump()
     body["user_id"] = int(user_id)
