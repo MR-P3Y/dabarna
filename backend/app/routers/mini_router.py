@@ -1009,7 +1009,7 @@ def _mini_notify_lobby_cancel_refunds(
             continue
 
         text = (
-            "🟦 <b>دبرنا | کنسل بازی</b>\n\n"
+            "🟦 <b>دبرنای طوفان | کنسل بازی</b>\n\n"
             f"🎮 بازی: <b>#{int(game_id)}</b>\n"
             f"📝 علت کنسل: <b>{reason_html}</b>\n"
             f"🃏 تعداد کارت شما: <b>{int(purchase_count)}</b>\n"
@@ -3766,7 +3766,7 @@ def _mini_notify_deposit_final_to_user(
 
     if approved:
         text = (
-            "🟦 <b>دبرنا | واریز تایید شد</b>\n\n"
+            "🟦 <b>دبرنای طوفان | واریز تایید شد</b>\n\n"
             f"🧾 شماره واریز: <b>{int(dr.id)}</b>\n"
             f"💵 مبلغ: <b>{int(dr.amount):,}</b> تومان\n\n"
             "✅ واریز شما تایید شد و کیف پول شارژ شد."
@@ -3774,7 +3774,7 @@ def _mini_notify_deposit_final_to_user(
     else:
         reason_text = html_escape(str(reason or "").strip() or "رد توسط ادمین")
         text = (
-            "🟦 <b>دبرنا | واریز رد شد</b>\n\n"
+            "🟦 <b>دبرنای طوفان | واریز رد شد</b>\n\n"
             f"🧾 شماره واریز: <b>{int(dr.id)}</b>\n"
             f"💵 مبلغ: <b>{int(dr.amount):,}</b> تومان\n"
             f"📌 دلیل رد: <b>{reason_text}</b>\n\n"
@@ -3801,7 +3801,7 @@ def _mini_notify_withdraw_rejected_to_user(
 
     reason_text = html_escape(str(reason or "").strip() or "رد توسط ادمین")
     text = (
-        "🟦 <b>دبرنا | برداشت رد شد</b>\n\n"
+        "🟦 <b>دبرنای طوفان | برداشت رد شد</b>\n\n"
         f"🧾 شماره برداشت: <b>{int(wr.id)}</b>\n"
         f"💵 مبلغ: <b>{int(wr.amount):,}</b> تومان\n"
         f"📌 دلیل رد: <b>{reason_text}</b>\n\n"
@@ -3825,7 +3825,7 @@ def _mini_withdraw_paid_user_message(
     proof_line = f"\n🧾 متن رسید: <b>{proof_text_clean}</b>" if proof_text_clean else ""
     image_line = "\n🖼 تصویر فیش پرداخت پیوست شد." if has_image else ""
     return (
-        "🟦 <b>دبرنا | برداشت پرداخت شد</b>\n\n"
+        "🟦 <b>دبرنای طوفان | برداشت پرداخت شد</b>\n\n"
         f"🧾 شماره برداشت: <b>{int(withdraw_id)}</b>\n"
         f"💵 مبلغ: <b>{int(amount):,}</b> تومان\n"
         f"🔖 پیگیری پرداخت: <code>{tracking_text}</code>"

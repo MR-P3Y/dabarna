@@ -47,13 +47,13 @@ logger = logging.getLogger(__name__)
 
 BOT_WELCOME_DESCRIPTION = (
     "سلام رفیق 👋\n"
-    "به «دبرنا» خوش اومدی 🎯\n"
+    "به «دبرنای طوفان» خوش اومدی 🎯\n"
     "اینجا می تونی کارت بازی بخری 🃏، بازی زنده رو دنبال کنی 📡 "
     "و برای برد جایزه آماده بشی 🏆\n"
     "برای شروع، دکمه Start رو بزن تا بریم داخل بازی 🚀"
 )
 
-BOT_WELCOME_SHORT_DESCRIPTION = "دبرنا | خرید کارت، اعلام زنده اعداد و جایزه 🃏🏆"
+BOT_WELCOME_SHORT_DESCRIPTION = "دبرنای طوفان | خرید کارت، اعلام زنده اعداد و جایزه 🃏🏆"
 
 
 BOT_COMMANDS: list[BotCommand] = [

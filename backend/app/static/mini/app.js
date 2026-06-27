@@ -231,7 +231,7 @@ const CARD_HISTORY_LIMIT = 10;
 const LIVE_EVENTS_LIMIT = 15;
 
 const UI_TEXT = {
-  brandTitle: "دبرنا",
+  brandTitle: "دبرنای طوفان",
   headerUserLabel: "کاربر",
   headerWalletMiniLabel: "کیف پول",
   gamesTitle: "بازی‌ها",
@@ -692,7 +692,7 @@ function inferDisplayName() {
   const ln = String(tgUser?.last_name || "").trim();
   const full = `${fn} ${ln}`.trim();
   if (full) return full;
-  return "کاربر دبرنا";
+  return "کاربر دبرنای طوفان";
 }
 
 function updateHeaderWallet(balance) {
@@ -3580,7 +3580,7 @@ function renderCryptoInvoice(invoice, { open = true } = {}) {
     ${status === "WAITING_PAYMENT" ? `
       <div class="crypto-wallet-trust">
         <strong>پرداخت مستقیم با کیف پول</strong>
-        <span>اتصال کیف پول فقط درخواست پرداخت می‌سازد؛ دبرنا رمز، عبارت بازیابی یا کلید خصوصی را نمی‌بیند. پرداخت فقط با تأیید نهایی تو داخل کیف پول ارسال می‌شود.</span>
+        <span>اتصال کیف پول فقط درخواست پرداخت می‌سازد؛ دبرنای طوفان رمز، عبارت بازیابی یا کلید خصوصی را نمی‌بیند. پرداخت فقط با تأیید نهایی تو داخل کیف پول ارسال می‌شود.</span>
       </div>
       <button id="cryptoDirectPayBtn" class="small-btn primary crypto-direct-pay-btn" type="button" ${directAvailable ? "" : "disabled"}>
         ${paymentRequested ? "تراکنش ارسال شده؛ منتظر تایید شبکه" : network === "TON" ? "اتصال کیف پول TON و پرداخت" : "اتصال کیف پول TRON و پرداخت"}

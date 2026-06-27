@@ -195,7 +195,7 @@ chmod +x /opt/davarna/scripts/davarna-monitor.sh
 
 مانیتور این موارد را چک می‌کند:
 - containerهای `backend`, `bot`, `mysql`, `redis`
-- health داخلی و عمومی دبرنا
+- health داخلی و عمومی دبرنای طوفان
 - host nginx
 - cron
 - fail2ban
