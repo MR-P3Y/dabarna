@@ -1,21 +1,21 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="fa" dir="rtl" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>Ù…ÛŒÙ†ÛŒâ€ŒØ§Ù¾ Ø¯Ø¨Ø±Ù†Ø§ÛŒ Ø·ÙˆÙØ§Ù†</title>
+    <title>مینی‌اپ دبرنای طوفان</title>
     <link rel="stylesheet" href="./styles.css?v=20260627walletguides2" />
   </head>
   <body>
-    <div id="appSplash" class="app-splash" aria-label="Ø¯Ø± Ø­Ø§Ù„ Ø¢Ù…Ø§Ø¯Ù‡â€ŒØ³Ø§Ø²ÛŒ Ù…ÛŒÙ†ÛŒâ€ŒØ§Ù¾">
+    <div id="appSplash" class="app-splash" aria-label="در حال آماده‌سازی مینی‌اپ">
       <div class="splash-orb splash-orb-a"></div>
       <div class="splash-orb splash-orb-b"></div>
       <div class="splash-card glass">
-        <img class="splash-logo" src="./assets/bot-logo.jpg?v=20260627toofan1" alt="Ù„ÙˆÚ¯ÙˆÛŒ Ø¯Ø¨Ø±Ù†Ø§ÛŒ Ø·ÙˆÙØ§Ù†" />
-        <div class="splash-title">Ø¯Ø¨Ø±Ù†Ø§ÛŒ Ø·ÙˆÙØ§Ù†</div>
-        <div class="splash-subtitle">Ø¨Ø§Ø²ÛŒØŒ Ù‡ÛŒØ¬Ø§Ù†ØŒ Ø¬Ø§ÛŒØ²Ù‡ ÙˆØ§Ù‚Ø¹ÛŒ</div>
+        <img class="splash-logo" src="./assets/bot-logo.jpg?v=20260224a" alt="لوگوی دبرنای طوفان" />
+        <div class="splash-title">دبرنای طوفان</div>
+        <div class="splash-subtitle">بازی، هیجان، جایزه واقعی</div>
         <div class="splash-loader"><i></i></div>
-        <div id="splashStatus" class="splash-status">Ø¯Ø± Ø­Ø§Ù„ Ø¢Ù…Ø§Ø¯Ù‡â€ŒØ³Ø§Ø²ÛŒ Ø¨Ø§Ø²ÛŒ...</div>
+        <div id="splashStatus" class="splash-status">در حال آماده‌سازی بازی...</div>
       </div>
     </div>
 
@@ -23,26 +23,26 @@
       <header class="topbar glass">
         <div class="topbar-main">
           <div class="brand">
-            <img id="brandLogo" class="brand-logo" src="./assets/bot-logo.jpg?v=20260627toofan1" alt="Ù„ÙˆÚ¯ÙˆÛŒ Ø¯Ø¨Ø±Ù†Ø§ÛŒ Ø·ÙˆÙØ§Ù†" />
+            <img id="brandLogo" class="brand-logo" src="./assets/bot-logo.jpg?v=20260224a" alt="لوگوی دبرنای طوفان" />
             <div>
-              <h1 id="brandTitle">Ø¯Ø¨Ø±Ù†Ø§ÛŒ Ø·ÙˆÙØ§Ù†</h1>
+              <h1 id="brandTitle">دبرنای طوفان</h1>
             </div>
           </div>
           <div class="smart-head smart-head-primary">
             <div class="smart-chip">
-              <span id="headerUserLabel">Ú©Ø§Ø±Ø¨Ø±</span>
+              <span id="headerUserLabel">کاربر</span>
               <strong id="headerUserName">-</strong>
             </div>
             <div class="smart-chip">
-              <span id="headerWalletMiniLabel">Ú©ÛŒÙ Ù¾ÙˆÙ„</span>
+              <span id="headerWalletMiniLabel">کیف پول</span>
               <strong id="headerWalletBalance">-</strong>
             </div>
           </div>
         </div>
         <div class="smart-head smart-head-secondary">
-          <div id="headerUserStatus" class="smart-chip status normal">Ø¹Ø§Ø¯ÛŒ</div>
-          <button id="themeBtn" class="theme-toggle-btn" type="button" aria-label="ØªØºÛŒÛŒØ± Ù¾ÙˆØ³ØªÙ‡">â— Ø­Ø§Ù„Øª ØªÛŒØ±Ù‡</button>
-          <button id="soundBtn" class="theme-toggle-btn sound-toggle-btn" type="button" aria-label="ÙØ¹Ø§Ù„â€ŒØ³Ø§Ø²ÛŒ ØµØ¯Ø§ÛŒ Ø¨Ø§Ø²ÛŒ">ðŸ”• ØµØ¯Ø§</button>
+          <div id="headerUserStatus" class="smart-chip status normal">عادی</div>
+          <button id="themeBtn" class="theme-toggle-btn" type="button" aria-label="تغییر پوسته">◐ حالت تیره</button>
+          <button id="soundBtn" class="theme-toggle-btn sound-toggle-btn" type="button" aria-label="فعال‌سازی صدای بازی">🔕 صدا</button>
           <span id="authBadge" class="badge pending system-badge hidden">...</span>
         </div>
       </header>
@@ -51,13 +51,13 @@
         <section id="view-games" class="view active">
           <article class="glass panel">
             <div class="panel-head">
-              <h2 id="gamesTitle">Ø¨Ø§Ø²ÛŒâ€ŒÙ‡Ø§</h2>
-              <button id="refreshGamesBtn" class="small-btn" type="button">Ø¨Ù‡â€ŒØ±ÙˆØ²Ø±Ø³Ø§Ù†ÛŒ</button>
+              <h2 id="gamesTitle">بازی‌ها</h2>
+              <button id="refreshGamesBtn" class="small-btn" type="button">به‌روزرسانی</button>
             </div>
-            <p id="gamesHint" class="hint">ÙˆØ±ÙˆØ¯ Ø³Ø±ÛŒØ¹ Ø¨Ù‡ Ø¨Ø§Ø²ÛŒâ€ŒÙ‡Ø§ÛŒ ÙØ¹Ø§Ù„ Ùˆ Ù…Ø´Ø§Ù‡Ø¯Ù‡ ÙˆØ¶Ø¹ÛŒØª Ù„Ø­Ø¸Ù‡â€ŒØ§ÛŒ</p>
+            <p id="gamesHint" class="hint">ورود سریع به بازی‌های فعال و مشاهده وضعیت لحظه‌ای</p>
             <div class="quick-guide">
-              <strong>Ø±Ø§Ù‡Ù†Ù…Ø§ÛŒ Ø³Ø±ÛŒØ¹</strong>
-              <p id="gamesGuideText">Ø¨Ø§Ø²ÛŒ ÙØ¹Ø§Ù„ Ø±Ø§ Ø§Ù†ØªØ®Ø§Ø¨ Ú©Ù†ÛŒØ¯ØŒ ÙˆØ§Ø±Ø¯ ÙˆØ¶Ø¹ÛŒØª Ø²Ù†Ø¯Ù‡ Ø´ÙˆÛŒØ¯ Ùˆ Ø®Ø±ÛŒØ¯ Ú©Ø§Ø±Øª Ø±Ø§ Ø§Ù†Ø¬Ø§Ù… Ø¯Ù‡ÛŒØ¯.</p>
+              <strong>راهنمای سریع</strong>
+              <p id="gamesGuideText">بازی فعال را انتخاب کنید، وارد وضعیت زنده شوید و خرید کارت را انجام دهید.</p>
             </div>
             <div id="hotGameBanner" class="hot-banner hidden"></div>
             <div id="gamesList" class="stack-list"></div>
@@ -65,31 +65,31 @@
 
           <article class="glass panel">
             <div class="panel-head">
-              <h2 id="recentStatsTitle">Ø¢Ù…Ø§Ø± Ûµ Ø¨Ø§Ø²ÛŒ Ø§Ø®ÛŒØ±</h2>
+              <h2 id="recentStatsTitle">آمار ۵ بازی اخیر</h2>
             </div>
             <div id="recentStatsSlider" class="h-scroll-cards"></div>
             <div class="panel-head mt-12">
-              <h2 id="trustPanelTitle">Ø³ÛŒØ³ØªÙ… Ø§Ø¹ØªÙ…Ø§Ø¯</h2>
+              <h2 id="trustPanelTitle">سیستم اعتماد</h2>
             </div>
             <div id="trustStrip" class="trust-strip"></div>
           </article>
 
           <article class="glass panel">
             <div class="panel-head">
-              <h2 id="liveTitle">ÙˆØ¶Ø¹ÛŒØª Ø²Ù†Ø¯Ù‡ Ø¨Ø§Ø²ÛŒ</h2>
+              <h2 id="liveTitle">وضعیت زنده بازی</h2>
               <span id="liveGameMeta" class="meta">-</span>
             </div>
             <div id="gameTimeline" class="game-timeline"></div>
             <div id="liveState" class="live-state"></div>
             <div id="liveInsights" class="live-insights"></div>
             <div id="liveLinkSection" class="live-link hidden">
-              <a id="liveLinkAnchor" class="small-btn primary" href="#" target="_blank" rel="noopener noreferrer">Ù…Ø´Ø§Ù‡Ø¯Ù‡ Ù¾Ø®Ø´ Ø²Ù†Ø¯Ù‡</a>
+              <a id="liveLinkAnchor" class="small-btn primary" href="#" target="_blank" rel="noopener noreferrer">مشاهده پخش زنده</a>
               <div id="liveLinkMeta" class="meta"></div>
             </div>
             <div id="buyActionForm" class="action-form hidden">
-              <label id="buyQtyLabel" for="buyQtyInput">ØªØ¹Ø¯Ø§Ø¯ Ú©Ø§Ø±Øª</label>
+              <label id="buyQtyLabel" for="buyQtyInput">تعداد کارت</label>
               <input id="buyQtyInput" type="number" min="1" max="50" value="1" />
-              <button id="buyCardsBtn" class="small-btn primary" type="button">Ø®Ø±ÛŒØ¯ Ú©Ø§Ø±Øª</button>
+              <button id="buyCardsBtn" class="small-btn primary" type="button">خرید کارت</button>
               <div id="buyStatusHint" class="step-hint"></div>
             </div>
             <div id="liveActionHint" class="step-hint"></div>
@@ -100,16 +100,16 @@
         <section id="view-cards" class="view">
           <article id="cardsPanel" class="glass panel cards-panel">
             <div class="panel-head">
-              <h2 id="cardsTitle">Ú©Ø§Ø±Øªâ€ŒÙ‡Ø§ÛŒ Ù…Ù†</h2>
-              <button id="refreshCardsBtn" class="small-btn" type="button">Ø¨Ù‡â€ŒØ±ÙˆØ²Ø±Ø³Ø§Ù†ÛŒ</button>
+              <h2 id="cardsTitle">کارت‌های من</h2>
+              <button id="refreshCardsBtn" class="small-btn" type="button">به‌روزرسانی</button>
             </div>
-            <p id="cardsHint" class="hint">Ù†Ù…Ø§ÛŒØ´ Ø²Ù†Ø¯Ù‡ Ú©Ø§Ø±Øªâ€ŒÙ‡Ø§ Ùˆ Ù‡Ø§ÛŒÙ„Ø§ÛŒØª Ø§Ø¹Ø¯Ø§Ø¯ Ø§Ø¹Ù„Ø§Ù…â€ŒØ´Ø¯Ù‡</p>
+            <p id="cardsHint" class="hint">نمایش زنده کارت‌ها و هایلایت اعداد اعلام‌شده</p>
             <div class="quick-guide">
-              <strong>Ø±Ø§Ù‡Ù†Ù…Ø§ÛŒ Ø³Ø±ÛŒØ¹</strong>
-              <p id="cardsGuideText">Ú©Ø§Ø±Øªâ€ŒÙ‡Ø§ÛŒ Ø®Ø±ÛŒØ¯Ø§Ø±ÛŒâ€ŒØ´Ø¯Ù‡ØŒ Ø§Ø¹Ø¯Ø§Ø¯ Ø®ÙˆØ§Ù†Ø¯Ù‡â€ŒØ´Ø¯Ù‡ Ùˆ ØªØ§Ø±ÛŒØ®Ú†Ù‡ Ø¨Ø±Ø¯ Ø±Ø§ Ø§ÛŒÙ†Ø¬Ø§ Ø¨Ø¨ÛŒÙ†ÛŒØ¯.</p>
+              <strong>راهنمای سریع</strong>
+              <p id="cardsGuideText">کارت‌های خریداری‌شده، اعداد خوانده‌شده و تاریخچه برد را اینجا ببینید.</p>
             </div>
 
-            <div id="cardsPullHint" class="pull-hint" data-state="idle">Ø¨Ø±Ø§ÛŒ Ù†ÙˆØ³Ø§Ø²ÛŒØŒ ØµÙØ­Ù‡ Ø±Ø§ Ø¨Ù‡ Ù¾Ø§ÛŒÛŒÙ† Ø¨Ú©Ø´ÛŒØ¯</div>
+            <div id="cardsPullHint" class="pull-hint" data-state="idle">برای نوسازی، صفحه را به پایین بکشید</div>
 
             <div id="cardsLiveBadge" class="cards-live-badge">
               <div class="cards-live-head">
@@ -121,7 +121,7 @@
 
             <div class="cards-box">
               <div class="cards-box-head">
-                <h3 id="cardsActiveTitle">Ú©Ø§Ø±Øªâ€ŒÙ‡Ø§ÛŒ Ø®Ø±ÛŒØ¯Ø§Ø±ÛŒâ€ŒØ´Ø¯Ù‡ Ø¨Ø§Ø²ÛŒâ€ŒÙ‡Ø§ÛŒ ÙØ¹Ø§Ù„</h3>
+                <h3 id="cardsActiveTitle">کارت‌های خریداری‌شده بازی‌های فعال</h3>
                 <span id="cardsActiveMeta" class="meta">-</span>
               </div>
               <div id="cardsActiveList" class="cards-active-list"></div>
@@ -129,15 +129,15 @@
 
             <div class="cards-box mt-12">
               <div class="cards-box-head">
-                <h3 id="cardsHistoryTitle">ØªØ§Ø±ÛŒØ®Ú†Ù‡ Ø®Ø±ÛŒØ¯ Ú©Ø§Ø±Øª</h3>
-                <span id="cardsHistoryMeta" class="meta">Ø§Ø³Ú©Ø±ÙˆÙ„â€ŒÙ¾Ø°ÛŒØ±</span>
+                <h3 id="cardsHistoryTitle">تاریخچه خرید کارت</h3>
+                <span id="cardsHistoryMeta" class="meta">اسکرول‌پذیر</span>
               </div>
               <div id="cardsHistoryList" class="cards-history-scroll"></div>
             </div>
 
             <div class="cards-box mt-12">
               <div class="cards-box-head">
-                <h3 id="cardsWinsTitle">ØªØ§ÛŒÙ…â€ŒÙ„Ø§ÛŒÙ† Ø¨Ø±Ø¯Ù‡Ø§</h3>
+                <h3 id="cardsWinsTitle">تایم‌لاین بردها</h3>
                 <select id="winsGameFilter" class="small-select"></select>
               </div>
               <div id="cardsWinsTimeline" class="cards-history-scroll"></div>
@@ -148,44 +148,44 @@
         <section id="view-wallet" class="view">
           <article class="glass panel">
             <div class="panel-head">
-              <h2 id="walletTitle">Ú©ÛŒÙ Ù¾ÙˆÙ„</h2>
-              <button id="refreshWalletBtn" class="small-btn" type="button">Ø¨Ù‡â€ŒØ±ÙˆØ²Ø±Ø³Ø§Ù†ÛŒ</button>
+              <h2 id="walletTitle">کیف پول</h2>
+              <button id="refreshWalletBtn" class="small-btn" type="button">به‌روزرسانی</button>
             </div>
             <div class="quick-guide">
-              <strong>Ø±Ø§Ù‡Ù†Ù…Ø§ÛŒ Ø³Ø±ÛŒØ¹</strong>
-              <p id="walletGuideText">Ø¨Ø±Ø§ÛŒ ÙˆØ§Ø±ÛŒØ² ÛŒØ§ Ø¨Ø±Ø¯Ø§Ø´ØªØŒ Ù…Ø±Ø§Ø­Ù„ Ø±Ø§ Ø¨Ù‡ ØªØ±ØªÛŒØ¨ Ø§Ù†Ø¬Ø§Ù… Ø¯Ù‡ÛŒØ¯ Ùˆ ÙˆØ¶Ø¹ÛŒØª Ø¯Ø±Ø®ÙˆØ§Ø³Øªâ€ŒÙ‡Ø§ Ø±Ø§ Ù¾ÛŒÚ¯ÛŒØ±ÛŒ Ú©Ù†ÛŒØ¯.</p>
+              <strong>راهنمای سریع</strong>
+              <p id="walletGuideText">برای واریز یا برداشت، مراحل را به ترتیب انجام دهید و وضعیت درخواست‌ها را پیگیری کنید.</p>
             </div>
             <div class="wallet-balance-wrap">
-              <span id="walletBalanceLabel">Ù…ÙˆØ¬ÙˆØ¯ÛŒ ÙØ¹Ù„ÛŒ</span>
+              <span id="walletBalanceLabel">موجودی فعلی</span>
               <strong id="walletBalance">-</strong>
             </div>
             <div class="wallet-quick-actions">
-              <button class="small-btn primary wallet-jump-btn" data-target="deposit" type="button">Ø´Ø§Ø±Ú˜ Ú©ÛŒÙ Ù¾ÙˆÙ„</button>
-              <button class="small-btn wallet-jump-btn" data-target="withdraw" type="button">Ø¯Ø±Ø®ÙˆØ§Ø³Øª Ø¨Ø±Ø¯Ø§Ø´Øª</button>
+              <button class="small-btn primary wallet-jump-btn" data-target="deposit" type="button">شارژ کیف پول</button>
+              <button class="small-btn wallet-jump-btn" data-target="withdraw" type="button">درخواست برداشت</button>
             </div>
 
             <div class="wallet-flow-grid">
               <div class="deposit-flow flow-card">
                 <div class="deposit-flow-head">
-                  <h3 id="depositFlowTitle">ÙˆØ§Ø±ÛŒØ² Ø¨Ù‡ Ú©ÛŒÙ Ù¾ÙˆÙ„</h3>
-                  <p id="depositFlowDesc">Û±) Ù…Ø¨Ù„Øº Ø¯Ù„Ø®ÙˆØ§Ù‡ Û²) Ø§Ù†ØªØ®Ø§Ø¨ Ú©Ø§Ø±Øª Ù…Ù‚ØµØ¯ Û³) Ø¢Ù¾Ù„ÙˆØ¯ Ø±Ø³ÛŒØ¯ Û´) Ø«Ø¨Øª Ù†Ù‡Ø§ÛŒÛŒ</p>
+                  <h3 id="depositFlowTitle">واریز به کیف پول</h3>
+                  <p id="depositFlowDesc">۱) مبلغ دلخواه ۲) انتخاب کارت مقصد ۳) آپلود رسید ۴) ثبت نهایی</p>
                 </div>
 
-                <div class="deposit-mode-switch" role="tablist" aria-label="Ø±ÙˆØ´ ÙˆØ§Ø±ÛŒØ²">
-                  <button class="deposit-mode-btn active" data-deposit-mode="bank" role="tab" aria-selected="true" type="button">Ú©Ø§Ø±Øª Ø¨Ø§Ù†Ú©ÛŒ</button>
-                  <button id="cryptoDepositModeBtn" class="deposit-mode-btn" data-deposit-mode="crypto" role="tab" aria-selected="false" type="button">Ø§Ø±Ø² Ø¯ÛŒØ¬ÛŒØªØ§Ù„</button>
+                <div class="deposit-mode-switch" role="tablist" aria-label="روش واریز">
+                  <button class="deposit-mode-btn active" data-deposit-mode="bank" role="tab" aria-selected="true" type="button">کارت بانکی</button>
+                  <button id="cryptoDepositModeBtn" class="deposit-mode-btn" data-deposit-mode="crypto" role="tab" aria-selected="false" type="button">ارز دیجیتال</button>
                 </div>
 
                 <div id="bankDepositPanel" class="deposit-mode-panel">
-                  <div class="crypto-guide-card crypto-guide-card-main bank-deposit-guide" aria-label="Ø±Ø§Ù‡Ù†Ù…Ø§ÛŒ ÙˆØ§Ø±ÛŒØ² Ú©Ø§Ø±Øª Ø¨Ø§Ù†Ú©ÛŒ">
-                    <div class="crypto-guide-badge">Ø±Ø§Ù‡Ù†Ù…Ø§</div>
+                  <div class="crypto-guide-card crypto-guide-card-main bank-deposit-guide" aria-label="راهنمای واریز کارت بانکی">
+                    <div class="crypto-guide-badge">راهنما</div>
                     <div class="crypto-guide-copy">
-                      <strong>ÙˆØ§Ø±ÛŒØ² Ú©Ø§Ø±Øªâ€ŒØ¨Ù‡â€ŒÚ©Ø§Ø±Øª Ú†Ø·ÙˆØ± Ø§Ù†Ø¬Ø§Ù… Ù…ÛŒâ€ŒØ´ÙˆØ¯ØŸ</strong>
-                      <p>Ù…Ø¨Ù„Øº ØªÙˆÙ…Ø§Ù† Ø±Ø§ ÙˆØ§Ø±Ø¯ Ú©Ù†ØŒ Ú©Ø§Ø±Øª Ù…Ù‚ØµØ¯ Ø±Ø§ Ø§Ù†ØªØ®Ø§Ø¨ Ùˆ Ú©Ù¾ÛŒ Ú©Ù†ØŒ Ø³Ù¾Ø³ Ø±Ø³ÛŒØ¯ ÙˆØ§Ø¶Ø­ Ø±Ø§ Ø§Ø² Ú¯Ø§Ù„Ø±ÛŒ ÛŒØ§ ÙØ§ÛŒÙ„ Ø«Ø¨Øª Ú©Ù†.</p>
+                      <strong>واریز کارت‌به‌کارت چطور انجام می‌شود؟</strong>
+                      <p>مبلغ تومان را وارد کن، کارت مقصد را انتخاب و کپی کن، سپس رسید واضح را از گالری یا فایل ثبت کن.</p>
                       <ul>
-                        <li>Ù…Ø¨Ù„Øº Ø±Ø³ÛŒØ¯ Ø¨Ø§ÛŒØ¯ Ø¨Ø§ Ù…Ø¨Ù„Øº Ø«Ø¨Øªâ€ŒØ´Ø¯Ù‡ ÛŒÚ©ÛŒ Ø¨Ø§Ø´Ø¯.</li>
-                        <li>Ø´Ù…Ø§Ø±Ù‡ Ù¾ÛŒÚ¯ÛŒØ±ÛŒ ÛŒØ§ Ø²Ù…Ø§Ù† Ù¾Ø±Ø¯Ø§Ø®Øª Ø¯Ø§Ø®Ù„ Ø±Ø³ÛŒØ¯ Ø¯ÛŒØ¯Ù‡ Ø´ÙˆØ¯.</li>
-                        <li>Ø¯Ø±Ø®ÙˆØ§Ø³Øª Ø¨Ø¹Ø¯ Ø§Ø² Ø¨Ø±Ø±Ø³ÛŒ Ø§Ø¯Ù…ÛŒÙ† Ø¨Ù‡ Ú©ÛŒÙ Ù¾ÙˆÙ„ Ø§Ø¶Ø§ÙÙ‡ Ù…ÛŒâ€ŒØ´ÙˆØ¯.</li>
+                        <li>مبلغ رسید باید با مبلغ ثبت‌شده یکی باشد.</li>
+                        <li>شماره پیگیری یا زمان پرداخت داخل رسید دیده شود.</li>
+                        <li>درخواست بعد از بررسی ادمین به کیف پول اضافه می‌شود.</li>
                       </ul>
                     </div>
                   </div>
@@ -193,13 +193,13 @@
                 <div class="deposit-step">
                   <div class="deposit-step-no">1</div>
                   <div class="deposit-step-body">
-                    <label id="depositAmountLabel" for="depositAmountInput">Ù…Ø¨Ù„Øº (ØªÙˆÙ…Ø§Ù†)</label>
+                    <label id="depositAmountLabel" for="depositAmountInput">مبلغ (تومان)</label>
                     <input id="depositAmountInput" type="number" min="1" />
-                    <div class="amount-preset-row" aria-label="Ù…Ø¨Ù„Øºâ€ŒÙ‡Ø§ÛŒ Ø¢Ù…Ø§Ø¯Ù‡ Ø´Ø§Ø±Ú˜">
-                      <button class="amount-preset" data-amount="50000" type="button">ÛµÛ° Ù‡Ø²Ø§Ø±</button>
-                      <button class="amount-preset" data-amount="100000" type="button">Û±Û°Û° Ù‡Ø²Ø§Ø±</button>
-                      <button class="amount-preset" data-amount="200000" type="button">Û²Û°Û° Ù‡Ø²Ø§Ø±</button>
-                      <button class="amount-preset" data-amount="500000" type="button">ÛµÛ°Û° Ù‡Ø²Ø§Ø±</button>
+                    <div class="amount-preset-row" aria-label="مبلغ‌های آماده شارژ">
+                      <button class="amount-preset" data-amount="50000" type="button">۵۰ هزار</button>
+                      <button class="amount-preset" data-amount="100000" type="button">۱۰۰ هزار</button>
+                      <button class="amount-preset" data-amount="200000" type="button">۲۰۰ هزار</button>
+                      <button class="amount-preset" data-amount="500000" type="button">۵۰۰ هزار</button>
                     </div>
                   </div>
                 </div>
@@ -207,10 +207,10 @@
                 <div class="deposit-step">
                   <div class="deposit-step-no">2</div>
                   <div class="deposit-step-body">
-                    <label id="depositDestinationLabel" for="depositDestinationSelect">Ø§Ù†ØªØ®Ø§Ø¨ Ú©Ø§Ø±Øª Ù…Ù‚ØµØ¯</label>
+                    <label id="depositDestinationLabel" for="depositDestinationSelect">انتخاب کارت مقصد</label>
                     <div class="deposit-destination-row">
                       <select id="depositDestinationSelect"></select>
-                      <button id="copyDepositCardBtn" class="small-btn" type="button">Ú©Ù¾ÛŒ Ø´Ù…Ø§Ø±Ù‡ Ú©Ø§Ø±Øª</button>
+                      <button id="copyDepositCardBtn" class="small-btn" type="button">کپی شماره کارت</button>
                     </div>
                     <div id="depositDestinationCardBox" class="destination-selected-card hidden"></div>
                     <div id="depositDestinationHint" class="step-hint"></div>
@@ -220,15 +220,15 @@
                 <div class="deposit-step">
                   <div class="deposit-step-no">3</div>
                   <div class="deposit-step-body">
-                    <label id="depositReceiptLabel" for="depositReceiptFileInput">Ø±Ø³ÛŒØ¯ Ù¾Ø±Ø¯Ø§Ø®Øª</label>
+                    <label id="depositReceiptLabel" for="depositReceiptFileInput">رسید پرداخت</label>
                     <div class="deposit-receipt-help">
-                      <strong>Ø¢Ù¾Ù„ÙˆØ¯ Ø±Ø³ÛŒØ¯</strong>
-                      <span id="depositReceiptPickerHint">Ø¯Ø± Ù…ÙˆØ¨Ø§ÛŒÙ„ØŒ Ø¹Ú©Ø³ Ø±Ø³ÛŒØ¯ Ø±Ø§ Ø§Ø² Ú¯Ø§Ù„Ø±ÛŒ Ø§Ù†ØªØ®Ø§Ø¨ Ú©Ù†. Ø¯Ø± Ù„Ù¾â€ŒØªØ§Ù¾ØŒ Ø¹Ú©Ø³ ÛŒØ§ PDF Ø±Ø³ÛŒØ¯ Ø±Ø§ Ø§Ù†ØªØ®Ø§Ø¨ Ú©Ù†.</span>
+                      <strong>آپلود رسید</strong>
+                      <span id="depositReceiptPickerHint">در موبایل، عکس رسید را از گالری انتخاب کن. در لپ‌تاپ، عکس یا PDF رسید را انتخاب کن.</span>
                     </div>
                     <input id="depositReceiptFileInput" type="file" accept="image/*,.pdf" />
                     <label class="receipt-picker-btn" for="depositReceiptFileInput">
-                      <span>Ø§Ù†ØªØ®Ø§Ø¨ Ø±Ø³ÛŒØ¯ Ø§Ø² Ú¯Ø§Ù„Ø±ÛŒ / ÙØ§ÛŒÙ„</span>
-                      <small>Ø¹Ú©Ø³ Ø±Ø³ÛŒØ¯ ÛŒØ§ PDF</small>
+                      <span>انتخاب رسید از گالری / فایل</span>
+                      <small>عکس رسید یا PDF</small>
                     </label>
                     <div id="receiptPreview" class="receipt-preview hidden"></div>
                   </div>
@@ -237,8 +237,8 @@
                 <div class="deposit-step final">
                   <div class="deposit-step-no">4</div>
                   <div class="deposit-step-body">
-                    <label id="depositSubmitLabel">Ø«Ø¨Øª</label>
-                    <button id="submitDepositBtn" class="small-btn primary" type="button">Ø«Ø¨Øª ÙˆØ§Ø±ÛŒØ²ÛŒ</button>
+                    <label id="depositSubmitLabel">ثبت</label>
+                    <button id="submitDepositBtn" class="small-btn primary" type="button">ثبت واریزی</button>
                     <div id="depositSubmitHint" class="step-hint"></div>
                   </div>
                 </div>
@@ -248,50 +248,50 @@
                   <div id="cryptoCreateView" class="crypto-create-view">
                     <div id="cryptoActiveResume" class="crypto-active-resume hidden">
                       <div>
-                        <strong>ÛŒÚ© ÙØ§Ú©ØªÙˆØ± ÙØ¹Ø§Ù„ Ø¯Ø§Ø±ÛŒØ¯</strong>
-                        <span id="cryptoActiveResumeMeta">Ø¨Ø±Ø§ÛŒ Ø§Ø¯Ø§Ù…Ù‡ Ù¾Ø±Ø¯Ø§Ø®ØªØŒ ÙØ§Ú©ØªÙˆØ± Ø±Ø§ Ø¨Ø§Ø² Ú©Ù†ÛŒØ¯.</span>
+                        <strong>یک فاکتور فعال دارید</strong>
+                        <span id="cryptoActiveResumeMeta">برای ادامه پرداخت، فاکتور را باز کنید.</span>
                       </div>
-                      <button id="resumeCryptoInvoiceBtn" class="small-btn" type="button">Ø§Ø¯Ø§Ù…Ù‡ Ù¾Ø±Ø¯Ø§Ø®Øª</button>
+                      <button id="resumeCryptoInvoiceBtn" class="small-btn" type="button">ادامه پرداخت</button>
                     </div>
 
-                    <div class="crypto-guide-card crypto-guide-card-main" aria-label="Ø±Ø§Ù‡Ù†Ù…Ø§ÛŒ Ù¾Ø±Ø¯Ø§Ø®Øª Ø§Ø±Ø² Ø¯ÛŒØ¬ÛŒØªØ§Ù„">
-                      <div class="crypto-guide-badge">Ø±Ø§Ù‡Ù†Ù…Ø§</div>
+                    <div class="crypto-guide-card crypto-guide-card-main" aria-label="راهنمای پرداخت ارز دیجیتال">
+                      <div class="crypto-guide-badge">راهنما</div>
                       <div class="crypto-guide-copy">
-                        <strong>Ù¾Ø±Ø¯Ø§Ø®Øª Ø§Ø±Ø² Ø¯ÛŒØ¬ÛŒØªØ§Ù„ Ú†Ø·ÙˆØ± Ø§Ù†Ø¬Ø§Ù… Ù…ÛŒâ€ŒØ´ÙˆØ¯ØŸ</strong>
-                        <p>Ù…Ø¨Ù„Øº ØªÙˆÙ…Ø§Ù† Ø±Ø§ ÙˆØ§Ø±Ø¯ Ú©Ù†ØŒ Ø´Ø¨Ú©Ù‡ Ø±Ø§ Ø§Ù†ØªØ®Ø§Ø¨ Ú©Ù† Ùˆ ÙØ§Ú©ØªÙˆØ± Ø¨Ø§ Ù†Ø±Ø® Ù„Ø­Ø¸Ù‡â€ŒØ§ÛŒ Ø³Ø§Ø®ØªÙ‡ Ù…ÛŒâ€ŒØ´ÙˆØ¯. Ø¨Ø¹Ø¯ Ù…ÛŒâ€ŒØªÙˆØ§Ù†ÛŒ Ø¨Ø§ Ú©ÛŒÙ Ù¾ÙˆÙ„ Ù…Ø³ØªÙ‚ÛŒÙ… Ù¾Ø±Ø¯Ø§Ø®Øª Ú©Ù†ÛŒ ÛŒØ§ Ø§Ø² QR Ùˆ Ú©Ù¾ÛŒ Ø¢Ø¯Ø±Ø³ Ø§Ø³ØªÙØ§Ø¯Ù‡ Ú©Ù†ÛŒ.</p>
+                        <strong>پرداخت ارز دیجیتال چطور انجام می‌شود؟</strong>
+                        <p>مبلغ تومان را وارد کن، شبکه را انتخاب کن و فاکتور با نرخ لحظه‌ای ساخته می‌شود. بعد می‌توانی با کیف پول مستقیم پرداخت کنی یا از QR و کپی آدرس استفاده کنی.</p>
                         <ul>
-                          <li>Ø´Ø¨Ú©Ù‡ Ú©ÛŒÙ Ù¾ÙˆÙ„ Ø¨Ø§ÛŒØ¯ Ø¯Ù‚ÛŒÙ‚Ø§Ù‹ Ø¨Ø§ Ø´Ø¨Ú©Ù‡ ÙØ§Ú©ØªÙˆØ± ÛŒÚ©ÛŒ Ø¨Ø§Ø´Ø¯.</li>
-                          <li>Ù…Ø¨Ù„Øº Ù†Ù…Ø§ÛŒØ´â€ŒØ¯Ø§Ø¯Ù‡â€ŒØ´Ø¯Ù‡ Ø±Ø§ Ø¯Ù‚ÛŒÙ‚ Ù¾Ø±Ø¯Ø§Ø®Øª Ú©Ù†.</li>
-                          <li>Ú©Ø§Ø±Ù…Ø²Ø¯ Ø´Ø¨Ú©Ù‡ Ø¬Ø¯Ø§Ø³Øª Ùˆ Ø¯Ø§Ø®Ù„ Ú©ÛŒÙ Ù¾ÙˆÙ„ Ù…Ø­Ø§Ø³Ø¨Ù‡ Ù…ÛŒâ€ŒØ´ÙˆØ¯.</li>
+                          <li>شبکه کیف پول باید دقیقاً با شبکه فاکتور یکی باشد.</li>
+                          <li>مبلغ نمایش‌داده‌شده را دقیق پرداخت کن.</li>
+                          <li>کارمزد شبکه جداست و داخل کیف پول محاسبه می‌شود.</li>
                         </ul>
                       </div>
                     </div>
 
-                    <div class="crypto-trust-card" aria-label="Ø§Ø·Ù…ÛŒÙ†Ø§Ù† Ø§ØªØµØ§Ù„ Ú©ÛŒÙ Ù¾ÙˆÙ„">
-                      <strong>Ø§ØªØµØ§Ù„ Ú©ÛŒÙ Ù¾ÙˆÙ„ Ø§Ù…Ù† Ø§Ø³Øª</strong>
-                      <span>Ø¯Ø¨Ø±Ù†Ø§ÛŒ Ø·ÙˆÙØ§Ù† Ø¨Ù‡ Ø±Ù…Ø²ØŒ Ø¹Ø¨Ø§Ø±Øª Ø¨Ø§Ø²ÛŒØ§Ø¨ÛŒ ÛŒØ§ Ú©Ù„ÛŒØ¯ Ø®ØµÙˆØµÛŒ ØªÙˆ Ø¯Ø³ØªØ±Ø³ÛŒ Ù†Ø¯Ø§Ø±Ø¯. Ù¾Ø±Ø¯Ø§Ø®Øª ÙÙ‚Ø· Ø¨Ø¹Ø¯ Ø§Ø² ØªØ£ÛŒÛŒØ¯ Ù†Ù‡Ø§ÛŒÛŒ Ø¯Ø§Ø®Ù„ Ú©ÛŒÙ Ù¾ÙˆÙ„ Ø§Ù†Ø¬Ø§Ù… Ù…ÛŒâ€ŒØ´ÙˆØ¯.</span>
+                    <div class="crypto-trust-card" aria-label="اطمینان اتصال کیف پول">
+                      <strong>اتصال کیف پول امن است</strong>
+                      <span>دبرنای طوفان به رمز، عبارت بازیابی یا کلید خصوصی تو دسترسی ندارد. پرداخت فقط بعد از تأیید نهایی داخل کیف پول انجام می‌شود.</span>
                     </div>
 
                     <section class="crypto-create-section" aria-labelledby="cryptoNetworkTitle">
                       <div class="crypto-section-head">
-                        <h4 id="cryptoNetworkTitle">Ø§Ù†ØªØ®Ø§Ø¨ Ø´Ø¨Ú©Ù‡</h4>
-                        <p>Ø´Ø¨Ú©Ù‡â€ŒØ§ÛŒ Ø±Ø§ Ø§Ù†ØªØ®Ø§Ø¨ Ú©Ù†ÛŒØ¯ Ú©Ù‡ Ø§Ø² Ù‡Ù…Ø§Ù† Ø·Ø±ÛŒÙ‚ Ù¾Ø±Ø¯Ø§Ø®Øª Ù…ÛŒâ€ŒÚ©Ù†ÛŒØ¯.</p>
+                        <h4 id="cryptoNetworkTitle">انتخاب شبکه</h4>
+                        <p>شبکه‌ای را انتخاب کنید که از همان طریق پرداخت می‌کنید.</p>
                       </div>
                       <input id="cryptoNetworkSelect" type="hidden" value="" />
-                      <div id="cryptoNetworkChoices" class="crypto-network-choices" role="radiogroup" aria-label="Ø´Ø¨Ú©Ù‡ Ù¾Ø±Ø¯Ø§Ø®Øª">
+                      <div id="cryptoNetworkChoices" class="crypto-network-choices" role="radiogroup" aria-label="شبکه پرداخت">
                         <button class="crypto-network-option" data-network="TRON" type="button" role="radio" aria-checked="false">
-                          <span class="crypto-network-mark is-usdt">â‚®</span>
+                          <span class="crypto-network-mark is-usdt">₮</span>
                           <span class="crypto-network-copy">
-                            <strong>ØªØªØ± <b dir="ltr">USDT</b></strong>
-                            <small dir="ltr">TRON â€¢ TRC20 â€¢ Mainnet</small>
+                            <strong>تتر <b dir="ltr">USDT</b></strong>
+                            <small dir="ltr">TRON • TRC20 • Mainnet</small>
                           </span>
                           <span class="crypto-network-radio" aria-hidden="true"></span>
                         </button>
                         <button class="crypto-network-option" data-network="TON" type="button" role="radio" aria-checked="false">
                           <span class="crypto-network-mark is-ton">TON</span>
                           <span class="crypto-network-copy">
-                            <strong>ØªÙˆÙ† <b dir="ltr">TON</b></strong>
-                            <small dir="ltr">TON â€¢ Mainnet</small>
+                            <strong>تون <b dir="ltr">TON</b></strong>
+                            <small dir="ltr">TON • Mainnet</small>
                           </span>
                           <span class="crypto-network-radio" aria-hidden="true"></span>
                         </button>
@@ -300,35 +300,35 @@
                     </section>
 
                     <section class="crypto-create-section">
-                      <label class="crypto-amount-label" for="cryptoAmountInput">Ù…Ø¨Ù„Øº ÙˆØ§Ø±ÛŒØ² <span>(ØªÙˆÙ…Ø§Ù†)</span></label>
+                      <label class="crypto-amount-label" for="cryptoAmountInput">مبلغ واریز <span>(تومان)</span></label>
                       <div class="crypto-amount-input-wrap">
-                        <input id="cryptoAmountInput" type="number" min="1" inputmode="numeric" placeholder="Ù…Ø¨Ù„Øº Ø±Ø§ ÙˆØ§Ø±Ø¯ Ú©Ù†ÛŒØ¯" />
-                        <span>ØªÙˆÙ…Ø§Ù†</span>
+                        <input id="cryptoAmountInput" type="number" min="1" inputmode="numeric" placeholder="مبلغ را وارد کنید" />
+                        <span>تومان</span>
                       </div>
-                      <div class="crypto-amount-presets" aria-label="Ù…Ø¨Ù„Øºâ€ŒÙ‡Ø§ÛŒ Ø¢Ù…Ø§Ø¯Ù‡ Ø±Ù…Ø²Ø§Ø±Ø²">
-                        <button class="crypto-amount-preset" data-amount="100000" type="button">Û±Û°Û°,Û°Û°Û°</button>
-                        <button class="crypto-amount-preset" data-amount="500000" type="button">ÛµÛ°Û°,Û°Û°Û°</button>
-                        <button class="crypto-amount-preset" data-amount="1000000" type="button">Û±,Û°Û°Û°,Û°Û°Û°</button>
+                      <div class="crypto-amount-presets" aria-label="مبلغ‌های آماده رمزارز">
+                        <button class="crypto-amount-preset" data-amount="100000" type="button">۱۰۰,۰۰۰</button>
+                        <button class="crypto-amount-preset" data-amount="500000" type="button">۵۰۰,۰۰۰</button>
+                        <button class="crypto-amount-preset" data-amount="1000000" type="button">۱,۰۰۰,۰۰۰</button>
                       </div>
                     </section>
 
-                    <div class="crypto-create-summary" aria-label="Ø®Ù„Ø§ØµÙ‡ Ø´Ø±Ø§ÛŒØ· ÙØ§Ú©ØªÙˆØ±">
+                    <div class="crypto-create-summary" aria-label="خلاصه شرایط فاکتور">
                       <div>
-                        <span>Ù†Ø±Ø® Ù„Ø­Ø¸Ù‡â€ŒØ§ÛŒ</span>
-                        <strong>Ù‡Ù†Ú¯Ø§Ù… ØµØ¯ÙˆØ± Ø¯Ø±ÛŒØ§ÙØª Ù…ÛŒâ€ŒØ´ÙˆØ¯</strong>
+                        <span>نرخ لحظه‌ای</span>
+                        <strong>هنگام صدور دریافت می‌شود</strong>
                       </div>
                       <div>
-                        <span>Ø§Ø¹ØªØ¨Ø§Ø± ÙØ§Ú©ØªÙˆØ±</span>
-                        <strong id="cryptoInvoiceValidity">Û±Ûµ Ø¯Ù‚ÛŒÙ‚Ù‡</strong>
+                        <span>اعتبار فاکتور</span>
+                        <strong id="cryptoInvoiceValidity">۱۵ دقیقه</strong>
                       </div>
                       <div>
-                        <span>Ø³Ù‚Ù ÙˆØ§Ø±ÛŒØ² Ø±ÙˆØ²Ø§Ù†Ù‡</span>
+                        <span>سقف واریز روزانه</span>
                         <strong id="cryptoDailyLimit">-</strong>
                       </div>
                     </div>
 
                     <div class="crypto-create-actions">
-                      <button id="createCryptoInvoiceBtn" class="small-btn primary crypto-primary-action" type="button">Ø¯Ø±ÛŒØ§ÙØª Ù†Ø±Ø® Ùˆ Ø§Ø¯Ø§Ù…Ù‡</button>
+                      <button id="createCryptoInvoiceBtn" class="small-btn primary crypto-primary-action" type="button">دریافت نرخ و ادامه</button>
                       <div id="cryptoSubmitHint" class="step-hint"></div>
                     </div>
                   </div>
@@ -339,18 +339,18 @@
 
               <div class="withdraw-flow flow-card">
                 <div class="withdraw-flow-head">
-                  <h3 id="withdrawFlowTitle">Ø¨Ø±Ø¯Ø§Ø´Øª Ø§Ø² Ú©ÛŒÙ Ù¾ÙˆÙ„</h3>
-                  <p id="withdrawFlowDesc">Û±) Ù…Ø¨Ù„Øº Û²) Ø§Ø·Ù„Ø§Ø¹Ø§Øª Ù…Ù‚ØµØ¯ Û³) Ø¨Ø§Ø²Ø¨ÛŒÙ†ÛŒ Û´) Ø«Ø¨Øª Ù†Ù‡Ø§ÛŒÛŒ</p>
+                  <h3 id="withdrawFlowTitle">برداشت از کیف پول</h3>
+                  <p id="withdrawFlowDesc">۱) مبلغ ۲) اطلاعات مقصد ۳) بازبینی ۴) ثبت نهایی</p>
                 </div>
 
-                <div class="crypto-guide-card withdraw-guide-card" aria-label="Ø±Ø§Ù‡Ù†Ù…Ø§ÛŒ Ø¨Ø±Ø¯Ø§Ø´Øª Ø§Ø² Ú©ÛŒÙ Ù¾ÙˆÙ„">
-                  <div class="crypto-guide-badge">Ø±Ø§Ù‡Ù†Ù…Ø§</div>
+                <div class="crypto-guide-card withdraw-guide-card" aria-label="راهنمای برداشت از کیف پول">
+                  <div class="crypto-guide-badge">راهنما</div>
                   <div class="crypto-guide-copy">
-                    <strong>Ø¨Ø±Ø¯Ø§Ø´Øª Ø¨Ù‡ Ú©Ø§Ø±Øª Ø¨Ø§Ù†Ú©ÛŒ Ú†Ø·ÙˆØ± Ø§Ù†Ø¬Ø§Ù… Ù…ÛŒâ€ŒØ´ÙˆØ¯ØŸ</strong>
-                    <p>Ù…Ø¨Ù„Øº Ø¨Ø±Ø¯Ø§Ø´Øª Ø±Ø§ ÙˆØ§Ø±Ø¯ Ú©Ù†ØŒ Ø§Ø·Ù„Ø§Ø¹Ø§Øª Ú©Ø§Ø±Øª Ø®ÙˆØ¯Øª Ø±Ø§ Ø¨Ù†ÙˆÛŒØ³ Ùˆ Ù‚Ø¨Ù„ Ø§Ø² Ø«Ø¨Øª Ù†Ù‡Ø§ÛŒÛŒ Ø¨Ø§Ø²Ø¨ÛŒÙ†ÛŒ Ú©Ù†.</p>
+                    <strong>برداشت به کارت بانکی چطور انجام می‌شود؟</strong>
+                    <p>مبلغ برداشت را وارد کن، اطلاعات کارت خودت را بنویس و قبل از ثبت نهایی بازبینی کن.</p>
                     <ul>
-                      <li>Ù†Ø§Ù… ØµØ§Ø­Ø¨ Ú©Ø§Ø±Øª Ø¨Ø§ Ø§Ø·Ù„Ø§Ø¹Ø§Øª Ø¨Ø±Ø¯Ø§Ø´Øª ÛŒÚ©ÛŒ Ø¨Ø§Ø´Ø¯.</li>
-                      <li>Ø¨Ø±Ø¯Ø§Ø´Øª Ø¨Ø¹Ø¯ Ø§Ø² Ø¨Ø±Ø±Ø³ÛŒ Ø§Ø¯Ù…ÛŒÙ† Ù¾Ø±Ø¯Ø§Ø®Øª Ùˆ ÙˆØ¶Ø¹ÛŒØª Ø¢Ù† Ù‡Ù…ÛŒÙ†â€ŒØ¬Ø§ Ù†Ù…Ø§ÛŒØ´ Ø¯Ø§Ø¯Ù‡ Ù…ÛŒâ€ŒØ´ÙˆØ¯.</li>
+                      <li>نام صاحب کارت با اطلاعات برداشت یکی باشد.</li>
+                      <li>برداشت بعد از بررسی ادمین پرداخت و وضعیت آن همین‌جا نمایش داده می‌شود.</li>
                     </ul>
                   </div>
                 </div>
@@ -358,7 +358,7 @@
                 <div class="deposit-step">
                   <div class="deposit-step-no">1</div>
                   <div class="deposit-step-body">
-                    <label id="withdrawLabel" for="withdrawAmountInput">Ù…Ø¨Ù„Øº (ØªÙˆÙ…Ø§Ù†)</label>
+                    <label id="withdrawLabel" for="withdrawAmountInput">مبلغ (تومان)</label>
                     <input id="withdrawAmountInput" type="number" min="1" />
                   </div>
                 </div>
@@ -366,14 +366,14 @@
                 <div class="deposit-step">
                   <div class="deposit-step-no">2</div>
                   <div class="deposit-step-body">
-                    <label id="withdrawTargetLabel">Ø§Ø·Ù„Ø§Ø¹Ø§Øª Ù…Ù‚ØµØ¯ Ø¨Ø±Ø¯Ø§Ø´Øª</label>
-                    <label id="withdrawFullNameLabel" for="withdrawFullNameInput">Ù†Ø§Ù… Ùˆ Ù†Ø§Ù… Ø®Ø§Ù†ÙˆØ§Ø¯Ú¯ÛŒ</label>
+                    <label id="withdrawTargetLabel">اطلاعات مقصد برداشت</label>
+                    <label id="withdrawFullNameLabel" for="withdrawFullNameInput">نام و نام خانوادگی</label>
                     <input id="withdrawFullNameInput" type="text" />
-                    <label id="withdrawCardLabel" for="withdrawCardInput">Ø´Ù…Ø§Ø±Ù‡ Ú©Ø§Ø±Øª</label>
+                    <label id="withdrawCardLabel" for="withdrawCardInput">شماره کارت</label>
                     <input id="withdrawCardInput" type="text" />
-                    <label id="withdrawIbanLabel" for="withdrawIbanInput">Ø´Ø¨Ø§ (Ø§Ø®ØªÛŒØ§Ø±ÛŒ)</label>
+                    <label id="withdrawIbanLabel" for="withdrawIbanInput">شبا (اختیاری)</label>
                     <input id="withdrawIbanInput" type="text" />
-                    <label id="withdrawAccountLabel" for="withdrawAccountInput">Ø´Ù…Ø§Ø±Ù‡ Ø­Ø³Ø§Ø¨ (Ø§Ø®ØªÛŒØ§Ø±ÛŒ)</label>
+                    <label id="withdrawAccountLabel" for="withdrawAccountInput">شماره حساب (اختیاری)</label>
                     <input id="withdrawAccountInput" type="text" />
                   </div>
                 </div>
@@ -381,7 +381,7 @@
                 <div class="deposit-step">
                   <div class="deposit-step-no">3</div>
                   <div class="deposit-step-body">
-                    <label id="withdrawReviewLabel">Ø¨Ø§Ø²Ø¨ÛŒÙ†ÛŒ Ø§Ø·Ù„Ø§Ø¹Ø§Øª</label>
+                    <label id="withdrawReviewLabel">بازبینی اطلاعات</label>
                     <div id="withdrawReviewCard" class="withdraw-review-card"></div>
                     <div id="withdrawPreviewHint" class="step-hint"></div>
                   </div>
@@ -390,8 +390,8 @@
                 <div class="deposit-step final">
                   <div class="deposit-step-no">4</div>
                   <div class="deposit-step-body">
-                    <label id="withdrawSubmitLabel">Ø«Ø¨Øª</label>
-                    <button id="submitWithdrawBtn" class="small-btn primary" type="button">Ø«Ø¨Øª Ø¨Ø±Ø¯Ø§Ø´Øª</button>
+                    <label id="withdrawSubmitLabel">ثبت</label>
+                    <button id="submitWithdrawBtn" class="small-btn primary" type="button">ثبت برداشت</button>
                     <div id="withdrawSubmitHint" class="step-hint"></div>
                   </div>
                 </div>
@@ -401,17 +401,17 @@
             <div id="walletTxs" class="stack-list"></div>
 
             <div class="panel-head mt-12">
-              <h2 id="depositRequestsTitle">Ø¯Ø±Ø®ÙˆØ§Ø³Øªâ€ŒÙ‡Ø§ÛŒ ÙˆØ§Ø±ÛŒØ²</h2>
+              <h2 id="depositRequestsTitle">درخواست‌های واریز</h2>
             </div>
             <div id="depositRequestsList" class="stack-list"></div>
 
             <div class="panel-head mt-12">
-              <h2>ÙˆØ§Ø±ÛŒØ²Ù‡Ø§ÛŒ Ø§Ø±Ø² Ø¯ÛŒØ¬ÛŒØªØ§Ù„</h2>
+              <h2>واریزهای ارز دیجیتال</h2>
             </div>
             <div id="cryptoDepositRequestsList" class="stack-list"></div>
 
             <div class="panel-head mt-12">
-              <h2 id="withdrawRequestsTitle">Ø¯Ø±Ø®ÙˆØ§Ø³Øªâ€ŒÙ‡Ø§ÛŒ Ø¨Ø±Ø¯Ø§Ø´Øª</h2>
+              <h2 id="withdrawRequestsTitle">درخواست‌های برداشت</h2>
             </div>
             <div id="withdrawRequestsList" class="stack-list"></div>
           </article>
@@ -420,44 +420,44 @@
         <section id="view-admin" class="view">
           <article class="glass panel">
             <div class="panel-head">
-              <h2 id="adminTitle">Ù¾Ù†Ù„ Ù…Ø¯ÛŒØ±ÛŒØª</h2>
-              <button id="refreshAdminBtn" class="small-btn" type="button">Ø¨Ù‡â€ŒØ±ÙˆØ²Ø±Ø³Ø§Ù†ÛŒ</button>
+              <h2 id="adminTitle">پنل مدیریت</h2>
+              <button id="refreshAdminBtn" class="small-btn" type="button">به‌روزرسانی</button>
             </div>
-            <p id="adminRoleText" class="hint">Ø¯Ø± Ø­Ø§Ù„ Ø¨Ø§Ø±Ú¯Ø°Ø§Ø±ÛŒ Ø³Ø·Ø­ Ø¯Ø³ØªØ±Ø³ÛŒ...</p>
+            <p id="adminRoleText" class="hint">در حال بارگذاری سطح دسترسی...</p>
             <div class="quick-guide">
-              <strong>Ø±Ø§Ù‡Ù†Ù…Ø§ÛŒ Ø³Ø±ÛŒØ¹</strong>
-              <p id="adminGuideText">Ø§ÛŒØ¬Ø§Ø¯ Ø¨Ø§Ø²ÛŒØŒ Ù…Ø¯ÛŒØ±ÛŒØª Ø¹Ù…Ù„ÛŒØ§Øª Ùˆ Ø¨Ø±Ø±Ø³ÛŒ ÙˆØ§Ø±ÛŒØ²/Ø¨Ø±Ø¯Ø§Ø´Øª Ø§Ø² Ù‡Ù…ÛŒÙ† Ø¨Ø®Ø´ Ø§Ù†Ø¬Ø§Ù… Ù…ÛŒâ€ŒØ´ÙˆØ¯.</p>
+              <strong>راهنمای سریع</strong>
+              <p id="adminGuideText">ایجاد بازی، مدیریت عملیات و بررسی واریز/برداشت از همین بخش انجام می‌شود.</p>
             </div>
 
             <div class="cards-box">
               <div class="cards-box-head">
-                <h3 id="adminCreateTitle">Ø§ÛŒØ¬Ø§Ø¯ Ø¨Ø§Ø²ÛŒ Ø¬Ø¯ÛŒØ¯</h3>
+                <h3 id="adminCreateTitle">ایجاد بازی جدید</h3>
               </div>
-              <p id="adminCreateHint" class="hint">Ø¨Ø§Ø²ÛŒ Ø¬Ø¯ÛŒØ¯ Ø±Ø§ Ø¨Ø§ Ø§Ù†ØªØ®Ø§Ø¨ ØªØ§Ù¾ÛŒÚ© Ùˆ ØªØ¹ÛŒÛŒÙ† Ù‚ÛŒÙ…Øª Ú©Ø§Ø±Øª Ø¨Ø³Ø§Ø²ÛŒØ¯.</p>
+              <p id="adminCreateHint" class="hint">بازی جدید را با انتخاب تاپیک و تعیین قیمت کارت بسازید.</p>
               <div class="action-form">
                 <div class="admin-grid-two">
                   <div>
-                    <label id="adminCreateGroupLabel" for="adminCreateGroupIdInput">Ø´Ù†Ø§Ø³Ù‡ Ú¯Ø±ÙˆÙ‡</label>
+                    <label id="adminCreateGroupLabel" for="adminCreateGroupIdInput">شناسه گروه</label>
                     <input id="adminCreateGroupIdInput" type="number" />
                     <div id="adminCreateGroupHint" class="step-hint"></div>
                   </div>
                   <div>
-                    <label id="adminCreateTopicLabel">ØªØ§Ù¾ÛŒÚ© Ø¨Ø§Ø²ÛŒ</label>
+                    <label id="adminCreateTopicLabel">تاپیک بازی</label>
                     <div id="adminCreateTopics" class="quick-price-row"></div>
                     <input id="adminCreateTopicIdInput" type="hidden" />
                   </div>
                 </div>
-                <label id="adminCreatePriceLabel" for="adminCreateCardPriceInput">Ù‚ÛŒÙ…Øª Ú©Ø§Ø±Øª (ØªÙˆÙ…Ø§Ù†)</label>
+                <label id="adminCreatePriceLabel" for="adminCreateCardPriceInput">قیمت کارت (تومان)</label>
                 <input id="adminCreateCardPriceInput" type="number" min="1000" step="1000" />
                 <div id="adminPricePresetRow" class="quick-price-row">
-                  <button class="price-chip" type="button" data-price="50000">ÛµÛ°,Û°Û°Û°</button>
-                  <button class="price-chip" type="button" data-price="100000">Û±Û°Û°,Û°Û°Û°</button>
-                  <button class="price-chip" type="button" data-price="200000">Û²Û°Û°,Û°Û°Û°</button>
-                  <button class="price-chip" type="button" data-price="500000">ÛµÛ°Û°,Û°Û°Û°</button>
-                  <button class="price-chip" type="button" data-price="1000000">Û±,Û°Û°Û°,Û°Û°Û°</button>
+                  <button class="price-chip" type="button" data-price="50000">۵۰,۰۰۰</button>
+                  <button class="price-chip" type="button" data-price="100000">۱۰۰,۰۰۰</button>
+                  <button class="price-chip" type="button" data-price="200000">۲۰۰,۰۰۰</button>
+                  <button class="price-chip" type="button" data-price="500000">۵۰۰,۰۰۰</button>
+                  <button class="price-chip" type="button" data-price="1000000">۱,۰۰۰,۰۰۰</button>
                 </div>
                 <div class="admin-action-row">
-                  <button id="adminCreateBtn" class="small-btn primary" type="button">Ø§ÛŒØ¬Ø§Ø¯ Ø¨Ø§Ø²ÛŒ Ø³ÙØ§Ø±Ø´ÛŒ</button>
+                  <button id="adminCreateBtn" class="small-btn primary" type="button">ایجاد بازی سفارشی</button>
                 </div>
                 <div id="adminCreateHintMsg" class="step-hint"></div>
               </div>
@@ -465,37 +465,37 @@
 
             <div class="cards-box mt-12">
               <div class="cards-box-head">
-                <h3 id="adminGamesTitle">Ø¨Ø§Ø²ÛŒâ€ŒÙ‡Ø§ÛŒ Ù‚Ø§Ø¨Ù„ Ù…Ø¯ÛŒØ±ÛŒØª</h3>
-                <span id="adminSelectedGameMeta" class="meta">Ù‡ÛŒÚ† Ø¨Ø§Ø²ÛŒ Ø§Ù†ØªØ®Ø§Ø¨ Ù†Ø´Ø¯Ù‡</span>
+                <h3 id="adminGamesTitle">بازی‌های قابل مدیریت</h3>
+                <span id="adminSelectedGameMeta" class="meta">هیچ بازی انتخاب نشده</span>
               </div>
               <div id="adminGamesList" class="cards-history-scroll"></div>
             </div>
 
             <div class="cards-box mt-12">
               <div class="cards-box-head">
-                <h3 id="adminActionsTitle">Ø¹Ù…Ù„ÛŒØ§Øª Ø¨Ø§Ø²ÛŒ</h3>
+                <h3 id="adminActionsTitle">عملیات بازی</h3>
               </div>
               <div class="action-form">
-                <label id="adminCallLabel" for="adminCallNumberInput">Ø¹Ø¯Ø¯ Ø¨Ø±Ø§ÛŒ Ø§Ø¹Ù„Ø§Ù…</label>
+                <label id="adminCallLabel" for="adminCallNumberInput">عدد برای اعلام</label>
                 <input id="adminCallNumberInput" type="number" min="1" max="90" />
                 <div class="admin-action-row">
-                  <button id="adminCallBtn" class="small-btn primary" type="button">Ø§Ø¹Ù„Ø§Ù… Ø¹Ø¯Ø¯</button>
-                  <button id="adminUndoBtn" class="small-btn" type="button">Ø­Ø°Ù Ø¢Ø®Ø±ÛŒÙ† Ø¹Ø¯Ø¯</button>
-                  <button id="adminStartBtn" class="small-btn" type="button">Ø´Ø±ÙˆØ¹ Ø¨Ø§Ø²ÛŒ</button>
+                  <button id="adminCallBtn" class="small-btn primary" type="button">اعلام عدد</button>
+                  <button id="adminUndoBtn" class="small-btn" type="button">حذف آخرین عدد</button>
+                  <button id="adminStartBtn" class="small-btn" type="button">شروع بازی</button>
                 </div>
                 <div id="adminCallActionHint" class="step-hint action-local-hint"></div>
-                <label id="adminCancelReasonLabel" for="adminCancelReasonInput">Ø¹Ù„Øª Ù„ØºÙˆ Ù„Ø§Ø¨ÛŒ</label>
+                <label id="adminCancelReasonLabel" for="adminCancelReasonInput">علت لغو لابی</label>
                 <input id="adminCancelReasonInput" type="text" />
                 <div class="admin-action-row">
-                  <button id="adminCloseLobbyBtn" class="small-btn danger" type="button">Ù„ØºÙˆ Ø¨Ø§Ø²ÛŒ Ù‚Ø¨Ù„ Ø§Ø² Ø´Ø±ÙˆØ¹</button>
+                  <button id="adminCloseLobbyBtn" class="small-btn danger" type="button">لغو بازی قبل از شروع</button>
                 </div>
                 <div id="adminCloseLobbyHint" class="step-hint action-local-hint"></div>
-                <label id="adminLiveLinkLabel" for="adminLiveLinkInput">Ù„ÛŒÙ†Ú© Ù¾Ø®Ø´ Ø²Ù†Ø¯Ù‡</label>
+                <label id="adminLiveLinkLabel" for="adminLiveLinkInput">لینک پخش زنده</label>
                 <input id="adminLiveLinkInput" type="url" />
                 <div class="admin-action-row">
-                  <button id="adminSetLiveBtn" class="small-btn" type="button">Ø«Ø¨Øª Ù„ÛŒÙ†Ú© Ù„Ø§ÛŒÙˆ</button>
-                  <button id="adminSendLiveBtn" class="small-btn primary" type="button">Ø§Ø±Ø³Ø§Ù„ Ù„ÛŒÙ†Ú© Ù„Ø§ÛŒÙˆ</button>
-                  <button id="adminClearLiveBtn" class="small-btn" type="button">Ø­Ø°Ù Ù„ÛŒÙ†Ú© Ù„Ø§ÛŒÙˆ</button>
+                  <button id="adminSetLiveBtn" class="small-btn" type="button">ثبت لینک لایو</button>
+                  <button id="adminSendLiveBtn" class="small-btn primary" type="button">ارسال لینک لایو</button>
+                  <button id="adminClearLiveBtn" class="small-btn" type="button">حذف لینک لایو</button>
                 </div>
                 <div id="adminLiveActionHint" class="step-hint action-local-hint"></div>
                 <div id="adminActionHint" class="step-hint"></div>
@@ -505,8 +505,8 @@
             <div class="admin-accordion mt-12">
               <details class="accordion-item" open>
                 <summary class="accordion-head">
-                  <h3 id="adminDepositsTitle">ÙˆØ§Ø±ÛŒØ²ÛŒâ€ŒÙ‡Ø§ÛŒ Ø¯Ø± Ø§Ù†ØªØ¸Ø§Ø±</h3>
-                  <span class="accordion-icon">â–¾</span>
+                  <h3 id="adminDepositsTitle">واریزی‌های در انتظار</h3>
+                  <span class="accordion-icon">▾</span>
                 </summary>
                 <div class="accordion-body">
                   <div id="adminDepositsList" class="cards-history-scroll"></div>
@@ -515,8 +515,8 @@
 
               <details class="accordion-item">
                 <summary class="accordion-head">
-                  <h3>ÙˆØ§Ø±ÛŒØ² Ø±Ù…Ø²Ø§Ø±Ø² Ù†ÛŒØ§Ø²Ù…Ù†Ø¯ Ø¨Ø±Ø±Ø³ÛŒ</h3>
-                  <span class="accordion-icon">â–¾</span>
+                  <h3>واریز رمزارز نیازمند بررسی</h3>
+                  <span class="accordion-icon">▾</span>
                 </summary>
                 <div class="accordion-body">
                   <div id="adminCryptoHint" class="step-hint"></div>
@@ -526,8 +526,8 @@
 
               <details class="accordion-item">
                 <summary class="accordion-head">
-                  <h3 id="adminWithdrawsTitle">Ø¨Ø±Ø¯Ø§Ø´Øªâ€ŒÙ‡Ø§ÛŒ Ù…Ø¯ÛŒØ±ÛŒØªÛŒ</h3>
-                  <span class="accordion-icon">â–¾</span>
+                  <h3 id="adminWithdrawsTitle">برداشت‌های مدیریتی</h3>
+                  <span class="accordion-icon">▾</span>
                 </summary>
                 <div class="accordion-body">
                   <div id="adminWithdrawsList" class="cards-history-scroll"></div>
@@ -536,16 +536,16 @@
 
               <details class="accordion-item">
                 <summary class="accordion-head">
-                  <h3 id="adminUsersTitle">Ù…Ø¯ÛŒØ±ÛŒØª Ú©Ø§Ø±Ø¨Ø±Ø§Ù†</h3>
-                  <span class="accordion-icon">â–¾</span>
+                  <h3 id="adminUsersTitle">مدیریت کاربران</h3>
+                  <span class="accordion-icon">▾</span>
                 </summary>
                 <div class="accordion-body">
                   <div class="action-form">
-                    <label id="adminUsersSearchLabel" for="adminUsersSearchInput">Ø¬Ø³ØªØ¬Ùˆ (TG ID / @username / gid: / dep: / wdr:)</label>
+                    <label id="adminUsersSearchLabel" for="adminUsersSearchInput">جستجو (TG ID / @username / gid: / dep: / wdr:)</label>
                     <input id="adminUsersSearchInput" type="text" />
                     <div class="admin-action-row">
-                      <button id="adminUsersSearchBtn" class="small-btn primary" type="button">Ø¬Ø³ØªØ¬Ùˆ</button>
-                      <button id="adminUsersRefreshBtn" class="small-btn" type="button">Ø¨Ø§Ø²Ø®ÙˆØ§Ù†ÛŒ Ú©Ø§Ø±Ø¨Ø± Ø§Ù†ØªØ®Ø§Ø¨ÛŒ</button>
+                      <button id="adminUsersSearchBtn" class="small-btn primary" type="button">جستجو</button>
+                      <button id="adminUsersRefreshBtn" class="small-btn" type="button">بازخوانی کاربر انتخابی</button>
                     </div>
                     <div id="adminUsersHint" class="step-hint"></div>
                   </div>
@@ -556,14 +556,14 @@
 
               <details id="superAdminSection" class="accordion-item hidden">
                 <summary class="accordion-head">
-                  <h3 id="superAdminTitle">Ù…Ø¯ÛŒØ±ÛŒØª Ø§Ø¯Ù…ÛŒÙ†â€ŒÙ‡Ø§ (Ø³ÙˆÙ¾Ø± Ø§Ø¯Ù…ÛŒÙ†)</h3>
-                  <span class="accordion-icon">â–¾</span>
+                  <h3 id="superAdminTitle">مدیریت ادمین‌ها (سوپر ادمین)</h3>
+                  <span class="accordion-icon">▾</span>
                 </summary>
                 <div class="accordion-body">
                   <div class="super-crypto-control">
                     <div class="super-crypto-copy">
-                      <strong>Ù¾Ø±Ø¯Ø§Ø®Øª Ø§Ø±Ø² Ø¯ÛŒØ¬ÛŒØªØ§Ù„ Ú©Ø§Ø±Ø¨Ø±Ø§Ù†</strong>
-                      <span id="superCryptoStatusText">Ø¯Ø± Ø­Ø§Ù„ Ø¯Ø±ÛŒØ§ÙØª ÙˆØ¶Ø¹ÛŒØª...</span>
+                      <strong>پرداخت ارز دیجیتال کاربران</strong>
+                      <span id="superCryptoStatusText">در حال دریافت وضعیت...</span>
                     </div>
                     <button
                       id="superCryptoToggleBtn"
@@ -572,19 +572,19 @@
                       role="switch"
                       aria-checked="true"
                       data-next-enabled="false"
-                    >Ø®Ø§Ù…ÙˆØ´ Ú©Ø±Ø¯Ù† Ù¾Ø±Ø¯Ø§Ø®Øª Ú©Ø±ÛŒÙ¾ØªÙˆ</button>
+                    >خاموش کردن پرداخت کریپتو</button>
                   </div>
                   <div id="superCryptoHint" class="step-hint"></div>
                   <div class="admin-action-row super-crypto-ops">
-                    <button id="superCryptoHealthBtn" class="small-btn" type="button">Ø³Ù„Ø§Ù…Øª Ø³Ø±ÙˆÛŒØ³â€ŒÙ‡Ø§</button>
-                    <button id="superCryptoReconcileBtn" class="small-btn" type="button">ØªØ·Ø¨ÛŒÙ‚ Û²Û´ Ø³Ø§Ø¹Øª Ø§Ø®ÛŒØ±</button>
+                    <button id="superCryptoHealthBtn" class="small-btn" type="button">سلامت سرویس‌ها</button>
+                    <button id="superCryptoReconcileBtn" class="small-btn" type="button">تطبیق ۲۴ ساعت اخیر</button>
                   </div>
                   <div id="superCryptoOpsResult" class="super-crypto-ops-result hidden"></div>
 
                   <div class="super-crypto-control super-bank-control">
                     <div class="super-crypto-copy">
-                      <strong>ÙˆØ§Ø±ÛŒØ² Ú©Ø§Ø±Øª Ø¨Ø§Ù†Ú©ÛŒ Ú©Ø§Ø±Ø¨Ø±Ø§Ù†</strong>
-                      <span id="superBankDepositStatusText">ÙØ¹Ø§Ù„ Ø¨Ø±Ø§ÛŒ Ú©Ø§Ø±Ø¨Ø±Ø§Ù† | Ø¢Ù…Ø§Ø¯Ù‡ ØªØºÛŒÛŒØ± ÙˆØ¶Ø¹ÛŒØª</span>
+                      <strong>واریز کارت بانکی کاربران</strong>
+                      <span id="superBankDepositStatusText">فعال برای کاربران | آماده تغییر وضعیت</span>
                     </div>
                     <button
                       id="superBankDepositToggleBtn"
@@ -593,21 +593,21 @@
                       role="switch"
                       aria-checked="true"
                       data-next-enabled="false"
-                    >Ø®Ø§Ù…ÙˆØ´ Ú©Ø±Ø¯Ù† Ú©Ø§Ø±Øªâ€ŒØ¨Ù‡â€ŒÚ©Ø§Ø±Øª</button>
+                    >خاموش کردن کارت‌به‌کارت</button>
                   </div>
                   <div id="superBankDepositHint" class="step-hint"></div>
 
                   <div class="action-form">
-                    <label id="superAdminUserLabel" for="superAdminTgUserInput">Ø´Ù†Ø§Ø³Ù‡ ØªÙ„Ú¯Ø±Ø§Ù… Ú©Ø§Ø±Ø¨Ø±</label>
+                    <label id="superAdminUserLabel" for="superAdminTgUserInput">شناسه تلگرام کاربر</label>
                     <input id="superAdminTgUserInput" type="number" min="1" />
-                    <label id="superAdminRoleLabel" for="superAdminRoleSelect">Ù†Ù‚Ø´</label>
+                    <label id="superAdminRoleLabel" for="superAdminRoleSelect">نقش</label>
                     <select id="superAdminRoleSelect">
-                      <option value="ADMIN">Ø§Ø¯Ù…ÛŒÙ†</option>
-                      <option value="SUPER_ADMIN">Ø³ÙˆÙ¾Ø±Ø§Ø¯Ù…ÛŒÙ†</option>
+                      <option value="ADMIN">ادمین</option>
+                      <option value="SUPER_ADMIN">سوپرادمین</option>
                     </select>
                     <div class="admin-action-row">
-                      <button id="superAdminGrantBtn" class="small-btn primary" type="button">Ø§Ø¹Ø·Ø§ÛŒ Ù†Ù‚Ø´</button>
-                      <button id="superAdminRevokeBtn" class="small-btn danger" type="button">Ø­Ø°Ù Ù†Ù‚Ø´</button>
+                      <button id="superAdminGrantBtn" class="small-btn primary" type="button">اعطای نقش</button>
+                      <button id="superAdminRevokeBtn" class="small-btn danger" type="button">حذف نقش</button>
                     </div>
                     <div id="superAdminHint" class="step-hint"></div>
                   </div>
@@ -621,37 +621,37 @@
 
       <nav class="bottom-nav glass">
         <button class="nav-btn active" data-view="games" type="button">
-          <span class="nav-icon">ðŸŽ²</span><span id="navGamesText">Ø¨Ø§Ø²ÛŒ</span>
+          <span class="nav-icon">🎲</span><span id="navGamesText">بازی</span>
         </button>
         <button class="nav-btn" data-view="cards" type="button">
-          <span class="nav-icon">ðŸŽ«</span><span id="navCardsText">Ú©Ø§Ø±Øªâ€ŒÙ‡Ø§ÛŒ Ù…Ù†</span>
+          <span class="nav-icon">🎫</span><span id="navCardsText">کارت‌های من</span>
         </button>
         <button class="nav-btn" data-view="wallet" type="button">
-          <span class="nav-icon">ðŸ’°</span><span id="navWalletText">Ú©ÛŒÙ Ù¾ÙˆÙ„</span>
+          <span class="nav-icon">💰</span><span id="navWalletText">کیف پول</span>
         </button>
         <button id="adminNavBtn" class="nav-btn hidden" data-view="admin" type="button">
-          <span class="nav-icon">âš™ï¸</span><span id="navAdminText">Ù…Ø¯ÛŒØ±ÛŒØª</span>
+          <span class="nav-icon">⚙️</span><span id="navAdminText">مدیریت</span>
         </button>
       </nav>
     </div>
 
     <div id="adminNotify" class="admin-notify hidden" aria-live="polite">
-      <button id="adminNotifyClose" class="admin-notify-close" type="button" aria-label="Ø¨Ø³ØªÙ† Ø§Ø¹Ù„Ø§Ù†">Ã—</button>
+      <button id="adminNotifyClose" class="admin-notify-close" type="button" aria-label="بستن اعلان">×</button>
       <button id="adminNotifyBody" class="admin-notify-body" type="button">
-        <span id="adminNotifyKind" class="admin-notify-kind">Ø§Ø¹Ù„Ø§Ù† Ù…Ø¯ÛŒØ±ÛŒØª</span>
-        <strong id="adminNotifyTitle">Ù…ÙˆØ±Ø¯ Ø¬Ø¯ÛŒØ¯</strong>
-        <span id="adminNotifyMeta">Ø¨Ø±Ø§ÛŒ Ù…Ø´Ø§Ù‡Ø¯Ù‡ Ø¬Ø²Ø¦ÛŒØ§Øª Ù„Ù…Ø³ Ú©Ù†ÛŒØ¯</span>
+        <span id="adminNotifyKind" class="admin-notify-kind">اعلان مدیریت</span>
+        <strong id="adminNotifyTitle">مورد جدید</strong>
+        <span id="adminNotifyMeta">برای مشاهده جزئیات لمس کنید</span>
       </button>
     </div>
 
     <div id="winnerModal" class="winner-modal" aria-hidden="true">
       <div class="winner-modal-card glass">
         <div class="winner-modal-head">
-          <h2 id="winnerModalTitle">Ø§Ø¹Ù„Ø§Ù† Ø¨Ø±Ø¯</h2>
-          <button id="winnerCloseBtn" class="icon-btn" type="button" aria-label="Ø¨Ø³ØªÙ†">Ã—</button>
+          <h2 id="winnerModalTitle">اعلان برد</h2>
+          <button id="winnerCloseBtn" class="icon-btn" type="button" aria-label="بستن">×</button>
         </div>
         <div class="winner-graphic" aria-hidden="true">
-          <span>ðŸŽ‰</span>
+          <span>🎉</span>
           <i></i><i></i><i></i><i></i><i></i>
         </div>
         <p id="winnerModalKind" class="winner-modal-kind"></p>
@@ -659,8 +659,8 @@
         <p id="winnerModalGame" class="winner-modal-game"></p>
         <p id="winnerModalStatus" class="winner-modal-status"></p>
         <div class="winner-modal-actions">
-          <button id="winnerWalletBtn" class="small-btn primary" type="button">Ù…Ø´Ø§Ù‡Ø¯Ù‡ Ø¯Ø± Ú©ÛŒÙ Ù¾ÙˆÙ„</button>
-          <button id="winnerDismissBtn" class="small-btn" type="button">Ø¨Ø³ØªÙ†</button>
+          <button id="winnerWalletBtn" class="small-btn primary" type="button">مشاهده در کیف پول</button>
+          <button id="winnerDismissBtn" class="small-btn" type="button">بستن</button>
         </div>
       </div>
     </div>
@@ -668,8 +668,8 @@
     <div id="historyModal" class="winner-modal" aria-hidden="true">
       <div class="history-modal-card glass">
         <div class="winner-modal-head">
-          <h2 id="historyModalTitle">Ø¬Ø²Ø¦ÛŒØ§Øª Ú©Ø§Ø±Øª</h2>
-          <button id="historyCloseBtn" class="icon-btn" type="button" aria-label="Ø¨Ø³ØªÙ†">Ã—</button>
+          <h2 id="historyModalTitle">جزئیات کارت</h2>
+          <button id="historyCloseBtn" class="icon-btn" type="button" aria-label="بستن">×</button>
         </div>
         <p id="historyModalMeta" class="winner-modal-kind"></p>
         <div id="historyModalBody" class="history-modal-body"></div>
@@ -679,8 +679,8 @@
     <div id="depositReceiptModal" class="winner-modal" aria-hidden="true">
       <div class="history-modal-card glass">
         <div class="winner-modal-head">
-          <h2 id="depositReceiptModalTitle">Ø±Ø³ÛŒØ¯ ÙˆØ§Ø±ÛŒØ²</h2>
-          <button id="depositReceiptCloseBtn" class="icon-btn" type="button" aria-label="Ø¨Ø³ØªÙ†">Ã—</button>
+          <h2 id="depositReceiptModalTitle">رسید واریز</h2>
+          <button id="depositReceiptCloseBtn" class="icon-btn" type="button" aria-label="بستن">×</button>
         </div>
         <p id="depositReceiptModalMeta" class="winner-modal-kind"></p>
         <div id="depositReceiptModalBody" class="deposit-receipt-modal-body"></div>
@@ -693,30 +693,30 @@
       <div class="withdraw-proof-modal-card glass" role="dialog" aria-modal="true" aria-labelledby="withdrawProofModalTitle">
         <div class="winner-modal-head">
           <div>
-            <h2 id="withdrawProofModalTitle">Ø«Ø¨Øª ÙÛŒØ´ Ù¾Ø±Ø¯Ø§Ø®Øª Ø¨Ø±Ø¯Ø§Ø´Øª</h2>
-            <p id="withdrawProofModalMeta" class="withdraw-proof-meta">Ù¾Ø³ Ø§Ø² ØªØ§ÛŒÛŒØ¯ Ø¨Ø±Ø¯Ø§Ø´ØªØŒ Ù…Ø¨Ù„Øº Ø§Ø² Ú©ÛŒÙ Ù¾ÙˆÙ„ Ú©Ø³Ø± Ø´Ø¯Ù‡ Ø§Ø³Øª. Ø­Ø§Ù„Ø§ ÙÛŒØ´ Ù¾Ø±Ø¯Ø§Ø®Øª Ø±Ø§ Ø«Ø¨Øª Ú©Ù†ÛŒØ¯.</p>
+            <h2 id="withdrawProofModalTitle">ثبت فیش پرداخت برداشت</h2>
+            <p id="withdrawProofModalMeta" class="withdraw-proof-meta">پس از تایید برداشت، مبلغ از کیف پول کسر شده است. حالا فیش پرداخت را ثبت کنید.</p>
           </div>
-          <button id="withdrawProofCloseBtn" class="icon-btn" type="button" aria-label="Ø¨Ø³ØªÙ†">Ã—</button>
+          <button id="withdrawProofCloseBtn" class="icon-btn" type="button" aria-label="بستن">×</button>
         </div>
 
         <div class="withdraw-proof-flow">
           <div class="withdraw-proof-step">
             <div class="withdraw-proof-step-no">1</div>
             <div>
-              <strong>Ù…ØªÙ† ÙÛŒØ´ ÛŒØ§ Ú©Ø¯ Ù¾ÛŒÚ¯ÛŒØ±ÛŒ</strong>
-              <p>Ú©Ø¯ Ù¾ÛŒÚ¯ÛŒØ±ÛŒØŒ Ø´Ù…Ø§Ø±Ù‡ Ø­ÙˆØ§Ù„Ù‡ØŒ ØªÙˆØ¶ÛŒØ­ Ù¾Ø±Ø¯Ø§Ø®Øª ÛŒØ§ Ù‡Ø± Ù…ØªÙ† Ù‚Ø§Ø¨Ù„ Ø§Ø³ØªÙ†Ø§Ø¯ Ø±Ø§ ÙˆØ§Ø±Ø¯ Ú©Ù†ÛŒØ¯.</p>
-              <textarea id="withdrawProofTextInput" rows="4" maxlength="1000" placeholder="Ù…Ø«Ø§Ù„: Ù¾Ø±Ø¯Ø§Ø®Øª Ø´Ø¯ - Ú©Ø¯ Ù¾ÛŒÚ¯ÛŒØ±ÛŒ 123456789"></textarea>
+              <strong>متن فیش یا کد پیگیری</strong>
+              <p>کد پیگیری، شماره حواله، توضیح پرداخت یا هر متن قابل استناد را وارد کنید.</p>
+              <textarea id="withdrawProofTextInput" rows="4" maxlength="1000" placeholder="مثال: پرداخت شد - کد پیگیری 123456789"></textarea>
             </div>
           </div>
 
           <div class="withdraw-proof-step">
             <div class="withdraw-proof-step-no">2</div>
             <div>
-              <strong>ØªØµÙˆÛŒØ± ÙÛŒØ´ Ù¾Ø±Ø¯Ø§Ø®Øª</strong>
-              <p>Ø§Ø®ØªÛŒØ§Ø±ÛŒ Ø§Ø³ØªØ› ÙˆÙ„ÛŒ Ø¨Ø±Ø§ÛŒ Ù¾ÛŒÚ¯ÛŒØ±ÛŒ Ø¨Ù‡ØªØ± Ù¾ÛŒØ´Ù†Ù‡Ø§Ø¯ Ù…ÛŒâ€ŒØ´ÙˆØ¯. ÙØ±Ù…Øª Ù…Ø¬Ø§Ø²: JPG, PNG, WEBP - Ø­Ø¯Ø§Ú©Ø«Ø± Û³ Ù…Ú¯Ø§Ø¨Ø§ÛŒØª.</p>
+              <strong>تصویر فیش پرداخت</strong>
+              <p>اختیاری است؛ ولی برای پیگیری بهتر پیشنهاد می‌شود. فرمت مجاز: JPG, PNG, WEBP - حداکثر ۳ مگابایت.</p>
               <label class="withdraw-proof-file-picker" for="withdrawProofFileInput">
-                <span>Ø§Ù†ØªØ®Ø§Ø¨ ØªØµÙˆÛŒØ± ÙÛŒØ´</span>
-                <b id="withdrawProofFileName">Ù‡ÛŒÚ† ÙØ§ÛŒÙ„ÛŒ Ø§Ù†ØªØ®Ø§Ø¨ Ù†Ø´Ø¯Ù‡</b>
+                <span>انتخاب تصویر فیش</span>
+                <b id="withdrawProofFileName">هیچ فایلی انتخاب نشده</b>
               </label>
               <input id="withdrawProofFileInput" class="visually-hidden-file" type="file" accept="image/jpeg,image/png,image/webp,image/*" />
               <div id="withdrawProofPreview" class="withdraw-proof-preview hidden"></div>
@@ -725,8 +725,8 @@
 
           <div class="withdraw-proof-actions">
             <div class="withdraw-proof-button-row">
-              <button id="withdrawProofCancelBtn" class="small-btn" type="button">Ø§Ù†ØµØ±Ø§Ù</button>
-              <button id="withdrawProofSubmitBtn" class="small-btn primary" type="button">Ø«Ø¨Øª Ù†Ù‡Ø§ÛŒÛŒ Ù¾Ø±Ø¯Ø§Ø®Øª</button>
+              <button id="withdrawProofCancelBtn" class="small-btn" type="button">انصراف</button>
+              <button id="withdrawProofSubmitBtn" class="small-btn primary" type="button">ثبت نهایی پرداخت</button>
             </div>
             <div id="withdrawProofHint" class="step-hint"></div>
           </div>
@@ -740,4 +740,3 @@
     <script src="./app.js?v=20260627walletguides2" type="module"></script>
   </body>
 </html>
-
