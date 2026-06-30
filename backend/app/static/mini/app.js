@@ -5740,19 +5740,62 @@ async function adminStartGame() {
   await Promise.allSettled([refreshAdminGames(), openLiveGame(gid)]);
 }
 
+// ADMIN_CALL_PHASE1_UX_START
+function getAdminCalledNumbersForSelectedGame(gid) {
+  const gameId = Number(gid || state.admin?.selectedGameId || 0);
+  const game = gameId && state.admin?.gamesById ? state.admin.gamesById.get(gameId) : null;
+  const raw = game?.called_numbers || game?.calledNumbers || game?.called || [];
+  return Array.isArray(raw)
+    ? raw.map((n) => Number(n)).filter((n) => Number.isInteger(n) && n >= 1 && n <= 90)
+    : [];
+}
+
+function focusAdminCallNumberInput() {
+  setTimeout(() => {
+    const input = getEl("adminCallNumberInput");
+    if (!input) return;
+    input.focus({ preventScroll: true });
+    input.select?.();
+  }, 80);
+}
+
+function normalizeAdminCallNumberInput() {
+  const input = getEl("adminCallNumberInput");
+  if (!input) return;
+  const digits = String(input.value || "").replace(/\D/g, "").slice(0, 2);
+  if (input.value !== digits) input.value = digits;
+}
+// ADMIN_CALL_PHASE1_UX_END
+
 async function adminCallNumber() {
-  const { gid } = requireAdminGameStatus(["RUNNING"], "اعلام عدد");
-  const number = Number(getVal("adminCallNumberInput") || "0");
-  if (!number || number < 1 || number > 90) throw new Error("عدد اعلام باید بین 1 تا 90 باشد.");
-  setAdminLocalHint("adminCallActionHint", "در حال ثبت عدد...");
+  const { gid } = requireAdminGameStatus(["RUNNING"], "\u0627\u0639\u0644\u0627\u0645 \u0639\u062f\u062f");
+  normalizeAdminCallNumberInput();
+
+  const rawNumber = String(getVal("adminCallNumberInput") || "").trim();
+  const number = Number(rawNumber || "0");
+
+  if (!Number.isInteger(number) || number < 1 || number > 90) {
+    focusAdminCallNumberInput();
+    throw new Error("\u0639\u062f\u062f \u0627\u0639\u0644\u0627\u0645 \u0628\u0627\u06cc\u062f \u0628\u06cc\u0646 1 \u062a\u0627 90 \u0628\u0627\u0634\u062f.");
+  }
+
+  if (getAdminCalledNumbersForSelectedGame(gid).includes(number)) {
+    focusAdminCallNumberInput();
+    throw new Error(`\u0639\u062f\u062f ${number} \u0642\u0628\u0644\u0627\u064b \u0627\u0639\u0644\u0627\u0645 \u0634\u062f\u0647 \u0627\u0633\u062a.`);
+  }
+
+  setAdminLocalHint("adminCallActionHint", "\u062f\u0631 \u062d\u0627\u0644 \u062b\u0628\u062a \u0639\u062f\u062f...");
   await apiFetch(`/mini-api/admin/games/${gid}/call`, {
     method: "POST",
     body: { number, idempotency_key: idem("mini_admin_call") },
   });
+
   setVal("adminCallNumberInput", "");
-  setAdminLocalHint("adminCallActionHint", `عدد ${number} برای بازی #${gid} ثبت شد.`, "success");
+  focusAdminCallNumberInput();
+  setAdminLocalHint("adminCallActionHint", `\u0639\u062f\u062f ${number} \u0628\u0631\u0627\u06cc \u0628\u0627\u0632\u06cc #${gid} \u062b\u0628\u062a \u0634\u062f.`, "success");
   await Promise.allSettled([refreshAdminGames(), openLiveGame(gid), refreshCards({ silent: true })]);
 }
+
 
 async function adminUndoCall() {
   const { gid } = requireAdminGameStatus(["RUNNING"], "حذف آخرین عدد");
@@ -6416,6 +6459,16 @@ async function boot() {
   );
   bind("adminCallBtn", "click", () => adminCallNumber().catch((e) => setAdminLocalError("adminCallActionHint", e)));
   bind("adminUndoBtn", "click", () => adminUndoCall().catch((e) => setAdminLocalError("adminCallActionHint", e)));
+  const adminCallInput = getEl("adminCallNumberInput");
+  if (adminCallInput && !adminCallInput.dataset.phase1UxBound) {
+    adminCallInput.dataset.phase1UxBound = "1";
+    adminCallInput.addEventListener("input", normalizeAdminCallNumberInput);
+    adminCallInput.addEventListener("keydown", (ev) => {
+      if (ev.key !== "Enter") return;
+      ev.preventDefault();
+      adminCallNumber().catch((e) => setAdminLocalError("adminCallActionHint", e));
+    });
+  }
   bind("adminStartBtn", "click", () => adminStartGame().catch((e) => setAdminLocalError("adminCallActionHint", e)));
   bind("adminCloseLobbyBtn", "click", () => adminCloseLobby().catch((e) => setAdminLocalError("adminCloseLobbyHint", e)));
   bind("adminSetLiveBtn", "click", () => adminSetLiveLink().catch((e) => setAdminLocalError("adminLiveActionHint", e)));
