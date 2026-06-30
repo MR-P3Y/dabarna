@@ -5767,6 +5767,63 @@ function normalizeAdminCallNumberInput() {
 }
 // ADMIN_CALL_PHASE1_UX_END
 
+
+// ADMIN_CALL_KEYPAD_PHASE2_START
+function setAdminCallNumberDraft(value) {
+  const input = getEl("adminCallNumberInput");
+  if (!input) return;
+  const digits = String(value || "").replace(/\D/g, "").slice(0, 2);
+  input.value = digits;
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+  focusAdminCallNumberInput();
+}
+
+function appendAdminCallDigit(digit) {
+  const input = getEl("adminCallNumberInput");
+  const current = String(input?.value || "").replace(/\D/g, "");
+  setAdminCallNumberDraft((current + String(digit || "")).slice(0, 2));
+}
+
+function renderAdminCallQuickPanel() {
+  const gid = Number(state.admin?.selectedGameId || 0);
+  const called = getAdminCalledNumbersForSelectedGame(gid);
+  const last = called.length ? called[called.length - 1] : null;
+  const recent = called.slice(-5).reverse();
+
+  const lastEl = getEl("adminCallLastNumber");
+  if (lastEl) lastEl.textContent = last ? String(last) : "-";
+
+  const recentEl = getEl("adminCallRecentNumbers");
+  if (recentEl) recentEl.textContent = recent.length ? recent.join("، ") : "-";
+}
+
+function bindAdminCallKeypad() {
+  const keypad = getEl("adminCallKeypad");
+  if (!keypad || keypad.dataset.bound) return;
+  keypad.dataset.bound = "1";
+  keypad.addEventListener("click", (ev) => {
+    const btn = ev.target?.closest?.("button");
+    if (!btn) return;
+
+    const digit = btn.getAttribute("data-admin-call-digit");
+    if (digit !== null) {
+      appendAdminCallDigit(digit);
+      return;
+    }
+
+    if (btn.hasAttribute("data-admin-call-clear")) {
+      setAdminCallNumberDraft("");
+      return;
+    }
+
+    if (btn.hasAttribute("data-admin-call-backspace")) {
+      const input = getEl("adminCallNumberInput");
+      setAdminCallNumberDraft(String(input?.value || "").slice(0, -1));
+    }
+  });
+}
+// ADMIN_CALL_KEYPAD_PHASE2_END
+
 async function adminCallNumber() {
   const { gid } = requireAdminGameStatus(["RUNNING"], "\u0627\u0639\u0644\u0627\u0645 \u0639\u062f\u062f");
   normalizeAdminCallNumberInput();
@@ -5792,6 +5849,7 @@ async function adminCallNumber() {
 
   setVal("adminCallNumberInput", "");
   focusAdminCallNumberInput();
+  renderAdminCallQuickPanel();
   setAdminLocalHint("adminCallActionHint", `\u0639\u062f\u062f ${number} \u0628\u0631\u0627\u06cc \u0628\u0627\u0632\u06cc #${gid} \u062b\u0628\u062a \u0634\u062f.`, "success");
   await Promise.allSettled([refreshAdminGames(), openLiveGame(gid), refreshCards({ silent: true })]);
 }
@@ -6469,6 +6527,8 @@ async function boot() {
       adminCallNumber().catch((e) => setAdminLocalError("adminCallActionHint", e));
     });
   }
+  bindAdminCallKeypad();
+  renderAdminCallQuickPanel();
   bind("adminStartBtn", "click", () => adminStartGame().catch((e) => setAdminLocalError("adminCallActionHint", e)));
   bind("adminCloseLobbyBtn", "click", () => adminCloseLobby().catch((e) => setAdminLocalError("adminCloseLobbyHint", e)));
   bind("adminSetLiveBtn", "click", () => adminSetLiveLink().catch((e) => setAdminLocalError("adminLiveActionHint", e)));

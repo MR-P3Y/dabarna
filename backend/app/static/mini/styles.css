@@ -5639,3 +5639,74 @@ html[data-theme="light"] #withdrawProofModal .withdraw-proof-actions {
   }
 }
 
+/* ADMIN_CALL_KEYPAD_PHASE2_START */
+.admin-call-quick-panel {
+  display: grid;
+  gap: 10px;
+  margin: 10px 0 12px;
+}
+
+.admin-call-mini-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.admin-call-mini-stats > div {
+  min-height: 46px;
+  padding: 8px 10px;
+  border: 1px solid rgba(100, 185, 255, 0.28);
+  border-radius: 12px;
+  background: rgba(10, 27, 60, 0.48);
+}
+
+.admin-call-mini-stats span {
+  display: block;
+  color: rgba(224, 238, 255, 0.68);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.admin-call-mini-stats strong {
+  display: block;
+  margin-top: 2px;
+  color: #fff;
+  font-size: 18px;
+  font-weight: 900;
+  line-height: 1.25;
+}
+
+.admin-call-keypad {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.admin-call-keypad button {
+  min-height: 42px;
+  border: 1px solid rgba(100, 185, 255, 0.3);
+  border-radius: 12px;
+  background: rgba(16, 39, 86, 0.82);
+  color: #fff;
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.admin-call-keypad button.soft {
+  color: #cfeaff;
+  font-size: 14px;
+  background: rgba(7, 20, 50, 0.9);
+}
+
+.admin-call-keypad button:active {
+  transform: translateY(1px);
+}
+
+@media (max-width: 520px) {
+  .admin-call-keypad button {
+    min-height: 48px;
+    font-size: 20px;
+  }
+}
+/* ADMIN_CALL_KEYPAD_PHASE2_END */
+

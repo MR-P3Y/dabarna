@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>مینی‌اپ دبرنای طوفان</title>
-    <link rel="stylesheet" href="./styles.css?v=20260630assetfix2" />
+    <link rel="stylesheet" href="./styles.css?v=20260630adminkeypad1" />
   </head>
   <body>
     <div id="appSplash" class="app-splash" aria-label="در حال آماده‌سازی مینی‌اپ">
@@ -483,6 +483,32 @@
                   <button id="adminUndoBtn" class="small-btn" type="button">حذف آخرین عدد</button>
                   <button id="adminStartBtn" class="small-btn" type="button">شروع بازی</button>
                 </div>
+                <div id="adminCallQuickPanel" class="admin-call-quick-panel">
+                  <div class="admin-call-mini-stats">
+                    <div>
+                      <span>&#1570;&#1582;&#1585;&#1740;&#1606; &#1593;&#1583;&#1583;</span>
+                      <strong id="adminCallLastNumber">-</strong>
+                    </div>
+                    <div>
+                      <span>&#1777; &#1593;&#1583;&#1583; &#1575;&#1582;&#1740;&#1585;</span>
+                      <strong id="adminCallRecentNumbers">-</strong>
+                    </div>
+                  </div>
+                  <div id="adminCallKeypad" class="admin-call-keypad" aria-label="Admin number keypad">
+                    <button type="button" data-admin-call-digit="1">1</button>
+                    <button type="button" data-admin-call-digit="2">2</button>
+                    <button type="button" data-admin-call-digit="3">3</button>
+                    <button type="button" data-admin-call-digit="4">4</button>
+                    <button type="button" data-admin-call-digit="5">5</button>
+                    <button type="button" data-admin-call-digit="6">6</button>
+                    <button type="button" data-admin-call-digit="7">7</button>
+                    <button type="button" data-admin-call-digit="8">8</button>
+                    <button type="button" data-admin-call-digit="9">9</button>
+                    <button type="button" class="soft" data-admin-call-clear="1">&#1662;&#1575;&#1705;</button>
+                    <button type="button" data-admin-call-digit="0">0</button>
+                    <button type="button" class="soft" data-admin-call-backspace="1">&#9003;</button>
+                  </div>
+                </div>
                 <div id="adminCallActionHint" class="step-hint action-local-hint"></div>
                 <label id="adminCancelReasonLabel" for="adminCancelReasonInput">علت لغو لابی</label>
                 <input id="adminCancelReasonInput" type="text" />
@@ -737,6 +763,6 @@
     <div id="miniToast" class="mini-toast hidden" role="status" aria-live="polite"></div>
 
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="./app.js?v=20260630adminphase1" type="module"></script>
+    <script src="./app.js?v=20260630adminkeypad1" type="module"></script>
   </body>
 </html>
