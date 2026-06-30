@@ -5741,14 +5741,26 @@ async function adminStartGame() {
 }
 
 // ADMIN_CALL_PHASE1_UX_START
+
 function getAdminCalledNumbersForSelectedGame(gid) {
   const gameId = Number(gid || state.admin?.selectedGameId || 0);
   const game = gameId && state.admin?.gamesById ? state.admin.gamesById.get(gameId) : null;
   const raw = game?.called_numbers || game?.calledNumbers || game?.called || [];
-  return Array.isArray(raw)
+  const fromState = Array.isArray(raw)
     ? raw.map((n) => Number(n)).filter((n) => Number.isInteger(n) && n >= 1 && n <= 90)
     : [];
+
+  const fromLocal = gameId && adminCalledNumbersLocal.has(gameId)
+    ? adminCalledNumbersLocal.get(gameId)
+    : [];
+
+  const merged = [];
+  for (const n of [...fromState, ...fromLocal]) {
+    if (Number.isInteger(n) && n >= 1 && n <= 90 && !merged.includes(n)) merged.push(n);
+  }
+  return merged;
 }
+
 
 function focusAdminCallNumberInput() {
   setTimeout(() => {
@@ -5767,6 +5779,44 @@ function normalizeAdminCallNumberInput() {
 }
 // ADMIN_CALL_PHASE1_UX_END
 
+// ADMIN_CALL_STATE_FIX_V4_START
+const adminCalledNumbersLocal = new Map();
+
+function normalizeAdminCalledNumbers(numbers) {
+  const out = [];
+  for (const raw of Array.isArray(numbers) ? numbers : []) {
+    const n = Number(raw);
+    if (Number.isInteger(n) && n >= 1 && n <= 90 && !out.includes(n)) out.push(n);
+  }
+  return out;
+}
+
+function setAdminCalledNumbersLocal(gid, numbers) {
+  const gameId = Number(gid || state.admin?.selectedGameId || 0);
+  if (!gameId) return;
+  adminCalledNumbersLocal.set(gameId, normalizeAdminCalledNumbers(numbers));
+}
+
+function addAdminCalledNumberLocal(gid, number) {
+  const gameId = Number(gid || state.admin?.selectedGameId || 0);
+  const n = Number(number);
+  if (!gameId || !Number.isInteger(n) || n < 1 || n > 90) return;
+  const current = getAdminCalledNumbersForSelectedGame(gameId);
+  if (!current.includes(n)) current.push(n);
+  setAdminCalledNumbersLocal(gameId, current);
+}
+
+function popAdminCalledNumberLocal(gid) {
+  const gameId = Number(gid || state.admin?.selectedGameId || 0);
+  if (!gameId) return;
+  const current = getAdminCalledNumbersForSelectedGame(gameId);
+  if (!current.length) return;
+  current.pop();
+  setAdminCalledNumbersLocal(gameId, current);
+}
+// ADMIN_CALL_STATE_FIX_V4_END
+
+
 
 // ADMIN_CALL_KEYPAD_PHASE2_START
 function setAdminCallNumberDraft(value) {
@@ -5784,7 +5834,26 @@ function appendAdminCallDigit(digit) {
   setAdminCallNumberDraft((current + String(digit || "")).slice(0, 2));
 }
 
+
 function renderAdminCallQuickPanel(options = {}) {
+  const gid = Number(state.admin?.selectedGameId || 0);
+  const calledNumbers = getAdminCalledNumbersForSelectedGame(gid);
+  const count = calledNumbers.length;
+  const percent = Math.round((count / 90) * 100);
+  const last = count ? calledNumbers[count - 1] : null;
+  const recent = count ? calledNumbers.slice(-5).reverse() : [];
+
+  const lastEl = getEl("adminCallLastNumber");
+  const recentEl = getEl("adminCallRecentNumbers");
+  const progressEl = getEl("adminCallProgressCount");
+
+  if (lastEl) lastEl.textContent = last ? String(last) : "-";
+  if (recentEl) recentEl.textContent = recent.length ? recent.join("، ") : "-";
+  if (progressEl) progressEl.textContent = `${count}/90 (${percent}%)`;
+
+  if (options.fresh) markAdminLastNumberFresh();
+}
+) {
   const gid = Number(state.admin?.selectedGameId || 0);
   const called = getAdminCalledNumbersForSelectedGame(gid);
   const last = called.length ? called[called.length - 1] : null;
@@ -5865,6 +5934,7 @@ async function adminCallNumber() {
     body: { number, idempotency_key: idem("mini_admin_call") },
   });
 
+  addAdminCalledNumberLocal(gid, number);
   setVal("adminCallNumberInput", "");
   focusAdminCallNumberInput();
   renderAdminCallQuickPanel({ fresh: true });
@@ -5889,6 +5959,11 @@ async function adminUndoCall() {
   });
   setAdminLocalHint("adminCallActionHint", "آخرین عدد بازی با موفقیت حذف شد.", "success");
   await Promise.allSettled([refreshAdminGames(), openLiveGame(gid), refreshCards({ silent: true })]);
+  renderAdminCallQuickPanel();
+
+  // ADMIN_CALL_STATE_FIX_V4_UNDO
+  const undoGid = typeof gid !== "undefined" ? gid : state.admin?.selectedGameId;
+  popAdminCalledNumberLocal(undoGid);
   renderAdminCallQuickPanel();
 }
 

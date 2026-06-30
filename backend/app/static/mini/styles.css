@@ -5744,3 +5744,13 @@ html[data-theme="light"] #withdrawProofModal .withdraw-proof-actions {
 }
 /* ADMIN_CALL_FINISH_PATCH_END */
 
+
+
+/* ADMIN_CALL_STATE_FIX_V4_START */
+#adminCallProgressCount,
+#adminCallLastNumber,
+#adminCallRecentNumbers {
+  direction: ltr;
+  unicode-bidi: plaintext;
+}
+/* ADMIN_CALL_STATE_FIX_V4_END */
