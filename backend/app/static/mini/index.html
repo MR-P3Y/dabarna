@@ -476,82 +476,12 @@
                 <h3 id="adminActionsTitle">عملیات بازی</h3>
               </div>
               <div class="action-form">
-                <div class="admin-fast-call-console" id="adminFastCallConsole">
-
-                  <div class="admin-fast-call-head">
-
-                    <div>
-
-                      <label id="adminCallLabel" for="adminCallNumberInput">کنسول سریع اعلام عدد</label>
-
-                      <div id="adminCallStats" class="admin-fast-call-stats">ابتدا بازی در حال اجرا را انتخاب کنید.</div>
-
-                    </div>
-
-                    <div class="admin-fast-last">
-
-                      <span>آخرین عدد</span>
-
-                      <strong id="adminLastCalledNumber">-</strong>
-
-                    </div>
-
-                  </div>
-
-                  <div class="admin-fast-input-row">
-
-                    <input id="adminCallNumberInput" type="tel" inputmode="numeric" pattern="[0-9]*" maxlength="2" autocomplete="off" placeholder="۱ تا ۹۰" />
-
-                    <button id="adminCallBtn" class="small-btn primary admin-fast-submit" type="button">اعلام عدد</button>
-
-                  </div>
-
-                  <div id="adminFastKeypad" class="admin-fast-keypad" aria-label="کیپد سریع اعلام عدد">
-
-                    <button type="button" data-admin-call-digit="1">1</button>
-
-                    <button type="button" data-admin-call-digit="2">2</button>
-
-                    <button type="button" data-admin-call-digit="3">3</button>
-
-                    <button type="button" data-admin-call-digit="4">4</button>
-
-                    <button type="button" data-admin-call-digit="5">5</button>
-
-                    <button type="button" data-admin-call-digit="6">6</button>
-
-                    <button type="button" data-admin-call-digit="7">7</button>
-
-                    <button type="button" data-admin-call-digit="8">8</button>
-
-                    <button type="button" data-admin-call-digit="9">9</button>
-
-                    <button type="button" class="soft" data-admin-call-clear="1">پاک</button>
-
-                    <button type="button" data-admin-call-digit="0">0</button>
-
-                    <button type="button" class="soft" data-admin-call-backspace="1">⌫</button>
-
-                  </div>
-
-                  <div class="admin-fast-called">
-
-                    <span>آخرین‌ها</span>
-
-                    <div id="adminRecentCalledNumbers" class="admin-fast-called-list">-</div>
-
-                  </div>
-
-                  <div class="admin-fast-actions">
-
-                    <button id="adminUndoBtn" class="small-btn" type="button">حذف آخرین عدد</button>
-
-                    <button id="adminStartBtn" class="small-btn" type="button">شروع بازی</button>
-
-                  </div>
-
-                  <div id="adminCallActionHint" class="step-hint"></div>
-
+                <label id="adminCallLabel" for="adminCallNumberInput">عدد برای اعلام</label>
+                <input id="adminCallNumberInput" type="number" min="1" max="90" />
+                <div class="admin-action-row">
+                  <button id="adminCallBtn" class="small-btn primary" type="button">اعلام عدد</button>
+                  <button id="adminUndoBtn" class="small-btn" type="button">حذف آخرین عدد</button>
+                  <button id="adminStartBtn" class="small-btn" type="button">شروع بازی</button>
                 </div>
                 <div id="adminCallActionHint" class="step-hint action-local-hint"></div>
                 <label id="adminCancelReasonLabel" for="adminCancelReasonInput">علت لغو لابی</label>

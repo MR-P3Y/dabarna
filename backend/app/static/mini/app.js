@@ -4322,7 +4322,6 @@ function updateAdminActionButtons() {
   setBtn("adminCloseLobbyBtn", hasGame && isLobby, hasGame ? "لغو فقط پیش از شروع بازی مجاز است." : "ابتدا بازی را انتخاب کنید.");
   setBtn("adminCallBtn", hasGame && isRunning, hasGame ? "اعلام عدد فقط برای بازی در حال اجرا مجاز است." : "ابتدا بازی را انتخاب کنید.");
   setBtn("adminUndoBtn", hasGame && isRunning, hasGame ? "حذف آخرین عدد فقط برای بازی در حال اجرا مجاز است." : "ابتدا بازی را انتخاب کنید.");
-  renderAdminFastCallConsole();
   setBtn("adminSendLiveBtn", hasGame && hasLiveLink, hasLiveLink ? "ارسال لینک لایو به خریداران کارت همین بازی." : "ابتدا لینک لایو را ثبت کنید.");
   setBtn("adminClearLiveBtn", hasGame && hasLiveLink, hasLiveLink ? "حذف لینک لایو ثبت‌شده برای این بازی." : "لینک لایو ثبت نشده است.");
 }
@@ -5741,133 +5740,9 @@ async function adminStartGame() {
   await Promise.allSettled([refreshAdminGames(), openLiveGame(gid)]);
 }
 
-
-// ADMIN_FAST_CALL_CONSOLE_START
-function getAdminSelectedGameForFastCall() {
-  const gid = Number(state.admin?.selectedGameId || 0);
-  if (!gid || !state.admin?.gamesById) return null;
-  return state.admin.gamesById.get(gid) || null;
-}
-
-function getAdminCalledNumbersForFastCall(game = null) {
-  const g = game || getAdminSelectedGameForFastCall();
-  const raw = g?.called_numbers || g?.calledNumbers || g?.called || [];
-  return Array.isArray(raw)
-    ? raw.map((n) => Number(n)).filter((n) => Number.isInteger(n) && n >= 1 && n <= 90)
-    : [];
-}
-
-function setAdminFastCallHint(message, kind = "info") {
-  const el = getEl("adminCallActionHint") || getEl("adminActionHint");
-  if (!el) return;
-  el.textContent = message || "";
-  el.classList.remove("success", "error", "pending");
-  if (kind) el.classList.add(kind);
-}
-
-function renderAdminFastCallConsole(opts = {}) {
-  const game = getAdminSelectedGameForFastCall();
-  const called = getAdminCalledNumbersForFastCall(game);
-  const status = String(game?.status || "").toUpperCase();
-  const last = called.length ? called[called.length - 1] : null;
-  const maxNumber = Number(game?.max_number || game?.maxNumber || 90) || 90;
-
-  const stats = getEl("adminCallStats");
-  if (stats) {
-    if (!game) {
-      stats.textContent = "ابتدا بازی در حال اجرا را انتخاب کنید.";
-    } else {
-      const label = status === "RUNNING" ? "در حال اجرا" : status || "انتخاب شده";
-      stats.textContent = `بازی #${game.id || state.admin.selectedGameId} | ${label} | اعلام‌شده: ${called.length}/${maxNumber}`;
-    }
-  }
-
-  const lastEl = getEl("adminLastCalledNumber");
-  if (lastEl) {
-    lastEl.textContent = last ? String(last) : "-";
-    lastEl.classList.toggle("fresh", Boolean(opts.justCalled));
-    if (opts.justCalled) setTimeout(() => lastEl.classList.remove("fresh"), 650);
-  }
-
-  const list = getEl("adminRecentCalledNumbers");
-  if (list) {
-    const recent = called.slice(-5).reverse();
-    list.innerHTML = recent.length
-      ? recent.map((n) => `<b>${escapeHtml(String(n))}</b>`).join("")
-      : "<em>-</em>";
-  }
-
-  const input = getEl("adminCallNumberInput");
-  const value = Number(String(input?.value || "").trim() || "0");
-  const repeated = called.includes(value);
-  if (input) input.classList.toggle("is-duplicate", Number.isInteger(value) && repeated);
-}
-
-function setAdminCallDraft(value) {
-  const input = getEl("adminCallNumberInput");
-  if (!input) return;
-  const digits = String(value || "").replace(/\D/g, "").slice(0, 2);
-  input.value = digits;
-  renderAdminFastCallConsole();
-}
-
-function appendAdminCallDigit(digit) {
-  const input = getEl("adminCallNumberInput");
-  if (!input) return;
-  const current = String(input.value || "").replace(/\D/g, "");
-  setAdminCallDraft((current + String(digit || "")).slice(0, 2));
-  input.focus({ preventScroll: true });
-}
-
-function bindAdminFastCallConsole() {
-  const input = getEl("adminCallNumberInput");
-  if (input && !input.dataset.fastCallBound) {
-    input.dataset.fastCallBound = "1";
-    input.addEventListener("input", () => setAdminCallDraft(input.value));
-    input.addEventListener("keydown", (event) => {
-      if (event.key === "Enter") {
-        event.preventDefault();
-        adminCallNumber().catch((e) => setAdminLocalError("adminCallActionHint", e));
-      }
-      if (event.key === "Escape") {
-        event.preventDefault();
-        setAdminCallDraft("");
-      }
-    });
-  }
-
-  const keypad = getEl("adminFastKeypad");
-  if (keypad && !keypad.dataset.fastCallBound) {
-    keypad.dataset.fastCallBound = "1";
-    keypad.addEventListener("click", (event) => {
-      const btn = event.target?.closest?.("button");
-      if (!btn) return;
-      const digit = btn.getAttribute("data-admin-call-digit");
-      if (digit !== null) return appendAdminCallDigit(digit);
-      if (btn.hasAttribute("data-admin-call-clear")) return setAdminCallDraft("");
-      if (btn.hasAttribute("data-admin-call-backspace")) {
-        const input = getEl("adminCallNumberInput");
-        return setAdminCallDraft(String(input?.value || "").slice(0, -1));
-      }
-    });
-  }
-
-  renderAdminFastCallConsole();
-}
-// ADMIN_FAST_CALL_CONSOLE_END
-
 async function adminCallNumber() {
   const { gid } = requireAdminGameStatus(["RUNNING"], "اعلام عدد");
-  const number = Number(String(getVal("adminCallNumberInput") || "").trim() || "0");
-  const calledBefore = getAdminCalledNumbersForFastCall();
-  if (!Number.isInteger(number) || number < 1 || number > 90) {
-    renderAdminFastCallConsole();
-    throw new Error("عدد باید بین ۱ تا ۹۰ باشد.");
-  }
-  if (calledBefore.includes(number)) {
-    renderAdminFastCallConsole();
-    throw new Error(`عدد ${number} قبلاً اعلام شده است.`);
-  }
+  const number = Number(getVal("adminCallNumberInput") || "0");
   if (!number || number < 1 || number > 90) throw new Error("عدد اعلام باید بین 1 تا 90 باشد.");
   setAdminLocalHint("adminCallActionHint", "در حال ثبت عدد...");
   await apiFetch(`/mini-api/admin/games/${gid}/call`, {
@@ -5875,8 +5750,6 @@ async function adminCallNumber() {
     body: { number, idempotency_key: idem("mini_admin_call") },
   });
   setVal("adminCallNumberInput", "");
-  renderAdminFastCallConsole({ justCalled: number });
-  setTimeout(() => getEl("adminCallNumberInput")?.focus?.({ preventScroll: true }), 80);
   setAdminLocalHint("adminCallActionHint", `عدد ${number} برای بازی #${gid} ثبت شد.`, "success");
   await Promise.allSettled([refreshAdminGames(), openLiveGame(gid), refreshCards({ silent: true })]);
 }
@@ -6543,7 +6416,6 @@ async function boot() {
   );
   bind("adminCallBtn", "click", () => adminCallNumber().catch((e) => setAdminLocalError("adminCallActionHint", e)));
   bind("adminUndoBtn", "click", () => adminUndoCall().catch((e) => setAdminLocalError("adminCallActionHint", e)));
-  bindAdminFastCallConsole();
   bind("adminStartBtn", "click", () => adminStartGame().catch((e) => setAdminLocalError("adminCallActionHint", e)));
   bind("adminCloseLobbyBtn", "click", () => adminCloseLobby().catch((e) => setAdminLocalError("adminCloseLobbyHint", e)));
   bind("adminSetLiveBtn", "click", () => adminSetLiveLink().catch((e) => setAdminLocalError("adminLiveActionHint", e)));
