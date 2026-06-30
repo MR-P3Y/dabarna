@@ -477,7 +477,7 @@
               </div>
               <div class="action-form">
                 <label id="adminCallLabel" for="adminCallNumberInput">عدد برای اعلام</label>
-                <input id="adminCallNumberInput" type="number" min="1" max="90" />
+                <input id="adminCallNumberInput" type="tel" inputmode="numeric" pattern="[0-9]*" min="1" max="90" maxlength="2" enterkeyhint="done" autocomplete="off" />
                 <div class="admin-action-row">
                   <button id="adminCallBtn" class="small-btn primary" type="button">اعلام عدد</button>
                   <button id="adminUndoBtn" class="small-btn" type="button">حذف آخرین عدد</button>
