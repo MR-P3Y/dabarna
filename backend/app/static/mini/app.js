@@ -5784,7 +5784,7 @@ function appendAdminCallDigit(digit) {
   setAdminCallNumberDraft((current + String(digit || "")).slice(0, 2));
 }
 
-function renderAdminCallQuickPanel() {
+function renderAdminCallQuickPanel(options = {}) {
   const gid = Number(state.admin?.selectedGameId || 0);
   const called = getAdminCalledNumbersForSelectedGame(gid);
   const last = called.length ? called[called.length - 1] : null;
@@ -5795,6 +5795,11 @@ function renderAdminCallQuickPanel() {
 
   const recentEl = getEl("adminCallRecentNumbers");
   if (recentEl) recentEl.textContent = recent.length ? recent.join("، ") : "-";
+
+  const progressEl = getEl("adminCallProgressCount");
+  if (progressEl) progressEl.textContent = `${called.length}/90`;
+
+  if (options.fresh) markAdminLastNumberFresh();
 }
 
 function bindAdminCallKeypad() {
@@ -5824,6 +5829,19 @@ function bindAdminCallKeypad() {
 }
 // ADMIN_CALL_KEYPAD_PHASE2_END
 
+// ADMIN_CALL_FINISH_PATCH_START
+let adminUndoConfirmUntil = 0;
+
+function markAdminLastNumberFresh() {
+  const lastEl = getEl("adminCallLastNumber");
+  if (!lastEl) return;
+  lastEl.classList.remove("fresh");
+  void lastEl.offsetWidth;
+  lastEl.classList.add("fresh");
+  setTimeout(() => lastEl.classList.remove("fresh"), 700);
+}
+// ADMIN_CALL_FINISH_PATCH_END
+
 async function adminCallNumber() {
   const { gid } = requireAdminGameStatus(["RUNNING"], "\u0627\u0639\u0644\u0627\u0645 \u0639\u062f\u062f");
   normalizeAdminCallNumberInput();
@@ -5849,7 +5867,7 @@ async function adminCallNumber() {
 
   setVal("adminCallNumberInput", "");
   focusAdminCallNumberInput();
-  renderAdminCallQuickPanel();
+  renderAdminCallQuickPanel({ fresh: true });
   setAdminLocalHint("adminCallActionHint", `\u0639\u062f\u062f ${number} \u0628\u0631\u0627\u06cc \u0628\u0627\u0632\u06cc #${gid} \u062b\u0628\u062a \u0634\u062f.`, "success");
   await Promise.allSettled([refreshAdminGames(), openLiveGame(gid), refreshCards({ silent: true })]);
 }
@@ -5857,6 +5875,13 @@ async function adminCallNumber() {
 
 async function adminUndoCall() {
   const { gid } = requireAdminGameStatus(["RUNNING"], "حذف آخرین عدد");
+  const now = Date.now();
+  if (!adminUndoConfirmUntil || adminUndoConfirmUntil < now) {
+    adminUndoConfirmUntil = now + 5000;
+    setAdminLocalHint("adminCallActionHint", "برای تایید حذف آخرین عدد، دوباره روی حذف بزن.", "pending");
+    return;
+  }
+  adminUndoConfirmUntil = 0;
   setAdminLocalHint("adminCallActionHint", "در حال حذف آخرین عدد...");
   await apiFetch(`/mini-api/admin/games/${gid}/undo-last-call`, {
     method: "POST",
@@ -5864,6 +5889,7 @@ async function adminUndoCall() {
   });
   setAdminLocalHint("adminCallActionHint", "آخرین عدد بازی با موفقیت حذف شد.", "success");
   await Promise.allSettled([refreshAdminGames(), openLiveGame(gid), refreshCards({ silent: true })]);
+  renderAdminCallQuickPanel();
 }
 
 async function adminCloseLobby() {

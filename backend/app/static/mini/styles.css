@@ -5648,7 +5648,7 @@ html[data-theme="light"] #withdrawProofModal .withdraw-proof-actions {
 
 .admin-call-mini-stats {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
 }
 
@@ -5714,4 +5714,33 @@ html[data-theme="light"] #withdrawProofModal .withdraw-proof-actions {
   }
 }
 /* ADMIN_CALL_KEYPAD_PHASE2_END */
+
+/* ADMIN_CALL_FINISH_PATCH_START */
+.admin-call-keypad {
+  direction: ltr;
+}
+
+.admin-call-keypad button {
+  direction: rtl;
+}
+
+#adminCallLastNumber.fresh {
+  animation: adminCallLastPulse 0.62s ease;
+}
+
+@keyframes adminCallLastPulse {
+  0% { transform: scale(0.88); color: #78ffd6; }
+  55% { transform: scale(1.14); color: #ffffff; }
+  100% { transform: scale(1); }
+}
+
+@media (max-width: 520px) {
+  #adminCallBtn {
+    min-height: 52px;
+    font-size: 16px;
+    font-weight: 950;
+    box-shadow: 0 10px 26px rgba(67, 185, 255, 0.24);
+  }
+}
+/* ADMIN_CALL_FINISH_PATCH_END */
 
