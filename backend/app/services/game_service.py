@@ -572,6 +572,8 @@ class GameService:
                 .scalar_one_or_none()
             )
             if exists:
+                raise HTTPException(status_code=409, detail="number already called")
+
                 called_count = db.execute(
                     select(func.count())
                     .select_from(GameCalledNumber)

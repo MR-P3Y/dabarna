@@ -1918,7 +1918,7 @@ function renderLiveEvents(events) {
         })
         .join("")
     : '<div class="empty">هنوز رویدادی ثبت نشده است.</div>';
-  list.forEach((e) => pushWinnerNotice(e));
+  list.forEach((e) => { pushWinnerNotice(e); pushAdminWinnerNotice(e); });
 }
 
 function renderLive(snapshot) {
@@ -2024,6 +2024,7 @@ async function openLiveGame(gameId, options = {}) {
   state.selectedGameId = Number(gameId);
   const snapshot = await apiFetch(`/mini-api/games/${gameId}/snapshot?events_limit=${LIVE_EVENTS_LIMIT}`);
   renderLiveSnapshot(snapshot, gameId);
+  hydrateAdminCallPanelFromSnapshot(gameId, snapshot);
   if (options.announce !== false) setHint("liveActionHint", `بازی #${gameId} انتخاب شد.`, "success");
 }
 
@@ -2052,7 +2053,7 @@ function appendEvents(events) {
   }
   evRoot.scrollTop = evRoot.scrollHeight;
 
-  events.forEach((e) => pushWinnerNotice(e));
+  events.forEach((e) => { pushWinnerNotice(e); pushAdminWinnerNotice(e); });
 }
 
 
@@ -4296,6 +4297,7 @@ function setAdminSelectedGame(gameId, statusText = "") {
     : `بازی #${state.admin.selectedGameId}`;
   syncAdminCreateFormFromGame(state.admin.selectedGameId);
   updateAdminActionButtons();
+  openLiveGame(state.admin.selectedGameId, { announce: false }).catch((err) => console.warn("[mini] admin game snapshot hydrate failed", err));
 }
 
 function updateAdminActionButtons() {
@@ -4445,6 +4447,7 @@ async function refreshAdminGames() {
   const out = await apiFetch(`/mini-api/admin/games?status=LOBBY,RUNNING&limit=40${qs}`);
   renderAdminGames(out);
   updateAdminActionButtons();
+  renderAdminCallQuickPanel();
 }
 
 function closeDepositReceiptModal() {
@@ -5821,6 +5824,16 @@ function popAdminCalledNumberLocal(gid) {
 }
 // ADMIN_CALL_STATE_FIX_V5_END
 
+// ADMIN_CALL_STATE_FIX_V6_START
+function hydrateAdminCallPanelFromSnapshot(gameId, snapshot) {
+  const gid = Number(gameId || state.admin?.selectedGameId || 0);
+  if (!gid || !snapshot?.state) return;
+  const called = Array.isArray(snapshot.state.called_numbers) ? snapshot.state.called_numbers : [];
+  setAdminCalledNumbersLocal(gid, called);
+  if (Number(state.admin?.selectedGameId || 0) === gid) renderAdminCallQuickPanel();
+}
+// ADMIN_CALL_STATE_FIX_V6_END
+
 
 
 // ADMIN_CALL_KEYPAD_PHASE2_START
@@ -5897,6 +5910,111 @@ function markAdminLastNumberFresh() {
   setTimeout(() => lastEl.classList.remove("fresh"), 700);
 }
 // ADMIN_CALL_FINISH_PATCH_END
+
+// ADMIN_WINNER_POPUP_V6_START
+const adminWinnerNoticeSeen = new Set();
+function adminWinnerEventKey(event) {
+  const payload = event?.payload || {};
+  return String(event?.id || event?.event_id || `${event?.kind || ""}:${event?.game_id || state.selectedGameId || ""}:${payload.call_number || ""}:${normalizeIntList(payload.winner_user_ids || []).join("-")}:${normalizeIntList(payload.winner_card_ids || []).join("-")}`);
+}
+function adminWinnerEventKind(event) {
+  const kind = String(event?.kind || "").toUpperCase();
+  if (kind === "PRIZE_ROW" || kind === "PRIZE_COL") return kind;
+  return "";
+}
+function adminWinnerAmountParts(payload) {
+  const total = Number(payload?.amount_total || 0);
+  const amounts = Array.isArray(payload?.amounts_by_card) ? payload.amounts_by_card.map((x) => Number(x || 0)).filter((x) => x > 0) : [];
+  return { total, amounts };
+}
+function ensureAdminWinnerModal() {
+  let modal = getEl("adminWinnerModal");
+  if (modal) return modal;
+  modal = document.createElement("div");
+  modal.id = "adminWinnerModal";
+  modal.className = "admin-winner-modal";
+  modal.setAttribute("aria-hidden", "true");
+  modal.innerHTML = `
+    <div class="admin-winner-dialog" role="dialog" aria-modal="true" aria-labelledby="adminWinnerModalTitle">
+      <button id="adminWinnerCloseBtn" class="modal-close" type="button" aria-label="بستن">×</button>
+      <h3 id="adminWinnerModalTitle">اعلان برنده</h3>
+      <div id="adminWinnerModalBody" class="admin-winner-body"></div>
+      <div class="admin-winner-actions">
+        <button id="adminWinnerCopyBtn" class="small-btn" type="button">کپی مشخصات</button>
+        <button id="adminWinnerOpenGameBtn" class="small-btn primary" type="button">مشاهده بازی</button>
+        <button id="adminWinnerDismissBtn" class="small-btn" type="button">بستن</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  const close = () => {
+    modal.classList.remove("open");
+    modal.setAttribute("aria-hidden", "true");
+  };
+  getEl("adminWinnerCloseBtn")?.addEventListener("click", close);
+  getEl("adminWinnerDismissBtn")?.addEventListener("click", close);
+  modal.addEventListener("click", (ev) => {
+    if (ev.target === modal) close();
+  });
+  return modal;
+}
+function showAdminWinnerPopup(event) {
+  if (!state.admin?.enabled) return;
+  const kind = adminWinnerEventKind(event);
+  if (!kind) return;
+  const key = adminWinnerEventKey(event);
+  if (!key || adminWinnerNoticeSeen.has(key)) return;
+  adminWinnerNoticeSeen.add(key);
+
+  const payload = event?.payload || {};
+  const gameId = Number(event?.game_id || state.selectedGameId || state.admin?.selectedGameId || 0);
+  const callNumber = Number(payload?.call_number || 0);
+  const userIds = normalizeIntList(payload?.winner_user_ids || []);
+  const cardIds = normalizeIntList(payload?.winner_card_ids || []);
+  const { total, amounts } = adminWinnerAmountParts(payload);
+  const kindLabel = winnerKindLabelByReason(kind);
+  const winnerRows = userIds.length
+    ? userIds.map((uid, idx) => {
+        const cardId = cardIds[idx] || "-";
+        const amount = amounts[idx] || 0;
+        return `<div class="admin-winner-row"><strong>کاربر:</strong> ${safeText(uid)} <span>کارت: ${safeText(cardId)}</span>${amount ? `<span>سهم: ${safeText(toman(amount))}</span>` : ""}</div>`;
+      }).join("")
+    : '<div class="admin-winner-row">مشخصات کاربر در payload موجود نیست.</div>';
+
+  const modal = ensureAdminWinnerModal();
+  const body = getEl("adminWinnerModalBody");
+  if (body) {
+    body.innerHTML = `
+      <div class="admin-winner-summary">
+        <div><span>نوع برد</span><strong>${safeText(kindLabel || kind)}</strong></div>
+        <div><span>بازی</span><strong>#${safeText(gameId || "-")}</strong></div>
+        <div><span>عدد اعلامی</span><strong>${safeText(callNumber || "-")}</strong></div>
+        <div><span>مبلغ کل</span><strong>${safeText(total ? toman(total) : "-")}</strong></div>
+      </div>
+      <div class="admin-winner-list">${winnerRows}</div>`;
+  }
+
+  const copyText = [
+    `نوع برد: ${kindLabel || kind}`,
+    `بازی: #${gameId || "-"}`,
+    `عدد اعلامی: ${callNumber || "-"}`,
+    `مبلغ کل: ${total ? toman(total) : "-"}`,
+    `کاربران: ${userIds.join(", ") || "-"}`,
+    `کارت‌ها: ${cardIds.join(", ") || "-"}`,
+  ].join("\n");
+  const copyBtn = getEl("adminWinnerCopyBtn");
+  if (copyBtn) copyBtn.onclick = () => navigator.clipboard?.writeText(copyText).catch(() => {});
+  const openBtn = getEl("adminWinnerOpenGameBtn");
+  if (openBtn) openBtn.onclick = () => {
+    if (gameId) openLiveGame(gameId, { announce: false }).catch((err) => setAdminLocalError("adminActionHint", err));
+  };
+
+  modal.classList.add("open");
+  modal.setAttribute("aria-hidden", "false");
+}
+function pushAdminWinnerNotice(event) {
+  showAdminWinnerPopup(event);
+}
+// ADMIN_WINNER_POPUP_V6_END
 
 async function adminCallNumber() {
   const { gid } = requireAdminGameStatus(["RUNNING"], "\u0627\u0639\u0644\u0627\u0645 \u0639\u062f\u062f");
