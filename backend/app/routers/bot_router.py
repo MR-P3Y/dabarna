@@ -2565,6 +2565,7 @@ def start_bot_admin_game(
             game_id=game_id,
             admin_user_id=admin_uid,
             idempotency_key=payload.idempotency_key,
+            can_manage_any=admin.scope == AdminScope.SUPER_ADMIN,
         )
         AdminAuditService.record(
             db,
@@ -2613,6 +2614,7 @@ def call_number_on_bot_admin_game(
             number=payload.number,
             admin_user_id=admin_uid,
             idempotency_key=payload.idempotency_key,
+            can_manage_any=admin.scope == AdminScope.SUPER_ADMIN,
         )
         AdminAuditService.record(
             db,
@@ -2658,6 +2660,7 @@ def undo_last_call_on_bot_admin_game(
             game_id=game_id,
             admin_user_id=admin_uid,
             idempotency_key=payload.idempotency_key,
+            can_manage_any=admin.scope == AdminScope.SUPER_ADMIN,
         )
         db.commit()
         return BotAdminUndoOut(**res)
@@ -2696,6 +2699,7 @@ def set_bot_admin_game_status(
                 game_id=game_id,
                 admin_user_id=admin_uid,
                 idempotency_key=payload.idempotency_key,
+                can_manage_any=admin.scope == AdminScope.SUPER_ADMIN,
             )
         else:
             cancel_reason = str(payload.cancel_reason or "").strip()
@@ -2707,6 +2711,7 @@ def set_bot_admin_game_status(
                 admin_user_id=admin_uid,
                 idempotency_key=payload.idempotency_key,
                 cancel_reason=cancel_reason,
+                can_manage_any=admin.scope == AdminScope.SUPER_ADMIN,
             )
         db.commit()
         db.refresh(game)

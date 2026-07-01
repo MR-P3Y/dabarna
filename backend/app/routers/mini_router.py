@@ -2907,6 +2907,7 @@ def mini_admin_start_game(
         game_id=int(game_id),
         admin_user_id=int(ident.user_id),
         idempotency_key=str(payload.idempotency_key),
+        can_manage_any=bool(ident.is_super_admin),
     )
     AdminAuditService.record(
         db,
@@ -2946,6 +2947,7 @@ def mini_admin_call_number(
         number=int(payload.number),
         admin_user_id=int(ident.user_id),
         idempotency_key=str(payload.idempotency_key),
+        can_manage_any=bool(ident.is_super_admin),
     )
     AdminAuditService.record(
         db,
@@ -2982,6 +2984,7 @@ def mini_admin_undo_call(
         game_id=int(game_id),
         admin_user_id=int(ident.user_id),
         idempotency_key=str(payload.idempotency_key),
+        can_manage_any=bool(ident.is_super_admin),
     )
     db.commit()
     return {"ok": True, "result": out}
@@ -3002,6 +3005,7 @@ def mini_admin_close_lobby(
         admin_user_id=int(ident.user_id),
         idempotency_key=str(payload.idempotency_key),
         cancel_reason=cancel_reason,
+        can_manage_any=bool(ident.is_super_admin),
     )
     notify_stats = {
         "notified_ok": 0,

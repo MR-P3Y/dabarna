@@ -33,6 +33,10 @@ def _safe_int(x: Any, default: int = 0) -> int:
         return default
 
 
+def _can_manage_game(game: Game, admin_user_id: int, *, can_manage_any: bool = False) -> bool:
+    return bool(can_manage_any) or int(game.admin_user_id) == int(admin_user_id)
+
+
 def _utcnow_naive() -> datetime:
     return datetime.now(timezone.utc).replace(tzinfo=None)
 
@@ -337,14 +341,14 @@ class GameService:
 
         return purchase, cards, int(prize_pool_new)
     @staticmethod
-    def start_game(db: Session, game_id: int, admin_user_id: int, idempotency_key: str) -> Game:
+    def start_game(db: Session, game_id: int, admin_user_id: int, idempotency_key: str, can_manage_any: bool = False) -> Game:
         game = (
             db.execute(select(Game).where(Game.id == game_id).with_for_update())
             .scalar_one_or_none()
         )
         if not game:
             raise HTTPException(status_code=404, detail="game not found")
-        if int(game.admin_user_id) != int(admin_user_id):
+        if not _can_manage_game(game, admin_user_id, can_manage_any=can_manage_any):
             raise HTTPException(status_code=403, detail="only game admin can start")
 
         # ✅ اگر قبلاً شروع شده/قفل شده: فقط state برگردان (هیچ event جدید نزن)
@@ -419,6 +423,7 @@ class GameService:
         admin_user_id: int,
         idempotency_key: str,
         cancel_reason: str | None = None,
+        can_manage_any: bool = False,
     ) -> Game:
         game = (
             db.execute(select(Game).where(Game.id == game_id).with_for_update())
@@ -426,7 +431,7 @@ class GameService:
         )
         if not game:
             raise HTTPException(status_code=404, detail="game not found")
-        if int(game.admin_user_id) != int(admin_user_id):
+        if not _can_manage_game(game, admin_user_id, can_manage_any=can_manage_any):
             raise HTTPException(status_code=403, detail="only game admin can close lobby game")
 
         current_status = str(game.status)
@@ -589,7 +594,7 @@ class GameService:
 
             if not game:
                 raise HTTPException(status_code=404, detail="game not found")
-            if int(game.admin_user_id) != int(admin_user_id):
+            if not _can_manage_game(game, admin_user_id, can_manage_any=can_manage_any):
                 raise HTTPException(status_code=403, detail="only game admin can call number")
             if str(game.status) != "RUNNING":
                 raise HTTPException(status_code=400, detail="game is not RUNNING")
@@ -755,7 +760,7 @@ class GameService:
             )
             if not game:
                 raise HTTPException(status_code=404, detail="game not found")
-            if int(game.admin_user_id) != int(admin_user_id):
+            if not _can_manage_game(game, admin_user_id, can_manage_any=can_manage_any):
                 raise HTTPException(status_code=403, detail="only game admin can undo call")
 
             last_called = (
