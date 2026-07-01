@@ -5911,7 +5911,7 @@ function markAdminLastNumberFresh() {
 }
 // ADMIN_CALL_FINISH_PATCH_END
 
-// ADMIN_WINNER_POPUP_V6_1_START
+// ADMIN_WINNER_POPUP_V6_3_START
 const adminWinnerNoticeSeen = new Set();
 
 function adminWinnerEventKey(event) {
@@ -5934,6 +5934,42 @@ function adminWinnerAmountParts(payload) {
     ? payload.amounts_by_card.map((x) => Number(x || 0)).filter((x) => x > 0)
     : [];
   return { total, amounts };
+}
+
+function adminWinnerUsersFromPayload(payload) {
+  const richUsers = Array.isArray(payload?.winner_users) ? payload.winner_users : [];
+  if (richUsers.length) {
+    return richUsers.map((item) => ({
+      userId: Number(item?.user_id || 0),
+      tgUserId: Number(item?.tg_user_id || 0),
+      username: String(item?.username || "").trim(),
+      displayName: String(item?.display_name || item?.first_name || "").trim(),
+      cardId: Number(item?.card_id || 0),
+      amount: Number(item?.amount || 0),
+    }));
+  }
+
+  const userIds = normalizeIntList(payload?.winner_user_ids || []);
+  const cardIds = normalizeIntList(payload?.winner_card_ids || []);
+  const amounts = Array.isArray(payload?.amounts_by_card) ? payload.amounts_by_card.map((x) => Number(x || 0)) : [];
+  return userIds.map((uid, idx) => ({
+    userId: Number(uid || 0),
+    tgUserId: 0,
+    username: "",
+    displayName: `user:${uid}`,
+    cardId: Number(cardIds[idx] || 0),
+    amount: Number(amounts[idx] || 0),
+  }));
+}
+
+function adminWinnerUserLabel(user) {
+  const name = String(user?.displayName || "").trim();
+  const username = String(user?.username || "").trim();
+  const userId = Number(user?.userId || 0);
+  if (name && username && name !== `@${username}`) return `${name} (@${username})`;
+  if (name) return name;
+  if (username) return `@${username}`;
+  return userId ? `user:${userId}` : "-";
 }
 
 function closeAdminWinnerModal() {
@@ -6013,16 +6049,18 @@ function showAdminWinnerPopup(event) {
   const payload = event?.payload || {};
   const gameId = Number(event?.game_id || state.selectedGameId || state.admin?.selectedGameId || 0);
   const callNumber = Number(payload?.call_number || 0);
-  const userIds = normalizeIntList(payload?.winner_user_ids || []);
-  const cardIds = normalizeIntList(payload?.winner_card_ids || []);
-  const { total, amounts } = adminWinnerAmountParts(payload);
+  const { total } = adminWinnerAmountParts(payload);
+  const winnerUsers = adminWinnerUsersFromPayload(payload);
   const kindLabel = winnerKindLabelByReason(kind);
-  const winnerRows = userIds.length
-    ? userIds
-        .map((uid, idx) => {
-          const cardId = cardIds[idx] || "-";
-          const amount = amounts[idx] || 0;
-          return `<div class="admin-winner-row"><strong>کاربر: ${safeText(uid)}</strong><span>کارت: ${safeText(cardId)}</span>${amount ? `<span>سهم: ${safeText(toman(amount))}</span>` : ""}</div>`;
+  const winnerRows = winnerUsers.length
+    ? winnerUsers
+        .map((user) => {
+          const label = adminWinnerUserLabel(user);
+          const userId = Number(user?.userId || 0);
+          const tgUserId = Number(user?.tgUserId || 0);
+          const cardId = Number(user?.cardId || 0) || "-";
+          const amount = Number(user?.amount || 0);
+          return `<div class="admin-winner-row"><strong>بازیکن: ${safeText(label)}</strong><span>شناسه: ${safeText(userId || "-")}</span>${tgUserId ? `<span>تلگرام: ${safeText(tgUserId)}</span>` : ""}<span>کارت: ${safeText(cardId)}</span>${amount ? `<span>سهم: ${safeText(toman(amount))}</span>` : ""}</div>`;
         })
         .join("")
     : '<div class="admin-winner-row">مشخصات کاربر در payload موجود نیست.</div>';
@@ -6041,13 +6079,24 @@ function showAdminWinnerPopup(event) {
   }
 
   modal.dataset.gameId = String(gameId || "");
+  const winnerCopyLines = winnerUsers.length
+    ? winnerUsers.map((user, idx) => {
+        const parts = [
+          `بازیکن ${idx + 1}: ${adminWinnerUserLabel(user)}`,
+          `شناسه کاربر: ${Number(user?.userId || 0) || "-"}`,
+          Number(user?.tgUserId || 0) ? `شناسه تلگرام: ${Number(user.tgUserId)}` : "",
+          `کارت: ${Number(user?.cardId || 0) || "-"}`,
+          Number(user?.amount || 0) ? `سهم: ${toman(Number(user.amount))}` : "",
+        ].filter(Boolean);
+        return parts.join(" | ");
+      })
+    : ["بازیکن: -"];
   modal.dataset.copyText = [
     `نوع برد: ${kindLabel || kind}`,
     `بازی: #${gameId || "-"}`,
     `عدد اعلامی: ${callNumber || "-"}`,
     `مبلغ کل: ${total ? toman(total) : "-"}`,
-    `کاربران: ${userIds.join(", ") || "-"}`,
-    `کارت‌ها: ${cardIds.join(", ") || "-"}`,
+    ...winnerCopyLines,
   ].join("\n");
 
   modal.classList.add("open");
@@ -6057,7 +6106,7 @@ function showAdminWinnerPopup(event) {
 function pushAdminWinnerNotice(event) {
   showAdminWinnerPopup(event);
 }
-// ADMIN_WINNER_POPUP_V6_1_END
+// ADMIN_WINNER_POPUP_V6_3_END
 
 async function adminCallNumber() {
   const { gid } = requireAdminGameStatus(["RUNNING"], "\u0627\u0639\u0644\u0627\u0645 \u0639\u062f\u062f");

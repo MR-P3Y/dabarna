@@ -82,6 +82,43 @@ class GameService:
         return {}
 
     @staticmethod
+    def _winner_user_payloads(
+        db: Session,
+        *,
+        winner_user_ids: list[int],
+        winner_card_ids: list[int],
+        amounts_by_card: list[int] | None = None,
+    ) -> list[dict]:
+        user_ids = [int(x) for x in (winner_user_ids or [])]
+        if not user_ids:
+            return []
+        users = db.execute(select(User).where(User.id.in_(user_ids))).scalars().all()
+        by_id = {int(u.id): u for u in users}
+        out: list[dict] = []
+        for idx, uid in enumerate(user_ids):
+            user = by_id.get(int(uid))
+            first = str(getattr(user, "first_name", "") or "").strip() if user else ""
+            last = str(getattr(user, "last_name", "") or "").strip() if user else ""
+            username = str(getattr(user, "username", "") or "").strip() if user else ""
+            full_name = " ".join(x for x in [first, last] if x).strip()
+            display_name = full_name or (f"@{username}" if username else f"user:{int(uid)}")
+            card_id = int(winner_card_ids[idx]) if idx < len(winner_card_ids or []) else None
+            amount = int(amounts_by_card[idx]) if amounts_by_card and idx < len(amounts_by_card) else None
+            out.append(
+                {
+                    "user_id": int(uid),
+                    "tg_user_id": int(user.tg_user_id) if user and user.tg_user_id is not None else None,
+                    "username": username or None,
+                    "first_name": first or None,
+                    "last_name": last or None,
+                    "display_name": display_name,
+                    "card_id": card_id,
+                    "amount": amount,
+                }
+            )
+        return out
+
+    @staticmethod
     def _winner_cards(cards: list[GameCard], called_set: set[int], mode: str) -> list[tuple[int, int]]:
         out: list[tuple[int, int]] = []
         for c in cards:
@@ -931,12 +968,19 @@ class GameService:
                 game.ended_at = _utcnow_naive()
                 db.flush()
 
+                winner_users_payload = GameService._winner_user_payloads(
+                    db,
+                    winner_user_ids=winner_user_ids,
+                    winner_card_ids=winner_card_ids,
+                    amounts_by_card=shares,
+                )
                 _emit_safe_v2(
                     "PRIZE_ROW",
                     f"PRIZE_ROW:{game_id}",
                     {
                         "winner_card_ids": winner_card_ids,
                         "winner_user_ids": winner_user_ids,
+                        "winner_users": winner_users_payload,
                         "amount_total": int(row_total),
                         "amounts_by_card": shares,
                         "call_number": int(called_number),
@@ -993,12 +1037,19 @@ class GameService:
                 game.payout_state_json = payout_state
                 db.flush()
 
+                winner_users_payload = GameService._winner_user_payloads(
+                    db,
+                    winner_user_ids=winner_user_ids,
+                    winner_card_ids=winner_card_ids,
+                    amounts_by_card=shares,
+                )
                 _emit_safe_v2(
                     "PRIZE_COL",
                     f"PRIZE_COL:{game_id}",
                     {
                         "winner_card_ids": winner_card_ids,
                         "winner_user_ids": winner_user_ids,
+                        "winner_users": winner_users_payload,
                         "amount_total": int(col_total),
                         "amounts_by_card": shares,
                         "call_number": int(called_number),
