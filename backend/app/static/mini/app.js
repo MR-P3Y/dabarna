@@ -5744,10 +5744,7 @@ async function adminStartGame() {
 function getAdminCalledNumbersForSelectedGame(gid) {
   const gameId = Number(gid || state.admin?.selectedGameId || 0);
   const game = gameId && state.admin?.gamesById ? state.admin.gamesById.get(gameId) : null;
-  const raw = game?.called_numbers || game?.calledNumbers || game?.called || [];
-  return Array.isArray(raw)
-    ? raw.map((n) => Number(n)).filter((n) => Number.isInteger(n) && n >= 1 && n <= 90)
-    : [];
+  return getAdminCalledNumbersMerged(gameId);
 }
 
 function focusAdminCallNumberInput() {
@@ -5766,6 +5763,64 @@ function normalizeAdminCallNumberInput() {
   if (input.value !== digits) input.value = digits;
 }
 // ADMIN_CALL_PHASE1_UX_END
+
+// ADMIN_CALL_STATE_FIX_V5_START
+const adminCalledNumbersLocal = new Map();
+
+function normalizeAdminCalledNumbers(numbers) {
+  const out = [];
+  for (const raw of Array.isArray(numbers) ? numbers : []) {
+    const n = Number(raw);
+    if (Number.isInteger(n) && n >= 1 && n <= 90 && !out.includes(n)) out.push(n);
+  }
+  return out;
+}
+
+function getAdminCalledNumbersFromGameState(gid) {
+  const gameId = Number(gid || state.admin?.selectedGameId || 0);
+  const game = gameId && state.admin?.gamesById ? state.admin.gamesById.get(gameId) : null;
+  const raw = game?.called_numbers || game?.calledNumbers || game?.called || [];
+  return normalizeAdminCalledNumbers(raw);
+}
+
+function getAdminCalledNumbersMerged(gid) {
+  const gameId = Number(gid || state.admin?.selectedGameId || 0);
+  const fromState = getAdminCalledNumbersFromGameState(gameId);
+  const fromLocal = gameId && adminCalledNumbersLocal.has(gameId)
+    ? normalizeAdminCalledNumbers(adminCalledNumbersLocal.get(gameId))
+    : [];
+  const merged = [];
+  for (const n of [...fromState, ...fromLocal]) {
+    if (!merged.includes(n)) merged.push(n);
+  }
+  return merged;
+}
+
+function setAdminCalledNumbersLocal(gid, numbers) {
+  const gameId = Number(gid || state.admin?.selectedGameId || 0);
+  if (!gameId) return;
+  adminCalledNumbersLocal.set(gameId, normalizeAdminCalledNumbers(numbers));
+}
+
+function addAdminCalledNumberLocal(gid, number) {
+  const gameId = Number(gid || state.admin?.selectedGameId || 0);
+  const n = Number(number);
+  if (!gameId || !Number.isInteger(n) || n < 1 || n > 90) return;
+  const current = getAdminCalledNumbersMerged(gameId);
+  if (!current.includes(n)) current.push(n);
+  setAdminCalledNumbersLocal(gameId, current);
+}
+
+function popAdminCalledNumberLocal(gid) {
+  const gameId = Number(gid || state.admin?.selectedGameId || 0);
+  if (!gameId) return;
+  const current = getAdminCalledNumbersMerged(gameId);
+  if (!current.length) return;
+  current.pop();
+  setAdminCalledNumbersLocal(gameId, current);
+}
+// ADMIN_CALL_STATE_FIX_V5_END
+
 
 
 // ADMIN_CALL_KEYPAD_PHASE2_START
@@ -5786,18 +5841,19 @@ function appendAdminCallDigit(digit) {
 
 function renderAdminCallQuickPanel(options = {}) {
   const gid = Number(state.admin?.selectedGameId || 0);
-  const called = getAdminCalledNumbersForSelectedGame(gid);
-  const last = called.length ? called[called.length - 1] : null;
-  const recent = called.slice(-5).reverse();
+  const calledNumbers = getAdminCalledNumbersMerged(gid);
+  const count = calledNumbers.length;
+  const percent = Math.round((count / 90) * 100);
+  const last = count ? calledNumbers[count - 1] : null;
+  const recent = count ? calledNumbers.slice(-5).reverse() : [];
 
   const lastEl = getEl("adminCallLastNumber");
-  if (lastEl) lastEl.textContent = last ? String(last) : "-";
-
   const recentEl = getEl("adminCallRecentNumbers");
-  if (recentEl) recentEl.textContent = recent.length ? recent.join("، ") : "-";
-
   const progressEl = getEl("adminCallProgressCount");
-  if (progressEl) progressEl.textContent = `${called.length}/90`;
+
+  if (lastEl) lastEl.textContent = last ? String(last) : "-";
+  if (recentEl) recentEl.textContent = recent.length ? recent.join("، ") : "-";
+  if (progressEl) progressEl.textContent = `${count}/90 (${percent}%)`;
 
   if (options.fresh) markAdminLastNumberFresh();
 }
@@ -5865,6 +5921,7 @@ async function adminCallNumber() {
     body: { number, idempotency_key: idem("mini_admin_call") },
   });
 
+  addAdminCalledNumberLocal(gid, number);
   setVal("adminCallNumberInput", "");
   focusAdminCallNumberInput();
   renderAdminCallQuickPanel({ fresh: true });
@@ -5889,6 +5946,7 @@ async function adminUndoCall() {
   });
   setAdminLocalHint("adminCallActionHint", "آخرین عدد بازی با موفقیت حذف شد.", "success");
   await Promise.allSettled([refreshAdminGames(), openLiveGame(gid), refreshCards({ silent: true })]);
+  popAdminCalledNumberLocal(gid);
   renderAdminCallQuickPanel();
 }
 
