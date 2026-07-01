@@ -1918,7 +1918,7 @@ function renderLiveEvents(events) {
         })
         .join("")
     : '<div class="empty">هنوز رویدادی ثبت نشده است.</div>';
-  list.forEach((e) => { pushWinnerNotice(e); pushAdminWinnerNotice(e); });
+  list.forEach((e) => pushWinnerNotice(e));
 }
 
 function renderLive(snapshot) {
@@ -5913,6 +5913,26 @@ function markAdminLastNumberFresh() {
 
 // ADMIN_WINNER_POPUP_V6_3_START
 const adminWinnerNoticeSeen = new Set();
+const ADMIN_WINNER_SEEN_STORAGE_KEY = "davarna_admin_winner_seen_v1";
+
+function loadAdminWinnerSeenKeys() {
+  try {
+    const raw = localStorage.getItem(ADMIN_WINNER_SEEN_STORAGE_KEY);
+    const keys = JSON.parse(raw || "[]");
+    if (Array.isArray(keys)) keys.forEach((key) => adminWinnerNoticeSeen.add(String(key)));
+  } catch (_) {}
+}
+
+function rememberAdminWinnerSeenKey(key) {
+  if (!key) return;
+  adminWinnerNoticeSeen.add(String(key));
+  try {
+    const keys = Array.from(adminWinnerNoticeSeen).slice(-80);
+    localStorage.setItem(ADMIN_WINNER_SEEN_STORAGE_KEY, JSON.stringify(keys));
+  } catch (_) {}
+}
+
+loadAdminWinnerSeenKeys();
 
 function adminWinnerEventKey(event) {
   const payload = event?.payload || {};
@@ -6045,7 +6065,7 @@ function showAdminWinnerPopup(event) {
 
   const key = adminWinnerEventKey(event);
   if (!key || adminWinnerNoticeSeen.has(key)) return;
-  adminWinnerNoticeSeen.add(key);
+  rememberAdminWinnerSeenKey(key);
 
   const payload = event?.payload || {};
   const gameId = Number(event?.game_id || state.selectedGameId || state.admin?.selectedGameId || 0);
