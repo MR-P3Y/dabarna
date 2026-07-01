@@ -6028,6 +6028,7 @@ function ensureAdminWinnerModal() {
       const gid = Number(modal.dataset.gameId || 0);
       closeAdminWinnerModal();
       if (!gid) return;
+      switchToView("games");
       setAdminSelectedGame(gid);
       openLiveGame(gid, { announce: false }).catch((err) => setAdminLocalError("adminActionHint", err));
     }
