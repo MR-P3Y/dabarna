@@ -410,9 +410,22 @@ def _mini_notification(
     created_at: Any,
     severity: str = "info",
     target_view: str = "wallet",
+    target_section: str | None = None,
+    target_type: str | None = None,
+    target_id: int | None = None,
+    action: str | None = None,
+    route_meta: dict[str, Any] | None = None,
     receipt_kind: str | None = None,
     receipt_id: int | None = None,
 ) -> dict[str, Any]:
+    route = {
+        "view": str(target_view),
+        "section": str(target_section or ""),
+        "target_type": str(target_type or ""),
+        "target_id": int(target_id) if target_id is not None else None,
+        "action": str(action or ""),
+        "meta": route_meta if isinstance(route_meta, dict) else {},
+    }
     return {
         "id": str(key),
         "kind": str(kind),
@@ -422,9 +435,23 @@ def _mini_notification(
         "severity": str(severity),
         "created_at": _dt_text(created_at),
         "target_view": str(target_view),
+        "target_section": str(target_section or ""),
+        "target_type": str(target_type or ""),
+        "target_id": int(target_id) if target_id is not None else None,
+        "action": str(action or ""),
+        "route": route,
         "receipt_kind": receipt_kind,
         "receipt_id": int(receipt_id) if receipt_id is not None else None,
     }
+
+
+def _mini_prize_card_id_from_tx(tx: WalletTx) -> int | None:
+    raw = str(getattr(tx, "idempotency_key", "") or "")
+    marker = ":card:"
+    if marker not in raw:
+        return None
+    tail = raw.split(marker, 1)[1].split(":", 1)[0].strip()
+    return int(tail) if tail.isdigit() else None
 
 
 def _safe_user_count(values: Any) -> int:
@@ -2148,6 +2175,8 @@ def mini_my_notifications(
         for tx in tx_rows:
             reason = str(tx.reason)
             if reason in ("PRIZE_COL", "PRIZE_ROW"):
+                game_id = int(tx.ref_id) if tx.ref_id is not None else None
+                card_id = _mini_prize_card_id_from_tx(tx)
                 notifications.append(
                     _mini_notification(
                         key=f"prize:{int(tx.id)}",
@@ -2158,6 +2187,11 @@ def mini_my_notifications(
                         severity="success",
                         created_at=tx.created_at,
                         target_view="cards",
+                        target_section="wins",
+                        target_type="game",
+                        target_id=game_id,
+                        action="open_winning_card",
+                        route_meta={"wallet_tx_id": int(tx.id), "card_id": card_id, "reason": reason},
                         receipt_kind="prize",
                         receipt_id=int(tx.id),
                     )
@@ -2173,6 +2207,10 @@ def mini_my_notifications(
                         severity="info",
                         created_at=tx.created_at,
                         target_view="wallet",
+                        target_section="wallet_history",
+                        target_type="wallet_tx",
+                        target_id=int(tx.id),
+                        action="open_receipt",
                         receipt_kind="wallet_tx",
                         receipt_id=int(tx.id),
                     )
@@ -2198,6 +2236,10 @@ def mini_my_notifications(
                 severity=severity,
                 created_at=row.reviewed_at or row.created_at,
                 target_view="wallet",
+                target_section="bank_deposits",
+                target_type="deposit_request",
+                target_id=int(row.id),
+                action="open_receipt",
                 receipt_kind="bank_deposit",
                 receipt_id=int(row.id),
             )
@@ -2223,6 +2265,10 @@ def mini_my_notifications(
                 severity=severity,
                 created_at=row.reviewed_at or row.created_at,
                 target_view="wallet",
+                target_section="withdraws",
+                target_type="withdraw_request",
+                target_id=int(row.id),
+                action="open_receipt",
                 receipt_kind="withdraw",
                 receipt_id=int(row.id),
             )
@@ -2253,6 +2299,11 @@ def mini_my_notifications(
                 severity=severity,
                 created_at=row.credited_at or row.confirmed_at or row.updated_at or row.created_at,
                 target_view="wallet",
+                target_section="crypto_deposits",
+                target_type="crypto_deposit_request",
+                target_id=int(row.id),
+                action="open_receipt",
+                route_meta={"network": str(row.network), "asset": str(row.asset)},
                 receipt_kind="crypto_deposit",
                 receipt_id=int(row.id),
             )

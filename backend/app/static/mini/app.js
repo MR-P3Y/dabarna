@@ -623,30 +623,154 @@ function showAdminNotify(item) {
 async function openAdminNotifyTarget(item) {
   if (!item) return;
   hideAdminNotify();
-  switchToView("admin");
-  const kind = String(item.kind || "");
-  const id = Number(item.id || 0);
-  if (kind === "withdraw") {
-    await refreshAdminWithdraws();
-    openAdminAccordionFor("adminWithdrawsList", id);
-  } else {
-    await refreshAdminDeposits();
-    openAdminAccordionFor("adminDepositsList", id);
-  }
+  await openNotificationRoute(item);
 }
 
-function openAdminAccordionFor(listId, itemId) {
+function scrollAndHighlight(target) {
+  if (!target) return;
+  target.scrollIntoView({ behavior: "smooth", block: "center" });
+  target.classList.add("admin-notify-highlight");
+  setTimeout(() => target.classList.remove("admin-notify-highlight"), 1800);
+}
+
+function cssAttrValue(value) {
+  const raw = String(value ?? "");
+  if (window.CSS && typeof window.CSS.escape === "function") return window.CSS.escape(raw);
+  return raw.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+}
+
+function openAdminSectionForList(listId) {
   const list = getEl(listId);
   if (!list) return;
   const details = list.closest("details");
   if (details) details.open = true;
-  const attr = listId === "adminWithdrawsList" ? "data-admin-withdraw-id" : "data-admin-deposit-id";
+  return list;
+}
+
+function adminListAttrFor(listId) {
+  const map = {
+    adminDepositsList: "data-admin-deposit-id",
+    adminWithdrawsList: "data-admin-withdraw-id",
+    adminCryptoDepositsList: "data-admin-crypto-id",
+    adminAuditLogsList: "data-admin-audit-id",
+  };
+  return map[listId] || "";
+}
+
+function openAdminAccordionFor(listId, itemId, attrName = "") {
+  const list = openAdminSectionForList(listId);
+  if (!list) return;
+  const attr = attrName || adminListAttrFor(listId);
   const item = itemId ? list.querySelector(`[${attr}="${Number(itemId)}"]`) : null;
   const target = item || list;
-  target.scrollIntoView({ behavior: "smooth", block: "center" });
-  if (item) {
-    item.classList.add("admin-notify-highlight");
-    setTimeout(() => item.classList.remove("admin-notify-highlight"), 1800);
+  scrollAndHighlight(target);
+}
+
+async function openAdminRoute(route) {
+  if (!state.admin.enabled) {
+    switchToView("wallet");
+    showToast("این اعلان مدیریتی است و با نقش فعلی قابل مشاهده نیست.", "error");
+    return;
+  }
+
+  switchToView("admin");
+  const section = String(route.section || "").toLowerCase();
+  const targetType = String(route.targetType || "").toLowerCase();
+  const id = Number(route.targetId || 0);
+
+  if (section === "deposits" || targetType === "deposit_request") {
+    await refreshAdminDeposits();
+    openAdminAccordionFor("adminDepositsList", id);
+    if (route.action === "open_receipt" && id) {
+      await openAdminDepositReceipt(id);
+    }
+    return;
+  }
+
+  if (section === "withdraws" || targetType === "withdraw_request") {
+    await refreshAdminWithdraws();
+    openAdminAccordionFor("adminWithdrawsList", id);
+    return;
+  }
+
+  if (section === "crypto" || section === "crypto_deposits" || targetType === "crypto_deposit_request") {
+    await refreshAdminCryptoDeposits();
+    openAdminAccordionFor("adminCryptoDepositsList", id);
+    return;
+  }
+
+  if (section === "risk" || targetType === "risk_alert") {
+    await refreshAdminRiskAlerts();
+    const list = openAdminSectionForList("adminRiskAlertsList");
+    const riskType = cssAttrValue(route.meta?.target_type || "");
+    const riskId = Number(route.meta?.target_id || id || 0);
+    const target = list?.querySelector(`[data-risk-target-type="${riskType}"][data-risk-target-id="${riskId}"]`) || list;
+    scrollAndHighlight(target);
+    return;
+  }
+
+  if (section === "audit" || targetType === "admin_audit_log") {
+    await refreshAdminAuditLogs();
+    openAdminAccordionFor("adminAuditLogsList", id);
+    return;
+  }
+
+  if (section === "users" || targetType === "user") {
+    openAdminSectionForList("adminUsersProfileBox");
+    const tgId = Number(route.meta?.tg_user_id || route.targetId || 0);
+    if (tgId) {
+      await adminUsersOpenProfile(tgId, { silent: false });
+      scrollAndHighlight(getEl("adminUsersProfileBox"));
+    }
+    return;
+  }
+
+  if (section === "games" || targetType === "game") {
+    if (id) {
+      setAdminSelectedGame(id);
+      switchToView("games");
+      await openLiveGame(id);
+      return;
+    }
+  }
+
+  await refreshAdminPanel();
+  scrollAndHighlight(getEl("adminOpsDashboard"));
+}
+
+async function openNotificationRoute(item) {
+  const route = notificationRoute(item || {});
+  const view = String(route.view || "").toLowerCase();
+  const section = String(route.section || "").toLowerCase();
+  const targetType = String(route.targetType || "").toLowerCase();
+  const id = Number(route.targetId || 0);
+
+  if (view === "admin") {
+    await openAdminRoute(route);
+    return;
+  }
+
+  if (view === "games" || section === "live" || route.action === "open_live_game") {
+    switchToView("games");
+    if (id) await openLiveGame(id);
+    return;
+  }
+
+  if (view === "cards" || section === "wins" || route.action === "open_winning_card") {
+    switchToView("cards");
+    await refreshCards({ silent: true });
+    const gameId = id || Number(route.meta?.game_id || 0);
+    const cardId = Number(route.meta?.card_id || 0);
+    if (gameId) {
+      await openHistoryModalForGame(gameId, { cardId, source: "notification" });
+    }
+    return;
+  }
+
+  switchToView("wallet");
+  await refreshWallet();
+  if (route.action === "open_receipt" && route.receiptKind && route.receiptId) {
+    await openReceiptModal(route.receiptKind, route.receiptId);
   }
 }
 
@@ -836,6 +960,21 @@ function notificationSeverityLabel(severity) {
   return "اطلاع";
 }
 
+function notificationRoute(item) {
+  const route = item?.route && typeof item.route === "object" ? item.route : {};
+  const meta = route.meta && typeof route.meta === "object" ? route.meta : {};
+  return {
+    view: String(route.view || item?.target_view || "wallet").trim() || "wallet",
+    section: String(route.section || item?.target_section || "").trim(),
+    targetType: String(route.target_type || item?.target_type || "").trim(),
+    targetId: Number(route.target_id ?? item?.target_id ?? 0) || 0,
+    action: String(route.action || item?.action || "").trim(),
+    meta,
+    receiptKind: String(item?.receipt_kind || ""),
+    receiptId: Number(item?.receipt_id || 0),
+  };
+}
+
 function updateNotificationBadge() {
   const badge = getEl("notificationsBadge");
   const count = (state.notifications || []).filter((item) => !state.notificationReadIds.has(String(item?.id || ""))).length;
@@ -861,7 +1000,7 @@ function renderNotificationCenter() {
     return;
   }
   root.innerHTML = items
-    .map((item) => {
+    .map((item, idx) => {
       const id = String(item?.id || "");
       const read = state.notificationReadIds.has(id);
       const severity = String(item?.severity || "info").toLowerCase();
@@ -871,7 +1010,7 @@ function renderNotificationCenter() {
         ? `<button class="small-btn notification-receipt-btn" data-kind="${safeText(receiptKind)}" data-id="${safeText(receiptId)}" type="button">رسید</button>`
         : "";
       return `
-        <div class="notification-item ${read ? "is-read" : "is-unread"}" data-id="${safeText(id)}" data-target="${safeText(item?.target_view || "wallet")}">
+        <div class="notification-item ${read ? "is-read" : "is-unread"}" data-id="${safeText(id)}" data-index="${safeText(String(idx))}">
           <div class="notification-item-main">
             <span class="notification-status ${safeText(severity)}">${safeText(read ? "خوانده شد" : "در انتظار")}</span>
             <strong>${safeText(item?.title || "اعلان")}</strong>
@@ -898,9 +1037,10 @@ function renderNotificationCenter() {
     };
     row.querySelector(".notification-open-btn")?.addEventListener("click", () => {
       markRead();
-      const target = String(row.getAttribute("data-target") || "wallet");
       closeNotificationCenter();
-      switchToView(["games", "cards", "wallet", "admin"].includes(target) ? target : "wallet");
+      const idx = Number(row.getAttribute("data-index") || "-1");
+      const item = Array.isArray(state.notifications) ? state.notifications[idx] : null;
+      openNotificationRoute(item).catch((e) => showToast(localizeApiError(e?.message || e), "error"));
     });
     row.querySelector(".notification-receipt-btn")?.addEventListener("click", (ev) => {
       ev.stopPropagation();
@@ -5216,7 +5356,7 @@ function renderAdminCryptoDeposits(payload) {
     return;
   }
   root.innerHTML = items.map((item) => `
-    <div class="history-item">
+    <div class="history-item" data-admin-crypto-id="${safeText(item.id)}">
       <strong>فاکتور رمزارز #${safeText(item.id)} | ${safeText(cryptoStatusLabel(item.status))}</strong>
       <div class="history-meta">
         مبلغ کیف پول: ${safeText(toman(item.amount_toman || 0))}<br />
@@ -5461,6 +5601,19 @@ async function checkAdminFinanceNotifications(options = {}) {
         id: latestDepId,
         title: `واریزی #${latestDepId} | ${toman(latestDep?.amount || 0)}`,
         meta: `کاربر: ${latestDep?.tg_username || latestDep?.tg_user_id || latestDep?.user_id || "-"} | لمس برای بررسی`,
+        target_view: "admin",
+        target_section: "deposits",
+        target_type: "deposit_request",
+        target_id: latestDepId,
+        action: latestDep?.receipt_uploaded ? "open_receipt" : "highlight",
+        route: {
+          view: "admin",
+          section: "deposits",
+          target_type: "deposit_request",
+          target_id: latestDepId,
+          action: latestDep?.receipt_uploaded ? "open_receipt" : "highlight",
+          meta: { user_id: Number(latestDep?.user_id || 0), tg_user_id: Number(latestDep?.tg_user_id || 0) },
+        },
       });
       state.admin.notify.lastDepositId = latestDepId;
     }
@@ -5470,6 +5623,19 @@ async function checkAdminFinanceNotifications(options = {}) {
         id: latestWdrId,
         title: `برداشت #${latestWdrId} | ${toman(latestWdr?.amount || 0)}`,
         meta: `نیاز به بررسی کیف پول | لمس برای مشاهده`,
+        target_view: "admin",
+        target_section: "withdraws",
+        target_type: "withdraw_request",
+        target_id: latestWdrId,
+        action: "highlight",
+        route: {
+          view: "admin",
+          section: "withdraws",
+          target_type: "withdraw_request",
+          target_id: latestWdrId,
+          action: "highlight",
+          meta: { user_id: Number(latestWdr?.user_id || 0), tg_user_id: Number(latestWdr?.tg_user_id || 0) },
+        },
       });
       state.admin.notify.lastWithdrawId = latestWdrId;
     }
@@ -6385,7 +6551,7 @@ function renderAdminAuditLogs(payload) {
         summaryParts.push(toman(details.amount || details.amount_toman || details.requested_amount));
       }
       return `
-        <div class="history-item admin-audit-item">
+        <div class="history-item admin-audit-item" data-admin-audit-id="${safeText(item.id)}">
           <strong>${safeText(adminAuditActionLabel(item.action))}</strong>
           <div class="history-meta">
             ادمین/کاربر: ${safeText(item.actor_label || item.actor_tg_user_id || item.actor_user_id || "-")}<br />
@@ -6416,7 +6582,7 @@ function renderAdminRiskAlerts(payload) {
   }
   root.innerHTML = items
     .map((item) => `
-      <div class="history-item admin-risk-item severity-${safeText(String(item.severity || "info").toLowerCase())}">
+      <div class="history-item admin-risk-item severity-${safeText(String(item.severity || "info").toLowerCase())}" data-risk-target-type="${safeText(item.target_type || "")}" data-risk-target-id="${safeText(item.target_id || 0)}">
         <strong>${safeText(item.title || "-")} <span class="admin-risk-severity">${safeText(adminRiskSeverityLabel(item.severity))}</span></strong>
         <div class="history-meta">
           ${safeText(item.body || "-")}<br />
