@@ -6167,6 +6167,37 @@ html[data-theme="light"] .live-game-bar {
   font-size: 0.78rem;
 }
 
+.live-status-badge {
+  display: inline-grid;
+  place-items: center;
+  min-height: 18px;
+  padding: 1px 7px;
+  margin-inline-end: 4px;
+  border-radius: 999px;
+  color: #fff;
+  background: #64748b;
+  font-style: normal;
+  font-size: 0.64rem;
+  font-weight: 900;
+  vertical-align: middle;
+}
+
+.live-status-badge.running {
+  background: #dc2626;
+}
+
+.live-status-badge.lobby {
+  background: #0f766e;
+}
+
+.live-status-badge.ended {
+  background: #64748b;
+}
+
+.live-status-badge.cancelled {
+  background: #7f1d1d;
+}
+
 .live-game-bar-summary-text small {
   color: var(--muted);
   font-size: 0.68rem;

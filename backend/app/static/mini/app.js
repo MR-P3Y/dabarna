@@ -1988,7 +1988,7 @@ function renderLiveGameBar(items = state.gamesCache) {
     bar.innerHTML = "";
     return;
   }
-  const { gid, lastNumber, lastFiveNumbers, myCards } = liveBarGameInfo(game);
+  const { gid, lastNumber, lastFiveNumbers, myCards, statusKey } = liveBarGameInfo(game);
   state.latestLiveBarGameId = gid;
   bar.classList.remove("hidden");
   bar.classList.toggle("is-expanded", Boolean(state.liveBarExpanded));
@@ -2013,7 +2013,7 @@ function renderLiveGameBar(items = state.gamesCache) {
   bar.innerHTML = `
     <button class="live-game-bar-summary" type="button" aria-expanded="${state.liveBarExpanded ? "true" : "false"}">
       <span class="live-game-bar-summary-text">
-        <strong>🎲 ${safeText(summaryTitle)}</strong>
+        <strong><i class="live-status-badge ${safeText(statusKey.toLowerCase())}">${safeText(statusLabel(statusKey))}</i> 🎲 ${safeText(summaryTitle)}</strong>
         <small>${safeText(summaryDetail)}</small>
       </span>
       <b>${state.liveBarExpanded ? "×" : "▾"}</b>
