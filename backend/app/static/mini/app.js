@@ -1925,9 +1925,10 @@ function liveBarGameInfo(game) {
   const st = snap?.state || {};
   const called = Array.isArray(st.called_numbers) ? st.called_numbers : [];
   const lastNumber = st.last_number ?? (called.length ? called[called.length - 1] : null);
+  const lastFiveNumbers = called.slice(-5).reverse();
   const statusKey = String(st.status || game?.status || "").toUpperCase();
   const myCards = Number(st.my_cards_count ?? state.myCardsByGame.get(gid) ?? 0);
-  return { gid, snap, st, lastNumber, statusKey, myCards };
+  return { gid, snap, st, called, lastNumber, lastFiveNumbers, statusKey, myCards };
 }
 
 function sortLiveBarGames(items = state.gamesCache) {
@@ -1987,17 +1988,14 @@ function renderLiveGameBar(items = state.gamesCache) {
     bar.innerHTML = "";
     return;
   }
-  const { gid, lastNumber, myCards, statusKey } = liveBarGameInfo(game);
-  const totalActive = liveGames.length || 1;
-  const totalMyCards = liveGames.reduce((sum, g) => sum + Number(liveBarGameInfo(g).myCards || 0), 0);
+  const { gid, lastNumber, lastFiveNumbers, myCards } = liveBarGameInfo(game);
   state.latestLiveBarGameId = gid;
   bar.classList.remove("hidden");
   bar.classList.toggle("is-expanded", Boolean(state.liveBarExpanded));
-  const summaryParts = [
-    `${toFaDigits(totalActive)} بازی فعال`,
-    totalMyCards > 0 ? `کارت من ${toFaDigits(totalMyCards)}` : "",
-    `#${toFaDigits(gid)} عدد ${toFaDigits(lastNumber ?? "-")}`,
-  ].filter(Boolean);
+  const lastFiveText = lastFiveNumbers.length ? lastFiveNumbers.map((n) => toFaDigits(n)).join("، ") : "هنوز اعلام نشده";
+  const myCardsText = myCards > 0 ? ` · کارت‌های من: ${toFaDigits(myCards)}` : "";
+  const summaryTitle = `بازی #${toFaDigits(gid)}${myCardsText}`;
+  const summaryDetail = `آخرین عدد: ${toFaDigits(lastNumber ?? "-")} · ۵ عدد آخر: ${lastFiveText}`;
   const rows = liveGames.slice(0, 5).map((g) => {
     const info = liveBarGameInfo(g);
     const canBuy = info.statusKey === "LOBBY";
@@ -2006,24 +2004,23 @@ function renderLiveGameBar(items = state.gamesCache) {
       <button class="live-bar-row" data-game-id="${safeText(info.gid)}" data-buy="${canBuy && info.myCards <= 0 ? "1" : "0"}" type="button">
         <b>#${safeText(toFaDigits(info.gid))}</b>
         <span>${safeText(statusLabel(info.statusKey))}</span>
-        <span>عدد ${safeText(toFaDigits(info.lastNumber ?? "-"))}</span>
-        <span>کارت ${safeText(toFaDigits(info.myCards))}</span>
+        <span>آخرین عدد: ${safeText(toFaDigits(info.lastNumber ?? "-"))}</span>
+        <span>کارت من: ${safeText(toFaDigits(info.myCards))}</span>
         <strong>${actionText}</strong>
       </button>
     `;
   }).join("");
   bar.innerHTML = `
     <button class="live-game-bar-summary" type="button" aria-expanded="${state.liveBarExpanded ? "true" : "false"}">
-      <span>🎲 ${safeText(summaryParts.join(" · "))}</span>
+      <span class="live-game-bar-summary-text">
+        <strong>🎲 ${safeText(summaryTitle)}</strong>
+        <small>${safeText(summaryDetail)}</small>
+      </span>
       <b>${state.liveBarExpanded ? "×" : "▾"}</b>
     </button>
     <div class="live-game-bar-list">${rows}</div>
   `;
   bar.querySelector(".live-game-bar-summary")?.addEventListener("click", () => {
-    if (totalActive <= 1) {
-      openLiveBarGame(gid).catch((e) => setLocalError("liveActionHint", e));
-      return;
-    }
     state.liveBarExpanded = !state.liveBarExpanded;
     renderLiveGameBar(items);
   });
