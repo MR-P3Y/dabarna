@@ -281,11 +281,6 @@ def _get_game_or_404(db: Session, game_id: int) -> Game:
 def _require_game_admin_access(db: Session, game_id: int, admin: AdminIdentity) -> Game:
     _require_game_role(admin)
     game = _get_game_or_404(db, game_id)
-    if admin.scope == AdminScope.SUPER_ADMIN:
-        return game
-    admin_uid = _require_admin_user_id(admin)
-    if int(game.admin_user_id) != int(admin_uid):
-        raise HTTPException(status_code=403, detail="only game admin can manage live link")
     return game
 
 
@@ -1575,8 +1570,6 @@ def bot_admin_ops_dashboard(
     _require_any_admin_role(admin)
 
     game_query = select(Game).where(Game.status.in_(["LOBBY", "RUNNING"])).order_by(Game.id.desc()).limit(6)
-    if admin.scope != AdminScope.SUPER_ADMIN and admin.has_any_role("GAME_OPERATOR") and not admin.has_any_role("ADMIN"):
-        game_query = game_query.where(Game.admin_user_id == _require_admin_user_id(admin))
     games = db.execute(game_query).scalars().all()
 
     active_games: list[dict[str, Any]] = []
@@ -1649,15 +1642,6 @@ def bot_admin_audit_logs(
         .limit(int(limit))
         .offset(int(offset))
     )
-    if not admin.has_any_role("ADMIN", "SUPER_ADMIN"):
-        allowed_actions: list[str] = []
-        if admin.has_any_role("GAME_OPERATOR"):
-            allowed_actions.extend(["game.%", "risk.buy.%"])
-        if admin.has_any_role("FINANCE_ADMIN"):
-            allowed_actions.extend(["deposit.%", "withdraw.%", "crypto.%", "wallet.%", "risk.buy.%"])
-        if allowed_actions:
-            from sqlalchemy import or_  # local import keeps the router import list stable
-            stmt = stmt.where(or_(*[AdminAuditLog.action.like(pattern) for pattern in allowed_actions]))
     rows = db.execute(stmt).all()
     items: list[dict[str, Any]] = []
     for log_row, user in rows:
@@ -1687,121 +1671,119 @@ def bot_admin_risk_alerts(
     alerts: list[dict[str, Any]] = []
     now = datetime.utcnow()
 
-    if admin.has_any_role("ADMIN", "SUPER_ADMIN", "GAME_OPERATOR"):
-        purchase_rows = db.execute(
-            select(
-                GamePurchase.user_id,
-                GamePurchase.game_id,
-                func.count(GamePurchase.id).label("purchase_count"),
-                func.coalesce(func.sum(GamePurchase.qty), 0).label("qty_sum"),
-                func.coalesce(func.sum(GamePurchase.total_price), 0).label("amount_sum"),
-                func.max(GamePurchase.created_at).label("last_at"),
-            )
-            .where(GamePurchase.created_at >= now - timedelta(minutes=30))
-            .group_by(GamePurchase.user_id, GamePurchase.game_id)
-            .order_by(func.max(GamePurchase.created_at).desc())
-            .limit(40)
-        ).all()
-        for user_id, game_id, purchase_count, qty_sum, amount_sum, last_at in purchase_rows:
-            if int(qty_sum or 0) < 10 and int(purchase_count or 0) < 3:
-                continue
-            user = db.get(User, int(user_id))
-            alerts.append(
-                {
-                    "type": "rapid_purchase",
-                    "severity": "warning",
-                    "title": "خرید پرتکرار کارت",
-                    "body": f"{_bot_admin_user_label(user)} در ۳۰ دقیقه اخیر {int(qty_sum or 0)} کارت در بازی #{int(game_id)} خریده است.",
-                    "target_type": "game",
-                    "target_id": int(game_id),
-                    "created_at": str(last_at) if last_at else None,
-                    "meta": {"user_id": int(user_id), "amount_sum": int(amount_sum or 0), "purchase_count": int(purchase_count or 0)},
-                }
-            )
+    purchase_rows = db.execute(
+        select(
+            GamePurchase.user_id,
+            GamePurchase.game_id,
+            func.count(GamePurchase.id).label("purchase_count"),
+            func.coalesce(func.sum(GamePurchase.qty), 0).label("qty_sum"),
+            func.coalesce(func.sum(GamePurchase.total_price), 0).label("amount_sum"),
+            func.max(GamePurchase.created_at).label("last_at"),
+        )
+        .where(GamePurchase.created_at >= now - timedelta(minutes=30))
+        .group_by(GamePurchase.user_id, GamePurchase.game_id)
+        .order_by(func.max(GamePurchase.created_at).desc())
+        .limit(40)
+    ).all()
+    for user_id, game_id, purchase_count, qty_sum, amount_sum, last_at in purchase_rows:
+        if int(qty_sum or 0) < 10 and int(purchase_count or 0) < 3:
+            continue
+        user = db.get(User, int(user_id))
+        alerts.append(
+            {
+                "type": "rapid_purchase",
+                "severity": "warning",
+                "title": "خرید پرتکرار کارت",
+                "body": f"{_bot_admin_user_label(user)} در ۳۰ دقیقه اخیر {int(qty_sum or 0)} کارت در بازی #{int(game_id)} خریده است.",
+                "target_type": "game",
+                "target_id": int(game_id),
+                "created_at": str(last_at) if last_at else None,
+                "meta": {"user_id": int(user_id), "amount_sum": int(amount_sum or 0), "purchase_count": int(purchase_count or 0)},
+            }
+        )
 
-        insufficient_logs = db.execute(
-            select(AdminAuditLog, User)
-            .outerjoin(User, User.id == AdminAuditLog.actor_user_id)
-            .where(
-                AdminAuditLog.action == "risk.buy.insufficient_balance",
-                AdminAuditLog.created_at >= now - timedelta(hours=24),
-            )
-            .order_by(AdminAuditLog.id.desc())
-            .limit(20)
-        ).all()
-        for log_row, user in insufficient_logs:
-            details = log_row.details_json if isinstance(log_row.details_json, dict) else {}
-            alerts.append(
-                {
-                    "type": "insufficient_balance",
-                    "severity": "warning",
-                    "title": "تلاش خرید با موجودی ناکافی",
-                    "body": f"{_bot_admin_user_label(user)} برای بازی #{details.get('game_id') or log_row.target_id or '-'} موجودی کافی نداشت.",
-                    "target_type": str(log_row.target_type),
-                    "target_id": int(log_row.target_id) if log_row.target_id is not None else None,
-                    "created_at": str(log_row.created_at) if log_row.created_at else None,
-                    "meta": details,
-                }
-            )
+    insufficient_logs = db.execute(
+        select(AdminAuditLog, User)
+        .outerjoin(User, User.id == AdminAuditLog.actor_user_id)
+        .where(
+            AdminAuditLog.action == "risk.buy.insufficient_balance",
+            AdminAuditLog.created_at >= now - timedelta(hours=24),
+        )
+        .order_by(AdminAuditLog.id.desc())
+        .limit(20)
+    ).all()
+    for log_row, user in insufficient_logs:
+        details = log_row.details_json if isinstance(log_row.details_json, dict) else {}
+        alerts.append(
+            {
+                "type": "insufficient_balance",
+                "severity": "warning",
+                "title": "تلاش خرید با موجودی ناکافی",
+                "body": f"{_bot_admin_user_label(user)} برای بازی #{details.get('game_id') or log_row.target_id or '-'} موجودی کافی نداشت.",
+                "target_type": str(log_row.target_type),
+                "target_id": int(log_row.target_id) if log_row.target_id is not None else None,
+                "created_at": str(log_row.created_at) if log_row.created_at else None,
+                "meta": details,
+            }
+        )
 
-    if admin.has_any_role("ADMIN", "SUPER_ADMIN", "FINANCE_ADMIN"):
-        crypto_rows = db.execute(
-            select(CryptoDepositRequest, User)
-            .join(User, User.id == CryptoDepositRequest.user_id)
-            .where(CryptoDepositRequest.status.in_(["NEEDS_REVIEW", "CONFIRMING"]))
-            .order_by(CryptoDepositRequest.id.desc())
-            .limit(20)
-        ).all()
-        for invoice, user in crypto_rows:
-            variance = str(invoice.payment_variance or "")
-            severity = "danger" if str(invoice.status) == "NEEDS_REVIEW" or variance in {"UNDERPAID", "OVERPAID"} else "info"
-            alerts.append(
-                {
-                    "type": "crypto_review",
-                    "severity": severity,
-                    "title": "پرداخت کریپتو نیازمند توجه",
-                    "body": f"فاکتور #{int(invoice.id)} برای {_bot_admin_user_label(user)} در وضعیت {str(invoice.status)} است.",
-                    "target_type": "crypto_deposit_request",
-                    "target_id": int(invoice.id),
-                    "created_at": str(invoice.updated_at or invoice.created_at),
-                    "meta": {
-                        "network": str(invoice.network),
-                        "asset": str(invoice.asset),
-                        "payment_variance": variance or None,
-                        "tx_hash": invoice.tx_hash,
-                        "amount_toman": int(invoice.amount_toman),
-                    },
-                }
-            )
+    crypto_rows = db.execute(
+        select(CryptoDepositRequest, User)
+        .join(User, User.id == CryptoDepositRequest.user_id)
+        .where(CryptoDepositRequest.status.in_(["NEEDS_REVIEW", "CONFIRMING"]))
+        .order_by(CryptoDepositRequest.id.desc())
+        .limit(20)
+    ).all()
+    for invoice, user in crypto_rows:
+        variance = str(invoice.payment_variance or "")
+        severity = "danger" if str(invoice.status) == "NEEDS_REVIEW" or variance in {"UNDERPAID", "OVERPAID"} else "info"
+        alerts.append(
+            {
+                "type": "crypto_review",
+                "severity": severity,
+                "title": "پرداخت کریپتو نیازمند توجه",
+                "body": f"فاکتور #{int(invoice.id)} برای {_bot_admin_user_label(user)} در وضعیت {str(invoice.status)} است.",
+                "target_type": "crypto_deposit_request",
+                "target_id": int(invoice.id),
+                "created_at": str(invoice.updated_at or invoice.created_at),
+                "meta": {
+                    "network": str(invoice.network),
+                    "asset": str(invoice.asset),
+                    "payment_variance": variance or None,
+                    "tx_hash": invoice.tx_hash,
+                    "amount_toman": int(invoice.amount_toman),
+                },
+            }
+        )
 
-        try:
-            health = CryptoHealthService.check()
-            if not bool(health.get("ok", False)) or bool(health.get("degraded", False)):
-                alerts.append(
-                    {
-                        "type": "crypto_provider",
-                        "severity": "warning" if bool(health.get("degraded", False)) else "danger",
-                        "title": "اختلال provider کریپتو",
-                        "body": "یکی از مسیرهای نرخ یا شبکه کریپتو نیازمند بررسی است.",
-                        "target_type": "crypto_health",
-                        "target_id": None,
-                        "created_at": now.isoformat(timespec="seconds"),
-                        "meta": health,
-                    }
-                )
-        except Exception as exc:
+    try:
+        health = CryptoHealthService.check()
+        if not bool(health.get("ok", False)) or bool(health.get("degraded", False)):
             alerts.append(
                 {
                     "type": "crypto_provider",
-                    "severity": "danger",
-                    "title": "خطای بررسی سلامت کریپتو",
-                    "body": str(exc)[:220],
+                    "severity": "warning" if bool(health.get("degraded", False)) else "danger",
+                    "title": "اختلال provider کریپتو",
+                    "body": "یکی از مسیرهای نرخ یا شبکه کریپتو نیازمند بررسی است.",
                     "target_type": "crypto_health",
                     "target_id": None,
                     "created_at": now.isoformat(timespec="seconds"),
-                    "meta": {},
+                    "meta": health,
                 }
             )
+    except Exception as exc:
+        alerts.append(
+            {
+                "type": "crypto_provider",
+                "severity": "danger",
+                "title": "خطای بررسی سلامت کریپتو",
+                "body": str(exc)[:220],
+                "target_type": "crypto_health",
+                "target_id": None,
+                "created_at": now.isoformat(timespec="seconds"),
+                "meta": {},
+            }
+        )
 
     alerts.sort(key=lambda item: str(item.get("created_at") or ""), reverse=True)
     return {"total": len(alerts), "items": alerts[:80], "generated_at": now.isoformat(timespec="seconds")}
@@ -2448,10 +2430,6 @@ def list_bot_admin_games(
     if tg_topic_id is not None:
         where.append("tg_topic_id = :tg_topic_id")
         params["tg_topic_id"] = int(tg_topic_id)
-    if admin.scope != AdminScope.SUPER_ADMIN:
-        where.append("admin_user_id = :admin_user_id")
-        params["admin_user_id"] = _require_admin_user_id(admin)
-
     total_row = db.execute(
         text(f"""
             SELECT COUNT(*) AS c

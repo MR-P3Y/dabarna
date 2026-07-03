@@ -20,6 +20,7 @@ from bot.middlewares.user_forum_isolation import UserForumIsolationMiddleware
 from bot.middlewares.blocked_user import BlockedUserMiddleware
 
 from bot.services.api_client import ApiClient
+from bot.services.admin_acl import sync_dynamic_admin_roles
 from bot.workers.notifier import notifier_loop
 
 # routers...
@@ -88,6 +89,33 @@ async def _sync_bot_profile_texts(bot: Bot) -> None:
                 language_code or "default",
                 exc,
             )
+
+
+async def _sync_admin_roles_from_backend(api: ApiClient) -> None:
+    try:
+        out = await api.super_admin_list_admins()
+    except Exception as exc:
+        logger.warning("admin role startup sync skipped: %s", exc)
+        return
+    raw_items = out.get("items") if isinstance(out, dict) else []
+    if not isinstance(raw_items, list):
+        return
+    role_map: dict[int, list[str]] = {}
+    for item in raw_items:
+        if not isinstance(item, dict):
+            continue
+        try:
+            tg_user_id = int(item.get("tg_user_id") or 0)
+        except Exception:
+            tg_user_id = 0
+        if tg_user_id <= 0:
+            continue
+        roles = [str(role).upper() for role in (item.get("roles") or []) if str(role).strip()]
+        if roles:
+            role_map[tg_user_id] = roles
+    if role_map:
+        sync_dynamic_admin_roles(role_map)
+        logger.info("admin role startup sync completed: count=%d", len(role_map))
 
 
 def _webhook_url() -> str:
@@ -166,6 +194,8 @@ async def main():
     )
     dp.workflow_data["http"] = session
     dp.workflow_data["api"] = api
+
+    await _sync_admin_roles_from_backend(api)
 
     # Start background notifier worker after Bot/Dispatcher/ApiClient are ready.
     notifier_task = asyncio.create_task(

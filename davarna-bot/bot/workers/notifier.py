@@ -367,19 +367,25 @@ async def _fmt_winner_rows(bot: Bot, grouped: dict[int, list[tuple[int, int]]]) 
     return "\n".join(lines)
 
 
-def _winners_topic_kb():
+def _winners_topic_kb(game_id: int | None = None):
     kb = InlineKeyboardBuilder()
+    if game_id is not None and int(game_id) > 0:
+        kb.button(text="🏆 مشاهده کارت‌های برنده همین بازی", callback_data=f"admin:games:winners:{int(game_id)}:ENDED:0")
+        kb.button(text="🧾 گزارش بازی", callback_data=f"admin:games:report:{int(game_id)}:ENDED:0")
     kb.button(text="🏆 آرشیو کارت‌های برنده", callback_data="admin:games:winners:archive:0")
     kb.button(text="🛠 ادمین بازی", callback_data="admin:games")
+    kb.button(text="📡 داشبورد عملیات", callback_data="admin:ops:dashboard")
     kb.adjust(1)
     return kb.as_markup()
 
 
 def _games_topic_kb(game_id: int):
     kb = InlineKeyboardBuilder()
-    kb.button(text="🛠 ادمین بازی", callback_data="admin:games")
+    kb.button(text="👁 مشاهده بازی", callback_data=f"admin:games:view:{int(game_id)}:LOBBY|RUNNING|ENDED:0")
     kb.button(text="📡 مانیتور بازی", callback_data=f"admin:games:monitor:{int(game_id)}:LOBBY|RUNNING|ENDED:0")
+    kb.button(text="🛠 ادمین بازی", callback_data="admin:games")
     kb.button(text="🏆 آرشیو کارت‌های برنده", callback_data="admin:games:winners:archive:0")
+    kb.button(text="📡 داشبورد عملیات", callback_data="admin:ops:dashboard")
     kb.adjust(1)
     return kb.as_markup()
 
@@ -1169,7 +1175,7 @@ async def _queue_prize_notifications(
             bot,
             name="winners",
             text=admin_text,
-            reply_markup=_winners_topic_kb(),
+            reply_markup=_winners_topic_kb(game_id),
             parse_mode="HTML",
         )
         if sent_to_topic:

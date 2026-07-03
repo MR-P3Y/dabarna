@@ -181,13 +181,6 @@ async def admin_ops_risk(
         return
 
     items = out.get("items") or []
-    if not (is_super_admin or is_user_admin):
-        allowed_types: set[str] = set()
-        if is_game_admin:
-            allowed_types.update({"rapid_purchase", "insufficient_balance"})
-        if is_finance_admin:
-            allowed_types.update({"crypto_review", "crypto_provider"})
-        items = [item for item in items if str(item.get("type") or "") in allowed_types]
     if not items:
         text = "هشدار فعالی ثبت نشده است."
     else:
@@ -234,16 +227,6 @@ async def admin_ops_audit(
         return
 
     items = out.get("items") or []
-    if not (is_super_admin or is_user_admin):
-        filtered: list[dict] = []
-        for item in items:
-            action = str(item.get("action") or "")
-            if is_game_admin and (action.startswith("game.") or action.startswith("risk.buy.")):
-                filtered.append(item)
-                continue
-            if is_finance_admin and action.startswith(("deposit.", "withdraw.", "crypto.", "wallet.", "risk.buy.")):
-                filtered.append(item)
-        items = filtered
     if not items:
         text = "لاگی برای نمایش وجود ندارد."
     else:

@@ -60,6 +60,7 @@ def admin_crypto_list_kb(items: list[dict]):
 def admin_crypto_item_kb(*, invoice_id: int, status: str, tg_user_id: int | None = None):
     kb = InlineKeyboardBuilder()
     normalized = str(status or "").upper()
+    kb.button(text="👁 مشاهده فاکتور", callback_data=f"admin:crypto:view:{int(invoice_id)}")
     if tg_user_id and int(tg_user_id) > 0:
         kb.button(
             text="👤 مشاهده پروفایل کاربر",
@@ -69,5 +70,6 @@ def admin_crypto_item_kb(*, invoice_id: int, status: str, tg_user_id: int | None
         kb.button(text="✅ تایید و شارژ کیف پول", callback_data=f"admin:crypto:approve:{int(invoice_id)}")
         kb.button(text="❌ رد واریز", callback_data=f"admin:crypto:reject:{int(invoice_id)}")
     kb.button(text="⬅️ لیست رمزارز", callback_data="admin:crypto:pending")
+    kb.button(text="📡 داشبورد عملیات", callback_data="admin:ops:dashboard")
     kb.adjust(1)
     return kb.as_markup()

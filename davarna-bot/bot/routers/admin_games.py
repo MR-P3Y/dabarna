@@ -794,15 +794,14 @@ async def _open_create_price_step(
 
 
 async def _render_games_list(cq: CallbackQuery, api: ApiClient, *, status: str, offset: int):
-    group_id = _default_games_group_id()
-    res = await api.admin_list_games(status=status, limit=PAGE_SIZE + 1, offset=offset, tg_group_id=group_id)
+    res = await api.admin_list_games(status=status, limit=PAGE_SIZE + 1, offset=offset)
     raw_items = res.get("items") or res.get("games") or []
     has_next = len(raw_items) > PAGE_SIZE
     items = raw_items[:PAGE_SIZE]
 
     if not items and offset > 0:
         offset = max(0, offset - PAGE_SIZE)
-        res = await api.admin_list_games(status=status, limit=PAGE_SIZE + 1, offset=offset, tg_group_id=group_id)
+        res = await api.admin_list_games(status=status, limit=PAGE_SIZE + 1, offset=offset)
         raw_items = res.get("items") or res.get("games") or []
         has_next = len(raw_items) > PAGE_SIZE
         items = raw_items[:PAGE_SIZE]
@@ -830,9 +829,11 @@ async def _render_games_list(cq: CallbackQuery, api: ApiClient, *, status: str, 
         st_fa = _fa_status(str(g.get("status") or ""))
         price = _to_int(str(g.get("card_price") or ""), 0)
         pool = _to_int(str(g.get("prize_pool") or ""), 0)
+        group_id = g.get("tg_group_id")
         topic_id = g.get("tg_topic_id")
+        group_tag = f" | گروه {group_id}" if group_id is not None else ""
         topic_tag = f" | 🧵 {topic_id}" if topic_id is not None else ""
-        lines.append(f"• 🎮 <b>#{gid}</b> | {title}{topic_tag} | <b>{st_fa}</b> | 💳 {price:,} | 🎁 {pool:,}")
+        lines.append(f"• 🎮 <b>#{gid}</b> | {title}{group_tag}{topic_tag} | <b>{st_fa}</b> | 💳 {price:,} | 🎁 {pool:,}")
 
     await safe_edit_or_send(
         cq.message,
@@ -843,15 +844,14 @@ async def _render_games_list(cq: CallbackQuery, api: ApiClient, *, status: str, 
 
 
 async def _render_winners_archive(cq: CallbackQuery, api: ApiClient, *, offset: int):
-    group_id = _default_games_group_id()
-    res = await api.admin_list_games(status="ENDED", limit=PAGE_SIZE + 1, offset=offset, tg_group_id=group_id)
+    res = await api.admin_list_games(status="ENDED", limit=PAGE_SIZE + 1, offset=offset)
     raw_items = res.get("items") or res.get("games") or []
     has_next = len(raw_items) > PAGE_SIZE
     items = raw_items[:PAGE_SIZE]
 
     if not items and offset > 0:
         offset = max(0, offset - PAGE_SIZE)
-        res = await api.admin_list_games(status="ENDED", limit=PAGE_SIZE + 1, offset=offset, tg_group_id=group_id)
+        res = await api.admin_list_games(status="ENDED", limit=PAGE_SIZE + 1, offset=offset)
         raw_items = res.get("items") or res.get("games") or []
         has_next = len(raw_items) > PAGE_SIZE
         items = raw_items[:PAGE_SIZE]

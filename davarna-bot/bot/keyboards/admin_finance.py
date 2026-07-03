@@ -129,17 +129,19 @@ def withdraw_admin_alert_kb(*, withdraw_id: int, tg_user_id: int):
     kb.button(text="🔄 تازه‌سازی موجودی", callback_data=f"admin:withdraw:live:{withdraw_id}:{tg_user_id}")
     kb.button(text="✅ تایید برداشت", callback_data=f"admin:withdraw:approve:{withdraw_id}:PENDING:0")
     kb.button(text="❌ رد برداشت", callback_data=f"admin:withdraw:reject:{withdraw_id}:PENDING:0")
+    kb.button(text="📡 داشبورد عملیات", callback_data="admin:ops:dashboard")
     kb.adjust(1)
     return kb.as_markup()
 
 
 def deposit_admin_alert_kb(*, deposit_id: int, tg_user_id: int):
     kb = InlineKeyboardBuilder()
-    kb.button(text="👁 مشاهده رسید", callback_data=f"admin:deposits:view:{deposit_id}:0")
+    kb.button(text="👁 مشاهده درخواست و رسید", callback_data=f"admin:deposits:view:{deposit_id}:0")
     kb.button(text="👤 مشاهده پروفایل کاربر", callback_data=f"admin:users:profile:{tg_user_id}")
     kb.button(text="🔄 تازه‌سازی موجودی", callback_data=f"admin:deposit:live:{deposit_id}:{tg_user_id}")
     kb.button(text="✅ تایید واریز", callback_data=f"admin:deposit:approve:{deposit_id}:o:0")
     kb.button(text="❌ رد واریز", callback_data=f"admin:deposit:reject:{deposit_id}:o:0")
+    kb.button(text="📡 داشبورد عملیات", callback_data="admin:ops:dashboard")
     kb.adjust(1)
     return kb.as_markup()
 
