@@ -38,6 +38,7 @@ const state = {
   notificationReadIds: new Set(),
   notificationsOpen: false,
   latestLiveBarGameId: 0,
+  liveBarExpanded: false,
   cardsPollTimer: null,
   cardsPrevCalledByGame: {},
   cardsLatestSeenEventByGame: {},
@@ -1918,6 +1919,40 @@ function drawGames(items) {
 });
 }
 
+function liveBarGameInfo(game) {
+  const gid = Number(game?.id || 0);
+  const snap = state.gameSnapshots.get(gid);
+  const st = snap?.state || {};
+  const called = Array.isArray(st.called_numbers) ? st.called_numbers : [];
+  const lastNumber = st.last_number ?? (called.length ? called[called.length - 1] : null);
+  const statusKey = String(st.status || game?.status || "").toUpperCase();
+  const myCards = Number(st.my_cards_count ?? state.myCardsByGame.get(gid) ?? 0);
+  return { gid, snap, st, lastNumber, statusKey, myCards };
+}
+
+function sortLiveBarGames(items = state.gamesCache) {
+  const selectedId = Number(state.selectedGameId || 0);
+  return (Array.isArray(items) ? items : [])
+    .filter((g) => {
+      const status = String(g?.status || "").toUpperCase();
+      return Number(g?.id || 0) > 0 && ["LOBBY", "RUNNING"].includes(status);
+    })
+    .sort((a, b) => {
+      const ai = liveBarGameInfo(a);
+      const bi = liveBarGameInfo(b);
+      const score = (g, info) => {
+        let out = 0;
+        if (Number(g?.id || 0) === selectedId) out += 1000;
+        if (info.myCards > 0) out += 500;
+        if (info.statusKey === "RUNNING") out += 250;
+        if (info.statusKey === "LOBBY") out += 80;
+        out += Number(g?.id || 0) / 1000;
+        return out;
+      };
+      return score(b, bi) - score(a, ai);
+    });
+}
+
 function pickLiveBarGame(items = state.gamesCache) {
   const list = Array.isArray(items) ? items : [];
   const selectedId = Number(state.selectedGameId || 0);
@@ -1931,54 +1966,75 @@ function pickLiveBarGame(items = state.gamesCache) {
   return lobby || null;
 }
 
+async function openLiveBarGame(gameId, { buy = false } = {}) {
+  const gid = Number(gameId || 0);
+  if (!gid) return;
+  await openLiveGame(gid);
+  switchToView("games");
+  const target = buy ? getEl("buyActionForm") : getEl("liveTitle");
+  if (target) target.scrollIntoView({ behavior: "smooth", block: buy ? "center" : "start" });
+}
+
 function renderLiveGameBar(items = state.gamesCache) {
   const bar = getEl("liveGameBar");
   if (!bar) return;
-  const game = pickLiveBarGame(items);
+  const liveGames = sortLiveBarGames(items);
+  const game = liveGames[0] || pickLiveBarGame(items);
   if (!game) {
     state.latestLiveBarGameId = 0;
+    state.liveBarExpanded = false;
     bar.classList.add("hidden");
     bar.innerHTML = "";
     return;
   }
-  const gid = Number(game.id || 0);
-  const snap = state.gameSnapshots.get(gid);
-  const st = snap?.state || {};
-  const called = Array.isArray(st.called_numbers) ? st.called_numbers : [];
-  const lastNumber = st.last_number ?? (called.length ? called[called.length - 1] : null);
-  const myCards = Number(st.my_cards_count ?? state.myCardsByGame.get(gid) ?? 0);
-  const statusKey = String(st.status || game.status || "").toUpperCase();
-  const canBuy = statusKey === "LOBBY";
+  const { gid, lastNumber, myCards, statusKey } = liveBarGameInfo(game);
+  const totalActive = liveGames.length || 1;
+  const totalMyCards = liveGames.reduce((sum, g) => sum + Number(liveBarGameInfo(g).myCards || 0), 0);
   state.latestLiveBarGameId = gid;
   bar.classList.remove("hidden");
+  bar.classList.toggle("is-expanded", Boolean(state.liveBarExpanded));
+  const summaryParts = [
+    `${toFaDigits(totalActive)} بازی فعال`,
+    totalMyCards > 0 ? `کارت من ${toFaDigits(totalMyCards)}` : "",
+    `#${toFaDigits(gid)} عدد ${toFaDigits(lastNumber ?? "-")}`,
+  ].filter(Boolean);
+  const rows = liveGames.slice(0, 5).map((g) => {
+    const info = liveBarGameInfo(g);
+    const canBuy = info.statusKey === "LOBBY";
+    const actionText = canBuy && info.myCards <= 0 ? "خرید" : "ورود";
+    return `
+      <button class="live-bar-row" data-game-id="${safeText(info.gid)}" data-buy="${canBuy && info.myCards <= 0 ? "1" : "0"}" type="button">
+        <b>#${safeText(toFaDigits(info.gid))}</b>
+        <span>${safeText(statusLabel(info.statusKey))}</span>
+        <span>عدد ${safeText(toFaDigits(info.lastNumber ?? "-"))}</span>
+        <span>کارت ${safeText(toFaDigits(info.myCards))}</span>
+        <strong>${actionText}</strong>
+      </button>
+    `;
+  }).join("");
   bar.innerHTML = `
-    <div class="live-game-bar-main">
-      <span class="live-game-bar-status ${safeText(statusKey.toLowerCase())}">${safeText(statusLabel(statusKey))}</span>
-      <strong>#${safeText(gid)}</strong>
-      <span>آخرین: <b>${safeText(lastNumber ?? "-")}</b></span>
-      <span>کارت من: <b>${safeText(myCards)}</b></span>
-    </div>
-    <div class="live-game-bar-actions">
-      <button class="small-btn live-bar-open-btn" data-game-id="${safeText(gid)}" type="button">زنده</button>
-      <button class="small-btn primary live-bar-buy-btn" data-game-id="${safeText(gid)}" type="button" ${canBuy ? "" : "disabled"}>خرید</button>
-    </div>
+    <button class="live-game-bar-summary" type="button" aria-expanded="${state.liveBarExpanded ? "true" : "false"}">
+      <span>🎲 ${safeText(summaryParts.join(" · "))}</span>
+      <b>${state.liveBarExpanded ? "×" : "▾"}</b>
+    </button>
+    <div class="live-game-bar-list">${rows}</div>
   `;
-  bar.querySelector(".live-bar-open-btn")?.addEventListener("click", () => {
-    openLiveGame(gid)
-      .then(() => {
-        switchToView("games");
-        getEl("liveTitle")?.scrollIntoView({ behavior: "smooth", block: "start" });
-      })
-      .catch((e) => setLocalError("liveActionHint", e));
+  bar.querySelector(".live-game-bar-summary")?.addEventListener("click", () => {
+    if (totalActive <= 1) {
+      openLiveBarGame(gid).catch((e) => setLocalError("liveActionHint", e));
+      return;
+    }
+    state.liveBarExpanded = !state.liveBarExpanded;
+    renderLiveGameBar(items);
   });
-  bar.querySelector(".live-bar-buy-btn")?.addEventListener("click", () => {
-    if (!canBuy) return;
-    openLiveGame(gid)
-      .then(() => {
-        switchToView("games");
-        getEl("buyActionForm")?.scrollIntoView({ behavior: "smooth", block: "center" });
-      })
-      .catch((e) => setLocalError("buyStatusHint", e));
+  bar.querySelectorAll(".live-bar-row").forEach((row) => {
+    row.addEventListener("click", () => {
+      const rowGameId = Number(row.getAttribute("data-game-id") || "0");
+      const buy = row.getAttribute("data-buy") === "1";
+      state.liveBarExpanded = false;
+      renderLiveGameBar(items);
+      openLiveBarGame(rowGameId, { buy }).catch((e) => setLocalError(buy ? "buyStatusHint" : "liveActionHint", e));
+    });
   });
 }
 
