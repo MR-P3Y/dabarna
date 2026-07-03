@@ -4501,7 +4501,6 @@ function drawWinTimeline() {
             بازی: ${gid > 0 ? `#${gid}` : "-"}<br />
             زمان: ${safeText(formatFaDateTime(w.created_at))}
           </div>
-          <div id="adminWdrWalletStatus${safeText(w.id)}" class="withdraw-wallet-status">وضعیت کیف پول هنوز بروزرسانی نشده است.</div>
           <div class="admin-item-actions">
             <button class="small-btn receipt-open-btn" data-kind="prize" data-id="${safeText(w.id)}" type="button">رسید جایزه</button>
           </div>
@@ -6291,6 +6290,14 @@ function adminServiceStatusClass(service) {
   return "is-muted";
 }
 
+function adminServiceStatusLabel(service) {
+  const raw = String(service?.status || "").trim().toUpperCase();
+  if (service?.ok === true || raw === "OK") return "سالم";
+  if (service?.ok === false || raw === "FAIL" || raw === "ERROR") return "خطا";
+  if (raw === "MONITORED") return "در پایش سرور";
+  return raw ? service.status : "در حال بررسی";
+}
+
 function renderAdminOpsDashboard(payload) {
   const root = getEl("adminOpsDashboard");
   if (!root) return;
@@ -6334,7 +6341,7 @@ function renderAdminOpsDashboard(payload) {
         .map((svc) => `
           <div class="admin-service-pill ${adminServiceStatusClass(svc)}">
             <strong>${safeText(svc.title || svc.key || "-")}</strong>
-            <span>${safeText(svc.status || "-")}</span>
+            <span>${safeText(adminServiceStatusLabel(svc))}</span>
           </div>
         `)
         .join("")}

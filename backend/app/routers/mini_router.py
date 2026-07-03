@@ -59,6 +59,7 @@ from app.models.finance import DepositRequest, WithdrawRequest
 from app.models.crypto import CryptoDepositRequest
 from app.models.game import Game, GameCalledNumber, GameCard, GamePurchase
 from app.models.game_event import GameEvent
+from app.models.admin_audit import AdminAuditLog
 from app.models.settings import AppSetting
 from app.models.user import User
 from app.models.wallet import Wallet, WalletTx
@@ -3025,7 +3026,7 @@ def mini_admin_audit_logs(
     ident: MiniAdminIdentity = Depends(get_mini_admin_identity),
     db: Session = Depends(get_db),
 ):
-    _mini_require_user_role(ident)
+    _mini_require_finance_or_game_role(ident)
     rows = db.execute(
         select(AdminAuditLog, User)
         .outerjoin(User, User.id == AdminAuditLog.actor_user_id)
@@ -3057,7 +3058,7 @@ def mini_admin_risk_alerts(
     ident: MiniAdminIdentity = Depends(get_mini_admin_identity),
     db: Session = Depends(get_db),
 ):
-    _mini_require_user_role(ident)
+    _mini_require_finance_or_game_role(ident)
     alerts: list[dict[str, Any]] = []
     now = datetime.utcnow()
 

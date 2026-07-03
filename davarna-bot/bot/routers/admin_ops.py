@@ -73,7 +73,15 @@ def _audit_kb(*, offset: int, has_next: bool):
 
 def _service_line(item: dict) -> str:
     ok = item.get("ok")
-    status = "سالم" if ok is True else ("نامشخص" if ok is None else "خطا")
+    raw_status = str(item.get("status") or "").strip().upper()
+    if ok is True or raw_status == "OK":
+        status = "سالم"
+    elif ok is False or raw_status in {"FAIL", "ERROR"}:
+        status = "خطا"
+    elif raw_status == "MONITORED":
+        status = "در پایش سرور"
+    else:
+        status = "در حال بررسی"
     icon = "🟢" if ok is True else ("⚪️" if ok is None else "🔴")
     return f"{icon} {h(str(item.get('title') or item.get('key') or '-'))}: <b>{h(status)}</b>"
 
