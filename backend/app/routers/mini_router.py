@@ -2766,6 +2766,15 @@ def create_deposit(
     db.commit()
 
     destination_id, destination_title = _read_request_destination(db, request_id=int(dr.id))
+    # RELAXED_RECEIPT_PENDING_REVIEW_PATCH
+    # Bank deposits should reach admin review even if the receipt upload fails.
+    # Receipt is supporting evidence; final verification is done against bank balance.
+    if str(getattr(dr, "status", "")) == "AWAITING_RECEIPT":
+        dr.status = "PENDING_REVIEW"
+        db.flush()
+        db.commit()
+        db.refresh(dr)
+
     return MiniDepositOut(
         id=int(dr.id),
         amount=int(dr.amount),
@@ -2812,10 +2821,140 @@ def list_my_deposits(
     return MiniDepositListOut(total=int(total or 0), limit=int(limit), offset=int(offset), items=items)
 
 
+
+@router.post("/deposits/with-receipt", response_model=MiniDepositOut)
+async def create_deposit_with_receipt(
+    request: Request,
+    user_id: int = Depends(get_mini_user_id),
+    db: Session = Depends(get_db),
+):
+    """
+    One-shot bank deposit flow for Telegram Mini App:
+    create deposit request and upload receipt in the same multipart request.
+    This avoids creating AWAITING_RECEIPT rows when the second upload request fails.
+    """
+    form = await request.form()
+
+    amount_raw = str(form.get("amount") or "").strip()
+    destination_id = str(form.get("destination_id") or "").strip() or None
+    receipt_file = form.get("receipt") or form.get("file")
+
+    try:
+        amount = int(amount_raw)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail="مبلغ واریز نامعتبر است.") from exc
+
+    if amount <= 0:
+        raise HTTPException(status_code=400, detail="مبلغ واریز نامعتبر است.")
+    if not destination_id:
+        raise HTTPException(status_code=400, detail="کارت مقصد را انتخاب کنید.")
+    if receipt_file is None or not hasattr(receipt_file, "filename"):
+        raise HTTPException(status_code=400, detail="فایل رسید پیدا نشد.")
+
+    original_name = str(getattr(receipt_file, "filename", "") or "receipt").strip()
+    content_type = str(getattr(receipt_file, "content_type", "") or "").lower()
+    blob = await receipt_file.read()
+
+    if not blob:
+        raise HTTPException(status_code=400, detail="فایل رسید خالی است.")
+    if len(blob) > 50 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="حجم فایل رسید بیش از حد مجاز است. حداکثر ۵۰ مگابایت.")
+
+    ext = os.path.splitext(original_name)[1].lower()
+
+    if content_type == "image/jpg":
+        content_type = "image/jpeg"
+
+    if not content_type or content_type == "application/octet-stream":
+        if ext == ".pdf":
+            content_type = "application/pdf"
+        elif ext in {".jpg", ".jpeg"}:
+            content_type = "image/jpeg"
+        elif ext == ".png":
+            content_type = "image/png"
+        elif ext == ".webp":
+            content_type = "image/webp"
+        elif ext == ".heic":
+            content_type = "image/heic"
+        elif ext == ".heif":
+            content_type = "image/heif"
+        elif ext == ".gif":
+            content_type = "image/gif"
+
+    if not (content_type.startswith("image/") or content_type in {"application/pdf", "application/octet-stream"}):
+        raise HTTPException(status_code=400, detail="نوع فایل رسید معتبر نیست. عکس، PDF یا فایل رسید معتبر ارسال کنید.")
+
+    if ext not in {".jpg", ".jpeg", ".png", ".webp", ".pdf", ".heic", ".heif", ".gif", ".bmp", ".tif", ".tiff", ".bin"}:
+        if content_type == "application/pdf":
+            ext = ".pdf"
+        elif content_type == "image/png":
+            ext = ".png"
+        elif content_type == "image/webp":
+            ext = ".webp"
+        elif content_type == "image/heic":
+            ext = ".heic"
+        elif content_type == "image/heif":
+            ext = ".heif"
+        elif content_type == "image/gif":
+            ext = ".gif"
+        elif content_type == "application/octet-stream":
+            ext = ext if ext else ".bin"
+        else:
+            ext = ".jpg"
+
+    # Reuse the existing deposit creation function to preserve current business rules,
+    # destination storage, rate limits, and response format.
+    payload = MiniDepositCreateIn(amount=int(amount), destination_id=destination_id)
+    created = create_deposit(payload=payload, user_id=user_id, db=db)
+
+    deposit_id = int(getattr(created, "id", 0) or 0)
+    if deposit_id <= 0:
+        raise HTTPException(status_code=500, detail="درخواست واریز ایجاد نشد.")
+
+    dr = db.execute(
+        select(DepositRequest).where(
+            DepositRequest.id == int(deposit_id),
+            DepositRequest.user_id == int(user_id),
+        )
+    ).scalar_one_or_none()
+
+    if not dr:
+        raise HTTPException(status_code=404, detail="درخواست واریز پیدا نشد.")
+
+    receipt_dir = Path(RECEIPTS_DIR)
+    receipt_dir.mkdir(parents=True, exist_ok=True)
+    dest = receipt_dir / f"mini_{int(deposit_id)}_{uuid4().hex}{ext}"
+
+    with dest.open("wb") as out:
+        out.write(blob)
+
+    dr.receipt_path = str(dest.resolve())
+    dr.receipt_file_id = None
+    dr.status = "PENDING_REVIEW"
+
+    db.flush()
+    db.commit()
+    db.refresh(dr)
+
+    _mini_notify_admin_deposit_pending(db=db, dr=dr)
+
+    destination_id_out, destination_title = _read_request_destination(db, request_id=int(dr.id))
+
+    return MiniDepositOut(
+        id=int(dr.id),
+        amount=int(dr.amount),
+        status=str(dr.status),
+        receipt_uploaded=True,
+        destination_id=destination_id_out or destination_id,
+        destination_title=destination_title,
+        created_at=str(dr.created_at) if dr.created_at else None,
+    )
+
+
 @router.post("/deposits/{deposit_id}/receipt", response_model=MiniDepositOut)
-def upload_deposit_receipt(
+async def upload_deposit_receipt(
     deposit_id: int,
-    payload: MiniDepositReceiptIn,
+    request: Request,
     user_id: int = Depends(get_mini_user_id),
     db: Session = Depends(get_db),
 ):
@@ -2833,35 +2972,91 @@ def upload_deposit_receipt(
     if str(dr.status) not in {"AWAITING_RECEIPT", "PENDING_REVIEW"}:
         raise HTTPException(status_code=400, detail="وضعیت درخواست واریز معتبر نیست.")
 
-    content_type = str(payload.content_type or "").lower()
-    if not (content_type.startswith("image/") or content_type == "application/pdf"):
-        raise HTTPException(status_code=400, detail="نوع فایل رسید معتبر نیست.")
+    max_receipt_bytes = 10 * 1024 * 1024
+    request_content_type = str(request.headers.get("content-type") or "").lower()
 
-    original_name = str(payload.filename or "").strip()
+    original_name = "receipt"
+    content_type = ""
+    blob = b""
+
+    if request_content_type.startswith("multipart/form-data"):
+        form = await request.form()
+        receipt_file = form.get("receipt") or form.get("file")
+        if receipt_file is None or not hasattr(receipt_file, "filename"):
+            raise HTTPException(status_code=400, detail="فایل رسید پیدا نشد.")
+
+        original_name = str(getattr(receipt_file, "filename", "") or "receipt").strip()
+        content_type = str(getattr(receipt_file, "content_type", "") or "").lower()
+        blob = await receipt_file.read()
+
+    else:
+        # سازگاری با نسخه قبلی که JSON/Base64 می‌فرستاد.
+        try:
+            payload_dict = await request.json()
+            payload = MiniDepositReceiptIn(**payload_dict)
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail="اطلاعات رسید معتبر نیست.") from exc
+
+        original_name = str(payload.filename or "receipt").strip()
+        content_type = str(payload.content_type or "").lower()
+
+        raw_b64 = str(payload.data_base64 or "").strip()
+        if not raw_b64:
+            raise HTTPException(status_code=400, detail="فایل رسید خالی است.")
+        if "," in raw_b64:
+            raw_b64 = raw_b64.split(",", 1)[1]
+        try:
+            blob = base64.b64decode(raw_b64, validate=True)
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail="فرمت فایل رسید نامعتبر است.") from exc
+
+    if not blob:
+        raise HTTPException(status_code=400, detail="فایل رسید خالی است.")
+    if len(blob) > max_receipt_bytes:
+        raise HTTPException(status_code=400, detail="حجم فایل رسید بیش از حد مجاز است. حداکثر ۵۰ مگابایت.")
+
+    original_name = original_name or "receipt"
     ext = os.path.splitext(original_name)[1].lower()
-    if ext not in {".jpg", ".jpeg", ".png", ".webp", ".pdf"}:
+
+    if content_type == "image/jpg":
+        content_type = "image/jpeg"
+
+    if not content_type or content_type == "application/octet-stream":
+        if ext == ".pdf":
+            content_type = "application/pdf"
+        elif ext in {".jpg", ".jpeg"}:
+            content_type = "image/jpeg"
+        elif ext == ".png":
+            content_type = "image/png"
+        elif ext == ".webp":
+            content_type = "image/webp"
+        elif ext == ".heic":
+            content_type = "image/heic"
+        elif ext == ".heif":
+            content_type = "image/heif"
+        elif ext == ".gif":
+            content_type = "image/gif"
+
+    if not (content_type.startswith("image/") or content_type in {"application/pdf", "application/octet-stream"}):
+        raise HTTPException(status_code=400, detail="نوع فایل رسید معتبر نیست. عکس، PDF یا فایل رسید معتبر ارسال کنید.")
+
+    if ext not in {".jpg", ".jpeg", ".png", ".webp", ".pdf", ".heic", ".heif", ".gif", ".bmp", ".tif", ".tiff", ".bin"}:
         if content_type == "application/pdf":
             ext = ".pdf"
         elif content_type == "image/png":
             ext = ".png"
         elif content_type == "image/webp":
             ext = ".webp"
+        elif content_type == "image/heic":
+            ext = ".heic"
+        elif content_type == "image/heif":
+            ext = ".heif"
+        elif content_type == "image/gif":
+            ext = ".gif"
+        elif content_type == "application/octet-stream":
+            ext = ext if ext else ".bin"
         else:
             ext = ".jpg"
-
-    raw_b64 = str(payload.data_base64 or "").strip()
-    if not raw_b64:
-        raise HTTPException(status_code=400, detail="فایل رسید خالی است.")
-    if "," in raw_b64:
-        raw_b64 = raw_b64.split(",", 1)[1]
-    try:
-        blob = base64.b64decode(raw_b64, validate=True)
-    except Exception as exc:
-        raise HTTPException(status_code=400, detail="فرمت فایل رسید نامعتبر است.") from exc
-    if not blob:
-        raise HTTPException(status_code=400, detail="فایل رسید خالی است.")
-    if len(blob) > 6 * 1024 * 1024:
-        raise HTTPException(status_code=400, detail="حجم فایل رسید بیش از حد مجاز است.")
 
     receipt_dir = Path(RECEIPTS_DIR)
     receipt_dir.mkdir(parents=True, exist_ok=True)
@@ -2877,13 +3072,15 @@ def upload_deposit_receipt(
     db.commit()
     _mini_notify_admin_deposit_pending(db=db, dr=dr)
 
+    destination_id, destination_title = _read_request_destination(db, request_id=int(dr.id))
+
     return MiniDepositOut(
         id=int(dr.id),
         amount=int(dr.amount),
         status=str(dr.status),
         receipt_uploaded=True,
-        destination_id=_read_request_destination(db, request_id=int(dr.id))[0],
-        destination_title=_read_request_destination(db, request_id=int(dr.id))[1],
+        destination_id=destination_id,
+        destination_title=destination_title,
         created_at=str(dr.created_at) if dr.created_at else None,
     )
 
