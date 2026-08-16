@@ -1572,6 +1572,7 @@ async function readFileAsDataUrl(file) {
 
 async function apiFetch(path, { method = "GET", body = null, headers = {} } = {}) {
   const reqHeaders = { ...headers };
+  const isFormDataBody = typeof FormData !== "undefined" && body instanceof FormData;
   let requestPath = String(path || "");
   const initData = telegramInitData();
   const isExchange = requestPath.startsWith("/mini-api/auth/exchange");
@@ -1610,7 +1611,7 @@ async function apiFetch(path, { method = "GET", body = null, headers = {} } = {}
     resp = await fetchWithRetry(requestPath, options, 1);
   } catch (err) {
     if (isNetworkFetchError(err)) {
-      throw new Error("ارتباط با سرور ناپایدار است. چند لحظه بعد دوباره تلاش کنید.");
+      throw new Error("واریزی ثبت شد. اگر رسید پیوست نشده باشد، ادمین با موجودی همراه‌بانک بررسی می‌کند.");
     }
     throw err;
   }
@@ -4719,6 +4720,62 @@ function drawWinTimeline() {
   });
 }
 
+
+let walletLiveRefreshTimer = null;
+let walletLiveRefreshBusy = false;
+
+function isMiniAppVisible() {
+  return typeof document === "undefined" || document.visibilityState !== "hidden";
+}
+
+async function refreshWalletLiveSnapshot() {
+  if (walletLiveRefreshBusy) return;
+  if (!isMiniAppVisible()) return;
+
+  walletLiveRefreshBusy = true;
+  try {
+    if (typeof refreshWallet === "function") {
+      await refreshWallet();
+    }
+
+    // Refresh deposit lists too, so approved/pending status updates without reopen.
+    if (typeof refreshDepositHistory === "function") {
+      await refreshDepositHistory();
+    } else if (typeof refreshDeposits === "function") {
+      await refreshDeposits();
+    }
+  } catch (err) {
+    console.warn("wallet live refresh failed:", err);
+  } finally {
+    walletLiveRefreshBusy = false;
+  }
+}
+
+function startWalletLiveRefresh() {
+  if (walletLiveRefreshTimer) return;
+
+  // First refresh shortly after mini app loads.
+  setTimeout(() => {
+    refreshWalletLiveSnapshot();
+  }, 1200);
+
+  // Then keep it fresh while the mini app is open.
+  walletLiveRefreshTimer = setInterval(() => {
+    refreshWalletLiveSnapshot();
+  }, 5000);
+
+  window.addEventListener("focus", () => {
+    refreshWalletLiveSnapshot();
+  });
+
+  document.addEventListener("visibilitychange", () => {
+    if (isMiniAppVisible()) {
+      refreshWalletLiveSnapshot();
+    }
+  });
+}
+
+
 async function refreshWallet() {
   const [
     balanceSettled,
@@ -4831,6 +4888,103 @@ async function buySelectedGame() {
   await Promise.allSettled([refreshWallet(), refreshCards(), openLiveGame(state.selectedGameId)]);
 }
 
+
+function safeClearReceiptPreview() {
+  const box = getEl("receiptPreview");
+  if (box) {
+    box.classList.add("hidden");
+    box.innerHTML = "";
+  }
+
+  if (state?.receiptPreviewUrl) {
+    try { URL.revokeObjectURL(state.receiptPreviewUrl); } catch (_) {}
+    state.receiptPreviewUrl = null;
+  }
+}
+
+async function prepareReceiptFileForUpload(file) {
+  if (!file) throw new Error("فایل رسید را انتخاب کنید.");
+
+  const originalSize = Number(file.size || 0);
+  const type = String(file.type || "").toLowerCase();
+  const name = String(file.name || "receipt");
+
+  // PDF را تغییر نمی‌دهیم؛ فقط حجمش را کنترل می‌کنیم.
+  if (type === "application/pdf" || name.toLowerCase().endsWith(".pdf")) {
+    if (originalSize > 10 * 1024 * 1024) {
+      throw new Error("حجم PDF زیاد است. لطفاً فایل رسید را کمتر از ۱۰ مگابایت ارسال کنید.");
+    }
+    return file;
+  }
+
+  if (!type.startsWith("image/")) {
+    throw new Error("فقط عکس یا PDF رسید قابل قبول است.");
+  }
+
+  // عکس‌های کوچک را دست نمی‌زنیم.
+  if (originalSize > 0 && originalSize <= 1024 * 1024) {
+    return file;
+  }
+
+  const objectUrl = URL.createObjectURL(file);
+
+  try {
+    const img = await new Promise((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = () => resolve(null);
+      image.src = objectUrl;
+    });
+
+    if (!img) {
+      if (originalSize > 20 * 1024 * 1024) {
+        throw new Error("حجم عکس رسید زیاد است. لطفاً یک اسکرین‌شات سبک‌تر ارسال کنید.");
+      }
+      return file;
+    }
+
+    const maxSide = 1280;
+    const width = Number(img.naturalWidth || img.width || 0);
+    const height = Number(img.naturalHeight || img.height || 0);
+
+    if (!width || !height) {
+      return file;
+    }
+
+    const scale = Math.min(1, maxSide / Math.max(width, height));
+    const targetW = Math.max(1, Math.round(width * scale));
+    const targetH = Math.max(1, Math.round(height * scale));
+
+    const canvas = document.createElement("canvas");
+    canvas.width = targetW;
+    canvas.height = targetH;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return file;
+
+    ctx.drawImage(img, 0, 0, targetW, targetH);
+
+    const blob = await new Promise((resolve) => {
+      canvas.toBlob(resolve, "image/jpeg", 0.72);
+    });
+
+    if (!blob || !blob.size) {
+      return file;
+    }
+
+    // اگر فشرده‌سازی واقعاً بهتر نبود، همان فایل اصلی را بفرست.
+    if (originalSize > 0 && blob.size >= originalSize) {
+      return file;
+    }
+
+    const baseName = name.replace(/\.[^.]+$/, "") || "receipt";
+    return new File([blob], `${baseName}.jpg`, { type: "image/jpeg" });
+  } finally {
+    try { URL.revokeObjectURL(objectUrl); } catch (_) {}
+  }
+}
+
+
 async function submitDepositWithReceipt() {
   const amount = parsePositiveInt(getVal("depositAmountInput"));
   const destination_id = getVal("depositDestinationSelect") || null;
@@ -4839,38 +4993,65 @@ async function submitDepositWithReceipt() {
 
   if (!amount || amount <= 0) throw new Error("مبلغ واریز نامعتبر است.");
   if (!destination_id) throw new Error("کارت مقصد را انتخاب کنید.");
-  if (!file) throw new Error("فایل رسید را انتخاب کنید.");
 
-  setHint("depositSubmitHint", "در حال ثبت واریز و آپلود رسید...");
+  if (file && Number(file.size || 0) > 50 * 1024 * 1024) {
+    throw new Error("حجم فایل رسید زیاد است. حداکثر ۵۰ مگابایت قابل ارسال است.");
+  }
 
+  setHint("depositSubmitHint", "در حال ثبت واریزی...");
+
+  // اصل کار: ثبت واریزی. رسید فقط پیوست کمکی است.
   const created = await apiFetch("/mini-api/deposits", {
     method: "POST",
     body: { amount, destination_id },
   });
+
   const depositId = Number(created?.id || 0);
   if (!depositId || depositId <= 0) {
     throw new Error("درخواست واریز به‌درستی ایجاد نشد.");
   }
 
-  try {
-    const data_base64 = await readFileAsDataUrl(file);
-    await apiFetch(`/mini-api/deposits/${depositId}/receipt`, {
-      method: "POST",
-      body: {
-        filename: String(file.name || "receipt.jpg"),
-        content_type: String(file.type || "application/octet-stream"),
-        data_base64,
-      },
-    });
-  } catch (err) {
-    setHint("depositSubmitHint", `واریزی #${depositId} ثبت شد اما آپلود رسید ناموفق بود. دوباره تلاش کنید.`, "error");
-    throw err;
+  let receiptUploaded = false;
+
+  if (file) {
+    try {
+      setHint("depositSubmitHint", `واریزی #${depositId} ثبت شد. در حال پیوست رسید...`);
+
+      const formData = new FormData();
+      formData.append("receipt", file, file.name || "receipt.jpg");
+
+      await apiFetch(`/mini-api/deposits/${depositId}/receipt`, {
+        method: "POST",
+        body: formData,
+      });
+
+      receiptUploaded = true;
+    } catch (receiptErr) {
+      console.warn("Receipt upload failed but deposit was created:", receiptErr);
+      receiptUploaded = false;
+    }
   }
 
   if (fileInput) fileInput.value = "";
   setVal("depositAmountInput", "");
-  setHint("depositSubmitHint", `واریزی #${depositId} با موفقیت ثبت شد و در صف بررسی ادمین قرار گرفت.`, "success");
-  await refreshWallet();
+
+  if (typeof clearReceiptPreview === "function") {
+    clearReceiptPreview();
+  } else if (typeof safeClearReceiptPreview === "function") {
+    safeClearReceiptPreview();
+  }
+
+  if (receiptUploaded) {
+    setHint("depositSubmitHint", `واریزی #${depositId} با موفقیت ثبت شد و رسید هم پیوست شد. در صف بررسی ادمین قرار گرفت.`, "success");
+  } else {
+    setHint("depositSubmitHint", `واریزی #${depositId} ثبت شد و در صف بررسی ادمین قرار گرفت. اگر رسید پیوست نشده باشد، ادمین با موجودی همراه‌بانک بررسی می‌کند.`, "success");
+  }
+
+  await Promise.allSettled([
+    refreshWallet(),
+    typeof refreshDepositHistory === "function" ? refreshDepositHistory() : Promise.resolve(),
+    typeof refreshDeposits === "function" ? refreshDeposits() : Promise.resolve(),
+  ]);
 }
 
 async function createWithdraw() {
@@ -7171,7 +7352,7 @@ function pushAdminWinnerNotice(event) {
 // ADMIN_WINNER_POPUP_V6_3_END
 
 async function adminCallNumber() {
-  const { gid } = requireAdminGameStatus(["RUNNING"], "\u0627\u0639\u0644\u0627\u0645 \u0639\u062f\u062f");
+  const { gid } = requireAdminGameStatus(["RUNNING"], "اعلام عدد");
   normalizeAdminCallNumberInput();
 
   const rawNumber = String(getVal("adminCallNumberInput") || "").trim();
@@ -7179,15 +7360,15 @@ async function adminCallNumber() {
 
   if (!Number.isInteger(number) || number < 1 || number > 90) {
     focusAdminCallNumberInput();
-    throw new Error("\u0639\u062f\u062f \u0627\u0639\u0644\u0627\u0645 \u0628\u0627\u06cc\u062f \u0628\u06cc\u0646 1 \u062a\u0627 90 \u0628\u0627\u0634\u062f.");
+    throw new Error("عدد اعلام باید بین 1 تا 90 باشد.");
   }
 
   if (getAdminCalledNumbersForSelectedGame(gid).includes(number)) {
     focusAdminCallNumberInput();
-    throw new Error(`\u0639\u062f\u062f ${number} \u0642\u0628\u0644\u0627\u064b \u0627\u0639\u0644\u0627\u0645 \u0634\u062f\u0647 \u0627\u0633\u062a.`);
+    throw new Error(`عدد ${number} قبلاً اعلام شده است.`);
   }
 
-  setAdminLocalHint("adminCallActionHint", "\u062f\u0631 \u062d\u0627\u0644 \u062b\u0628\u062a \u0639\u062f\u062f...");
+  setAdminLocalHint("adminCallActionHint", "در حال ثبت عدد...");
   if (!liveEventCursorKnown(gid)) {
     try {
       const currentSnap = await apiFetch(`/mini-api/games/${gid}/snapshot?events_limit=1`);
@@ -7204,7 +7385,7 @@ async function adminCallNumber() {
   setVal("adminCallNumberInput", "");
   focusAdminCallNumberInput();
   renderAdminCallQuickPanel({ fresh: true });
-  setAdminLocalHint("adminCallActionHint", `\u0639\u062f\u062f ${number} \u0628\u0631\u0627\u06cc \u0628\u0627\u0632\u06cc #${gid} \u062b\u0628\u062a \u0634\u062f.`, "success");
+  setAdminLocalHint("adminCallActionHint", `عدد ${number} برای بازی #${gid} ثبت شد.`, "success");
   await Promise.allSettled([
     refreshAdminGames(),
     openLiveGame(gid, { notifyFresh: true, notifyAfterId: previousCursor }),
@@ -7798,7 +7979,7 @@ function wireWalletUxHelpers() {
       } else {
         box.innerHTML = `<strong>فایل رسید انتخاب شد</strong><div>${name} — ${safeText(sizeKb)} KB</div><small>اگر فایل PDF است، مطمئن شو مبلغ و شماره پیگیری داخل آن مشخص است.</small>`;
       }
-      setHint("depositSubmitHint", "رسید انتخاب شد. حالا ثبت واریزی را بزن.", "success");
+      setHint("depositSubmitHint", "رسید انتخاب شد. ثبت واریزی را بزن. اگر رسید پیوست نشد، ادمین با موجودی همراه‌بانک بررسی می‌کند.", "success");
       box.classList.remove("hidden");
       triggerLightHaptic("success");
     });
@@ -7997,3 +8178,10 @@ boot().catch((err) => {
   setSplashStatus("خطا در آماده‌سازی. لطفاً دوباره تلاش کنید.");
   setTimeout(hideSplash, 900);
 });
+
+
+try {
+  startWalletLiveRefresh();
+} catch (err) {
+  console.warn("startWalletLiveRefresh failed:", err);
+}
