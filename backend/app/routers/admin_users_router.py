@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import json
 from datetime import datetime, timedelta, timezone
@@ -160,25 +160,33 @@ def _ensure_manage_target(admin: AdminIdentity, target_roles: list[str]) -> None
     if "SUPER_ADMIN" in normalized_roles and admin.scope != AdminScope.SUPER_ADMIN:
         raise HTTPException(status_code=403, detail="cannot manage super admin")
     if normalized_roles.intersection({"ADMIN", "GAME_OPERATOR", "FINANCE_ADMIN"}) and admin.scope != AdminScope.SUPER_ADMIN:
-        raise HTTPException(status_code=403, detail="cannot manage admin user")
+        raise HTTPException(status_code=403, detail="فقط سوپرادمین می‌تواند روی حساب ادمین‌ها عملیات انجام دهد.")
 
+
+
+def _ensure_not_self_action(admin: AdminIdentity, target_user: User) -> None:
+    """Prevent admins from mutating their own account, wallet, restrictions or notifications."""
+    if admin.user_id is None:
+        return
+    if int(admin.user_id) == int(target_user.id):
+        raise HTTPException(status_code=409, detail="امکان انجام عملیات روی حساب خودتان وجود ندارد.")
 
 def _require_user_admin(admin: AdminIdentity) -> None:
     if admin.has_any_role("ADMIN", "SUPER_ADMIN"):
         return
-    raise HTTPException(status_code=403, detail="user admin role required")
+    raise HTTPException(status_code=403, detail="user برای این بخش دسترسی ادمین لازم است.")
 
 
 def _require_finance_admin(admin: AdminIdentity) -> None:
     if admin.has_any_role("ADMIN", "SUPER_ADMIN", "FINANCE_ADMIN"):
         return
-    raise HTTPException(status_code=403, detail="finance admin role required")
+    raise HTTPException(status_code=403, detail="finance برای این بخش دسترسی ادمین لازم است.")
 
 
 def _require_finance_or_game_admin(admin: AdminIdentity) -> None:
     if admin.has_any_role("ADMIN", "SUPER_ADMIN", "FINANCE_ADMIN", "GAME_OPERATOR"):
         return
-    raise HTTPException(status_code=403, detail="admin role required")
+    raise HTTPException(status_code=403, detail="برای این بخش دسترسی ادمین لازم است.")
 
 
 def _load_restrictions(db: Session) -> dict[str, Any]:
@@ -799,6 +807,7 @@ def admin_user_restrict(
 ):
     _require_user_admin(admin)
     user = _get_user_by_tg_or_404(db, int(tg_user_id))
+    _ensure_not_self_action(admin, user)
     roles = _roles_for_user(db, int(user.id))
     _ensure_manage_target(admin, roles)
 
@@ -859,6 +868,7 @@ def admin_user_unrestrict(
 ):
     _require_user_admin(admin)
     user = _get_user_by_tg_or_404(db, int(tg_user_id))
+    _ensure_not_self_action(admin, user)
     roles = _roles_for_user(db, int(user.id))
     _ensure_manage_target(admin, roles)
 
@@ -908,6 +918,7 @@ def admin_user_wallet_adjust(
 ):
     _require_finance_admin(admin)
     user = _get_user_by_tg_or_404(db, int(tg_user_id))
+    _ensure_not_self_action(admin, user)
     roles = _roles_for_user(db, int(user.id))
     _ensure_manage_target(admin, roles)
 
@@ -1022,6 +1033,7 @@ def admin_user_notify(
 ):
     _require_user_admin(admin)
     user = _get_user_by_tg_or_404(db, int(tg_user_id))
+    _ensure_not_self_action(admin, user)
     result = _telegram_send_private_message(
         tg_user_id=int(user.tg_user_id),
         text=str(payload.text),

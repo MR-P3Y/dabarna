@@ -979,6 +979,141 @@ async def _send_crypto_reconciliation_summary(
         )
 
 
+
+_AUDIT_ACTION_LABELS = {
+    "wallet.adjust": "اصلاح کیف پول",
+    "deposit.approve": "تایید واریز",
+    "deposit.reject": "رد واریز",
+    "withdraw.approve": "تایید برداشت",
+    "withdraw.reject": "رد برداشت",
+    "withdraw.paid": "پرداخت برداشت",
+    "crypto.deposit.approve": "تایید واریز رمزارز",
+    "crypto.deposit.reject": "رد واریز رمزارز",
+    "admin.grant": "اعطای نقش ادمین",
+    "admin.revoke": "حذف نقش ادمین",
+    "user.restrict": "محدودسازی کاربر",
+    "user.unrestrict": "رفع محدودیت کاربر",
+    "user.notify": "ارسال پیام به کاربر",
+    "settings.update": "تغییر تنظیمات",
+    "game.create": "ایجاد بازی",
+    "game.start": "شروع بازی",
+    "game.call": "اعلام عدد",
+    "game.undo": "حذف آخرین عدد",
+    "game.close_lobby": "بستن/لغو لابی",
+}
+
+_AUDIT_NOTIFY_ACTIONS = set(_AUDIT_ACTION_LABELS.keys())
+
+
+def _audit_action_label(action: str) -> str:
+    return _AUDIT_ACTION_LABELS.get(str(action or ""), str(action or "نامشخص"))
+
+
+def _audit_amount_line(details: dict[str, Any]) -> str:
+    amount = details.get("amount")
+    before = details.get("before_balance")
+    after = details.get("after_balance")
+    parts = []
+    if amount is not None:
+        parts.append(f"مبلغ/تغییر: <b>{_fmt_toman(amount)}</b>")
+    if before is not None or after is not None:
+        parts.append(f"قبل/بعد: <code>{html_escape(str(before or '—'))}</code> → <code>{html_escape(str(after or '—'))}</code>")
+    return "\\n".join(parts)
+
+
+async def _process_admin_audit_log_notifications(bot: Bot, api: ApiClient) -> None:
+    if not forum_enabled():
+        return
+
+    payload = await api.admin_audit_logs(limit=80)
+    if isinstance(payload, dict):
+        logs = payload.get("items") or payload.get("logs") or payload.get("results") or []
+    elif isinstance(payload, list):
+        logs = payload
+    else:
+        logs = []
+    logs = [item for item in logs if isinstance(item, dict)]
+    if not logs:
+        return
+
+    logs = sorted(logs, key=lambda item: _to_int((item or {}).get("id"), 0))
+    max_id = max(_to_int((item or {}).get("id"), 0) for item in logs)
+
+    marker_key = "admin_audit_last_topic_log_id"
+    raw_last = get_meta_marker(marker_key, "0")
+    try:
+        last_id = int(raw_last or "0")
+    except Exception:
+        last_id = 0
+
+    # First run after deploy: align cursor only; do not flood old audit logs.
+    if last_id <= 0:
+        set_meta_marker(marker_key, str(max_id))
+        return
+
+    sent_any = False
+    for item in logs:
+        log_id = _to_int((item or {}).get("id"), 0)
+        if log_id <= last_id:
+            continue
+
+        action = str((item or {}).get("action") or "")
+        if action not in _AUDIT_NOTIFY_ACTIONS:
+            continue
+
+        details = (item or {}).get("details_json") or (item or {}).get("details")
+        if not isinstance(details, dict):
+            details = {}
+
+        actor = (
+            details.get("actor_tg_user_id")
+            or details.get("actor_user_id")
+            or (item or {}).get("actor_user_id")
+            or "—"
+        )
+        target = (
+            details.get("target_tg_user_id")
+            or details.get("tg_user_id")
+            or details.get("target_user_id")
+            or details.get("user_id")
+            or (item or {}).get("target_id")
+            or "—"
+        )
+        reason = details.get("reason") or details.get("failure_reason") or details.get("status") or ""
+        amount_line = _audit_amount_line(details)
+
+        body = (
+            "#لاگ_عملیات #ادمین\\n"
+            f"🧾 شناسه لاگ: <b>{log_id}</b>\\n"
+            f"🔧 عملیات: <b>{html_escape(_audit_action_label(action))}</b>\\n"
+            f"کد عملیات: <code>{html_escape(action)}</code>\\n"
+            f"👮 ادمین: <code>{html_escape(str(actor))}</code>\\n"
+            f"🎯 هدف: <code>{html_escape(str(target))}</code>\\n"
+            f"نوع هدف: <code>{html_escape(str((item or {}).get('target_type') or '—'))}</code>\\n"
+            f"شناسه هدف: <code>{html_escape(str((item or {}).get('target_id') or '—'))}</code>\\n"
+            f"🕒 زمان: <code>{html_escape(str((item or {}).get('created_at') or '—'))}</code>"
+        )
+        if amount_line:
+            body += "\\n" + amount_line
+        if reason:
+            body += f"\\nعلت/وضعیت: <b>{html_escape(str(reason))}</b>"
+
+        sent = await send_to_topic(
+            bot,
+            name="audit",
+            text=panel("لاگ عملیات حساس", body),
+            parse_mode="HTML",
+            disable_notification=not action.startswith(("wallet.", "deposit.", "withdraw.", "crypto.", "admin.")),
+        )
+        if sent:
+            sent_any = True
+
+    set_meta_marker(marker_key, str(max_id))
+    if sent_any:
+        logger.info("admin audit topic logs delivered up to id=%s", max_id)
+
+
+
 async def _admin_forum_audit(bot: Bot, api: ApiClient) -> None:
     if not forum_enabled():
         return
@@ -1729,6 +1864,8 @@ async def notifier_loop(
 
                 if now_ts >= next_admin_audit_ts:
                     next_admin_audit_ts = now_ts + max(30, int(settings.ADMIN_TOPIC_AUDIT_INTERVAL_SEC or 120))
+                    with suppress(Exception):
+                        await _process_admin_audit_log_notifications(bot, api)
                     with suppress(Exception):
                         await _admin_forum_audit(bot, api)
 

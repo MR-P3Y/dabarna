@@ -245,30 +245,30 @@ def _normalize_live_url(raw: str) -> str:
 
 def _require_admin_user_id(admin: AdminIdentity) -> int:
     if admin.user_id is None:
-        raise HTTPException(status_code=403, detail="forbidden")
+        raise HTTPException(status_code=403, detail="دسترسی مجاز نیست.")
     return int(admin.user_id)
 
 
 def _require_super_admin_owner(admin: AdminIdentity) -> int:
     if admin.scope != AdminScope.SUPER_ADMIN:
-        raise HTTPException(status_code=403, detail="super admin required")
+        raise HTTPException(status_code=403, detail="برای این عملیات دسترسی سوپرادمین لازم است.")
     if RBAC_OWNER_USER_ID is None:
         raise HTTPException(status_code=503, detail="rbac owner is not configured")
     if admin.user_id is None or int(admin.user_id) != int(RBAC_OWNER_USER_ID):
-        raise HTTPException(status_code=403, detail="super admin owner required")
+        raise HTTPException(status_code=403, detail="این عملیات فقط برای مالک اصلی سوپرادمین مجاز است.")
     return int(admin.user_id)
 
 
 def _require_game_role(admin: AdminIdentity) -> None:
     if admin.has_any_role("ADMIN", "SUPER_ADMIN", "GAME_OPERATOR"):
         return
-    raise HTTPException(status_code=403, detail="game operator role required")
+    raise HTTPException(status_code=403, detail="برای این عملیات دسترسی اپراتور بازی لازم است.")
 
 
 def _require_finance_role(admin: AdminIdentity) -> None:
     if admin.has_any_role("ADMIN", "SUPER_ADMIN", "FINANCE_ADMIN"):
         return
-    raise HTTPException(status_code=403, detail="finance admin role required")
+    raise HTTPException(status_code=403, detail="finance برای این بخش دسترسی ادمین لازم است.")
 
 
 def _get_game_or_404(db: Session, game_id: int) -> Game:
@@ -304,13 +304,13 @@ def _bot_admin_user_label(user: User | None) -> str:
 def _require_any_admin_role(admin: AdminIdentity) -> None:
     if admin.has_any_role("ADMIN", "SUPER_ADMIN", "GAME_OPERATOR", "FINANCE_ADMIN"):
         return
-    raise HTTPException(status_code=403, detail="admin role required")
+    raise HTTPException(status_code=403, detail="برای این بخش دسترسی ادمین لازم است.")
 
 
 def _require_user_admin_role(admin: AdminIdentity) -> None:
     if admin.has_any_role("ADMIN", "SUPER_ADMIN"):
         return
-    raise HTTPException(status_code=403, detail="admin role required")
+    raise HTTPException(status_code=403, detail="برای این بخش دسترسی ادمین لازم است.")
 
 
 def _bot_system_health(db: Session) -> dict[str, Any]:
@@ -1627,39 +1627,179 @@ def bot_admin_ops_dashboard(
     }
 
 
+
+def _audit_category_prefixes(category: str) -> list[str]:
+    c = str(category or "").strip().lower()
+    mapping = {
+        "finance": ["wallet.", "deposit.", "withdraw.", "crypto."],
+        "game": ["game."],
+        "users": ["user."],
+        "user": ["user."],
+        "risk": ["risk."],
+        "admin": ["admin."],
+        "settings": ["settings."],
+    }
+    return mapping.get(c, [])
+
+
+def _audit_action_category(action: str) -> str:
+    a = str(action or "").strip().lower()
+    if a.startswith(("wallet.", "deposit.", "withdraw.", "crypto.")):
+        return "finance"
+    if a.startswith("game."):
+        return "game"
+    if a.startswith("user."):
+        return "users"
+    if a.startswith("risk."):
+        return "risk"
+    if a.startswith("admin."):
+        return "admin"
+    if a.startswith("settings."):
+        return "settings"
+    return "other"
+
+
+def _audit_category_label(category: str) -> str:
+    return {
+        "finance": "مالی",
+        "game": "بازی",
+        "users": "کاربران",
+        "user": "کاربران",
+        "risk": "ریسک",
+        "admin": "مدیریت نقش‌ها",
+        "settings": "تنظیمات",
+        "other": "سایر",
+    }.get(str(category or "").lower(), "سایر")
+
+
+def _bot_audit_allowed_categories(admin: AdminIdentity) -> set[str]:
+    roles = {str(r).upper() for r in getattr(admin, "roles", set())}
+    if admin.scope == AdminScope.SUPER_ADMIN or "SUPER_ADMIN" in roles:
+        return {"finance", "game", "users", "risk", "admin", "settings", "other"}
+    allowed: set[str] = set()
+    if "ADMIN" in roles:
+        allowed.update({"finance", "game", "users", "risk"})
+    if "FINANCE_ADMIN" in roles:
+        allowed.update({"finance", "risk"})
+    if "GAME_OPERATOR" in roles:
+        allowed.update({"game", "risk"})
+    return allowed
+
+
 @router.get("/admin/audit/logs")
 def bot_admin_audit_logs(
     limit: int = Query(default=30, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
+    category: str | None = Query(default=None),
+    action: str | None = Query(default=None),
+    log_id: int | None = Query(default=None),
+    target_id: int | None = Query(default=None),
+    tg_user_id: int | None = Query(default=None),
+    q: str | None = Query(default=None),
     admin: AdminIdentity = Depends(get_admin_identity),
     db: Session = Depends(get_db),
 ):
     _require_any_admin_role(admin)
-    stmt = (
-        select(AdminAuditLog, User)
-        .outerjoin(User, User.id == AdminAuditLog.actor_user_id)
-        .order_by(AdminAuditLog.id.desc())
-        .limit(int(limit))
-        .offset(int(offset))
-    )
-    rows = db.execute(stmt).all()
+
+    allowed = _bot_audit_allowed_categories(admin)
+    requested_category = str(category or "").strip().lower()
+    if requested_category and requested_category not in allowed:
+        return {"total": 0, "limit": int(limit), "offset": int(offset), "items": [], "allowed_categories": sorted(allowed)}
+
+    categories = {requested_category} if requested_category else set(allowed)
+    prefix_conditions = []
+    for cat in sorted(categories):
+        for prefix in _audit_category_prefixes(cat):
+            prefix_conditions.append(AdminAuditLog.action.like(f"{prefix}%"))
+
+    filters = []
+    if prefix_conditions:
+        from sqlalchemy import or_
+        filters.append(or_(*prefix_conditions))
+    elif requested_category:
+        filters.append(AdminAuditLog.action == "__never__")
+
+    if action:
+        filters.append(AdminAuditLog.action == str(action).strip())
+    if log_id is not None:
+        filters.append(AdminAuditLog.id == int(log_id))
+    if target_id is not None:
+        filters.append(AdminAuditLog.target_id == int(target_id))
+    if tg_user_id is not None:
+        from sqlalchemy import or_
+        tgid = str(int(tg_user_id))
+        filters.append(or_(
+            User.tg_user_id == int(tg_user_id),
+            func.json_unquote(func.json_extract(AdminAuditLog.details_json, "$.target_tg_user_id")) == tgid,
+            func.json_unquote(func.json_extract(AdminAuditLog.details_json, "$.tg_user_id")) == tgid,
+            func.json_unquote(func.json_extract(AdminAuditLog.details_json, "$.actor_tg_user_id")) == tgid,
+        ))
+
+    query_text = str(q or "").strip()
+    if query_text:
+        from sqlalchemy import or_
+        like = f"%{query_text}%"
+        q_filters = [
+            AdminAuditLog.action.like(like),
+            AdminAuditLog.target_type.like(like),
+            User.username.like(like),
+        ]
+        if query_text.isdigit():
+            n = int(query_text)
+            q_filters.extend([
+                AdminAuditLog.id == n,
+                AdminAuditLog.target_id == n,
+                User.tg_user_id == n,
+                func.json_unquote(func.json_extract(AdminAuditLog.details_json, "$.target_tg_user_id")) == str(n),
+                func.json_unquote(func.json_extract(AdminAuditLog.details_json, "$.tg_user_id")) == str(n),
+            ])
+        filters.append(or_(*q_filters))
+
+    base = select(AdminAuditLog, User).outerjoin(User, User.id == AdminAuditLog.actor_user_id)
+    count_stmt = select(func.count(AdminAuditLog.id)).outerjoin(User, User.id == AdminAuditLog.actor_user_id)
+    if filters:
+        base = base.where(*filters)
+        count_stmt = count_stmt.where(*filters)
+
+    total = int(db.execute(count_stmt).scalar_one() or 0)
+    rows = db.execute(
+        base.order_by(AdminAuditLog.id.desc()).limit(int(limit)).offset(int(offset))
+    ).all()
+
     items: list[dict[str, Any]] = []
     for log_row, user in rows:
-        items.append(
-            {
-                "id": int(log_row.id),
-                "actor_user_id": int(log_row.actor_user_id) if log_row.actor_user_id is not None else None,
-                "actor_tg_user_id": int(user.tg_user_id) if user and user.tg_user_id is not None else None,
-                "actor_label": _bot_admin_user_label(user),
-                "actor_scope": str(log_row.actor_scope),
-                "action": str(log_row.action),
-                "target_type": str(log_row.target_type),
-                "target_id": int(log_row.target_id) if log_row.target_id is not None else None,
-                "details": log_row.details_json if isinstance(log_row.details_json, dict) else None,
-                "created_at": str(log_row.created_at) if log_row.created_at else None,
-            }
-        )
-    return {"total": len(items), "limit": int(limit), "offset": int(offset), "items": items}
+        details = log_row.details_json if isinstance(log_row.details_json, dict) else {}
+        cat = _audit_action_category(str(log_row.action))
+        items.append({
+            "id": int(log_row.id),
+            "actor_user_id": int(log_row.actor_user_id) if log_row.actor_user_id is not None else None,
+            "actor_tg_user_id": int(user.tg_user_id) if user and user.tg_user_id is not None else details.get("actor_tg_user_id"),
+            "actor_label": _bot_admin_user_label(user),
+            "actor_scope": str(log_row.actor_scope),
+            "action": str(log_row.action),
+            "category": cat,
+            "category_label": _audit_category_label(cat),
+            "target_type": str(log_row.target_type),
+            "target_id": int(log_row.target_id) if log_row.target_id is not None else None,
+            "details": details,
+            "details_json": details,
+            "created_at": str(log_row.created_at) if log_row.created_at else None,
+        })
+    return {
+        "total": total,
+        "limit": int(limit),
+        "offset": int(offset),
+        "items": items,
+        "allowed_categories": sorted(allowed),
+        "filters": {
+            "category": requested_category or None,
+            "action": action,
+            "log_id": log_id,
+            "target_id": target_id,
+            "tg_user_id": tg_user_id,
+            "q": query_text or None,
+        },
+    }
 
 
 @router.get("/admin/risk-alerts")

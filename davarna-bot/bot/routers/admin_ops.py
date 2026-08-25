@@ -41,7 +41,7 @@ def _ops_home_kb():
     kb = InlineKeyboardBuilder()
     kb.button(text="🔄 بروزرسانی", callback_data="admin:ops:dashboard")
     kb.button(text="⚠️ هشدارهای ریسک", callback_data="admin:ops:risk")
-    kb.button(text="🧾 لاگ عملیات", callback_data="admin:ops:audit:0")
+    kb.button(text="🧾 لاگ عملیات", callback_data="admin:ops:audit:all:0")
     kb.button(text="⬅️ منو", callback_data="nav:menu")
     kb.adjust(1)
     return kb.as_markup()
@@ -55,19 +55,24 @@ def _ops_back_kb():
     return kb.as_markup()
 
 
-def _audit_kb(*, offset: int, has_next: bool):
+def _audit_kb(*, offset: int, has_next: bool, category: str = "all"):
     kb = InlineKeyboardBuilder()
+    cat = str(category or "all")
+    kb.button(text="همه", callback_data="admin:ops:audit:all:0")
+    kb.button(text="مالی", callback_data="admin:ops:audit:finance:0")
+    kb.button(text="بازی", callback_data="admin:ops:audit:game:0")
+    kb.button(text="کاربران", callback_data="admin:ops:audit:users:0")
     if offset > 0:
-        kb.button(text="◀️ قبلی", callback_data=f"admin:ops:audit:{max(0, offset - 10)}")
+        kb.button(text="◀️ صفحه قبل", callback_data=f"admin:ops:audit:{cat}:{max(0, offset - 10)}")
     if has_next:
-        kb.button(text="▶️ بعدی", callback_data=f"admin:ops:audit:{offset + 10}")
+        kb.button(text="صفحه بعد ▶️", callback_data=f"admin:ops:audit:{cat}:{offset + 10}")
     kb.button(text="📡 داشبورد عملیات", callback_data="admin:ops:dashboard")
     kb.button(text="⬅️ منو", callback_data="nav:menu")
     nav_count = int(offset > 0) + int(has_next)
     if nav_count:
-        kb.adjust(nav_count, 1, 1)
+        kb.adjust(4, nav_count, 1, 1)
     else:
-        kb.adjust(1)
+        kb.adjust(4, 1, 1)
     return kb.as_markup()
 
 
@@ -92,13 +97,20 @@ def _action_fa(action: object) -> str:
         "game.create": "ایجاد بازی",
         "game.start": "شروع بازی",
         "game.call": "اعلام عدد",
+        "game.undo": "حذف آخرین عدد",
         "game.undo_call": "برگشت عدد",
+        "game.close_lobby": "لغو لابی",
         "deposit.approve": "تایید واریز",
         "deposit.reject": "رد واریز",
         "withdraw.approve": "تایید برداشت",
         "withdraw.reject": "رد برداشت",
         "withdraw.paid": "پرداخت برداشت",
-        "wallet.adjust": "تغییر کیف پول",
+        "crypto.deposit.approve": "تایید واریز رمزارز",
+        "crypto.deposit.reject": "رد واریز رمزارز",
+        "wallet.adjust": "اصلاح کیف پول",
+        "user.restrict": "محدودسازی کاربر",
+        "user.unrestrict": "رفع محدودیت کاربر",
+        "user.notify": "ارسال پیام به کاربر",
         "admin.grant": "اعطای نقش",
         "admin.revoke": "حذف نقش",
         "settings.update": "تغییر تنظیمات",
@@ -225,33 +237,102 @@ async def admin_ops_audit(
     if not require_admin(is_admin):
         await cq.answer("اجازه دسترسی نداری.", show_alert=True)
         return
+
     parts = str(cq.data or "").split(":")
-    offset = max(0, _to_int(parts[-1], 0))
+    category = "all"
+    offset_raw = parts[-1] if parts else "0"
+    if len(parts) >= 5:
+        category = str(parts[-2] or "all")
+    offset = max(0, _to_int(offset_raw, 0))
+    limit = 10
 
     try:
-        out = await api.admin_audit_logs(limit=10, offset=offset)
+        out = await api.admin_audit_logs(
+            limit=limit,
+            offset=offset,
+            category=None if category == "all" else category,
+        )
     except ApiError as exc:
         await cq.answer(exc.detail, show_alert=True)
         return
 
     items = out.get("items") or []
+    total = _to_int(out.get("total"), 0)
+    if total <= 0:
+        total = offset + len(items)
+
+    page = (offset // limit) + 1
+    total_pages = max(1, ((total + limit - 1) // limit))
+    has_next = offset + len(items) < total if total else len(items) >= limit
+
+    cat_label = {
+        "all": "همه",
+        "finance": "مالی",
+        "game": "بازی",
+        "users": "کاربران",
+        "risk": "ریسک",
+        "admin": "نقش‌ها",
+        "settings": "تنظیمات",
+    }.get(category, category)
+
     if not items:
-        text = "لاگی برای نمایش وجود ندارد."
+        text = f"دسته: <b>{h(cat_label)}</b>\nلاگی برای نمایش وجود ندارد."
     else:
-        lines: list[str] = []
+        lines: list[str] = [
+            f"دسته: <b>{h(cat_label)}</b>\n"
+            f"صفحه <b>{_fa(page)}</b> از <b>{_fa(total_pages)}</b> | مجموع لاگ‌ها: <b>{_fmt_count(total)}</b>"
+        ]
+
         for item in items:
+            details = item.get("details_json") or item.get("details") or {}
+            if not isinstance(details, dict):
+                details = {}
+
+            actor = (
+                item.get("actor_label")
+                or details.get("actor_tg_user_id")
+                or details.get("actor_user_id")
+                or item.get("actor_user_id")
+                or "-"
+            )
+            target = (
+                details.get("target_tg_user_id")
+                or details.get("tg_user_id")
+                or details.get("target_user_id")
+                or details.get("user_id")
+                or item.get("target_id")
+                or "-"
+            )
+            amount = details.get("amount")
+            before_balance = details.get("before_balance")
+            after_balance = details.get("after_balance")
+            reason = details.get("reason") or details.get("failure_reason") or details.get("status") or ""
+
+            extra: list[str] = []
+            if amount is not None:
+                extra.append(f"💰 مبلغ/تغییر: <b>{h(_fmt_toman(amount))}</b>")
+            if before_balance is not None or after_balance is not None:
+                extra.append(
+                    f"📊 قبل/بعد: <code>{h(str(before_balance or '—'))}</code> → <code>{h(str(after_balance or '—'))}</code>"
+                )
+            if reason:
+                extra.append(f"📝 علت/وضعیت: {h(str(reason))}")
+
+            extra_text = "\n".join(extra)
             lines.append(
                 f"#{_fa(item.get('id'))} | <b>{h(_action_fa(item.get('action')))}</b>\n"
-                f"👤 {h(str(item.get('actor_label') or '-'))}\n"
-                f"🎯 {h(str(item.get('target_type') or '-'))} #{h(_fa(item.get('target_id') or '-'))}\n"
+                f"👮 ادمین: <code>{h(str(actor))}</code>\n"
+                f"🎯 هدف: <code>{h(str(target))}</code> | {h(str(item.get('target_type') or '-'))} #{h(_fa(item.get('target_id') or '-'))}\n"
                 f"⏱ <code>{h(format_jalali_datetime(item.get('created_at'), default='—'))}</code>"
+                + (f"\n{extra_text}" if extra_text else "")
             )
+
         text = "\n\n".join(lines)
 
     await safe_edit_or_send(
         cq.message,
         panel("لاگ عملیات ادمین", text),
-        reply_markup=_audit_kb(offset=offset, has_next=len(items) >= 10),
+        reply_markup=_audit_kb(offset=offset, has_next=has_next, category=category),
         parse_mode="HTML",
     )
     await cq.answer()

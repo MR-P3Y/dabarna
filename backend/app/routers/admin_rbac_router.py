@@ -46,13 +46,20 @@ class RevokeAdminIn(BaseModel):
 
 def _require_super_admin(identity: AdminIdentity = Depends(require_admin_any)) -> AdminIdentity:
     if identity.scope != AdminScope.SUPER_ADMIN:
-        raise HTTPException(status_code=403, detail="super admin required")
+        raise HTTPException(status_code=403, detail="برای این عملیات دسترسی سوپرادمین لازم است.")
     if RBAC_OWNER_USER_ID is None:
         raise HTTPException(status_code=503, detail="rbac owner is not configured")
     if identity.user_id is None or int(identity.user_id) != int(RBAC_OWNER_USER_ID):
-        raise HTTPException(status_code=403, detail="super admin owner required")
+        raise HTTPException(status_code=403, detail="این عملیات فقط برای مالک اصلی سوپرادمین مجاز است.")
     return identity
 
+
+
+def _ensure_not_self_role_change(identity: AdminIdentity, target_user: User) -> None:
+    if identity.user_id is None:
+        return
+    if int(identity.user_id) == int(target_user.id):
+        raise HTTPException(status_code=409, detail="امکان تغییر نقش‌های مدیریتی خودتان وجود ندارد.")
 
 def _role_id_map(db: Session) -> dict[str, int]:
     rows = db.execute(
@@ -181,6 +188,7 @@ def grant_admin_account(
     role_ids = _role_id_map(db)
     role_id = int(role_ids[payload.role])
     user = _get_or_create_user_by_tg(db, int(payload.tg_user_id))
+    _ensure_not_self_role_change(identity, user)
 
     existing = db.execute(
         select(UserRole)
@@ -222,6 +230,7 @@ def revoke_admin_account(
     ).scalar_one_or_none()
     if user is None:
         raise HTTPException(status_code=404, detail="user not found")
+    _ensure_not_self_role_change(identity, user)
 
     target_role_ids: list[int]
     if payload.role == "ALL":

@@ -37,6 +37,7 @@ class Settings(BaseSettings):
     ADMIN_TOPIC_ANTIFRAUD_ID: int | None = None
     ADMIN_TOPIC_GAME_AUDIT_ID: int | None = None
     ADMIN_TOPIC_USERS_ID: int | None = None
+    ADMIN_TOPIC_AUDIT_ID: int | None = None
     ADMIN_TOPIC_ENABLE_DM_FALLBACK: bool = True
     ADMIN_TOPIC_SLA_MINUTES: int = 30
     ADMIN_TOPIC_AUDIT_INTERVAL_SEC: int = 120

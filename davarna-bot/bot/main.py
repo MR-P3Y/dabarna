@@ -118,6 +118,16 @@ async def _sync_admin_roles_from_backend(api: ApiClient) -> None:
         logger.info("admin role startup sync completed: count=%d", len(role_map))
 
 
+async def _admin_role_sync_loop(api: ApiClient, *, interval_sec: float = 30.0) -> None:
+    """Keep bot admin ACL cache in sync with backend RBAC without restarting Docker."""
+    while True:
+        await asyncio.sleep(max(10.0, float(interval_sec)))
+        try:
+            await _sync_admin_roles_from_backend(api)
+        except Exception as exc:
+            logger.warning("admin role periodic sync failed: %s", exc)
+
+
 def _webhook_url() -> str:
     if not settings.WEBHOOK_BASE_URL:
         raise RuntimeError("WEBHOOK_BASE_URL is required when BOT_RUN_MODE=webhook")
@@ -197,6 +207,8 @@ async def main():
 
     await _sync_admin_roles_from_backend(api)
 
+    admin_role_sync_task = asyncio.create_task(_admin_role_sync_loop(api, interval_sec=30.0))
+
     # Start background notifier worker after Bot/Dispatcher/ApiClient are ready.
     notifier_task = asyncio.create_task(
         notifier_loop(
@@ -273,8 +285,11 @@ async def main():
             await dp.start_polling(bot, allowed_updates=settings.webhook_allowed_updates or None)
     finally:
         notifier_task.cancel()
+        admin_role_sync_task.cancel()
         with suppress(asyncio.CancelledError):
             await notifier_task
+        with suppress(asyncio.CancelledError):
+            await admin_role_sync_task
         await session.close()
 
 

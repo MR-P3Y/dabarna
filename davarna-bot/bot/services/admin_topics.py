@@ -13,8 +13,8 @@ from bot.config import settings
 from bot.services.jalali import format_jalali_datetime
 from bot.services.notify_store import get_meta_marker, set_meta_marker
 
-TopicName = Literal["general", "winners", "withdraw", "deposit", "income", "games", "alerts", "antifraud", "game_audit", "users"]
-_META_RULES_VERSION = "admin_topics_rules_v2"
+TopicName = Literal["general", "winners", "withdraw", "deposit", "income", "games", "alerts", "antifraud", "game_audit", "users", "audit"]
+_META_RULES_VERSION = "admin_topics_rules_v3"
 
 
 def forum_enabled() -> bool:
@@ -42,6 +42,8 @@ def topic_id(name: TopicName) -> int | None:
         return settings.ADMIN_TOPIC_GAME_AUDIT_ID or settings.ADMIN_TOPIC_GAMES_ID or settings.ADMIN_TOPIC_GENERAL_ID
     if name == "users":
         return settings.ADMIN_TOPIC_USERS_ID or settings.ADMIN_TOPIC_GENERAL_ID
+    if name == "audit":
+        return settings.ADMIN_TOPIC_AUDIT_ID or settings.ADMIN_TOPIC_USERS_ID or settings.ADMIN_TOPIC_GENERAL_ID
     return None
 
 
@@ -187,6 +189,16 @@ async def ensure_topic_rules(bot: Bot) -> None:
                 "• هر اقدام ادمین روی کاربر باید با دلیل شفاف ثبت شود.\n"
                 "• عملیات حساس مثل محدودسازی/اصلاح کیف پول باید قابل پیگیری باشد.\n"
                 "• پیام خصوصی به کاربر باید محترمانه و روشن ارسال شود.",
+            )
+        )
+    if settings.ADMIN_TOPIC_AUDIT_ID is not None:
+        rules.append(
+            (
+                "audit",
+                "📌 <b>قوانین تاپیک لاگ عملیات</b>\n"
+                "• این تاپیک فقط برای مشاهده لاگ عملیات حساس ادمین‌هاست.\n"
+                "• اکشن مالی، مدیریت نقش‌ها، محدودسازی کاربر و تغییرات حساس اینجا ثبت می‌شود.\n"
+                "• لاگ‌ها حذف یا ویرایش نمی‌شوند؛ هر مورد باید قابل پیگیری باشد.",
             )
         )
 
