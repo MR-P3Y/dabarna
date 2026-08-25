@@ -763,11 +763,16 @@ class ApiClient:
         )
         return data if isinstance(data, dict) else {}
 
-    async def admin_audit_logs(self, *, limit: int = 30, offset: int = 0) -> dict:
+    async def admin_audit_logs(self, *, limit: int = 30, offset: int = 0, category: str | None = None, q: str | None = None) -> dict:
+        params = {"limit": int(limit), "offset": int(offset)}
+        if category:
+            params["category"] = str(category)
+        if q:
+            params["q"] = str(q)
         data = await self._request(
             "GET",
             "/bot/admin/audit/logs",
-            params={"limit": int(limit), "offset": int(offset)},
+            params=params,
             headers=self.admin_headers(),
             timeout_sec=20.0,
         )
