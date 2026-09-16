@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -8,12 +7,12 @@ from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models.game import Game, GameAutoDraw, GameCalledNumber
+from app.models.game import Game, GameAutoDraw
 from app.services.game_event_service import GameEventService
 
 
 AUTO_DRAW_INTERVALS = (5, 8, 10, 15)
-AUTO_DRAW_STATUSES = {"RUNNING", "PAUSED", "STOPPED"}
+AUTO_DRAW_STATUSES = {"ARMED", "RUNNING", "PAUSED", "STOPPED"}
 
 
 def _utcnow_naive() -> datetime:
@@ -21,18 +20,6 @@ def _utcnow_naive() -> datetime:
 
 
 class GameAutoDrawService:
-    @staticmethod
-    def _remaining_sequence(db: Session, game_id: int, max_number: int) -> list[int]:
-        called = set(
-            int(value)
-            for value in db.execute(
-                select(GameCalledNumber.number).where(GameCalledNumber.game_id == int(game_id))
-            ).scalars().all()
-        )
-        remaining = [number for number in range(1, int(max_number) + 1) if number not in called]
-        secrets.SystemRandom().shuffle(remaining)
-        return remaining
-
     @staticmethod
     def _game_for_update(db: Session, game_id: int) -> Game:
         game = db.execute(
@@ -46,6 +33,13 @@ class GameAutoDrawService:
     def _require_access(game: Game, admin_user_id: int, can_manage_any: bool) -> None:
         if not can_manage_any and int(game.admin_user_id) != int(admin_user_id):
             raise HTTPException(status_code=403, detail="only game admin can manage auto draw")
+
+    @staticmethod
+    def _require_locked_auto_game(game: Game) -> None:
+        if str(game.draw_mode or "").upper() != "AUTO":
+            raise HTTPException(status_code=409, detail="this game is locked to MANUAL draw mode")
+        if game.draw_mode_locked_at is None or str(game.status) != "RUNNING":
+            raise HTTPException(status_code=409, detail="AUTO controls are available only after the AUTO game starts")
 
     @staticmethod
     def _emit(db: Session, *, game: Game, control: GameAutoDraw, action: str, actor_user_id: int) -> None:
@@ -65,6 +59,7 @@ class GameAutoDrawService:
                     "interval_seconds": int(control.interval_seconds),
                     "cursor": int(control.cursor),
                     "remaining_count": max(0, len(control.sequence_json or []) - int(control.cursor)),
+                    "sequence_commitment": str(control.sequence_commitment or "") or None,
                 },
             )
         except Exception:
@@ -88,51 +83,37 @@ class GameAutoDrawService:
         max_number: int,
         can_manage_any: bool = False,
     ) -> dict[str, Any]:
-        interval = int(interval_seconds)
-        if interval not in AUTO_DRAW_INTERVALS:
-            raise HTTPException(status_code=400, detail="interval_seconds must be one of 5, 8, 10, 15")
+        # Compatibility endpoint: after draw-mode locking, AUTO is armed before start
+        # and activated atomically by a DB trigger when the game enters RUNNING.
+        _ = max_number
         game = GameAutoDrawService._game_for_update(db, game_id)
         GameAutoDrawService._require_access(game, admin_user_id, can_manage_any)
-        if str(game.status) != "RUNNING":
-            raise HTTPException(status_code=400, detail="game is not RUNNING")
+        if str(game.draw_mode or "").upper() != "AUTO":
+            raise HTTPException(status_code=409, detail="select AUTO draw mode before game start")
 
-        sequence = GameAutoDrawService._remaining_sequence(db, game_id, max_number)
-        if not sequence:
-            raise HTTPException(status_code=400, detail="no numbers remain to draw")
-        now = _utcnow_naive()
+        configured_interval = int(game.draw_interval_seconds or 0)
+        if int(interval_seconds) != configured_interval:
+            raise HTTPException(status_code=409, detail="AUTO interval is fixed by the pre-game selection")
+
         control = db.execute(
             select(GameAutoDraw).where(GameAutoDraw.game_id == int(game_id)).with_for_update()
         ).scalar_one_or_none()
         if control is None:
-            control = GameAutoDraw(
-                game_id=int(game_id),
-                status="RUNNING",
-                interval_seconds=interval,
-                sequence_json=sequence,
-                cursor=0,
-                next_draw_at=now + timedelta(seconds=interval),
-                started_by=int(admin_user_id),
-                started_at=now,
-            )
-            db.add(control)
-        else:
-            control.status = "RUNNING"
-            control.interval_seconds = interval
-            control.sequence_json = sequence
-            control.cursor = 0
-            control.next_draw_at = now + timedelta(seconds=interval)
-            control.started_by = int(admin_user_id)
-            control.started_at = now
-            control.paused_at = None
-            control.stopped_at = None
-        db.flush()
-        GameAutoDrawService._emit(db, game=game, control=control, action="STARTED", actor_user_id=admin_user_id)
-        return GameAutoDrawService.to_dict(game, control)
+            raise HTTPException(status_code=409, detail="AUTO draw is not armed")
+
+        if str(game.status) == "LOBBY" and str(control.status) == "ARMED":
+            return GameAutoDrawService.to_dict(game, control)
+        if str(game.status) == "RUNNING" and str(control.status) == "RUNNING":
+            return GameAutoDrawService.to_dict(game, control)
+        if str(control.status) == "PAUSED":
+            raise HTTPException(status_code=409, detail="AUTO draw is paused; use resume")
+        raise HTTPException(status_code=409, detail="AUTO draw cannot be restarted or reseeded after game start")
 
     @staticmethod
     def pause(db: Session, *, game_id: int, admin_user_id: int, can_manage_any: bool = False) -> dict[str, Any]:
         game = GameAutoDrawService._game_for_update(db, game_id)
         GameAutoDrawService._require_access(game, admin_user_id, can_manage_any)
+        GameAutoDrawService._require_locked_auto_game(game)
         control = db.execute(
             select(GameAutoDraw).where(GameAutoDraw.game_id == int(game_id)).with_for_update()
         ).scalar_one_or_none()
@@ -154,20 +135,21 @@ class GameAutoDrawService:
         max_number: int,
         can_manage_any: bool = False,
     ) -> dict[str, Any]:
+        # Resume MUST keep the original sequence and cursor. Re-shuffling here would
+        # make the published commitment meaningless and would permit manipulation.
+        _ = max_number
         game = GameAutoDrawService._game_for_update(db, game_id)
         GameAutoDrawService._require_access(game, admin_user_id, can_manage_any)
-        if str(game.status) != "RUNNING":
-            raise HTTPException(status_code=400, detail="game is not RUNNING")
+        GameAutoDrawService._require_locked_auto_game(game)
         control = db.execute(
             select(GameAutoDraw).where(GameAutoDraw.game_id == int(game_id)).with_for_update()
         ).scalar_one_or_none()
         if not control or str(control.status) != "PAUSED":
             raise HTTPException(status_code=400, detail="auto draw is not PAUSED")
-        remaining = GameAutoDrawService._remaining_sequence(db, game_id, max_number)
-        if not remaining:
+        sequence = control.sequence_json if isinstance(control.sequence_json, list) else []
+        cursor = max(0, int(control.cursor or 0))
+        if cursor >= len(sequence):
             raise HTTPException(status_code=400, detail="no numbers remain to draw")
-        control.sequence_json = remaining
-        control.cursor = 0
         control.status = "RUNNING"
         control.paused_at = None
         control.next_draw_at = _utcnow_naive() + timedelta(seconds=int(control.interval_seconds))
@@ -184,6 +166,8 @@ class GameAutoDrawService:
         ).scalar_one_or_none()
         if not control:
             raise HTTPException(status_code=400, detail="auto draw is not configured")
+        if str(game.status) == "RUNNING" and game.draw_mode_locked_at is not None:
+            raise HTTPException(status_code=409, detail="locked AUTO game cannot be stopped; pause or finish the game")
         control.status = "STOPPED"
         control.next_draw_at = None
         control.stopped_at = _utcnow_naive()
@@ -193,9 +177,9 @@ class GameAutoDrawService:
 
     @staticmethod
     def assert_manual_call_allowed(db: Session, game_id: int) -> None:
-        control = db.get(GameAutoDraw, int(game_id))
-        if control and str(control.status) == "RUNNING":
-            raise HTTPException(status_code=409, detail="pause auto draw before a manual call")
+        game = db.get(Game, int(game_id))
+        if game and str(game.draw_mode or "").upper() == "AUTO" and game.draw_mode_locked_at is not None:
+            raise HTTPException(status_code=409, detail="manual calls are forbidden for this locked AUTO game")
 
     @staticmethod
     def to_dict(game: Game, control: GameAutoDraw | None) -> dict[str, Any]:
@@ -203,10 +187,13 @@ class GameAutoDrawService:
             return {
                 "game_id": int(game.id),
                 "game_status": str(game.status),
+                "draw_mode": str(game.draw_mode) if game.draw_mode else None,
+                "locked": game.draw_mode_locked_at is not None,
                 "status": "STOPPED",
-                "interval_seconds": 10,
+                "interval_seconds": int(game.draw_interval_seconds or 0) or None,
                 "next_draw_at": None,
                 "remaining_count": 0,
+                "sequence_commitment": None,
             }
         sequence = control.sequence_json if isinstance(control.sequence_json, list) else []
         cursor = max(0, int(control.cursor or 0))
@@ -220,8 +207,11 @@ class GameAutoDrawService:
         return {
             "game_id": int(game.id),
             "game_status": str(game.status),
+            "draw_mode": str(game.draw_mode) if game.draw_mode else None,
+            "locked": game.draw_mode_locked_at is not None,
             "status": str(control.status),
             "interval_seconds": int(control.interval_seconds),
             "next_draw_at": next_draw_at_value,
             "remaining_count": max(0, len(sequence) - cursor),
+            "sequence_commitment": str(control.sequence_commitment or "") or None,
         }
