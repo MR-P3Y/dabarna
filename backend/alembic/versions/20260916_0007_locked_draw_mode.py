@@ -58,7 +58,40 @@ def _commitment(sequence: list[int]) -> str:
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
+def _mysql_trigger_preflight(bind) -> None:
+    """Fail before any DDL if this connection cannot create the required triggers."""
+    if bind.dialect.name != "mysql":
+        return
+
+    trust = int(bind.exec_driver_sql("SELECT @@GLOBAL.log_bin_trust_function_creators").scalar_one() or 0)
+    current_user = str(bind.exec_driver_sql("SELECT CURRENT_USER()").scalar_one() or "unknown")
+    current_db = str(bind.exec_driver_sql("SELECT DATABASE()").scalar_one() or "")
+    grant_rows = bind.exec_driver_sql("SHOW GRANTS FOR CURRENT_USER").all()
+    grants = "\n".join(str(row[0]).upper() for row in grant_rows if row)
+
+    has_global_super = " SUPER" in f" {grants}" or "ALL PRIVILEGES ON *.*" in grants
+    has_trigger = "TRIGGER" in grants or "ALL PRIVILEGES" in grants
+
+    if not has_trigger:
+        raise RuntimeError(
+            "Migration 20260916_0007 requires TRIGGER privilege before any schema changes. "
+            f"Current user={current_user}, database={current_db}."
+        )
+
+    if trust != 1 and not has_global_super:
+        raise RuntimeError(
+            "Migration 20260916_0007 requires permission to create MySQL triggers while binary logging is enabled. "
+            f"Current user={current_user}, database={current_db}, "
+            "@@GLOBAL.log_bin_trust_function_creators=0. "
+            "Run this migration through the controlled DBA migration path or temporarily enable "
+            "log_bin_trust_function_creators for the migration and restore its original value immediately afterward."
+        )
+
+
 def upgrade() -> None:
+    bind = op.get_bind()
+    _mysql_trigger_preflight(bind)
+
     op.add_column("games", sa.Column("draw_mode", sa.String(length=16), nullable=True))
     op.add_column("games", sa.Column("draw_interval_seconds", sa.Integer(), nullable=True))
     op.add_column("games", sa.Column("draw_mode_selected_by", sa.BigInteger(), nullable=True))
@@ -67,8 +100,6 @@ def upgrade() -> None:
     op.create_index("idx_games_draw_mode", "games", ["draw_mode"], unique=False)
 
     op.add_column("game_auto_draws", sa.Column("sequence_commitment", sa.String(length=64), nullable=True))
-
-    bind = op.get_bind()
 
     # Existing non-LOBBY games must remain playable after deployment.
     # Games that have ever used game_auto_draws are treated as AUTO; others as MANUAL.
