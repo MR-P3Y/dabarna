@@ -221,12 +221,11 @@ def upgrade() -> None:
         BEFORE UPDATE ON game_auto_draws
         FOR EACH ROW
         BEGIN
-            DECLARE v_game_status VARCHAR(16) DEFAULT NULL;
             DECLARE v_mode VARCHAR(16) DEFAULT NULL;
             DECLARE v_locked TIMESTAMP DEFAULT NULL;
 
-            SELECT status, draw_mode, draw_mode_locked_at
-            INTO v_game_status, v_mode, v_locked
+            SELECT draw_mode, draw_mode_locked_at
+            INTO v_mode, v_locked
             FROM games
             WHERE id = NEW.game_id;
 
@@ -236,11 +235,6 @@ def upgrade() -> None:
                    OR CAST(NEW.sequence_json AS CHAR) <> CAST(OLD.sequence_json AS CHAR) THEN
                     SIGNAL SQLSTATE '45000'
                         SET MESSAGE_TEXT = 'AUTO sequence and interval are immutable after game start';
-                END IF;
-
-                IF v_game_status = 'RUNNING' AND NEW.status = 'STOPPED' THEN
-                    SIGNAL SQLSTATE '45000'
-                        SET MESSAGE_TEXT = 'locked AUTO game cannot be stopped while game is RUNNING; pause instead';
                 END IF;
             END IF;
         END
