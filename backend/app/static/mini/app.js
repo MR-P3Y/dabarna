@@ -88,6 +88,7 @@ const state = {
     selectedGameId: 0,
     gamesById: new Map(),
     liveLinksByGame: new Map(),
+    autoDrawByGame: new Map(),
     depositsById: new Map(),
     users: {
       selectedTgUserId: 0,
@@ -2783,6 +2784,9 @@ function handleMiniSocketMessage(event) {
       notifyAfterId: previousCursor,
       startPolling: false,
     });
+    if (state.admin.enabled && Number(state.admin?.selectedGameId || 0) === gid) {
+      refreshAdminAutoDraw(gid).catch(() => {});
+    }
     return;
   }
   if (type === "finance_status") {
@@ -2865,6 +2869,9 @@ function startEventPolling() {
           notifyAfterId: previousCursor,
           startPolling: false,
         });
+        if (state.admin.enabled && Number(state.admin?.selectedGameId || 0) === gid) {
+          refreshAdminAutoDraw(gid).catch(() => {});
+        }
       }
     } catch (_) {}
   }, 1200);
@@ -5269,6 +5276,7 @@ function setAdminSelectedGame(gameId, statusText = "") {
   syncAdminCreateFormFromGame(state.admin.selectedGameId);
   updateAdminActionButtons();
   openLiveGame(state.admin.selectedGameId, { announce: false }).catch((err) => console.warn("[mini] admin game snapshot hydrate failed", err));
+  refreshAdminAutoDraw(state.admin.selectedGameId).catch((err) => console.warn("[mini] auto draw state failed", err));
 }
 
 function updateAdminActionButtons() {
@@ -5288,13 +5296,19 @@ function updateAdminActionButtons() {
   const hasGame = gid > 0;
   const isLobby = status === "LOBBY";
   const isRunning = status === "RUNNING";
+  const autoDraw = state.admin?.autoDrawByGame?.get(gid) || null;
+  const autoStatus = String(autoDraw?.status || "STOPPED").toUpperCase();
 
   const hasLiveLink = Boolean(adminLiveLinkForGame(gid));
 
   setBtn("adminStartBtn", hasGame && isLobby, hasGame ? "شروع فقط برای بازی در لابی فعال است." : "ابتدا بازی را انتخاب کنید.");
   setBtn("adminCloseLobbyBtn", hasGame && isLobby, hasGame ? "لغو فقط پیش از شروع بازی مجاز است." : "ابتدا بازی را انتخاب کنید.");
-  setBtn("adminCallBtn", hasGame && isRunning, hasGame ? "اعلام عدد فقط برای بازی در حال اجرا مجاز است." : "ابتدا بازی را انتخاب کنید.");
-  setBtn("adminUndoBtn", hasGame && isRunning, hasGame ? "حذف آخرین عدد فقط برای بازی در حال اجرا مجاز است." : "ابتدا بازی را انتخاب کنید.");
+  setBtn("adminCallBtn", hasGame && isRunning && autoStatus !== "RUNNING", autoStatus === "RUNNING" ? "ابتدا شماره‌خوان خودکار را متوقف موقت کنید." : "اعلام عدد فقط برای بازی در حال اجرا مجاز است.");
+  setBtn("adminUndoBtn", hasGame && isRunning && autoStatus !== "RUNNING", autoStatus === "RUNNING" ? "ابتدا شماره‌خوان خودکار را متوقف موقت کنید." : "حذف آخرین عدد فقط برای بازی در حال اجرا مجاز است.");
+  setBtn("adminAutoDrawStartBtn", hasGame && isRunning && autoStatus === "STOPPED", "شروع شماره‌خوان خودکار");
+  setBtn("adminAutoDrawPauseBtn", hasGame && isRunning && autoStatus === "RUNNING", "توقف موقت شماره‌خوان");
+  setBtn("adminAutoDrawResumeBtn", hasGame && isRunning && autoStatus === "PAUSED", "ادامه شماره‌خوان");
+  setBtn("adminAutoDrawStopBtn", hasGame && isRunning && autoStatus !== "STOPPED", "پایان حالت خودکار و بازگشت به دستی");
   setBtn("adminSendLiveBtn", hasGame && hasLiveLink, hasLiveLink ? "ارسال لینک لایو به خریداران کارت همین بازی." : "ابتدا لینک لایو را ثبت کنید.");
   setBtn("adminClearLiveBtn", hasGame && hasLiveLink, hasLiveLink ? "حذف لینک لایو ثبت‌شده برای این بازی." : "لینک لایو ثبت نشده است.");
 }
@@ -5335,6 +5349,7 @@ async function refreshAdminBootstrap() {
     state.admin.cryptoSettings = null;
     state.admin.selectedGameId = 0;
     state.admin.gamesById = new Map();
+    state.admin.autoDrawByGame = new Map();
     state.admin.users.selectedTgUserId = 0;
     state.admin.users.lastQuery = "";
     state.admin.users.reportMode = "none";
@@ -5419,6 +5434,7 @@ async function refreshAdminGames() {
   renderAdminGames(out);
   updateAdminActionButtons();
   renderAdminCallQuickPanel();
+  if (selectedAdminGameId()) await refreshAdminAutoDraw(selectedAdminGameId());
 }
 
 function closeDepositReceiptModal() {
@@ -7351,6 +7367,62 @@ function pushAdminWinnerNotice(event) {
 }
 // ADMIN_WINNER_POPUP_V6_3_END
 
+function adminAutoDrawState(gameId) {
+  const gid = Number(gameId || state.admin?.selectedGameId || 0);
+  return gid ? state.admin?.autoDrawByGame?.get(gid) || null : null;
+}
+
+function renderAdminAutoDraw() {
+  const gid = Number(state.admin?.selectedGameId || 0);
+  const data = adminAutoDrawState(gid) || {};
+  const status = String(data.status || "STOPPED").toUpperCase();
+  const labels = { RUNNING: "در حال اجرا", PAUSED: "متوقف موقت", STOPPED: "متوقف" };
+  const statusEl = getEl("adminAutoDrawStatus");
+  const remainingEl = getEl("adminAutoDrawRemaining");
+  const countdownEl = getEl("adminAutoDrawCountdown");
+  const intervalEl = getEl("adminAutoDrawInterval");
+  if (statusEl) statusEl.textContent = labels[status] || status;
+  if (remainingEl) remainingEl.textContent = Number.isFinite(Number(data.remaining_count)) ? String(Number(data.remaining_count)) : "-";
+  if (intervalEl && data.interval_seconds && document.activeElement !== intervalEl) {
+    intervalEl.value = String(data.interval_seconds);
+  }
+  if (countdownEl) {
+    if (status !== "RUNNING" || !data.next_draw_at) {
+      countdownEl.textContent = "--:--";
+    } else {
+      const remainingMs = Math.max(0, new Date(data.next_draw_at).getTime() - Date.now());
+      const seconds = Math.ceil(remainingMs / 1000);
+      countdownEl.textContent = `00:${String(seconds).padStart(2, "0")}`;
+    }
+  }
+  updateAdminActionButtons();
+}
+
+async function refreshAdminAutoDraw(gameId) {
+  const gid = Number(gameId || state.admin?.selectedGameId || 0);
+  if (!state.admin.enabled || !gid) return;
+  const data = await apiFetch(`/mini-api/admin/games/${gid}/auto-draw`);
+  state.admin.autoDrawByGame.set(gid, data || {});
+  if (Number(state.admin?.selectedGameId || 0) === gid) renderAdminAutoDraw();
+}
+
+async function adminAutoDrawAction(action) {
+  const { gid } = requireAdminGameStatus(["RUNNING"], "کنترل شماره‌خوان خودکار");
+  const body = action === "start"
+    ? { interval_seconds: Number(getVal("adminAutoDrawInterval") || 10) }
+    : undefined;
+  const actionText = { start: "شروع", pause: "توقف موقت", resume: "ادامه", stop: "پایان" }[action] || action;
+  setAdminLocalHint("adminAutoDrawHint", `در حال ${actionText} شماره‌خوان...`);
+  const out = await apiFetch(`/mini-api/admin/games/${gid}/auto-draw/${action}`, {
+    method: "POST",
+    ...(body ? { body } : {}),
+  });
+  state.admin.autoDrawByGame.set(gid, out?.auto_draw || {});
+  renderAdminAutoDraw();
+  setAdminLocalHint("adminAutoDrawHint", `${actionText} شماره‌خوان با موفقیت انجام شد.`, "success");
+  await Promise.allSettled([refreshAdminGames(), openLiveGame(gid)]);
+}
+
 async function adminCallNumber() {
   const { gid } = requireAdminGameStatus(["RUNNING"], "اعلام عدد");
   normalizeAdminCallNumberInput();
@@ -8072,6 +8144,10 @@ async function boot() {
   );
   bind("adminCallBtn", "click", () => adminCallNumber().catch((e) => setAdminLocalError("adminCallActionHint", e)));
   bind("adminUndoBtn", "click", () => adminUndoCall().catch((e) => setAdminLocalError("adminCallActionHint", e)));
+  bind("adminAutoDrawStartBtn", "click", () => adminAutoDrawAction("start").catch((e) => setAdminLocalError("adminAutoDrawHint", e)));
+  bind("adminAutoDrawPauseBtn", "click", () => adminAutoDrawAction("pause").catch((e) => setAdminLocalError("adminAutoDrawHint", e)));
+  bind("adminAutoDrawResumeBtn", "click", () => adminAutoDrawAction("resume").catch((e) => setAdminLocalError("adminAutoDrawHint", e)));
+  bind("adminAutoDrawStopBtn", "click", () => adminAutoDrawAction("stop").catch((e) => setAdminLocalError("adminAutoDrawHint", e)));
   const adminCallInput = getEl("adminCallNumberInput");
   if (adminCallInput && !adminCallInput.dataset.phase1UxBound) {
     adminCallInput.dataset.phase1UxBound = "1";
@@ -8157,6 +8233,7 @@ async function boot() {
     checkAdminFinanceNotifications({ silent: false }).catch(() => {});
   }
   startGlobalRefresh();
+  setInterval(() => renderAdminAutoDraw(), 1000);
 
   const current = document.querySelector(".nav-btn.active")?.getAttribute("data-view") || "games";
   switchToView(current);

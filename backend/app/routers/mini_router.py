@@ -106,6 +106,7 @@ from app.schemas.crypto import (
 from app.services.finance_service import FinanceService
 from app.services.game_event_service import GameEventService
 from app.services.game_service import GameService
+from app.services.game_auto_draw_service import AUTO_DRAW_INTERVALS, GameAutoDrawService
 from app.services.wallet_service import WalletService
 from app.services.admin_audit_service import AdminAuditService
 from app.services.crypto_deposit_service import (
@@ -542,6 +543,30 @@ class MiniAdminActionIn(BaseModel):
 class MiniAdminCallIn(BaseModel):
     number: int = Field(ge=1, le=99)
     idempotency_key: str = Field(min_length=6)
+
+
+class MiniAdminAutoDrawStartIn(BaseModel):
+    interval_seconds: int = Field(default=10)
+
+
+def _audit_auto_draw(
+    db: Session,
+    *,
+    ident: MiniAdminIdentity,
+    request: Request,
+    game_id: int,
+    action: str,
+    state: dict,
+) -> None:
+    AdminAuditService.record(
+        db,
+        admin=_mini_to_admin_identity(ident),
+        action=f"game.auto_draw.{action}",
+        target_type="game",
+        target_id=int(game_id),
+        request=request,
+        details=dict(state),
+    )
 
 
 class MiniAdminCreateGameIn(BaseModel):
@@ -4051,6 +4076,107 @@ def mini_admin_call_number(
     )
     db.commit()
     return {"ok": True, "result": out}
+
+
+@router.get("/admin/games/{game_id}/auto-draw")
+def mini_admin_auto_draw_state(
+    game_id: int,
+    ident: MiniAdminIdentity = Depends(get_mini_admin_identity),
+    db: Session = Depends(get_db),
+):
+    _mini_require_game_manage_access(db, int(game_id), ident)
+    return GameAutoDrawService.get(db, int(game_id))
+
+
+@router.post("/admin/games/{game_id}/auto-draw/start")
+def mini_admin_auto_draw_start(
+    game_id: int,
+    payload: MiniAdminAutoDrawStartIn,
+    request: Request,
+    ident: MiniAdminIdentity = Depends(get_mini_admin_identity),
+    db: Session = Depends(get_db),
+):
+    _mini_require_game_manage_access(db, int(game_id), ident)
+    if int(payload.interval_seconds) not in AUTO_DRAW_INTERVALS:
+        raise HTTPException(status_code=400, detail="فاصله اعلام باید یکی از ۵، ۸، ۱۰ یا ۱۵ ثانیه باشد.")
+    max_number = int(GameService._get_setting(db, GameService.KEY_MAX_NUMBER, 90))
+    state = GameAutoDrawService.start(
+        db,
+        game_id=int(game_id),
+        admin_user_id=int(ident.user_id),
+        interval_seconds=int(payload.interval_seconds),
+        max_number=max_number,
+        can_manage_any=bool(ident.is_super_admin),
+    )
+    _audit_auto_draw(
+        db,
+        ident=ident,
+        request=request,
+        game_id=game_id,
+        action="start",
+        state=state,
+    )
+    db.commit()
+    return {"ok": True, "auto_draw": state}
+
+
+@router.post("/admin/games/{game_id}/auto-draw/pause")
+def mini_admin_auto_draw_pause(
+    game_id: int,
+    request: Request,
+    ident: MiniAdminIdentity = Depends(get_mini_admin_identity),
+    db: Session = Depends(get_db),
+):
+    _mini_require_game_manage_access(db, int(game_id), ident)
+    state = GameAutoDrawService.pause(
+        db,
+        game_id=int(game_id),
+        admin_user_id=int(ident.user_id),
+        can_manage_any=bool(ident.is_super_admin),
+    )
+    _audit_auto_draw(db, ident=ident, request=request, game_id=game_id, action="pause", state=state)
+    db.commit()
+    return {"ok": True, "auto_draw": state}
+
+
+@router.post("/admin/games/{game_id}/auto-draw/resume")
+def mini_admin_auto_draw_resume(
+    game_id: int,
+    request: Request,
+    ident: MiniAdminIdentity = Depends(get_mini_admin_identity),
+    db: Session = Depends(get_db),
+):
+    _mini_require_game_manage_access(db, int(game_id), ident)
+    max_number = int(GameService._get_setting(db, GameService.KEY_MAX_NUMBER, 90))
+    state = GameAutoDrawService.resume(
+        db,
+        game_id=int(game_id),
+        admin_user_id=int(ident.user_id),
+        max_number=max_number,
+        can_manage_any=bool(ident.is_super_admin),
+    )
+    _audit_auto_draw(db, ident=ident, request=request, game_id=game_id, action="resume", state=state)
+    db.commit()
+    return {"ok": True, "auto_draw": state}
+
+
+@router.post("/admin/games/{game_id}/auto-draw/stop")
+def mini_admin_auto_draw_stop(
+    game_id: int,
+    request: Request,
+    ident: MiniAdminIdentity = Depends(get_mini_admin_identity),
+    db: Session = Depends(get_db),
+):
+    _mini_require_game_manage_access(db, int(game_id), ident)
+    state = GameAutoDrawService.stop(
+        db,
+        game_id=int(game_id),
+        admin_user_id=int(ident.user_id),
+        can_manage_any=bool(ident.is_super_admin),
+    )
+    _audit_auto_draw(db, ident=ident, request=request, game_id=game_id, action="stop", state=state)
+    db.commit()
+    return {"ok": True, "auto_draw": state}
 
 
 @router.post("/admin/games/{game_id}/undo-last-call")

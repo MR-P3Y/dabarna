@@ -21,6 +21,7 @@ depends_on = None
 POST_INITIAL_TABLES = {
     "admin_audit_logs",
     "crypto_deposit_requests",
+    "game_auto_draws",
 }
 
 

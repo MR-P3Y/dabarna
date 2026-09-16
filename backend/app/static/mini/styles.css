@@ -5934,6 +5934,46 @@ html[data-theme="light"] #withdrawProofModal .withdraw-proof-actions {
 }
 /* ADMIN_CALL_STATE_FIX_V5_END */
 
+.admin-auto-draw-panel {
+  display: grid;
+  gap: 9px;
+  padding: 12px;
+  border: 1px solid rgba(45, 212, 191, 0.28);
+  border-radius: 14px;
+  background: linear-gradient(145deg, rgba(45, 212, 191, 0.09), rgba(67, 185, 255, 0.05));
+}
+
+.admin-auto-draw-head {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.admin-auto-draw-head > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 8px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  text-align: center;
+}
+
+.admin-auto-draw-head span {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.admin-auto-draw-head strong {
+  color: var(--text);
+  font-size: 13px;
+  direction: ltr;
+}
+
+@media (max-width: 390px) {
+  .admin-auto-draw-head { grid-template-columns: 1fr; }
+}
+
 
 
 /* ADMIN_WINNER_POPUP_V6_1_START */

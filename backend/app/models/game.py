@@ -93,3 +93,31 @@ class GameCalledNumber(Base):
     created_at: Mapped[str] = mapped_column(
         TIMESTAMP, server_default=text("CURRENT_TIMESTAMP"), nullable=False
     )
+
+
+class GameAutoDraw(Base):
+    __tablename__ = "game_auto_draws"
+
+    game_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("games.id"),
+        primary_key=True,
+    )
+    status: Mapped[str] = mapped_column(String(16), nullable=False, server_default="STOPPED")
+    interval_seconds: Mapped[int] = mapped_column(Integer, nullable=False, server_default="10")
+    sequence_json: Mapped[list] = mapped_column(JSON, nullable=False)
+    cursor: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    next_draw_at: Mapped[str | None] = mapped_column(TIMESTAMP, nullable=True, index=True)
+    started_by: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id"), nullable=False)
+    started_at: Mapped[str | None] = mapped_column(TIMESTAMP, nullable=True)
+    paused_at: Mapped[str | None] = mapped_column(TIMESTAMP, nullable=True)
+    stopped_at: Mapped[str | None] = mapped_column(TIMESTAMP, nullable=True)
+    created_at: Mapped[str] = mapped_column(
+        TIMESTAMP, server_default=text("CURRENT_TIMESTAMP"), nullable=False
+    )
+    updated_at: Mapped[str] = mapped_column(
+        TIMESTAMP,
+        server_default=text("CURRENT_TIMESTAMP"),
+        onupdate=text("CURRENT_TIMESTAMP"),
+        nullable=False,
+    )

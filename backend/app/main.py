@@ -27,6 +27,7 @@ from app.routers.admin_audit_router import router as admin_audit_router
 from app.routers.crypto_router import router as crypto_router
 from app.services.crypto_deposit_service import CryptoDepositService
 from app.services.crypto_worker import run_crypto_worker_forever
+from app.services.game_auto_draw_worker import run_game_auto_draw_worker_forever
 
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -37,7 +38,7 @@ log = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     stop_event = asyncio.Event()
-    task: asyncio.Task | None = None
+    tasks: list[asyncio.Task] = []
     if cfg.CRYPTO_PAYMENTS_ENABLED:
         for warning in cfg.crypto_config_warnings():
             log.warning("crypto configuration: %s", warning)
@@ -46,12 +47,20 @@ async def lifespan(app: FastAPI):
                 run_crypto_worker_forever(stop_event),
                 name="crypto-deposit-worker",
             )
+            tasks.append(task)
             app.state.crypto_worker_task = task
+    if cfg.GAME_AUTO_DRAW_ENABLED:
+        auto_draw_task = asyncio.create_task(
+            run_game_auto_draw_worker_forever(stop_event),
+            name="game-auto-draw-worker",
+        )
+        tasks.append(auto_draw_task)
+        app.state.game_auto_draw_worker_task = auto_draw_task
     try:
         yield
     finally:
         stop_event.set()
-        if task is not None:
+        for task in tasks:
             try:
                 await asyncio.wait_for(task, timeout=5)
             except asyncio.TimeoutError:
