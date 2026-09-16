@@ -355,6 +355,27 @@ class GameService:
         if str(game.status) != "LOBBY" or _safe_int(game.prize_locked) == 1:
             return game
 
+        draw_mode = str(game.draw_mode or "").upper()
+        auto_control = db.get(GameAutoDraw, int(game.id))
+        if draw_mode not in {"MANUAL", "AUTO"}:
+            raise HTTPException(status_code=400, detail="draw mode must be selected before game start")
+
+        if draw_mode == "AUTO":
+            interval = int(game.draw_interval_seconds or 0)
+            sequence = auto_control.sequence_json if auto_control is not None and isinstance(auto_control.sequence_json, list) else []
+            if interval not in {5, 8, 10, 15}:
+                raise HTTPException(status_code=400, detail="valid auto draw interval must be selected before game start")
+            if (
+                auto_control is None
+                or str(auto_control.status) != "ARMED"
+                or int(auto_control.interval_seconds or 0) != interval
+                or not sequence
+                or not str(auto_control.sequence_commitment or "").strip()
+            ):
+                raise HTTPException(status_code=400, detail="auto draw must be armed before game start")
+        elif game.draw_interval_seconds is not None:
+            raise HTTPException(status_code=400, detail="manual games cannot have an auto draw interval")
+
         if int(game.sold_amount) <= 0:
             # Audit: start rejected (idempotent)
             try:
@@ -392,6 +413,8 @@ class GameService:
         game.payout_state_json = None
         game.row_winner_user_id = None
         game.prize_locked = 1
+        if game.draw_mode_locked_at is None:
+            game.draw_mode_locked_at = _utcnow_naive()
         game.status = "RUNNING"
         if not game.started_at:
             game.started_at = _utcnow_naive()
@@ -409,6 +432,9 @@ class GameService:
                     "prize_pool": int(game.prize_pool),
                     "col_prize_amount": int(game.col_prize_amount),
                     "row_prize_amount": int(game.row_prize_amount),
+                    "draw_mode": draw_mode,
+                    "draw_interval_seconds": int(game.draw_interval_seconds) if game.draw_interval_seconds is not None else None,
+                    "sequence_commitment": str(auto_control.sequence_commitment) if auto_control is not None and auto_control.sequence_commitment else None,
                 },
             )
         except Exception:
@@ -600,9 +626,18 @@ class GameService:
                 raise HTTPException(status_code=403, detail="only game admin can call number")
             if str(game.status) != "RUNNING":
                 raise HTTPException(status_code=400, detail="game is not RUNNING")
+
+            source_norm = str(source or "MANUAL").upper()
+            draw_mode = str(game.draw_mode or "").upper()
+            if game.draw_mode_locked_at is not None:
+                if draw_mode == "AUTO" and source_norm != "AUTO":
+                    raise HTTPException(status_code=409, detail="manual calls are forbidden for locked AUTO games")
+                if draw_mode == "MANUAL" and source_norm == "AUTO":
+                    raise HTTPException(status_code=409, detail="automatic calls are forbidden for locked MANUAL games")
+
             auto_control = db.get(GameAutoDraw, int(game_id))
             if (
-                str(source or "MANUAL").upper() != "AUTO"
+                source_norm != "AUTO"
                 and auto_control is not None
                 and str(auto_control.status) == "RUNNING"
             ):
@@ -669,6 +704,7 @@ class GameService:
                     payload={
                         "number": int(number),
                         "called_number_id": int(row.id),
+                        "source": source_norm,
                     },
                 )
 
@@ -772,6 +808,8 @@ class GameService:
                 raise HTTPException(status_code=404, detail="game not found")
             if not _can_manage_game(game, admin_user_id, can_manage_any=can_manage_any):
                 raise HTTPException(status_code=403, detail="only game admin can undo call")
+            if str(game.draw_mode or "").upper() == "AUTO" and game.draw_mode_locked_at is not None:
+                raise HTTPException(status_code=409, detail="undo is forbidden for locked AUTO games")
             auto_control = db.get(GameAutoDraw, int(game_id))
             if auto_control is not None and str(auto_control.status) == "RUNNING":
                 raise HTTPException(status_code=409, detail="pause auto draw before undo")
