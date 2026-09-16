@@ -12,6 +12,7 @@ class Game(Base):
     __table_args__ = (
         Index("idx_group_status", "tg_group_id", "status"),
         Index("idx_group_topic_status", "tg_group_id", "tg_topic_id", "status"),
+        Index("idx_games_draw_mode", "draw_mode"),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
@@ -34,6 +35,14 @@ class Game(Base):
     prize_locked: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
     started_at: Mapped[str | None] = mapped_column(TIMESTAMP, nullable=True)
     ended_at: Mapped[str | None] = mapped_column(TIMESTAMP, nullable=True)
+
+    # Draw mode is selected while the game is in LOBBY and becomes immutable
+    # when the game transitions to RUNNING. Database triggers enforce this too.
+    draw_mode: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    draw_interval_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    draw_mode_selected_by: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    draw_mode_selected_at: Mapped[str | None] = mapped_column(TIMESTAMP, nullable=True)
+    draw_mode_locked_at: Mapped[str | None] = mapped_column(TIMESTAMP, nullable=True)
 
     col_paid: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
     payout_state_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
@@ -106,6 +115,7 @@ class GameAutoDraw(Base):
     status: Mapped[str] = mapped_column(String(16), nullable=False, server_default="STOPPED")
     interval_seconds: Mapped[int] = mapped_column(Integer, nullable=False, server_default="10")
     sequence_json: Mapped[list] = mapped_column(JSON, nullable=False)
+    sequence_commitment: Mapped[str | None] = mapped_column(String(64), nullable=True)
     cursor: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
     next_draw_at: Mapped[str | None] = mapped_column(TIMESTAMP, nullable=True, index=True)
     started_by: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id"), nullable=False)
