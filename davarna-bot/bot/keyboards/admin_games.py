@@ -103,19 +103,28 @@ def admin_game_item_kb(
             text="✅ در حال اجرا",
             callback_data=f"admin:games:view:{int(game_id)}:{status}:{offset}",
         )
-    else:
         kb.button(
-            text="▶️ شروع بازی",
-            callback_data=f"admin:games:start:{int(game_id)}:{status}:{offset}",
+            text="🎛 کنترل شماره‌خوانی",
+            callback_data=f"admin:games:draw:{int(game_id)}:{status}:{offset}",
         )
-        if normalized == "LOBBY" and allow_close_lobby:
+    elif normalized == "LOBBY":
+        kb.button(
+            text="🎛 انتخاب روش شماره‌خوانی و شروع",
+            callback_data=f"admin:games:draw:{int(game_id)}:{status}:{offset}",
+        )
+        if allow_close_lobby:
             kb.button(
                 text="🛑 بستن بازی لابی",
                 callback_data=f"admin:games:close-lobby:{int(game_id)}:{status}:{offset}",
             )
+    else:
+        kb.button(
+            text="🏁 بازی پایان یافته",
+            callback_data=f"admin:games:view:{int(game_id)}:{status}:{offset}",
+        )
 
-    kb.button(text="🔢 اعلام عدد", callback_data=f"admin:games:call:{int(game_id)}:{status}:{offset}")
-    kb.button(text="↩️ بازگردانی آخرین شماره", callback_data=f"admin:games:undo:{int(game_id)}:{status}:{offset}")
+    # Manual call / undo are intentionally absent here. They are exposed only
+    # inside the draw-mode panel when the locked mode is MANUAL.
     kb.button(text="🧾 گزارش بازی", callback_data=f"admin:games:report:{int(game_id)}:{status}:{offset}")
     kb.button(text="🏆 کارت‌های برنده", callback_data=f"admin:games:winners:{int(game_id)}:{status}:{offset}")
     kb.button(text="📡 مانیتور زنده", callback_data=f"admin:games:monitor:{int(game_id)}:{status}:{offset}")
@@ -124,10 +133,13 @@ def admin_game_item_kb(
     kb.button(text="🧹 حذف لینک لایو", callback_data=f"admin:games:live:clear:{int(game_id)}:{status}:{offset}")
     kb.button(text="🔄 تازه‌سازی", callback_data=f"admin:games:view:{int(game_id)}:{status}:{offset}")
     kb.button(text="⬅️ برگشت", callback_data=f"admin:games:list:{status}:{offset}")
-    if normalized == "LOBBY" and allow_close_lobby:
-        kb.adjust(2, 2, 2, 2, 2, 1, 1)
+
+    if normalized == "RUNNING":
+        kb.adjust(1, 1, 2, 1, 2, 2, 1)
+    elif normalized == "LOBBY" and allow_close_lobby:
+        kb.adjust(1, 1, 2, 1, 2, 2, 1)
     else:
-        kb.adjust(1, 2, 2, 2, 2, 1, 1)
+        kb.adjust(1, 2, 1, 2, 2, 1)
 
     kb.attach(InlineKeyboardBuilder.from_markup(back_to_menu_kb()))
     return kb.as_markup()
