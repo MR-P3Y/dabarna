@@ -76,19 +76,34 @@ class GameDrawModeService:
         if mode not in DRAW_MODES:
             raise HTTPException(status_code=400, detail="draw_mode must be MANUAL or AUTO")
 
-        now = _utcnow_naive()
-        commitment: str | None = None
+        control = db.execute(
+            select(GameAutoDraw).where(GameAutoDraw.game_id == int(game_id)).with_for_update()
+        ).scalar_one_or_none()
 
         if mode == DRAW_MODE_AUTO:
             if interval_seconds is None or int(interval_seconds) not in AUTO_DRAW_INTERVALS:
                 raise HTTPException(status_code=400, detail="interval_seconds must be one of 5, 8, 10, 15")
             interval = int(interval_seconds)
+            if (
+                str(game.draw_mode or "").upper() == DRAW_MODE_AUTO
+                and int(game.draw_interval_seconds or 0) == interval
+                and control is not None
+                and str(control.status) == "ARMED"
+                and bool(control.sequence_commitment)
+            ):
+                return GameDrawModeService.state(db, int(game.id))
+        else:
+            if str(game.draw_mode or "").upper() == DRAW_MODE_MANUAL and control is None:
+                return GameDrawModeService.state(db, int(game.id))
+
+        now = _utcnow_naive()
+        commitment: str | None = None
+
+        if mode == DRAW_MODE_AUTO:
+            interval = int(interval_seconds or 0)
             sequence = GameDrawModeService._sequence(max_number)
             commitment = sequence_commitment(sequence)
 
-            control = db.execute(
-                select(GameAutoDraw).where(GameAutoDraw.game_id == int(game_id)).with_for_update()
-            ).scalar_one_or_none()
             if control is None:
                 control = GameAutoDraw(
                     game_id=int(game_id),
@@ -118,7 +133,8 @@ class GameDrawModeService:
 
             game.draw_interval_seconds = interval
         else:
-            db.execute(delete(GameAutoDraw).where(GameAutoDraw.game_id == int(game_id)))
+            if control is not None:
+                db.execute(delete(GameAutoDraw).where(GameAutoDraw.game_id == int(game_id)))
             game.draw_interval_seconds = None
 
         game.draw_mode = mode
@@ -157,7 +173,6 @@ class GameDrawModeService:
                     },
                 )
         except Exception:
-            # Selection itself must remain authoritative even if audit emission fails.
             pass
 
         return GameDrawModeService.state(db, int(game.id))
