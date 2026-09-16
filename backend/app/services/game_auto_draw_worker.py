@@ -4,11 +4,13 @@ import asyncio
 import logging
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 
 from app.core.db import SessionLocal
 from app.core.redis_client import RedisLock
 from app.models.game import Game, GameAutoDraw, GameCalledNumber
+from app.services.game_draw_mode_service import sequence_commitment
+from app.services.game_event_service import GameEventService
 from app.services.game_service import GameService
 
 
@@ -60,6 +62,7 @@ class GameAutoDrawWorker:
     @staticmethod
     def _draw_game(game_id: int) -> bool:
         with SessionLocal() as db:
+            mysql_guard_set = False
             try:
                 control = db.execute(
                     select(GameAutoDraw)
@@ -79,7 +82,46 @@ class GameAutoDrawWorker:
                     db.commit()
                     return False
 
+                if str(game.draw_mode or "").upper() != "AUTO" or game.draw_mode_locked_at is None:
+                    control.status = "PAUSED"
+                    control.next_draw_at = None
+                    db.commit()
+                    log.error("auto draw paused: game is not a locked AUTO game game_id=%s", game_id)
+                    return False
+
+                if int(game.draw_interval_seconds or 0) != int(control.interval_seconds or 0):
+                    control.status = "PAUSED"
+                    control.next_draw_at = None
+                    db.commit()
+                    log.critical("auto draw paused: interval mismatch game_id=%s", game_id)
+                    return False
+
                 sequence = control.sequence_json if isinstance(control.sequence_json, list) else []
+                actual_commitment = sequence_commitment([int(value) for value in sequence]) if sequence else ""
+                expected_commitment = str(control.sequence_commitment or "")
+                if not expected_commitment or actual_commitment != expected_commitment:
+                    control.status = "PAUSED"
+                    control.next_draw_at = None
+                    try:
+                        GameEventService.emit(
+                            db,
+                            kind="AUTO_DRAW_TAMPER_DETECTED",
+                            game_id=int(game_id),
+                            tg_group_id=int(game.tg_group_id),
+                            actor_user_id=int(control.started_by),
+                            idem_key=f"AUTO_DRAW_TAMPER_DETECTED:{game_id}:{int(_utcnow_naive().timestamp())}",
+                            payload={
+                                "expected_commitment": expected_commitment or None,
+                                "actual_commitment": actual_commitment or None,
+                                "cursor": int(control.cursor or 0),
+                            },
+                        )
+                    except Exception:
+                        pass
+                    db.commit()
+                    log.critical("AUTO sequence commitment mismatch; game paused game_id=%s", game_id)
+                    return False
+
                 called = set(
                     int(value)
                     for value in db.execute(
@@ -90,34 +132,58 @@ class GameAutoDrawWorker:
                 while cursor < len(sequence) and int(sequence[cursor]) in called:
                     cursor += 1
                 if cursor >= len(sequence):
-                    control.status = "STOPPED"
+                    # Do not transition a still-running locked AUTO game to STOPPED.
+                    # A game without a terminal winner must be inspected instead.
+                    control.status = "PAUSED"
                     control.cursor = cursor
                     control.next_draw_at = None
-                    control.stopped_at = _utcnow_naive()
                     db.commit()
+                    log.error("AUTO sequence exhausted while game still RUNNING game_id=%s", game_id)
                     return False
 
                 number = int(sequence[cursor])
-                result = GameService.call_number(
-                    db=db,
-                    game_id=int(game_id),
-                    number=number,
-                    admin_user_id=int(control.started_by),
-                    idempotency_key=f"auto:{game_id}:{cursor}:{number}",
-                    can_manage_any=True,
-                    source="AUTO",
-                )
+
+                # MySQL trigger accepts number insertion for locked AUTO games only from
+                # this worker connection. Always clear the session marker before the
+                # pooled connection is returned.
+                if db.get_bind().dialect.name == "mysql":
+                    db.execute(text("SET @davarna_auto_draw_game_id = :gid"), {"gid": int(game_id)})
+                    mysql_guard_set = True
+
+                try:
+                    result = GameService.call_number(
+                        db=db,
+                        game_id=int(game_id),
+                        number=number,
+                        admin_user_id=int(control.started_by),
+                        idempotency_key=f"auto:{game_id}:{cursor}:{number}",
+                        can_manage_any=True,
+                        source="AUTO",
+                    )
+                finally:
+                    if mysql_guard_set:
+                        db.execute(text("SET @davarna_auto_draw_game_id = NULL"))
+                        mysql_guard_set = False
+
                 control.cursor = cursor + 1
                 game_ended = str(game.status) != "RUNNING" or int(result.get("row_paid") or 0) == 1
-                if game_ended or control.cursor >= len(sequence):
+                if game_ended:
                     control.status = "STOPPED"
                     control.next_draw_at = None
                     control.stopped_at = _utcnow_naive()
+                elif control.cursor >= len(sequence):
+                    control.status = "PAUSED"
+                    control.next_draw_at = None
                 else:
                     control.next_draw_at = _utcnow_naive() + timedelta(seconds=int(control.interval_seconds))
                 db.commit()
                 return True
             except Exception:
+                if mysql_guard_set:
+                    try:
+                        db.execute(text("SET @davarna_auto_draw_game_id = NULL"))
+                    except Exception:
+                        pass
                 db.rollback()
                 raise
 
