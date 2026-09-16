@@ -5297,18 +5297,24 @@ function updateAdminActionButtons() {
   const isLobby = status === "LOBBY";
   const isRunning = status === "RUNNING";
   const autoDraw = state.admin?.autoDrawByGame?.get(gid) || null;
-  const autoStatus = String(autoDraw?.status || "STOPPED").toUpperCase();
+  const autoStatus = String(autoDraw?.auto_status || autoDraw?.status || "STOPPED").toUpperCase();
+  const drawMode = String(autoDraw?.draw_mode || "").toUpperCase();
+  const drawLocked = Boolean(autoDraw?.locked);
+  const validDrawMode = drawMode === "MANUAL" || drawMode === "AUTO";
 
   const hasLiveLink = Boolean(adminLiveLinkForGame(gid));
 
-  setBtn("adminStartBtn", hasGame && isLobby, hasGame ? "شروع فقط برای بازی در لابی فعال است." : "ابتدا بازی را انتخاب کنید.");
+  setBtn("adminStartBtn", hasGame && isLobby && validDrawMode, !validDrawMode ? "قبل از شروع، روش شماره‌خوانی را انتخاب کنید." : "شروع فقط برای بازی در لابی فعال است.");
   setBtn("adminCloseLobbyBtn", hasGame && isLobby, hasGame ? "لغو فقط پیش از شروع بازی مجاز است." : "ابتدا بازی را انتخاب کنید.");
-  setBtn("adminCallBtn", hasGame && isRunning && autoStatus !== "RUNNING", autoStatus === "RUNNING" ? "ابتدا شماره‌خوان خودکار را متوقف موقت کنید." : "اعلام عدد فقط برای بازی در حال اجرا مجاز است.");
-  setBtn("adminUndoBtn", hasGame && isRunning && autoStatus !== "RUNNING", autoStatus === "RUNNING" ? "ابتدا شماره‌خوان خودکار را متوقف موقت کنید." : "حذف آخرین عدد فقط برای بازی در حال اجرا مجاز است.");
-  setBtn("adminAutoDrawStartBtn", hasGame && isRunning && autoStatus === "STOPPED", "شروع شماره‌خوان خودکار");
-  setBtn("adminAutoDrawPauseBtn", hasGame && isRunning && autoStatus === "RUNNING", "توقف موقت شماره‌خوان");
-  setBtn("adminAutoDrawResumeBtn", hasGame && isRunning && autoStatus === "PAUSED", "ادامه شماره‌خوان");
-  setBtn("adminAutoDrawStopBtn", hasGame && isRunning && autoStatus !== "STOPPED", "پایان حالت خودکار و بازگشت به دستی");
+  setBtn("adminCallBtn", hasGame && isRunning && drawMode === "MANUAL", drawMode === "AUTO" ? "این بازی روی حالت خودکار قفل شده است." : "اعلام عدد فقط برای بازی دستی در حال اجرا مجاز است.");
+  setBtn("adminUndoBtn", hasGame && isRunning && drawMode === "MANUAL", drawMode === "AUTO" ? "Undo در بازی خودکار قفل‌شده مجاز نیست." : "حذف آخرین عدد فقط برای بازی دستی در حال اجرا مجاز است.");
+  setBtn("adminDrawModeManualBtn", hasGame && isLobby && !drawLocked, "حالت دستی فقط پیش از شروع قابل انتخاب است.");
+  setBtn("adminDrawModeAutoBtn", hasGame && isLobby && !drawLocked, "حالت خودکار و فاصله فقط پیش از شروع قابل انتخاب است.");
+  setBtn("adminAutoDrawPauseBtn", hasGame && isRunning && drawMode === "AUTO" && autoStatus === "RUNNING", "مکث شماره‌خوان خودکار؛ ترتیب اعداد تغییر نمی‌کند.");
+  setBtn("adminAutoDrawResumeBtn", hasGame && isRunning && drawMode === "AUTO" && autoStatus === "PAUSED", "ادامه همان ترتیب قفل‌شده.");
+
+  const intervalEl = getEl("adminAutoDrawInterval");
+  if (intervalEl) intervalEl.disabled = !(hasGame && isLobby && !drawLocked);
   setBtn("adminSendLiveBtn", hasGame && hasLiveLink, hasLiveLink ? "ارسال لینک لایو به خریداران کارت همین بازی." : "ابتدا لینک لایو را ثبت کنید.");
   setBtn("adminClearLiveBtn", hasGame && hasLiveLink, hasLiveLink ? "حذف لینک لایو ثبت‌شده برای این بازی." : "لینک لایو ثبت نشده است.");
 }
@@ -6937,13 +6943,18 @@ async function adminCreateGame() {
 
 async function adminStartGame() {
   const { gid } = requireAdminGameStatus(["LOBBY"], "شروع بازی");
+  const draw = adminAutoDrawState(gid) || {};
+  const drawMode = String(draw.draw_mode || "").toUpperCase();
+  if (drawMode !== "MANUAL" && drawMode !== "AUTO") {
+    throw new Error("قبل از شروع بازی، روش شماره‌خوانی دستی یا خودکار را انتخاب کنید.");
+  }
   setAdminLocalHint("adminCallActionHint", "در حال شروع بازی...");
   await apiFetch(`/mini-api/admin/games/${gid}/start`, {
     method: "POST",
     body: { idempotency_key: idem("mini_admin_start") },
   });
-  setAdminLocalHint("adminCallActionHint", `بازی #${gid} شروع شد.`, "success");
-  await Promise.allSettled([refreshAdminGames(), openLiveGame(gid)]);
+  setAdminLocalHint("adminCallActionHint", `بازی #${gid} شروع شد و روش شماره‌خوانی قفل شد.`, "success");
+  await Promise.allSettled([refreshAdminGames(), refreshAdminAutoDraw(gid), openLiveGame(gid)]);
 }
 
 // ADMIN_CALL_PHASE1_UX_START
@@ -7375,14 +7386,26 @@ function adminAutoDrawState(gameId) {
 function renderAdminAutoDraw() {
   const gid = Number(state.admin?.selectedGameId || 0);
   const data = adminAutoDrawState(gid) || {};
-  const status = String(data.status || "STOPPED").toUpperCase();
-  const labels = { RUNNING: "در حال اجرا", PAUSED: "متوقف موقت", STOPPED: "متوقف" };
+  const status = String(data.auto_status || data.status || "STOPPED").toUpperCase();
+  const drawMode = String(data.draw_mode || "").toUpperCase();
+  const locked = Boolean(data.locked);
+  const labels = { ARMED: "آماده شروع", RUNNING: "در حال اجرا", PAUSED: "متوقف موقت", STOPPED: "متوقف" };
   const statusEl = getEl("adminAutoDrawStatus");
   const remainingEl = getEl("adminAutoDrawRemaining");
   const countdownEl = getEl("adminAutoDrawCountdown");
   const intervalEl = getEl("adminAutoDrawInterval");
-  if (statusEl) statusEl.textContent = labels[status] || status;
-  if (remainingEl) remainingEl.textContent = Number.isFinite(Number(data.remaining_count)) ? String(Number(data.remaining_count)) : "-";
+  const modeEl = getEl("adminDrawModeLabel");
+  const lockEl = getEl("adminDrawModeLock");
+  const commitmentEl = getEl("adminDrawCommitment");
+  const manualBtn = getEl("adminDrawModeManualBtn");
+  const autoBtn = getEl("adminDrawModeAutoBtn");
+  if (statusEl) statusEl.textContent = drawMode === "MANUAL" ? "دستی" : (labels[status] || status);
+  if (modeEl) modeEl.textContent = drawMode === "MANUAL" ? "👤 دستی" : drawMode === "AUTO" ? `🤖 خودکار • هر ${Number(data.interval_seconds || 0)} ثانیه` : "انتخاب نشده";
+  if (lockEl) lockEl.textContent = locked ? "🔒 قفل‌شده تا پایان بازی" : "آزاد تا شروع بازی";
+  if (commitmentEl) commitmentEl.textContent = data.sequence_commitment ? String(data.sequence_commitment).slice(0, 12) : "-";
+  if (manualBtn) manualBtn.textContent = drawMode === "MANUAL" ? "✅ دستی انتخاب شد" : "👤 انتخاب دستی";
+  if (autoBtn) autoBtn.textContent = drawMode === "AUTO" ? "✅ خودکار انتخاب شد" : "🤖 انتخاب خودکار";
+  if (remainingEl) remainingEl.textContent = drawMode === "AUTO" && Number.isFinite(Number(data.remaining_count)) ? String(Number(data.remaining_count)) : "-";
   if (intervalEl && data.interval_seconds && document.activeElement !== intervalEl) {
     intervalEl.value = String(data.interval_seconds);
   }
@@ -7406,20 +7429,31 @@ async function refreshAdminAutoDraw(gameId) {
   if (Number(state.admin?.selectedGameId || 0) === gid) renderAdminAutoDraw();
 }
 
+async function adminSelectDrawMode(mode) {
+  const { gid } = requireAdminGameStatus(["LOBBY"], "انتخاب روش شماره‌خوانی");
+  const drawMode = String(mode || "").toUpperCase();
+  if (drawMode !== "MANUAL" && drawMode !== "AUTO") throw new Error("روش شماره‌خوانی نامعتبر است.");
+  const body = {
+    draw_mode: drawMode,
+    interval_seconds: drawMode === "AUTO" ? Number(getVal("adminAutoDrawInterval") || 10) : null,
+  };
+  setAdminLocalHint("adminAutoDrawHint", drawMode === "AUTO" ? "در حال آماده‌سازی ترتیب تصادفی و قفل امن..." : "در حال انتخاب حالت دستی...");
+  const out = await apiFetch(`/mini-api/admin/games/${gid}/draw-mode`, { method: "PUT", body });
+  state.admin.autoDrawByGame.set(gid, out || {});
+  renderAdminAutoDraw();
+  setAdminLocalHint("adminAutoDrawHint", drawMode === "AUTO" ? "حالت خودکار آماده شد؛ با شروع بازی، ترتیب و فاصله قفل می‌شوند." : "حالت دستی انتخاب شد؛ با شروع بازی این انتخاب قفل می‌شود.", "success");
+  await refreshAdminGames();
+}
+
 async function adminAutoDrawAction(action) {
   const { gid } = requireAdminGameStatus(["RUNNING"], "کنترل شماره‌خوان خودکار");
-  const body = action === "start"
-    ? { interval_seconds: Number(getVal("adminAutoDrawInterval") || 10) }
-    : undefined;
-  const actionText = { start: "شروع", pause: "توقف موقت", resume: "ادامه", stop: "پایان" }[action] || action;
+  if (action !== "pause" && action !== "resume") throw new Error("در بازی قفل‌شده فقط مکث یا ادامه مجاز است.");
+  const actionText = action === "pause" ? "مکث" : "ادامه";
   setAdminLocalHint("adminAutoDrawHint", `در حال ${actionText} شماره‌خوان...`);
-  const out = await apiFetch(`/mini-api/admin/games/${gid}/auto-draw/${action}`, {
-    method: "POST",
-    ...(body ? { body } : {}),
-  });
+  const out = await apiFetch(`/mini-api/admin/games/${gid}/auto-draw/${action}`, { method: "POST" });
   state.admin.autoDrawByGame.set(gid, out?.auto_draw || {});
   renderAdminAutoDraw();
-  setAdminLocalHint("adminAutoDrawHint", `${actionText} شماره‌خوان با موفقیت انجام شد.`, "success");
+  setAdminLocalHint("adminAutoDrawHint", action === "pause" ? "شماره‌خوان مکث کرد؛ ترتیب قفل‌شده بدون تغییر باقی ماند." : "شماره‌خوان از همان ترتیب قبلی ادامه پیدا کرد.", "success");
   await Promise.allSettled([refreshAdminGames(), openLiveGame(gid)]);
 }
 
@@ -8144,10 +8178,10 @@ async function boot() {
   );
   bind("adminCallBtn", "click", () => adminCallNumber().catch((e) => setAdminLocalError("adminCallActionHint", e)));
   bind("adminUndoBtn", "click", () => adminUndoCall().catch((e) => setAdminLocalError("adminCallActionHint", e)));
-  bind("adminAutoDrawStartBtn", "click", () => adminAutoDrawAction("start").catch((e) => setAdminLocalError("adminAutoDrawHint", e)));
+  bind("adminDrawModeManualBtn", "click", () => adminSelectDrawMode("MANUAL").catch((e) => setAdminLocalError("adminAutoDrawHint", e)));
+  bind("adminDrawModeAutoBtn", "click", () => adminSelectDrawMode("AUTO").catch((e) => setAdminLocalError("adminAutoDrawHint", e)));
   bind("adminAutoDrawPauseBtn", "click", () => adminAutoDrawAction("pause").catch((e) => setAdminLocalError("adminAutoDrawHint", e)));
   bind("adminAutoDrawResumeBtn", "click", () => adminAutoDrawAction("resume").catch((e) => setAdminLocalError("adminAutoDrawHint", e)));
-  bind("adminAutoDrawStopBtn", "click", () => adminAutoDrawAction("stop").catch((e) => setAdminLocalError("adminAutoDrawHint", e)));
   const adminCallInput = getEl("adminCallNumberInput");
   if (adminCallInput && !adminCallInput.dataset.phase1UxBound) {
     adminCallInput.dataset.phase1UxBound = "1";

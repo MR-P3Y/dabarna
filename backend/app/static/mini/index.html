@@ -542,7 +542,21 @@
                       <strong id="adminAutoDrawRemaining">-</strong>
                     </div>
                   </div>
-                  <label for="adminAutoDrawInterval">فاصله اعلام اعداد</label>
+                  <div class="admin-auto-draw-head">
+                    <div>
+                      <span>روش بازی</span>
+                      <strong id="adminDrawModeLabel">انتخاب نشده</strong>
+                    </div>
+                    <div>
+                      <span>قفل روش</span>
+                      <strong id="adminDrawModeLock">آزاد تا شروع</strong>
+                    </div>
+                    <div>
+                      <span>شناسه ترتیب</span>
+                      <strong id="adminDrawCommitment">-</strong>
+                    </div>
+                  </div>
+                  <label for="adminAutoDrawInterval">فاصله اعلام خودکار</label>
                   <select id="adminAutoDrawInterval">
                     <option value="5">۵ ثانیه</option>
                     <option value="8">۸ ثانیه</option>
@@ -550,12 +564,12 @@
                     <option value="15">۱۵ ثانیه</option>
                   </select>
                   <div class="admin-action-row">
-                    <button id="adminAutoDrawStartBtn" class="small-btn primary" type="button">شروع خودکار</button>
-                    <button id="adminAutoDrawPauseBtn" class="small-btn" type="button">توقف موقت</button>
-                    <button id="adminAutoDrawResumeBtn" class="small-btn" type="button">ادامه</button>
-                    <button id="adminAutoDrawStopBtn" class="small-btn danger" type="button">پایان خودکار</button>
+                    <button id="adminDrawModeManualBtn" class="small-btn" type="button">👤 انتخاب دستی</button>
+                    <button id="adminDrawModeAutoBtn" class="small-btn primary" type="button">🤖 انتخاب خودکار</button>
+                    <button id="adminAutoDrawPauseBtn" class="small-btn" type="button">⏸ مکث خودکار</button>
+                    <button id="adminAutoDrawResumeBtn" class="small-btn" type="button">▶️ ادامه همان ترتیب</button>
                   </div>
-                  <div id="adminAutoDrawHint" class="step-hint action-local-hint"></div>
+                  <div id="adminAutoDrawHint" class="step-hint action-local-hint">روش شماره‌خوانی را قبل از شروع بازی انتخاب کنید.</div>
                 </div>
                 <div id="adminCallActionHint" class="step-hint action-local-hint"></div>
                 <label id="adminCancelReasonLabel" for="adminCancelReasonInput">علت لغو لابی</label>
@@ -860,6 +874,6 @@
     <div id="miniToast" class="mini-toast hidden" role="status" aria-live="polite"></div>
 
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="./app.js?v=auto-draw-20260916" type="module"></script>
+    <script src="./app.js?v=locked-draw-20260916-1" type="module"></script>
   </body>
 </html>

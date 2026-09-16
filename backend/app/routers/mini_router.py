@@ -107,6 +107,7 @@ from app.services.finance_service import FinanceService
 from app.services.game_event_service import GameEventService
 from app.services.game_service import GameService
 from app.services.game_auto_draw_service import AUTO_DRAW_INTERVALS, GameAutoDrawService
+from app.services.game_draw_mode_service import GameDrawModeService
 from app.services.wallet_service import WalletService
 from app.services.admin_audit_service import AdminAuditService
 from app.services.crypto_deposit_service import (
@@ -543,6 +544,11 @@ class MiniAdminActionIn(BaseModel):
 class MiniAdminCallIn(BaseModel):
     number: int = Field(ge=1, le=99)
     idempotency_key: str = Field(min_length=6)
+
+
+class MiniAdminDrawModeIn(BaseModel):
+    draw_mode: str
+    interval_seconds: int | None = None
 
 
 class MiniAdminAutoDrawStartIn(BaseModel):
@@ -4076,6 +4082,61 @@ def mini_admin_call_number(
     )
     db.commit()
     return {"ok": True, "result": out}
+
+
+@router.get("/admin/games/{game_id}/draw-mode")
+def mini_admin_draw_mode_state(
+    game_id: int,
+    ident: MiniAdminIdentity = Depends(get_mini_admin_identity),
+    db: Session = Depends(get_db),
+):
+    _mini_require_game_manage_access(db, int(game_id), ident)
+    return GameDrawModeService.state(db, int(game_id))
+
+
+@router.put("/admin/games/{game_id}/draw-mode")
+def mini_admin_set_draw_mode(
+    game_id: int,
+    payload: MiniAdminDrawModeIn,
+    request: Request,
+    ident: MiniAdminIdentity = Depends(get_mini_admin_identity),
+    db: Session = Depends(get_db),
+):
+    _mini_require_game_manage_access(db, int(game_id), ident)
+    max_number = int(GameService._get_setting(db, GameService.KEY_MAX_NUMBER, 90))
+    try:
+        state = GameDrawModeService.select_mode(
+            db,
+            game_id=int(game_id),
+            admin_user_id=int(ident.user_id),
+            draw_mode=str(payload.draw_mode),
+            interval_seconds=payload.interval_seconds,
+            max_number=max_number,
+            can_manage_any=bool(ident.is_super_admin),
+        )
+        AdminAuditService.record(
+            db,
+            admin=_mini_to_admin_identity(ident),
+            action="game.draw_mode.select",
+            target_type="game",
+            target_id=int(game_id),
+            request=request,
+            details={
+                "game_id": int(game_id),
+                "draw_mode": state.get("draw_mode"),
+                "interval_seconds": state.get("interval_seconds"),
+                "sequence_commitment": state.get("sequence_commitment"),
+                "locked": bool(state.get("locked")),
+            },
+        )
+        db.commit()
+        return state
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"انتخاب روش شماره‌خوانی ناموفق بود: {exc}")
 
 
 @router.get("/admin/games/{game_id}/auto-draw")
