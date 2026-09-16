@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>مینی‌اپ دبرنای طوفان</title>
-    <link rel="stylesheet" href="./styles.css?v=20260703livebarbadgev77" />
+    <link rel="stylesheet" href="./styles.css?v=auto-draw-20260916" />
   </head>
   <body>
     <div id="appSplash" class="app-splash" aria-label="در حال آماده‌سازی مینی‌اپ">
@@ -527,6 +527,36 @@
                     <button type="button" class="soft" data-admin-call-backspace="1">&#9003;</button>
                   </div>
                 </div>
+                <div id="adminAutoDrawPanel" class="admin-auto-draw-panel">
+                  <div class="admin-auto-draw-head">
+                    <div>
+                      <span>شماره‌خوان خودکار</span>
+                      <strong id="adminAutoDrawStatus">متوقف</strong>
+                    </div>
+                    <div>
+                      <span>عدد بعدی تا</span>
+                      <strong id="adminAutoDrawCountdown">--:--</strong>
+                    </div>
+                    <div>
+                      <span>اعداد باقی‌مانده</span>
+                      <strong id="adminAutoDrawRemaining">-</strong>
+                    </div>
+                  </div>
+                  <label for="adminAutoDrawInterval">فاصله اعلام اعداد</label>
+                  <select id="adminAutoDrawInterval">
+                    <option value="5">۵ ثانیه</option>
+                    <option value="8">۸ ثانیه</option>
+                    <option value="10" selected>۱۰ ثانیه</option>
+                    <option value="15">۱۵ ثانیه</option>
+                  </select>
+                  <div class="admin-action-row">
+                    <button id="adminAutoDrawStartBtn" class="small-btn primary" type="button">شروع خودکار</button>
+                    <button id="adminAutoDrawPauseBtn" class="small-btn" type="button">توقف موقت</button>
+                    <button id="adminAutoDrawResumeBtn" class="small-btn" type="button">ادامه</button>
+                    <button id="adminAutoDrawStopBtn" class="small-btn danger" type="button">پایان خودکار</button>
+                  </div>
+                  <div id="adminAutoDrawHint" class="step-hint action-local-hint"></div>
+                </div>
                 <div id="adminCallActionHint" class="step-hint action-local-hint"></div>
                 <label id="adminCancelReasonLabel" for="adminCancelReasonInput">علت لغو لابی</label>
                 <input id="adminCancelReasonInput" type="text" />
@@ -830,6 +860,6 @@
     <div id="miniToast" class="mini-toast hidden" role="status" aria-live="polite"></div>
 
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="./app.js?v=wallet-live-refresh-20260816" type="module"></script>
+    <script src="./app.js?v=auto-draw-20260916" type="module"></script>
   </body>
 </html>

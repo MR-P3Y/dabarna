@@ -405,6 +405,8 @@ CRYPTO_TON_EXPLORER_TX_BASE = (
     or "https://tonviewer.com/transaction"
 ).strip().rstrip("/")
 
+GAME_AUTO_DRAW_ENABLED = _safe_bool("GAME_AUTO_DRAW_ENABLED", True)
+
 
 def crypto_config_warnings() -> list[str]:
     warnings: list[str] = []

@@ -9,7 +9,7 @@ from fastapi import HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 from app.core.redis_client import RedisLock, idem_get, idem_set
-from app.models.game import Game, GameCalledNumber, GameCard, GamePurchase
+from app.models.game import Game, GameAutoDraw, GameCalledNumber, GameCard, GamePurchase
 from app.models.user import User
 from app.models.settings import AppSetting
 from sqlalchemy.exc import IntegrityError as SAIntegrityError
@@ -571,6 +571,7 @@ class GameService:
         admin_user_id: int,
         idempotency_key: str,
         can_manage_any: bool = False,
+        source: str = "MANUAL",
     ) -> dict:
         # ---- Redis idempotency ----
         idem_cache_key = f"idem:call:{game_id}:{admin_user_id}:{idempotency_key}"
@@ -599,6 +600,13 @@ class GameService:
                 raise HTTPException(status_code=403, detail="only game admin can call number")
             if str(game.status) != "RUNNING":
                 raise HTTPException(status_code=400, detail="game is not RUNNING")
+            auto_control = db.get(GameAutoDraw, int(game_id))
+            if (
+                str(source or "MANUAL").upper() != "AUTO"
+                and auto_control is not None
+                and str(auto_control.status) == "RUNNING"
+            ):
+                raise HTTPException(status_code=409, detail="pause auto draw before a manual call")
 
             max_number = int(GameService._get_setting(db, GameService.KEY_MAX_NUMBER, 90))
             if number < 1 or number > max_number:
@@ -764,6 +772,9 @@ class GameService:
                 raise HTTPException(status_code=404, detail="game not found")
             if not _can_manage_game(game, admin_user_id, can_manage_any=can_manage_any):
                 raise HTTPException(status_code=403, detail="only game admin can undo call")
+            auto_control = db.get(GameAutoDraw, int(game_id))
+            if auto_control is not None and str(auto_control.status) == "RUNNING":
+                raise HTTPException(status_code=409, detail="pause auto draw before undo")
 
             last_called = (
                 db.execute(
@@ -1197,5 +1208,4 @@ class GameService:
             "called_numbers": called_numbers,
             "cards": out_cards,
         }
-
 
