@@ -39,6 +39,7 @@ from bot.routers.admin_finance import router as admin_finance_router
 from bot.routers.purchase import router as purchase_router
 from bot.routers.join_gate import router as join_gate_router
 from bot.routers.notifications import router as notifications_router
+from bot.routers.admin_draw_mode import router as admin_draw_mode_router
 from bot.routers.admin_games import router as admin_games_router
 from bot.routers.admin_users import router as admin_users_router
 from bot.routers.admin_ops import router as admin_ops_router
@@ -268,6 +269,7 @@ async def main():
     dp.include_router(purchase_router)
     dp.include_router(join_gate_router)
     dp.include_router(notifications_router)
+    dp.include_router(admin_draw_mode_router)
     dp.include_router(admin_games_router)
     dp.include_router(admin_users_router)
     dp.include_router(admin_ops_router)

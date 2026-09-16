@@ -96,40 +96,59 @@ def admin_game_item_kb(
     allow_close_lobby: bool = False,
 ) -> InlineKeyboardMarkup:
     kb = InlineKeyboardBuilder()
-
     normalized = (game_status or "").strip().upper()
-    if normalized == "RUNNING":
-        kb.button(
-            text="✅ در حال اجرا",
-            callback_data=f"admin:games:view:{int(game_id)}:{status}:{offset}",
-        )
-    else:
-        kb.button(
-            text="▶️ شروع بازی",
-            callback_data=f"admin:games:start:{int(game_id)}:{status}:{offset}",
-        )
-        if normalized == "LOBBY" and allow_close_lobby:
-            kb.button(
-                text="🛑 بستن بازی لابی",
-                callback_data=f"admin:games:close-lobby:{int(game_id)}:{status}:{offset}",
-            )
+    rows: list[int] = []
 
-    kb.button(text="🔢 اعلام عدد", callback_data=f"admin:games:call:{int(game_id)}:{status}:{offset}")
-    kb.button(text="↩️ بازگردانی آخرین شماره", callback_data=f"admin:games:undo:{int(game_id)}:{status}:{offset}")
-    kb.button(text="🧾 گزارش بازی", callback_data=f"admin:games:report:{int(game_id)}:{status}:{offset}")
-    kb.button(text="🏆 کارت‌های برنده", callback_data=f"admin:games:winners:{int(game_id)}:{status}:{offset}")
-    kb.button(text="📡 مانیتور زنده", callback_data=f"admin:games:monitor:{int(game_id)}:{status}:{offset}")
-    kb.button(text="🎥 تنظیم لینک لایو", callback_data=f"admin:games:live:set:{int(game_id)}:{status}:{offset}")
-    kb.button(text="📣 ارسال لینک لایو", callback_data=f"admin:games:live:send:{int(game_id)}:{status}:{offset}")
-    kb.button(text="🧹 حذف لینک لایو", callback_data=f"admin:games:live:clear:{int(game_id)}:{status}:{offset}")
-    kb.button(text="🔄 تازه‌سازی", callback_data=f"admin:games:view:{int(game_id)}:{status}:{offset}")
-    kb.button(text="⬅️ برگشت", callback_data=f"admin:games:list:{status}:{offset}")
-    if normalized == "LOBBY" and allow_close_lobby:
-        kb.adjust(2, 2, 2, 2, 2, 1, 1)
+    if normalized == "LOBBY":
+        kb.button(text="🎛 تنظیم روش شماره‌خوانی و شروع", callback_data=f"admin:games:draw:{int(game_id)}:{status}:{offset}")
+        rows.append(1)
+        if allow_close_lobby:
+            kb.button(text="🛑 بستن بازی لابی", callback_data=f"admin:games:close-lobby:{int(game_id)}:{status}:{offset}")
+            rows.append(1)
+        kb.button(text="🧾 گزارش بازی", callback_data=f"admin:games:report:{int(game_id)}:{status}:{offset}")
+        kb.button(text="🔄 تازه‌سازی", callback_data=f"admin:games:view:{int(game_id)}:{status}:{offset}")
+        rows.append(2)
+    elif normalized == "RUNNING":
+        kb.button(text="🎛 کنترل بازی و شماره‌ها", callback_data=f"admin:games:draw:{int(game_id)}:{status}:{offset}")
+        rows.append(1)
+        kb.button(text="📡 مانیتور زنده", callback_data=f"admin:games:monitor:{int(game_id)}:{status}:{offset}")
+        kb.button(text="🧾 گزارش بازی", callback_data=f"admin:games:report:{int(game_id)}:{status}:{offset}")
+        rows.append(2)
+        if has_winners:
+            kb.button(text="🏆 برنده‌ها", callback_data=f"admin:games:winners:{int(game_id)}:{status}:{offset}")
+            kb.button(text="🎥 مدیریت لایو", callback_data=f"admin:games:live:menu:{int(game_id)}:{status}:{offset}")
+            rows.append(2)
+        else:
+            kb.button(text="🎥 مدیریت لایو", callback_data=f"admin:games:live:menu:{int(game_id)}:{status}:{offset}")
+            rows.append(1)
+        kb.button(text="🔄 تازه‌سازی", callback_data=f"admin:games:view:{int(game_id)}:{status}:{offset}")
+        rows.append(1)
     else:
-        kb.adjust(1, 2, 2, 2, 2, 1, 1)
+        kb.button(text="🏁 بازی پایان یافته", callback_data=f"admin:games:view:{int(game_id)}:{status}:{offset}")
+        rows.append(1)
+        kb.button(text="🧾 گزارش نهایی", callback_data=f"admin:games:report:{int(game_id)}:{status}:{offset}")
+        if has_winners:
+            kb.button(text="🏆 برنده‌ها", callback_data=f"admin:games:winners:{int(game_id)}:{status}:{offset}")
+            rows.append(2)
+        else:
+            rows.append(1)
+        kb.button(text="🔄 تازه‌سازی", callback_data=f"admin:games:view:{int(game_id)}:{status}:{offset}")
+        rows.append(1)
 
+    kb.button(text="⬅️ برگشت به لیست بازی‌ها", callback_data=f"admin:games:list:{status}:{offset}")
+    rows.append(1)
+    kb.adjust(*rows)
     kb.attach(InlineKeyboardBuilder.from_markup(back_to_menu_kb()))
+    return kb.as_markup()
+
+
+def admin_live_kb(*, game_id: int, status: str, offset: int) -> InlineKeyboardMarkup:
+    kb = InlineKeyboardBuilder()
+    kb.button(text="🔗 تنظیم / تغییر لینک", callback_data=f"admin:games:live:set:{game_id}:{status}:{offset}")
+    kb.button(text="📣 ارسال برای بازیکنان", callback_data=f"admin:games:live:send:{game_id}:{status}:{offset}")
+    kb.button(text="🧹 حذف لینک", callback_data=f"admin:games:live:clear:{game_id}:{status}:{offset}")
+    kb.button(text="⬅️ برگشت به بازی", callback_data=f"admin:games:view:{game_id}:{status}:{offset}")
+    kb.adjust(1, 2, 1)
     return kb.as_markup()
 
 
