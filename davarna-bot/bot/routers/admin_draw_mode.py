@@ -47,26 +47,33 @@ def _draw_panel(state: dict) -> str:
     gid = _to_int(state.get("game_id"), 0)
     game_status = str(state.get("game_status") or "").upper()
     mode = str(state.get("draw_mode") or "").upper() or None
-    interval = state.get("interval_seconds")
+    interval = _to_int(state.get("interval_seconds"), 0)
     locked = bool(state.get("locked"))
     commitment = str(state.get("sequence_commitment") or "").strip()
     auto_status = str(state.get("auto_status") or "").upper()
+    remaining = _to_int(state.get("remaining_count"), 0)
 
-    body = (
-        f"🎮 بازی: <b>#{gid}</b>\n"
-        f"🎛 روش شماره‌خوانی: <b>{_mode_label(mode)}</b>\n"
-        f"🔒 وضعیت قانون: <b>{'قفل‌شده' if locked else 'قابل انتخاب تا قبل از شروع'}</b>\n"
-    )
-    if mode == "AUTO":
-        body += f"⏱ فاصله اعلام: <b>{_to_int(interval, 0)} ثانیه</b>\n"
-        body += f"🤖 وضعیت شماره‌خوان: <b>{_auto_status_label(auto_status)}</b>\n"
-        if commitment:
-            body += f"🔐 تعهد ترتیب اعداد:\n<code>{commitment}</code>\n"
+    status_label = {"LOBBY": "🟡 آماده شروع", "RUNNING": "🟢 در حال اجرا", "ENDED": "⚫ پایان یافته"}.get(game_status, "⚪ نامشخص")
+    body = f"🎮 بازی <b>#{gid}</b>\n📍 وضعیت: <b>{status_label}</b>\n🎛 روش: <b>{_mode_label(mode)}</b>\n"
+
     if game_status == "LOBBY":
-        body += "\n⚠️ روش انتخاب‌شده با شروع بازی برای همیشه قفل می‌شود."
+        if mode == "AUTO":
+            body += f"⏱ فاصله انتخاب‌شده: <b>{interval} ثانیه</b>\n"
+        body += "🔓 تا قبل از شروع، انتخاب قابل تغییر است.\n"
+        body += "\n✅ آماده شروع؛ با شروع بازی این قانون قفل می‌شود." if mode in {"MANUAL", "AUTO"} else "\n👇 ابتدا روش شماره‌خوانی را انتخاب کنید."
     elif game_status == "RUNNING":
-        body += "\n✅ در این بازی تغییر بین دستی و خودکار امکان‌پذیر نیست."
-    return panel("کنترل شماره‌خوانی", body)
+        body += "🔒 قانون این بازی قفل شده است.\n"
+        if mode == "MANUAL":
+            body += "🔢 اعلام اعداد فقط توسط ادمین انجام می‌شود."
+        elif mode == "AUTO":
+            body += f"⏱ فاصله ثابت: <b>{interval} ثانیه</b>\n🤖 وضعیت: <b>{_auto_status_label(auto_status)}</b>\n🔢 اعداد باقی‌مانده: <b>{remaining}</b>"
+    else:
+        body += f"🔒 وضعیت قانون: <b>{'قفل‌شده' if locked else 'ثبت‌شده'}</b>"
+
+    if mode == "AUTO" and commitment:
+        short_commitment = commitment[:16] + "…" if len(commitment) > 16 else commitment
+        body += f"\n🔐 شناسه ترتیب: <code>{short_commitment}</code>"
+    return panel("🎛 کنترل بازی و شماره‌ها", body)
 
 
 def _draw_keyboard(state: dict, *, status: str, offset: int):
@@ -74,31 +81,45 @@ def _draw_keyboard(state: dict, *, status: str, offset: int):
     gid = _to_int(state.get("game_id"), 0)
     game_status = str(state.get("game_status") or "").upper()
     mode = str(state.get("draw_mode") or "").upper()
+    interval = _to_int(state.get("interval_seconds"), 0)
     auto_status = str(state.get("auto_status") or "").upper()
+    rows: list[int] = []
 
     if game_status == "LOBBY":
-        kb.button(text="👤 دستی", callback_data=f"drawmode:set:manual:{gid}:{status}:{offset}")
-        kb.button(text="🤖 خودکار ۵ث", callback_data=f"drawmode:set:auto5:{gid}:{status}:{offset}")
-        kb.button(text="🤖 خودکار ۸ث", callback_data=f"drawmode:set:auto8:{gid}:{status}:{offset}")
-        kb.button(text="🤖 خودکار ۱۰ث", callback_data=f"drawmode:set:auto10:{gid}:{status}:{offset}")
-        kb.button(text="🤖 خودکار ۱۵ث", callback_data=f"drawmode:set:auto15:{gid}:{status}:{offset}")
-        if mode in {"MANUAL", "AUTO"}:
-            kb.button(text="▶️ تأیید و شروع بازی", callback_data=f"drawmode:start:{gid}:{status}:{offset}")
-        kb.adjust(1, 2, 2, 1)
+        kb.button(text="✅ دستی" if mode == "MANUAL" else "👤 دستی", callback_data=f"drawmode:set:manual:{gid}:{status}:{offset}")
+        rows.append(1)
+        for sec in (5, 8, 10, 15):
+            selected = mode == "AUTO" and interval == sec
+            kb.button(text=f"✅ خودکار {sec}ث" if selected else f"🤖 خودکار {sec}ث", callback_data=f"drawmode:set:auto{sec}:{gid}:{status}:{offset}")
+        rows.extend([2, 2])
+        if mode == "MANUAL":
+            kb.button(text="🚀 شروع بازی با حالت دستی", callback_data=f"drawmode:start:{gid}:{status}:{offset}")
+            rows.append(1)
+        elif mode == "AUTO":
+            kb.button(text=f"🚀 شروع خودکار • هر {interval} ثانیه", callback_data=f"drawmode:start:{gid}:{status}:{offset}")
+            rows.append(1)
     elif game_status == "RUNNING" and mode == "MANUAL":
-        kb.button(text="🔢 اعلام عدد دستی", callback_data=f"admin:games:call:{gid}:{status}:{offset}")
-        kb.button(text="↩️ بازگردانی آخرین شماره", callback_data=f"admin:games:undo:{gid}:{status}:{offset}")
-        kb.adjust(1, 1)
+        kb.button(text="🔢 اعلام عدد جدید", callback_data=f"admin:games:call:{gid}:{status}:{offset}")
+        kb.button(text="↩️ بازگردانی آخرین عدد", callback_data=f"admin:games:undo:{gid}:{status}:{offset}")
+        rows.extend([1, 1])
+        kb.button(text="📡 مانیتور", callback_data=f"admin:games:monitor:{gid}:{status}:{offset}")
+        kb.button(text="🧾 گزارش", callback_data=f"admin:games:report:{gid}:{status}:{offset}")
+        rows.append(2)
     elif game_status == "RUNNING" and mode == "AUTO":
         if auto_status == "RUNNING":
-            kb.button(text="⏸ توقف موقت", callback_data=f"drawmode:pause:{gid}:{status}:{offset}")
+            kb.button(text="⏸ مکث شماره‌خوان", callback_data=f"drawmode:pause:{gid}:{status}:{offset}")
+            rows.append(1)
         elif auto_status == "PAUSED":
             kb.button(text="▶️ ادامه همان ترتیب", callback_data=f"drawmode:resume:{gid}:{status}:{offset}")
-        kb.adjust(1)
+            rows.append(1)
+        kb.button(text="📡 مانیتور", callback_data=f"admin:games:monitor:{gid}:{status}:{offset}")
+        kb.button(text="🧾 گزارش", callback_data=f"admin:games:report:{gid}:{status}:{offset}")
+        rows.append(2)
 
-    kb.button(text="🔄 تازه‌سازی", callback_data=f"admin:games:draw:{gid}:{status}:{offset}")
+    kb.button(text="🔄 به‌روزرسانی", callback_data=f"admin:games:draw:{gid}:{status}:{offset}")
     kb.button(text="⬅️ برگشت به بازی", callback_data=f"admin:games:view:{gid}:{status}:{offset}")
-    kb.adjust(1, 1)
+    rows.append(2)
+    kb.adjust(*rows)
     return kb.as_markup()
 
 

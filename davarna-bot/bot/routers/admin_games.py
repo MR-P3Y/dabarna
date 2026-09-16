@@ -18,6 +18,7 @@ from bot.keyboards.admin_games import (
     admin_game_create_price_kb,
     admin_game_create_topic_kb,
     admin_game_item_kb,
+    admin_live_kb,
     admin_games_list_kb,
     admin_monitor_kb,
     admin_winners_archive_kb,
@@ -1679,6 +1680,26 @@ async def admin_monitor_auto_off(cq: CallbackQuery, api: ApiClient, is_admin: bo
         )
     await cq.answer("به‌روزرسانی خودکار متوقف شد 🛑", show_alert=False)
 
+
+
+@router.callback_query(F.data.startswith("admin:games:live:menu:"))
+async def admin_games_live_menu(cq: CallbackQuery, is_admin: bool = False):
+    if not require_admin(is_admin):
+        await cq.answer("اجازه دسترسی نداری.", show_alert=True)
+        return
+    if not cq.message:
+        return
+    _, game_id, status, offset = _parse_live_ctx(cq.data or "")
+    if game_id <= 0:
+        await cq.answer("شناسه بازی نامعتبر است.", show_alert=True)
+        return
+    await cq.answer()
+    await safe_edit_or_send(
+        cq.message,
+        panel("🎥 مدیریت لایو", f"🎮 بازی <b>#{game_id}</b>\n\nاز این بخش لینک لایو را تنظیم، برای بازیکنان ارسال یا حذف کنید."),
+        parse_mode="HTML",
+        reply_markup=admin_live_kb(game_id=game_id, status=status, offset=offset),
+    )
 
 
 @router.callback_query(F.data.startswith("admin:games:live:set:"))
