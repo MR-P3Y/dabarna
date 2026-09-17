@@ -495,7 +495,20 @@ def _is_user_forum_game(report: dict) -> bool:
     return game_group_id != 0 and game_group_id == int(target_group_id)
 
 
-async def _send_user_game_started_notice(bot: Bot, *, game_id: int, report: dict) -> None:
+def _game_start_draw_line(event: dict | None) -> str:
+    payload = _event_payload(event)
+    mode = str(payload.get("draw_mode") or "").upper()
+    interval = _to_int(payload.get("draw_interval_seconds"), 0)
+    if mode == "AUTO":
+        if interval > 0:
+            return f"⚡ اعلام اعداد: <b>خودکار</b> • هر <b>{interval} ثانیه</b>"
+        return "⚡ اعلام اعداد: <b>خودکار</b>"
+    if mode == "MANUAL":
+        return "🔢 اعلام اعداد: <b>دستی</b> • توسط ادمین"
+    return ""
+
+
+async def _send_user_game_started_notice(bot: Bot, *, game_id: int, report: dict, event: dict | None = None) -> None:
     if not _is_user_forum_game(report):
         return
     game = report.get("game") or {}
@@ -507,6 +520,7 @@ async def _send_user_game_started_notice(bot: Bot, *, game_id: int, report: dict
         "اطلاعیه شروع بازی",
         "#اطلاعیه #شروع_بازی\n"
         f"🎮 بازی: <b>#{game_id}</b>\n"
+        f"{(_game_start_draw_line(event) + chr(10)) if _game_start_draw_line(event) else ''}"
         f"🧵 دسته بازی: <b>{topic_label}</b>\n"
         f"💳 قیمت هر کارت: <b>{_fmt_amount(_to_int(game.get('card_price'), 0))}</b>\n"
         f"🃏 کارت‌های فروخته‌شده: <b>{_fmt_amount(_to_int(purchases.get('cards_sold'), 0))}</b>\n"
@@ -637,6 +651,7 @@ async def _send_game_started_report(bot: Bot, *, game_id: int, report: dict, eve
         "#گزارش_بازی #شروع_بازی\n"
         f"🕒 زمان شروع: <code>{_event_time_text(event)}</code>\n"
         f"🎮 بازی: <b>#{game_id}</b>\n"
+        f"{(_game_start_draw_line(event) + chr(10)) if _game_start_draw_line(event) else ''}"
         f"وضعیت: <b>{_fa_game_status(str(g.get('status') or 'RUNNING'))}</b>\n\n"
         f"💳 قیمت هر کارت: <b>{_fmt_amount(card_price)}</b>\n"
         f"🧾 تعداد خریدها: <b>{_fmt_amount(purchases_count)}</b>\n"
@@ -650,7 +665,7 @@ async def _send_game_started_report(bot: Bot, *, game_id: int, report: dict, eve
     )
     await _send_game_report_topic(bot, game_id=game_id, text=text)
     with suppress(Exception):
-        await _send_user_game_started_notice(bot, game_id=game_id, report=report)
+        await _send_user_game_started_notice(bot, game_id=game_id, report=report, event=event)
 
 
 async def _send_game_ended_report(bot: Bot, *, game_id: int, report: dict, event: dict) -> None:

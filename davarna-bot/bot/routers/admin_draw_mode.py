@@ -8,7 +8,6 @@ from bot.services.api_client import ApiClient, ApiError
 from bot.services.draw_mode_api import get_draw_mode, pause_auto_draw, resume_auto_draw, set_draw_mode
 from bot.services.telegram_safe import safe_edit_or_send
 from bot.services.ui import panel
-from bot.services.user_topics import send_to_game_topic
 
 
 router = Router()
@@ -138,56 +137,6 @@ async def _show(cq: CallbackQuery, api: ApiClient, *, game_id: int, status: str,
     )
 
 
-async def _announce_selection(cq: CallbackQuery, state: dict) -> None:
-    topic_id = state.get("tg_topic_id")
-    if topic_id is None:
-        return
-    gid = _to_int(state.get("game_id"), 0)
-    mode = str(state.get("draw_mode") or "").upper()
-    interval = _to_int(state.get("interval_seconds"), 0)
-    commitment = str(state.get("sequence_commitment") or "").strip()
-    body = (
-        "#شرایط_بازی #شماره_خوانی\n"
-        f"🎮 بازی: <b>#{gid}</b>\n"
-        f"🎛 روش اعلام اعداد: <b>{_mode_label(mode)}</b>\n"
-    )
-    if mode == "AUTO":
-        body += f"⏱ فاصله اعلام: <b>{interval} ثانیه</b>\n"
-        if commitment:
-            body += f"🔐 تعهد ترتیب اعداد:\n<code>{commitment}</code>\n"
-    body += "\n⚖️ این روش با شروع بازی قفل می‌شود و در طول بازی قابل تغییر نیست."
-    await send_to_game_topic(
-        cq.bot,
-        game_topic_id=int(topic_id),
-        text=panel("حالت اعلام عدد بازی", body),
-        parse_mode="HTML",
-        disable_notification=False,
-    )
-
-
-async def _announce_locked(cq: CallbackQuery, state: dict) -> None:
-    topic_id = state.get("tg_topic_id")
-    if topic_id is None:
-        return
-    gid = _to_int(state.get("game_id"), 0)
-    mode = str(state.get("draw_mode") or "").upper()
-    interval = _to_int(state.get("interval_seconds"), 0)
-    body = (
-        "#شروع_بازی #قانون_ثابت\n"
-        f"🎮 بازی: <b>#{gid}</b>\n"
-        f"🔒 حالت اعلام عدد قفل شد: <b>{_mode_label(mode)}</b>\n"
-    )
-    if mode == "AUTO":
-        body += f"⏱ فاصله ثابت: <b>{interval} ثانیه</b>\n"
-    body += "\nتغییر حالت اعلام عدد تا پایان این بازی امکان‌پذیر نیست."
-    await send_to_game_topic(
-        cq.bot,
-        game_topic_id=int(topic_id),
-        text=panel("شروع رسمی بازی", body),
-        parse_mode="HTML",
-        disable_notification=False,
-    )
-
 
 @router.callback_query(F.data.startswith("admin:games:draw:"))
 async def open_draw_mode(cq: CallbackQuery, api: ApiClient, is_admin: bool = False):
@@ -223,7 +172,6 @@ async def select_draw_mode(cq: CallbackQuery, api: ApiClient, is_admin: bool = F
         return
 
     await cq.answer("حالت اعلام عدد ثبت شد.")
-    await _announce_selection(cq, state)
     if cq.message:
         await safe_edit_or_send(
             cq.message,
@@ -257,7 +205,6 @@ async def start_locked_game(cq: CallbackQuery, api: ApiClient, is_admin: bool = 
         return
 
     await cq.answer("بازی شروع شد؛ حالت اعلام عدد قفل شد.", show_alert=True)
-    await _announce_locked(cq, state)
     if cq.message:
         await safe_edit_or_send(
             cq.message,
