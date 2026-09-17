@@ -6651,3 +6651,266 @@ html[data-theme="light"] .admin-user-behavior-grid > div {
   }
 }
 /* ADMIN_WINNER_POPUP_V6_1_END */
+
+/* ADMIN_DRAW_UI_20260917_START */
+.admin-draw-shell {
+  display: grid;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid rgba(122, 155, 255, 0.18);
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(15, 28, 57, 0.92), rgba(8, 18, 39, 0.96));
+}
+
+.admin-draw-step-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.admin-draw-step-head.compact {
+  align-items: flex-start;
+}
+
+.admin-draw-step-head > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.admin-draw-step-head strong {
+  color: #f4f7ff;
+  font-size: 13px;
+}
+
+.admin-draw-step-head small {
+  color: #9eacc9;
+  font-size: 10px;
+  line-height: 1.8;
+}
+
+.admin-draw-step-no {
+  display: grid;
+  place-items: center;
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  background: rgba(91, 194, 225, 0.13);
+  border: 1px solid rgba(91, 194, 225, 0.34);
+  color: #bfefff;
+  font-weight: 800;
+}
+
+.admin-draw-mode-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.admin-draw-mode-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-height: 94px;
+  padding: 12px;
+  text-align: right;
+  border: 1px solid rgba(125, 160, 245, 0.22);
+  border-radius: 14px;
+  background: rgba(10, 23, 48, 0.8);
+  color: #f4f7ff;
+  cursor: pointer;
+  transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease, opacity 0.18s ease;
+}
+
+.admin-draw-mode-card:not(:disabled):active {
+  transform: scale(0.985);
+}
+
+.admin-draw-mode-card.is-selected {
+  border-color: rgba(91, 194, 225, 0.72);
+  background: linear-gradient(145deg, rgba(32, 70, 115, 0.88), rgba(13, 37, 69, 0.96));
+  box-shadow: 0 0 0 1px rgba(91, 194, 225, 0.12) inset, 0 10px 28px rgba(2, 10, 26, 0.28);
+}
+
+.admin-draw-mode-card.is-inactive {
+  opacity: 0.5;
+}
+
+.admin-draw-mode-card.is-selected.is-inactive {
+  opacity: 1;
+}
+
+.admin-draw-mode-card:disabled {
+  cursor: default;
+}
+
+.admin-draw-mode-icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.055);
+  font-size: 20px;
+}
+
+.admin-draw-mode-copy {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.admin-draw-mode-copy strong {
+  font-size: 13px;
+}
+
+.admin-draw-mode-copy small {
+  color: #9eacc9;
+  font-size: 9px;
+  line-height: 1.7;
+}
+
+.admin-draw-mode-state {
+  position: absolute;
+  inset-inline-end: 9px;
+  top: 8px;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #aebbd6;
+  font-size: 8px;
+  font-weight: 700;
+}
+
+.admin-draw-mode-card.is-selected .admin-draw-mode-state {
+  background: rgba(91, 194, 225, 0.15);
+  color: #c9f3ff;
+}
+
+.admin-draw-selection-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.admin-draw-selection-summary > div,
+.admin-draw-proof {
+  display: grid;
+  gap: 4px;
+  padding: 10px 11px;
+  border: 1px solid rgba(125, 160, 245, 0.15);
+  border-radius: 11px;
+  background: rgba(6, 15, 34, 0.56);
+}
+
+.admin-draw-selection-summary span,
+.admin-draw-proof span {
+  color: #8f9fbd;
+  font-size: 9px;
+}
+
+.admin-draw-selection-summary strong,
+.admin-draw-proof strong {
+  color: #eef4ff;
+  font-size: 10px;
+  overflow-wrap: anywhere;
+}
+
+.admin-draw-empty-state {
+  display: grid;
+  gap: 5px;
+  padding: 13px;
+  border: 1px dashed rgba(125, 160, 245, 0.28);
+  border-radius: 12px;
+  text-align: center;
+  background: rgba(6, 15, 34, 0.36);
+}
+
+.admin-draw-empty-state strong {
+  color: #e9efff;
+  font-size: 11px;
+}
+
+.admin-draw-empty-state span {
+  color: #8f9fbd;
+  font-size: 9px;
+  line-height: 1.7;
+}
+
+.admin-draw-config-panel {
+  display: grid;
+  gap: 11px;
+  padding: 13px;
+  border: 1px solid rgba(125, 160, 245, 0.16);
+  border-radius: 13px;
+  background: rgba(6, 15, 34, 0.48);
+}
+
+.admin-draw-native-select {
+  display: none !important;
+}
+
+.admin-draw-interval-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.admin-draw-interval-grid button {
+  min-height: 38px;
+  padding: 7px 4px;
+  border: 1px solid rgba(125, 160, 245, 0.2);
+  border-radius: 10px;
+  background: rgba(13, 30, 61, 0.9);
+  color: #c6d0e6;
+  font: inherit;
+  font-size: 9px;
+}
+
+.admin-draw-interval-grid button.is-selected {
+  border-color: rgba(91, 194, 225, 0.68);
+  background: rgba(40, 93, 137, 0.52);
+  color: #eafaff;
+  font-weight: 800;
+}
+
+.admin-draw-interval-grid button:disabled {
+  opacity: 0.58;
+}
+
+.admin-draw-start-panel {
+  display: grid;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(125, 160, 245, 0.15);
+}
+
+.admin-draw-start-panel.is-complete .admin-draw-step-no {
+  background: rgba(90, 190, 130, 0.12);
+  border-color: rgba(90, 190, 130, 0.32);
+}
+
+.admin-draw-start-btn {
+  width: 100%;
+  min-height: 44px;
+  font-weight: 800;
+}
+
+.admin-draw-shell.is-locked .admin-draw-mode-grid {
+  opacity: 0.86;
+}
+
+@media (max-width: 410px) {
+  .admin-draw-mode-grid,
+  .admin-draw-selection-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-draw-interval-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+/* ADMIN_DRAW_UI_20260917_END */

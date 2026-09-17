@@ -7385,10 +7385,24 @@ function adminAutoDrawState(gameId) {
 function renderAdminAutoDraw() {
   const gid = Number(state.admin?.selectedGameId || 0);
   const data = adminAutoDrawState(gid) || {};
+  const game = gid ? getAdminGameById(gid) : null;
+  const gameStatus = String(game?.status || "").toUpperCase();
   const status = String(data.auto_status || data.status || "STOPPED").toUpperCase();
   const drawMode = String(data.draw_mode || "").toUpperCase();
   const locked = Boolean(data.locked);
+  const isLobby = gameStatus === "LOBBY";
+  const isRunning = gameStatus === "RUNNING";
+  const validMode = drawMode === "MANUAL" || drawMode === "AUTO";
+  const interval = Number(data.interval_seconds || getVal("adminAutoDrawInterval") || 10);
   const labels = { ARMED: "آماده شروع", RUNNING: "در حال اجرا", PAUSED: "متوقف موقت", STOPPED: "متوقف" };
+
+  const shell = getEl("adminDrawModeShell");
+  const emptyEl = getEl("adminDrawModeEmpty");
+  const manualPanel = getEl("adminManualDrawPanel");
+  const autoPanel = getEl("adminAutoDrawPanel");
+  const startPanel = getEl("adminDrawStartPanel");
+  const startSummary = getEl("adminDrawStartSummary");
+  const startBtn = getEl("adminStartBtn");
   const statusEl = getEl("adminAutoDrawStatus");
   const remainingEl = getEl("adminAutoDrawRemaining");
   const countdownEl = getEl("adminAutoDrawCountdown");
@@ -7398,16 +7412,65 @@ function renderAdminAutoDraw() {
   const commitmentEl = getEl("adminDrawCommitment");
   const manualBtn = getEl("adminDrawModeManualBtn");
   const autoBtn = getEl("adminDrawModeAutoBtn");
+
+  if (shell) shell.classList.toggle("is-locked", locked || isRunning);
+  if (emptyEl) emptyEl.classList.toggle("hidden", validMode);
+  if (manualPanel) manualPanel.classList.toggle("hidden", drawMode !== "MANUAL");
+  if (autoPanel) autoPanel.classList.toggle("hidden", drawMode !== "AUTO");
+  if (startPanel) startPanel.classList.toggle("is-complete", isRunning || gameStatus === "ENDED");
+
+  const paintModeCard = (btn, selected) => {
+    if (!btn) return;
+    btn.classList.toggle("is-selected", selected);
+    btn.classList.toggle("is-inactive", validMode && !selected);
+    const stateEl = btn.querySelector(".admin-draw-mode-state");
+    if (stateEl) {
+      stateEl.textContent = selected ? (locked || isRunning ? "🔒 قفل" : "✓ انتخاب‌شده") : (locked || isRunning ? "بسته" : "انتخاب");
+    }
+  };
+  paintModeCard(manualBtn, drawMode === "MANUAL");
+  paintModeCard(autoBtn, drawMode === "AUTO");
+
   if (statusEl) statusEl.textContent = drawMode === "MANUAL" ? "دستی" : (labels[status] || status);
-  if (modeEl) modeEl.textContent = drawMode === "MANUAL" ? "👤 دستی" : drawMode === "AUTO" ? `🤖 خودکار • هر ${Number(data.interval_seconds || 0)} ثانیه` : "انتخاب نشده";
-  if (lockEl) lockEl.textContent = locked ? "🔒 قفل‌شده تا پایان بازی" : "آزاد تا شروع بازی";
+  if (modeEl) modeEl.textContent = drawMode === "MANUAL" ? "👤 دستی" : drawMode === "AUTO" ? `🤖 خودکار • هر ${interval} ثانیه` : "انتخاب نشده";
+  if (lockEl) lockEl.textContent = locked || isRunning ? "🔒 قفل‌شده تا پایان بازی" : "آزاد تا شروع بازی";
   if (commitmentEl) commitmentEl.textContent = data.sequence_commitment ? String(data.sequence_commitment).slice(0, 12) : "-";
-  if (manualBtn) manualBtn.textContent = drawMode === "MANUAL" ? "✅ دستی انتخاب شد" : "👤 انتخاب دستی";
-  if (autoBtn) autoBtn.textContent = drawMode === "AUTO" ? "✅ خودکار انتخاب شد" : "🤖 انتخاب خودکار";
   if (remainingEl) remainingEl.textContent = drawMode === "AUTO" && Number.isFinite(Number(data.remaining_count)) ? String(Number(data.remaining_count)) : "-";
-  if (intervalEl && data.interval_seconds && document.activeElement !== intervalEl) {
-    intervalEl.value = String(data.interval_seconds);
+
+  if (intervalEl && Number.isFinite(interval) && document.activeElement !== intervalEl) {
+    intervalEl.value = String(interval);
   }
+
+  document.querySelectorAll("[data-admin-auto-interval]").forEach((chip) => {
+    const value = Number(chip.dataset.adminAutoInterval || 0);
+    const selected = value === interval;
+    const canChange = Boolean(gid && isLobby && !locked && drawMode === "AUTO");
+    chip.classList.toggle("is-selected", selected);
+    chip.disabled = !canChange;
+    chip.onclick = () => {
+      if (!canChange || !intervalEl) return;
+      intervalEl.value = String(value);
+      adminSelectDrawMode("AUTO").catch((e) => setAdminLocalError("adminAutoDrawHint", e));
+    };
+  });
+
+  if (startSummary) {
+    if (!gid) startSummary.textContent = "ابتدا یک بازی را برای مدیریت انتخاب کنید.";
+    else if (!validMode) startSummary.textContent = "ابتدا روش شماره‌خوانی را انتخاب کنید.";
+    else if (isLobby && drawMode === "MANUAL") startSummary.textContent = "آماده شروع با شماره‌خوانی دستی؛ پس از شروع روش قفل می‌شود.";
+    else if (isLobby && drawMode === "AUTO") startSummary.textContent = `آماده شروع خودکار؛ اعلام هر ${interval} ثانیه و سپس قفل کامل.`;
+    else if (isRunning && drawMode === "MANUAL") startSummary.textContent = "بازی در حالت دستی در حال اجراست و روش قفل شده است.";
+    else if (isRunning && drawMode === "AUTO") startSummary.textContent = `بازی خودکار هر ${interval} ثانیه در حال اجراست؛ ترتیب ثابت است.`;
+    else startSummary.textContent = "وضعیت بازی اجازه شروع دوباره نمی‌دهد.";
+  }
+
+  if (startBtn) {
+    if (isLobby && drawMode === "MANUAL") startBtn.textContent = "شروع بازی با شماره‌خوانی دستی";
+    else if (isLobby && drawMode === "AUTO") startBtn.textContent = "شروع بازی با شماره‌خوانی خودکار";
+    else if (isRunning) startBtn.textContent = "🔒 بازی شروع شده";
+    else startBtn.textContent = "شروع بازی";
+  }
+
   if (countdownEl) {
     if (status !== "RUNNING" || !data.next_draw_at) {
       countdownEl.textContent = "--:--";
@@ -7417,6 +7480,7 @@ function renderAdminAutoDraw() {
       countdownEl.textContent = `00:${String(seconds).padStart(2, "0")}`;
     }
   }
+
   updateAdminActionButtons();
 }
 

@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>مینی‌اپ دبرنای طوفان</title>
-    <link rel="stylesheet" href="./styles.css?v=auto-draw-20260916" />
+    <link rel="stylesheet" href="./styles.css?v=admin-draw-ui-20260917-1" />
   </head>
   <body>
     <div id="appSplash" class="app-splash" aria-label="در حال آماده‌سازی مینی‌اپ">
@@ -490,88 +490,163 @@
                 <h3 id="adminActionsTitle">عملیات بازی</h3>
               </div>
               <div class="action-form">
-                <label id="adminCallLabel" for="adminCallNumberInput">عدد برای اعلام</label>
-                <input id="adminCallNumberInput" type="tel" inputmode="numeric" pattern="[0-9]*" min="1" max="90" maxlength="2" enterkeyhint="done" autocomplete="off" />
-                <div class="admin-action-row">
-                  <button id="adminCallBtn" class="small-btn primary" type="button">اعلام عدد</button>
-                  <button id="adminUndoBtn" class="small-btn" type="button">حذف آخرین عدد</button>
-                  <button id="adminStartBtn" class="small-btn" type="button">شروع بازی</button>
-                </div>
-                <div id="adminCallQuickPanel" class="admin-call-quick-panel">
-                  <div class="admin-call-mini-stats">
-                    <div>
-                      <span>&#1570;&#1582;&#1585;&#1740;&#1606; &#1593;&#1583;&#1583;</span>
-                      <strong id="adminCallLastNumber">-</strong>
+                                  <div id="adminDrawModeShell" class="admin-draw-shell">
+                    <div class="admin-draw-step-head">
+                      <span class="admin-draw-step-no">۱</span>
+                      <div>
+                        <strong>روش شماره‌خوانی</strong>
+                        <small>قبل از شروع بازی، یکی از دو روش را انتخاب کنید.</small>
+                      </div>
                     </div>
-                    <div>
-                      <span>&#1777; &#1593;&#1583;&#1583; &#1575;&#1582;&#1740;&#1585;</span>
-                      <strong id="adminCallRecentNumbers">-</strong>
+
+                    <div class="admin-draw-mode-grid">
+                      <button id="adminDrawModeManualBtn" class="admin-draw-mode-card" type="button">
+                        <span class="admin-draw-mode-icon">👤</span>
+                        <span class="admin-draw-mode-copy">
+                          <strong>دستی</strong>
+                          <small>اعداد را ادمین اعلام می‌کند</small>
+                        </span>
+                        <span class="admin-draw-mode-state">انتخاب</span>
+                      </button>
+
+                      <button id="adminDrawModeAutoBtn" class="admin-draw-mode-card" type="button">
+                        <span class="admin-draw-mode-icon">🤖</span>
+                        <span class="admin-draw-mode-copy">
+                          <strong>خودکار</strong>
+                          <small>اعلام خودکار با ترتیب ثابت و قفل‌شده</small>
+                        </span>
+                        <span class="admin-draw-mode-state">انتخاب</span>
+                      </button>
                     </div>
-                    <div>
-                      <span>&#1662;&#1740;&#1588;&#1585;&#1601;&#1578;</span>
-                      <strong id="adminCallProgressCount">0/90</strong>
+
+                    <div class="admin-draw-selection-summary">
+                      <div>
+                        <span>روش فعلی</span>
+                        <strong id="adminDrawModeLabel">انتخاب نشده</strong>
+                      </div>
+                      <div>
+                        <span>وضعیت انتخاب</span>
+                        <strong id="adminDrawModeLock">آزاد تا شروع بازی</strong>
+                      </div>
                     </div>
-                  </div>
-                  <div id="adminCallKeypad" class="admin-call-keypad" aria-label="Admin number keypad">
-                    <button type="button" data-admin-call-digit="1">1</button>
-                    <button type="button" data-admin-call-digit="2">2</button>
-                    <button type="button" data-admin-call-digit="3">3</button>
-                    <button type="button" data-admin-call-digit="4">4</button>
-                    <button type="button" data-admin-call-digit="5">5</button>
-                    <button type="button" data-admin-call-digit="6">6</button>
-                    <button type="button" data-admin-call-digit="7">7</button>
-                    <button type="button" data-admin-call-digit="8">8</button>
-                    <button type="button" data-admin-call-digit="9">9</button>
-                    <button type="button" class="soft" data-admin-call-clear="1">&#1662;&#1575;&#1705;</button>
-                    <button type="button" data-admin-call-digit="0">0</button>
-                    <button type="button" class="soft" data-admin-call-backspace="1">&#9003;</button>
-                  </div>
-                </div>
-                <div id="adminAutoDrawPanel" class="admin-auto-draw-panel">
-                  <div class="admin-auto-draw-head">
-                    <div>
-                      <span>شماره‌خوان خودکار</span>
-                      <strong id="adminAutoDrawStatus">متوقف</strong>
+
+                    <div id="adminDrawModeEmpty" class="admin-draw-empty-state">
+                      <strong>هنوز روشی انتخاب نشده</strong>
+                      <span>برای فعال‌شدن شروع بازی، ابتدا دستی یا خودکار را انتخاب کنید.</span>
                     </div>
-                    <div>
-                      <span>عدد بعدی تا</span>
-                      <strong id="adminAutoDrawCountdown">--:--</strong>
+
+                    <div id="adminManualDrawPanel" class="admin-draw-config-panel hidden">
+                      <div class="admin-draw-step-head compact">
+                        <span class="admin-draw-step-no">۲</span>
+                        <div>
+                          <strong>کنترل دستی</strong>
+                          <small>پس از شروع بازی، عدد را وارد کنید یا از صفحه‌کلید استفاده کنید.</small>
+                        </div>
+                      </div>
+
+                      <label id="adminCallLabel" for="adminCallNumberInput">عدد برای اعلام</label>
+                      <input id="adminCallNumberInput" type="tel" inputmode="numeric" pattern="[0-9]*" min="1" max="90" maxlength="2" enterkeyhint="done" autocomplete="off" />
+
+                      <div class="admin-action-row">
+                        <button id="adminCallBtn" class="small-btn primary" type="button">اعلام عدد</button>
+                        <button id="adminUndoBtn" class="small-btn" type="button">حذف آخرین عدد</button>
+                      </div>
+
+                      <div id="adminCallQuickPanel" class="admin-call-quick-panel">
+                        <div class="admin-call-mini-stats">
+                          <div>
+                            <span>آخرین عدد</span>
+                            <strong id="adminCallLastNumber">-</strong>
+                          </div>
+                          <div>
+                            <span>۴ عدد اخیر</span>
+                            <strong id="adminCallRecentNumbers">-</strong>
+                          </div>
+                          <div>
+                            <span>پیشرفت</span>
+                            <strong id="adminCallProgressCount">0/90</strong>
+                          </div>
+                        </div>
+                        <div id="adminCallKeypad" class="admin-call-keypad" aria-label="Admin number keypad">
+                          <button type="button" data-admin-call-digit="1">1</button>
+                          <button type="button" data-admin-call-digit="2">2</button>
+                          <button type="button" data-admin-call-digit="3">3</button>
+                          <button type="button" data-admin-call-digit="4">4</button>
+                          <button type="button" data-admin-call-digit="5">5</button>
+                          <button type="button" data-admin-call-digit="6">6</button>
+                          <button type="button" data-admin-call-digit="7">7</button>
+                          <button type="button" data-admin-call-digit="8">8</button>
+                          <button type="button" data-admin-call-digit="9">9</button>
+                          <button type="button" class="soft" data-admin-call-clear="1">پاک</button>
+                          <button type="button" data-admin-call-digit="0">0</button>
+                          <button type="button" class="soft" data-admin-call-backspace="1">&#9003;</button>
+                        </div>
+                      </div>
+                      <div id="adminCallActionHint" class="step-hint action-local-hint"></div>
                     </div>
-                    <div>
-                      <span>اعداد باقی‌مانده</span>
-                      <strong id="adminAutoDrawRemaining">-</strong>
+
+                    <div id="adminAutoDrawPanel" class="admin-auto-draw-panel admin-draw-config-panel hidden">
+                      <div class="admin-draw-step-head compact">
+                        <span class="admin-draw-step-no">۲</span>
+                        <div>
+                          <strong>تنظیمات خودکار</strong>
+                          <small>سرعت را انتخاب کنید؛ با شروع بازی ترتیب و فاصله قفل می‌شوند.</small>
+                        </div>
+                      </div>
+
+                      <label for="adminAutoDrawInterval">فاصله اعلام خودکار</label>
+                      <select id="adminAutoDrawInterval" class="admin-draw-native-select">
+                        <option value="5">۵ ثانیه</option>
+                        <option value="8">۸ ثانیه</option>
+                        <option value="10" selected>۱۰ ثانیه</option>
+                        <option value="15">۱۵ ثانیه</option>
+                      </select>
+
+                      <div id="adminAutoDrawIntervalChips" class="admin-draw-interval-grid">
+                        <button type="button" data-admin-auto-interval="5">۵ ثانیه</button>
+                        <button type="button" data-admin-auto-interval="8">۸ ثانیه</button>
+                        <button type="button" data-admin-auto-interval="10">۱۰ ثانیه</button>
+                        <button type="button" data-admin-auto-interval="15">۱۵ ثانیه</button>
+                      </div>
+
+                      <div class="admin-auto-draw-head">
+                        <div>
+                          <span>وضعیت</span>
+                          <strong id="adminAutoDrawStatus">متوقف</strong>
+                        </div>
+                        <div>
+                          <span>عدد بعدی تا</span>
+                          <strong id="adminAutoDrawCountdown">--:--</strong>
+                        </div>
+                        <div>
+                          <span>اعداد باقی‌مانده</span>
+                          <strong id="adminAutoDrawRemaining">-</strong>
+                        </div>
+                      </div>
+
+                      <div class="admin-draw-proof">
+                        <span>شناسه ترتیب ثابت</span>
+                        <strong id="adminDrawCommitment">-</strong>
+                      </div>
+
+                      <div class="admin-action-row">
+                        <button id="adminAutoDrawPauseBtn" class="small-btn" type="button">⏸ مکث</button>
+                        <button id="adminAutoDrawResumeBtn" class="small-btn primary" type="button">▶️ ادامه همان ترتیب</button>
+                      </div>
+                      <div id="adminAutoDrawHint" class="step-hint action-local-hint">روش شماره‌خوانی را قبل از شروع بازی انتخاب کنید.</div>
                     </div>
-                  </div>
-                  <div class="admin-auto-draw-head">
-                    <div>
-                      <span>روش بازی</span>
-                      <strong id="adminDrawModeLabel">انتخاب نشده</strong>
+
+                    <div id="adminDrawStartPanel" class="admin-draw-start-panel">
+                      <div class="admin-draw-step-head compact">
+                        <span class="admin-draw-step-no">۳</span>
+                        <div>
+                          <strong>شروع بازی</strong>
+                          <small id="adminDrawStartSummary">ابتدا روش شماره‌خوانی را انتخاب کنید.</small>
+                        </div>
+                      </div>
+                      <button id="adminStartBtn" class="small-btn primary admin-draw-start-btn" type="button">شروع بازی</button>
                     </div>
-                    <div>
-                      <span>قفل روش</span>
-                      <strong id="adminDrawModeLock">آزاد تا شروع</strong>
-                    </div>
-                    <div>
-                      <span>شناسه ترتیب</span>
-                      <strong id="adminDrawCommitment">-</strong>
-                    </div>
-                  </div>
-                  <label for="adminAutoDrawInterval">فاصله اعلام خودکار</label>
-                  <select id="adminAutoDrawInterval">
-                    <option value="5">۵ ثانیه</option>
-                    <option value="8">۸ ثانیه</option>
-                    <option value="10" selected>۱۰ ثانیه</option>
-                    <option value="15">۱۵ ثانیه</option>
-                  </select>
-                  <div class="admin-action-row">
-                    <button id="adminDrawModeManualBtn" class="small-btn" type="button">👤 انتخاب دستی</button>
-                    <button id="adminDrawModeAutoBtn" class="small-btn primary" type="button">🤖 انتخاب خودکار</button>
-                    <button id="adminAutoDrawPauseBtn" class="small-btn" type="button">⏸ مکث خودکار</button>
-                    <button id="adminAutoDrawResumeBtn" class="small-btn" type="button">▶️ ادامه همان ترتیب</button>
-                  </div>
-                  <div id="adminAutoDrawHint" class="step-hint action-local-hint">روش شماره‌خوانی را قبل از شروع بازی انتخاب کنید.</div>
-                </div>
-                <div id="adminCallActionHint" class="step-hint action-local-hint"></div>
+                  </div> class="step-hint action-local-hint"></div>
                 <label id="adminCancelReasonLabel" for="adminCancelReasonInput">علت لغو لابی</label>
                 <input id="adminCancelReasonInput" type="text" />
                 <div class="admin-action-row">
@@ -874,6 +949,6 @@
     <div id="miniToast" class="mini-toast hidden" role="status" aria-live="polite"></div>
 
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="./app.js?v=locked-draw-20260916-1" type="module"></script>
+    <script src="./app.js?v=admin-draw-ui-20260917-1" type="module"></script>
   </body>
 </html>
