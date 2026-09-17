@@ -6654,12 +6654,32 @@ html[data-theme="light"] .admin-user-behavior-grid > div {
 
 /* ADMIN_DRAW_UI_20260917_START */
 .admin-draw-shell {
+  --draw-panel: rgba(8, 16, 34, 0.74);
+  --draw-surface: rgba(255, 255, 255, 0.035);
+  --draw-surface-strong: rgba(255, 255, 255, 0.055);
+  --draw-border: rgba(125, 160, 245, 0.18);
+  --draw-selected: rgba(95, 200, 255, 0.10);
+  --draw-selected-border: rgba(95, 200, 255, 0.46);
+  --draw-selected-text: #dff7ff;
+  --draw-shadow: 0 10px 28px rgba(2, 8, 24, 0.22);
   display: grid;
-  gap: 14px;
+  gap: 12px;
   padding: 14px;
-  border: 1px solid rgba(122, 155, 255, 0.18);
-  border-radius: 16px;
-  background: linear-gradient(180deg, rgba(15, 28, 57, 0.92), rgba(8, 18, 39, 0.96));
+  border: 1px solid var(--draw-border);
+  border-radius: 14px;
+  background: var(--draw-panel);
+  box-shadow: var(--draw-shadow);
+}
+
+html[data-theme="light"] .admin-draw-shell {
+  --draw-panel: rgba(255, 255, 255, 0.94);
+  --draw-surface: #f8faff;
+  --draw-surface-strong: #f1f5fb;
+  --draw-border: rgba(28, 50, 92, 0.15);
+  --draw-selected: rgba(23, 63, 189, 0.075);
+  --draw-selected-border: rgba(23, 63, 189, 0.34);
+  --draw-selected-text: #173fbd;
+  --draw-shadow: 0 8px 24px rgba(31, 49, 84, 0.08);
 }
 
 .admin-draw-step-head {
@@ -6674,69 +6694,71 @@ html[data-theme="light"] .admin-user-behavior-grid > div {
 
 .admin-draw-step-head > div {
   display: grid;
-  gap: 3px;
+  gap: 2px;
   min-width: 0;
 }
 
 .admin-draw-step-head strong {
-  color: #f4f7ff;
+  color: var(--text);
   font-size: 13px;
+  font-weight: 700;
 }
 
 .admin-draw-step-head small {
-  color: #9eacc9;
+  color: var(--muted);
   font-size: 10px;
-  line-height: 1.8;
+  line-height: 1.7;
 }
 
 .admin-draw-step-no {
   display: grid;
   place-items: center;
-  flex: 0 0 30px;
-  width: 30px;
-  height: 30px;
-  border-radius: 10px;
-  background: rgba(91, 194, 225, 0.13);
-  border: 1px solid rgba(91, 194, 225, 0.34);
-  color: #bfefff;
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--draw-surface-strong);
+  border: 1px solid var(--draw-border);
+  color: var(--accent);
+  font-size: 11px;
   font-weight: 800;
 }
 
 .admin-draw-mode-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: 9px;
 }
 
 .admin-draw-mode-card {
   position: relative;
   display: grid;
-  grid-template-columns: 40px minmax(0, 1fr);
+  grid-template-columns: 34px minmax(0, 1fr);
   align-items: center;
-  gap: 10px;
-  min-height: 94px;
-  padding: 12px;
+  gap: 9px;
+  min-height: 82px;
+  padding: 11px;
   text-align: right;
-  border: 1px solid rgba(125, 160, 245, 0.22);
-  border-radius: 14px;
-  background: rgba(10, 23, 48, 0.8);
-  color: #f4f7ff;
+  border: 1px solid var(--draw-border);
+  border-radius: 11px;
+  background: var(--draw-surface);
+  color: var(--text);
   cursor: pointer;
-  transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease, opacity 0.18s ease;
+  box-shadow: none;
+  transition: border-color 0.16s ease, background 0.16s ease, opacity 0.16s ease, transform 0.16s ease;
 }
 
 .admin-draw-mode-card:not(:disabled):active {
-  transform: scale(0.985);
+  transform: scale(0.99);
 }
 
 .admin-draw-mode-card.is-selected {
-  border-color: rgba(91, 194, 225, 0.72);
-  background: linear-gradient(145deg, rgba(32, 70, 115, 0.88), rgba(13, 37, 69, 0.96));
-  box-shadow: 0 0 0 1px rgba(91, 194, 225, 0.12) inset, 0 10px 28px rgba(2, 10, 26, 0.28);
+  border-color: var(--draw-selected-border);
+  background: var(--draw-selected);
 }
 
 .admin-draw-mode-card.is-inactive {
-  opacity: 0.5;
+  opacity: 0.48;
 }
 
 .admin-draw-mode-card.is-selected.is-inactive {
@@ -6750,44 +6772,50 @@ html[data-theme="light"] .admin-user-behavior-grid > div {
 .admin-draw-mode-icon {
   display: grid;
   place-items: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.055);
-  font-size: 20px;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  border: 1px solid var(--draw-border);
+  background: var(--draw-surface-strong);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
 }
 
 .admin-draw-mode-copy {
   display: grid;
-  gap: 4px;
+  gap: 3px;
   min-width: 0;
 }
 
 .admin-draw-mode-copy strong {
-  font-size: 13px;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .admin-draw-mode-copy small {
-  color: #9eacc9;
+  color: var(--muted);
   font-size: 9px;
-  line-height: 1.7;
+  line-height: 1.55;
 }
 
 .admin-draw-mode-state {
   position: absolute;
-  inset-inline-end: 9px;
-  top: 8px;
-  padding: 3px 7px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.06);
-  color: #aebbd6;
+  inset-inline-end: 8px;
+  top: 7px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: var(--draw-surface-strong);
+  color: var(--muted);
   font-size: 8px;
   font-weight: 700;
 }
 
 .admin-draw-mode-card.is-selected .admin-draw-mode-state {
-  background: rgba(91, 194, 225, 0.15);
-  color: #c9f3ff;
+  color: var(--draw-selected-text);
+  background: transparent;
 }
 
 .admin-draw-selection-summary {
@@ -6799,54 +6827,55 @@ html[data-theme="light"] .admin-user-behavior-grid > div {
 .admin-draw-selection-summary > div,
 .admin-draw-proof {
   display: grid;
-  gap: 4px;
-  padding: 10px 11px;
-  border: 1px solid rgba(125, 160, 245, 0.15);
-  border-radius: 11px;
-  background: rgba(6, 15, 34, 0.56);
+  gap: 3px;
+  padding: 9px 10px;
+  border: 1px solid var(--draw-border);
+  border-radius: 9px;
+  background: var(--draw-surface);
 }
 
 .admin-draw-selection-summary span,
 .admin-draw-proof span {
-  color: #8f9fbd;
+  color: var(--muted);
   font-size: 9px;
 }
 
 .admin-draw-selection-summary strong,
 .admin-draw-proof strong {
-  color: #eef4ff;
+  color: var(--text);
   font-size: 10px;
+  font-weight: 700;
   overflow-wrap: anywhere;
 }
 
 .admin-draw-empty-state {
   display: grid;
-  gap: 5px;
-  padding: 13px;
-  border: 1px dashed rgba(125, 160, 245, 0.28);
-  border-radius: 12px;
+  gap: 4px;
+  padding: 11px;
+  border: 1px dashed var(--draw-border);
+  border-radius: 10px;
   text-align: center;
-  background: rgba(6, 15, 34, 0.36);
+  background: var(--draw-surface);
 }
 
 .admin-draw-empty-state strong {
-  color: #e9efff;
-  font-size: 11px;
+  color: var(--text);
+  font-size: 10px;
 }
 
 .admin-draw-empty-state span {
-  color: #8f9fbd;
+  color: var(--muted);
   font-size: 9px;
-  line-height: 1.7;
+  line-height: 1.6;
 }
 
 .admin-draw-config-panel {
   display: grid;
-  gap: 11px;
-  padding: 13px;
-  border: 1px solid rgba(125, 160, 245, 0.16);
-  border-radius: 13px;
-  background: rgba(6, 15, 34, 0.48);
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--draw-border);
+  border-radius: 10px;
+  background: var(--draw-surface);
 }
 
 .admin-draw-native-select {
@@ -6860,47 +6889,53 @@ html[data-theme="light"] .admin-user-behavior-grid > div {
 }
 
 .admin-draw-interval-grid button {
-  min-height: 38px;
-  padding: 7px 4px;
-  border: 1px solid rgba(125, 160, 245, 0.2);
-  border-radius: 10px;
-  background: rgba(13, 30, 61, 0.9);
-  color: #c6d0e6;
+  min-height: 36px;
+  padding: 6px 4px;
+  border: 1px solid var(--draw-border);
+  border-radius: 8px;
+  background: var(--draw-surface-strong);
+  color: var(--text);
   font: inherit;
   font-size: 9px;
+  cursor: pointer;
 }
 
 .admin-draw-interval-grid button.is-selected {
-  border-color: rgba(91, 194, 225, 0.68);
-  background: rgba(40, 93, 137, 0.52);
-  color: #eafaff;
+  border-color: var(--draw-selected-border);
+  background: var(--draw-selected);
+  color: var(--draw-selected-text);
   font-weight: 800;
 }
 
 .admin-draw-interval-grid button:disabled {
-  opacity: 0.58;
+  opacity: 0.52;
+  cursor: default;
 }
 
 .admin-draw-start-panel {
   display: grid;
-  gap: 10px;
-  padding-top: 12px;
-  border-top: 1px solid rgba(125, 160, 245, 0.15);
+  gap: 9px;
+  padding-top: 11px;
+  border-top: 1px solid var(--draw-border);
 }
 
 .admin-draw-start-panel.is-complete .admin-draw-step-no {
-  background: rgba(90, 190, 130, 0.12);
-  border-color: rgba(90, 190, 130, 0.32);
+  color: var(--success);
+  border-color: rgba(105, 240, 192, 0.28);
+}
+
+html[data-theme="light"] .admin-draw-start-panel.is-complete .admin-draw-step-no {
+  border-color: rgba(8, 112, 85, 0.24);
 }
 
 .admin-draw-start-btn {
   width: 100%;
-  min-height: 44px;
+  min-height: 42px;
   font-weight: 800;
 }
 
 .admin-draw-shell.is-locked .admin-draw-mode-grid {
-  opacity: 0.86;
+  opacity: 0.84;
 }
 
 @media (max-width: 410px) {

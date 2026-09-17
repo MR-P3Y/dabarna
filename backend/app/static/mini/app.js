@@ -7425,15 +7425,15 @@ function renderAdminAutoDraw() {
     btn.classList.toggle("is-inactive", validMode && !selected);
     const stateEl = btn.querySelector(".admin-draw-mode-state");
     if (stateEl) {
-      stateEl.textContent = selected ? (locked || isRunning ? "🔒 قفل" : "✓ انتخاب‌شده") : (locked || isRunning ? "بسته" : "انتخاب");
+      stateEl.textContent = selected ? (locked || isRunning ? "قفل‌شده" : "انتخاب‌شده") : (locked || isRunning ? "غیرفعال" : "انتخاب");
     }
   };
   paintModeCard(manualBtn, drawMode === "MANUAL");
   paintModeCard(autoBtn, drawMode === "AUTO");
 
   if (statusEl) statusEl.textContent = drawMode === "MANUAL" ? "دستی" : (labels[status] || status);
-  if (modeEl) modeEl.textContent = drawMode === "MANUAL" ? "👤 دستی" : drawMode === "AUTO" ? `🤖 خودکار • هر ${interval} ثانیه` : "انتخاب نشده";
-  if (lockEl) lockEl.textContent = locked || isRunning ? "🔒 قفل‌شده تا پایان بازی" : "آزاد تا شروع بازی";
+  if (modeEl) modeEl.textContent = drawMode === "MANUAL" ? "دستی" : drawMode === "AUTO" ? `خودکار · ${interval} ثانیه` : "انتخاب نشده";
+  if (lockEl) lockEl.textContent = locked || isRunning ? "قفل تا پایان بازی" : "قابل تغییر";
   if (commitmentEl) commitmentEl.textContent = data.sequence_commitment ? String(data.sequence_commitment).slice(0, 12) : "-";
   if (remainingEl) remainingEl.textContent = drawMode === "AUTO" && Number.isFinite(Number(data.remaining_count)) ? String(Number(data.remaining_count)) : "-";
 
@@ -7457,17 +7457,17 @@ function renderAdminAutoDraw() {
   if (startSummary) {
     if (!gid) startSummary.textContent = "ابتدا یک بازی را برای مدیریت انتخاب کنید.";
     else if (!validMode) startSummary.textContent = "ابتدا روش شماره‌خوانی را انتخاب کنید.";
-    else if (isLobby && drawMode === "MANUAL") startSummary.textContent = "آماده شروع با شماره‌خوانی دستی؛ پس از شروع روش قفل می‌شود.";
-    else if (isLobby && drawMode === "AUTO") startSummary.textContent = `آماده شروع خودکار؛ اعلام هر ${interval} ثانیه و سپس قفل کامل.`;
-    else if (isRunning && drawMode === "MANUAL") startSummary.textContent = "بازی در حالت دستی در حال اجراست و روش قفل شده است.";
-    else if (isRunning && drawMode === "AUTO") startSummary.textContent = `بازی خودکار هر ${interval} ثانیه در حال اجراست؛ ترتیب ثابت است.`;
+    else if (isLobby && drawMode === "MANUAL") startSummary.textContent = "حالت دستی آماده شروع است.";
+    else if (isLobby && drawMode === "AUTO") startSummary.textContent = `حالت خودکار با فاصله ${interval} ثانیه آماده شروع است.`;
+    else if (isRunning && drawMode === "MANUAL") startSummary.textContent = "بازی در حالت دستی در حال اجراست.";
+    else if (isRunning && drawMode === "AUTO") startSummary.textContent = `بازی خودکار با فاصله ${interval} ثانیه در حال اجراست.`;
     else startSummary.textContent = "وضعیت بازی اجازه شروع دوباره نمی‌دهد.";
   }
 
   if (startBtn) {
-    if (isLobby && drawMode === "MANUAL") startBtn.textContent = "شروع بازی با شماره‌خوانی دستی";
-    else if (isLobby && drawMode === "AUTO") startBtn.textContent = "شروع بازی با شماره‌خوانی خودکار";
-    else if (isRunning) startBtn.textContent = "🔒 بازی شروع شده";
+    if (isLobby && drawMode === "MANUAL") startBtn.textContent = "شروع بازی · دستی";
+    else if (isLobby && drawMode === "AUTO") startBtn.textContent = "شروع بازی · خودکار";
+    else if (isRunning) startBtn.textContent = "بازی در حال اجرا";
     else startBtn.textContent = "شروع بازی";
   }
 
