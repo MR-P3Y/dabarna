@@ -2592,7 +2592,6 @@ function renderLiveSnapshot(snapshot, gameId, options = {}) {
   const canNotify = Boolean(options.notifyFresh) && liveEventCursorKnown(gid);
   const lastEventId = Number(snapshot?.last_event_id || 0);
   state.selectedGameId = gid;
-  setVal("buyQtyInput", "1");
   renderLive(snapshot, { notifyFresh: canNotify, notifyAfterId: previousCursor });
   markLiveEventCursor(gid, lastEventId);
   if (options.startPolling !== false) startEventPolling();
