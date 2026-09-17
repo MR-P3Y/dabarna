@@ -100,7 +100,7 @@ def admin_game_item_kb(
     rows: list[int] = []
 
     if normalized == "LOBBY":
-        kb.button(text="🎛 تنظیم روش شماره‌خوانی و شروع", callback_data=f"admin:games:draw:{int(game_id)}:{status}:{offset}")
+        kb.button(text="🎛 حالت اعلام عدد و شروع", callback_data=f"admin:games:draw:{int(game_id)}:{status}:{offset}")
         rows.append(1)
         if allow_close_lobby:
             kb.button(text="🛑 بستن بازی لابی", callback_data=f"admin:games:close-lobby:{int(game_id)}:{status}:{offset}")

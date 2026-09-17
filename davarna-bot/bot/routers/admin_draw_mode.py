@@ -8,7 +8,6 @@ from bot.services.api_client import ApiClient, ApiError
 from bot.services.draw_mode_api import get_draw_mode, pause_auto_draw, resume_auto_draw, set_draw_mode
 from bot.services.telegram_safe import safe_edit_or_send
 from bot.services.ui import panel
-from bot.services.user_topics import send_to_game_topic
 
 
 router = Router()
@@ -60,7 +59,7 @@ def _draw_panel(state: dict) -> str:
         if mode == "AUTO":
             body += f"⏱ فاصله انتخاب‌شده: <b>{interval} ثانیه</b>\n"
         body += "🔓 تا قبل از شروع، انتخاب قابل تغییر است.\n"
-        body += "\n✅ آماده شروع؛ با شروع بازی این قانون قفل می‌شود." if mode in {"MANUAL", "AUTO"} else "\n👇 ابتدا روش شماره‌خوانی را انتخاب کنید."
+        body += "\n✅ آماده شروع؛ با شروع بازی این قانون قفل می‌شود." if mode in {"MANUAL", "AUTO"} else "\n👇 ابتدا حالت اعلام عدد را انتخاب کنید."
     elif game_status == "RUNNING":
         body += "🔒 قانون این بازی قفل شده است.\n"
         if mode == "MANUAL":
@@ -107,7 +106,7 @@ def _draw_keyboard(state: dict, *, status: str, offset: int):
         rows.append(2)
     elif game_status == "RUNNING" and mode == "AUTO":
         if auto_status == "RUNNING":
-            kb.button(text="⏸ مکث شماره‌خوان", callback_data=f"drawmode:pause:{gid}:{status}:{offset}")
+            kb.button(text="⏸ توقف موقت", callback_data=f"drawmode:pause:{gid}:{status}:{offset}")
             rows.append(1)
         elif auto_status == "PAUSED":
             kb.button(text="▶️ ادامه همان ترتیب", callback_data=f"drawmode:resume:{gid}:{status}:{offset}")
@@ -137,56 +136,6 @@ async def _show(cq: CallbackQuery, api: ApiClient, *, game_id: int, status: str,
         reply_markup=_draw_keyboard(state, status=status, offset=offset),
     )
 
-
-async def _announce_selection(cq: CallbackQuery, state: dict) -> None:
-    topic_id = state.get("tg_topic_id")
-    if topic_id is None:
-        return
-    gid = _to_int(state.get("game_id"), 0)
-    mode = str(state.get("draw_mode") or "").upper()
-    interval = _to_int(state.get("interval_seconds"), 0)
-    commitment = str(state.get("sequence_commitment") or "").strip()
-    body = (
-        "#شرایط_بازی #شماره_خوانی\n"
-        f"🎮 بازی: <b>#{gid}</b>\n"
-        f"🎛 روش اعلام اعداد: <b>{_mode_label(mode)}</b>\n"
-    )
-    if mode == "AUTO":
-        body += f"⏱ فاصله اعلام: <b>{interval} ثانیه</b>\n"
-        if commitment:
-            body += f"🔐 تعهد ترتیب اعداد:\n<code>{commitment}</code>\n"
-    body += "\n⚖️ این روش با شروع بازی قفل می‌شود و در طول بازی قابل تغییر نیست."
-    await send_to_game_topic(
-        cq.bot,
-        game_topic_id=int(topic_id),
-        text=panel("شرایط شماره‌خوانی بازی", body),
-        parse_mode="HTML",
-        disable_notification=False,
-    )
-
-
-async def _announce_locked(cq: CallbackQuery, state: dict) -> None:
-    topic_id = state.get("tg_topic_id")
-    if topic_id is None:
-        return
-    gid = _to_int(state.get("game_id"), 0)
-    mode = str(state.get("draw_mode") or "").upper()
-    interval = _to_int(state.get("interval_seconds"), 0)
-    body = (
-        "#شروع_بازی #قانون_ثابت\n"
-        f"🎮 بازی: <b>#{gid}</b>\n"
-        f"🔒 روش شماره‌خوانی قفل شد: <b>{_mode_label(mode)}</b>\n"
-    )
-    if mode == "AUTO":
-        body += f"⏱ فاصله ثابت: <b>{interval} ثانیه</b>\n"
-    body += "\nتغییر روش شماره‌خوانی تا پایان این بازی امکان‌پذیر نیست."
-    await send_to_game_topic(
-        cq.bot,
-        game_topic_id=int(topic_id),
-        text=panel("شروع رسمی بازی", body),
-        parse_mode="HTML",
-        disable_notification=False,
-    )
 
 
 @router.callback_query(F.data.startswith("admin:games:draw:"))
@@ -222,8 +171,7 @@ async def select_draw_mode(cq: CallbackQuery, api: ApiClient, is_admin: bool = F
         await cq.answer(str(exc.detail)[:180], show_alert=True)
         return
 
-    await cq.answer("روش شماره‌خوانی ثبت شد.")
-    await _announce_selection(cq, state)
+    await cq.answer("حالت اعلام عدد ثبت شد.")
     if cq.message:
         await safe_edit_or_send(
             cq.message,
@@ -241,7 +189,7 @@ async def start_locked_game(cq: CallbackQuery, api: ApiClient, is_admin: bool = 
     try:
         before = await get_draw_mode(api, game_id)
         if str(before.get("draw_mode") or "").upper() not in {"MANUAL", "AUTO"}:
-            await cq.answer("ابتدا روش شماره‌خوانی را انتخاب کنید.", show_alert=True)
+            await cq.answer("ابتدا حالت اعلام عدد را انتخاب کنید.", show_alert=True)
             return
         await api.admin_start_game(game_id, idempotency_key=f"BOT_DRAW_START:{game_id}")
         state = await get_draw_mode(api, game_id)
@@ -253,11 +201,10 @@ async def start_locked_game(cq: CallbackQuery, api: ApiClient, is_admin: bool = 
         await cq.answer("شروع بازی تأیید نشد؛ وضعیت را بررسی کنید.", show_alert=True)
         return
     if str(state.get("draw_mode") or "").upper() == "AUTO" and str(state.get("auto_status") or "").upper() != "RUNNING":
-        await cq.answer("بازی شروع شد اما شماره‌خوان خودکار فعال نشد؛ عملیات متوقف و باید بررسی شود.", show_alert=True)
+        await cq.answer("بازی شروع شد اما اعلام خودکار فعال نشد؛ عملیات متوقف و باید بررسی شود.", show_alert=True)
         return
 
-    await cq.answer("بازی با قانون شماره‌خوانی قفل‌شده شروع شد.", show_alert=True)
-    await _announce_locked(cq, state)
+    await cq.answer("بازی شروع شد؛ حالت اعلام عدد قفل شد.", show_alert=True)
     if cq.message:
         await safe_edit_or_send(
             cq.message,
@@ -277,7 +224,7 @@ async def pause_locked_auto(cq: CallbackQuery, api: ApiClient, is_admin: bool = 
     except ApiError as exc:
         await cq.answer(str(exc.detail)[:180], show_alert=True)
         return
-    await cq.answer("شماره‌خوان موقتاً متوقف شد. روش بازی همچنان خودکار و قفل است.")
+    await cq.answer("اعلام خودکار موقتاً متوقف شد. روش بازی همچنان خودکار و قفل است.")
     await _show(cq, api, game_id=game_id, status=status, offset=offset)
 
 
@@ -292,5 +239,5 @@ async def resume_locked_auto(cq: CallbackQuery, api: ApiClient, is_admin: bool =
     except ApiError as exc:
         await cq.answer(str(exc.detail)[:180], show_alert=True)
         return
-    await cq.answer("شماره‌خوان با همان ترتیب اولیه ادامه یافت.")
+    await cq.answer("اعلام خودکار با همان ترتیب اولیه ادامه یافت.")
     await _show(cq, api, game_id=game_id, status=status, offset=offset)
