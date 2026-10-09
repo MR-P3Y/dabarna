@@ -4,6 +4,7 @@ import os
 import re
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
+from app.utils.numerals import clean_numeric
 from dotenv import load_dotenv
 
 log = logging.getLogger(__name__)
@@ -161,7 +162,7 @@ DEPOSIT_ACCOUNT_NUMBER = os.getenv("DEPOSIT_ACCOUNT_NUMBER", "").strip()
 
 
 def _clean_numeric(value: str | int | None) -> str:
-    return str(value or "").strip().replace(" ", "").replace("-", "")
+    return clean_numeric(value)
 
 
 def _normalize_destination_item(item: dict[str, object], *, idx: int) -> dict[str, str]:
