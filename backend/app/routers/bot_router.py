@@ -3508,6 +3508,7 @@ def reject_admin_withdraw_request(
                 "amount": int(wr.amount),
                 "status": str(wr.status),
                 "reason": str(wr.rejection_reason or ""),
+                "source": "bot",
             },
         )
         db.commit()
