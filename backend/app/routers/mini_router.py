@@ -3140,6 +3140,7 @@ def create_withdraw(
         id=int(wr.id),
         amount=int(wr.amount),
         status=str(wr.status),
+        rejection_reason=str(wr.rejection_reason or "") or None,
         created_at=str(wr.created_at) if wr.created_at else None,
     )
 
@@ -3169,6 +3170,7 @@ def list_my_withdraws(
             id=int(wr.id),
             amount=int(wr.amount),
             status=str(wr.status),
+            rejection_reason=str(wr.rejection_reason or "") or None,
             created_at=str(wr.created_at) if wr.created_at else None,
         )
         for wr in rows
