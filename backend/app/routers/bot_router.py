@@ -514,7 +514,7 @@ def _normalize_destination_payload(
         "title": title,
         "account_name": str(payload.get("account_name") or "").strip(),
         "bank_name": bank_name,
-        "iban": str(payload.get("iban") or "").strip().upper(),
+        "iban": normalize_digits(payload.get("iban")).strip().upper(),
         "card_number": card_number,
         "account_number": _clean_numeric(payload.get("account_number")),
         "is_active": bool(payload.get("is_active", True)),
