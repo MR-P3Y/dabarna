@@ -31,6 +31,7 @@ from bot.services.admin_acl import (
 from bot.services.api_client import ApiClient, ApiError
 from bot.services.telegram_safe import safe_edit_or_send
 from bot.services.ui import panel
+from bot.services.numerals import normalize_digits
 from bot.states.super_admin import SuperAdminManageSG
 
 router = Router()
