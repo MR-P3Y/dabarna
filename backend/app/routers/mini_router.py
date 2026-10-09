@@ -46,6 +46,7 @@ from app.core.config import (
     USER_TOPIC_GAME_MEDIUM_ID,
 )
 from app.core.db import SessionLocal, get_db
+from app.utils.numerals import clean_numeric
 from app.core.redis_client import get_redis
 from app.core.mini_security import (
     enforce_events_rate_limit,
@@ -133,7 +134,7 @@ GAME_LIVE_LINK_KEY_PREFIX = "game_live_link:"
 
 
 def _clean_numeric(value: object) -> str:
-    return str(value or "").strip().replace(" ", "").replace("-", "")
+    return clean_numeric(value)
 
 
 def _default_destination_title(bank_name: str, card_number: str, idx: int) -> str:
