@@ -93,7 +93,7 @@
             </div>
             <div id="buyActionForm" class="action-form hidden">
               <label id="buyQtyLabel" for="buyQtyInput">تعداد کارت</label>
-              <input id="buyQtyInput" type="number" min="1" max="50" value="1" />
+              <input id="buyQtyInput" type="text" inputmode="numeric" min="1" max="50" value="1" autocomplete="off" />
               <button id="buyCardsBtn" class="small-btn primary" type="button">خرید کارت</button>
               <div id="buyStatusHint" class="step-hint"></div>
             </div>
@@ -199,7 +199,7 @@
                   <div class="deposit-step-no">1</div>
                   <div class="deposit-step-body">
                     <label id="depositAmountLabel" for="depositAmountInput">مبلغ (تومان)</label>
-                    <input id="depositAmountInput" type="number" min="1" />
+                    <input id="depositAmountInput" type="text" inputmode="numeric" min="1" autocomplete="off" />
                     <div class="amount-preset-row" aria-label="مبلغ‌های آماده شارژ">
                       <button class="amount-preset" data-amount="50000" type="button">۵۰ هزار</button>
                       <button class="amount-preset" data-amount="100000" type="button">۱۰۰ هزار</button>
