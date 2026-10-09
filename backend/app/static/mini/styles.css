@@ -7262,6 +7262,31 @@ html[data-theme="light"] #adminSendLiveBtn:not(:disabled) {
   color: var(--danger);
 }
 
+.withdraw-user-rejection-reason {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border: 1px solid rgba(255, 127, 138, 0.24);
+  border-radius: 11px;
+  background: rgba(255, 127, 138, 0.08);
+  color: var(--text);
+  font-size: 11px;
+  line-height: 1.8;
+}
+
+.withdraw-user-rejection-reason strong {
+  color: var(--danger);
+}
+
+html[data-theme="light"] .withdraw-user-rejection-reason {
+  border-color: rgba(180, 35, 24, 0.20);
+  background: rgba(180, 35, 24, 0.055);
+  color: var(--ui-strong-text);
+}
+
+html[data-theme="light"] .withdraw-user-rejection-reason strong {
+  color: var(--ui-danger-text);
+}
+
 html[data-theme="light"] .withdraw-reject-modal-card {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.99), rgba(248, 251, 255, 0.97));
   color: var(--ui-strong-text);
