@@ -629,7 +629,7 @@ class MiniAdminWithdrawProofIn(BaseModel):
 
 
 class MiniAdminWithdrawRejectIn(BaseModel):
-    reason: str | None = Field(default=None, max_length=500)
+    reason: str = Field(min_length=3, max_length=500)
 
 
 class MiniSuperGrantIn(BaseModel):
@@ -4750,6 +4750,7 @@ def mini_admin_list_withdraws(
                 "iban": str(wr.iban or ""),
                 "account_number": str(wr.account_number or ""),
                 "paid_tracking": str(wr.paid_tracking or ""),
+                "rejection_reason": str(wr.rejection_reason or ""),
                 "created_at": str(wr.created_at) if wr.created_at else None,
             }
         )
@@ -5250,22 +5251,48 @@ def mini_admin_paid_withdraw(
 @router.post("/admin/withdraws/{withdraw_id}/reject")
 def mini_admin_reject_withdraw(
     withdraw_id: int,
-    payload: MiniAdminWithdrawRejectIn | None = None,
+    payload: MiniAdminWithdrawRejectIn,
+    request: Request,
     ident: MiniAdminIdentity = Depends(get_mini_admin_identity),
     db: Session = Depends(get_db),
 ):
     _mini_require_finance_role(ident)
-    reason = str((payload.reason if payload else "") or "").strip() or "رد توسط ادمین"
     wr = FinanceService.reject_withdraw(
         db=db,
         withdraw_id=int(withdraw_id),
         admin_user_id=int(ident.user_id),
-        reason=reason,
+        reason=payload.reason,
+    )
+    AdminAuditService.record(
+        db,
+        admin=_mini_to_admin_identity(ident),
+        action="withdraw.reject",
+        target_type="withdraw_request",
+        target_id=int(wr.id),
+        request=request,
+        details={
+            "withdraw_id": int(wr.id),
+            "user_id": int(wr.user_id),
+            "amount": int(wr.amount),
+            "status": str(wr.status),
+            "reason": str(wr.rejection_reason or ""),
+        },
     )
     withdraw_id_int = int(wr.id)
+    rejection_reason = str(wr.rejection_reason or "")
     db.commit()
-    notify_result = _mini_notify_withdraw_rejected_to_user(db, withdraw_id=withdraw_id_int, reason=reason)
-    return {"ok": True, "withdraw_id": withdraw_id_int, "status": "REJECTED", "user_notify": notify_result}
+    notify_result = _mini_notify_withdraw_rejected_to_user(
+        db,
+        withdraw_id=withdraw_id_int,
+        reason=rejection_reason,
+    )
+    return {
+        "ok": True,
+        "withdraw_id": withdraw_id_int,
+        "status": "REJECTED",
+        "rejection_reason": rejection_reason,
+        "user_notify": notify_result,
+    }
 
 
 @router.get("/admin/super/admins")
