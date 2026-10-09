@@ -2561,14 +2561,14 @@ async def admin_call_submit(m: Message, state: FSMContext, api: ApiClient, is_ad
     status = str(data["status"])
     offset = int(data["offset"])
 
-    txt = (m.text or "").strip()
+    txt = normalize_digits(m.text or "").strip()
     if not txt.isdigit():
         await safe_send(m, "❌ فقط عدد بفرست؛ مثلاً <code>42</code> 😉", parse_mode="HTML")
         return
 
     number = int(txt)
-    if not (1 <= number <= 99):
-        await safe_send(m, "❌ عدد باید بین <b>1</b> تا <b>99</b> باشه.", parse_mode="HTML")
+    if not (1 <= number <= 90):
+        await safe_send(m, "❌ عدد باید بین <b>1</b> تا <b>90</b> باشه.", parse_mode="HTML")
         return
 
     msg_id = int(getattr(m, "message_id", 0) or 0)
