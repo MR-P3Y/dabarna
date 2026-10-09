@@ -1232,8 +1232,11 @@ function toEnglishDigits(raw) {
 }
 
 function parsePositiveInt(raw) {
-  const cleaned = toEnglishDigits(String(raw || "")).replace(/[^\d]/g, "");
-  if (!cleaned) return 0;
+  const normalized = toEnglishDigits(String(raw || "")).trim();
+  if (!normalized) return 0;
+  if (/[^0-9,٬،_\s]/.test(normalized)) return 0;
+  const cleaned = normalized.replace(/[,٬،_\s]/g, "");
+  if (!/^\d+$/.test(cleaned)) return 0;
   const n = Number(cleaned);
   if (!Number.isFinite(n)) return 0;
   return Math.max(0, Math.trunc(n));
@@ -1414,7 +1417,7 @@ function adminRoleBadgeText() {
 }
 
 function maskCard(cardNumber) {
-  const d = String(cardNumber || "").replace(/\D/g, "");
+  const d = toEnglishDigits(cardNumber || "").replace(/\D/g, "");
   if (!d) return "-";
   if (d.length <= 8) return d;
   return `${d.slice(0, 4)}-${"*".repeat(Math.max(0, d.length - 8))}-${d.slice(-4)}`;
@@ -1428,7 +1431,7 @@ function selectedDepositDestination() {
 }
 
 function normalizedCardNumber(raw) {
-  return String(raw || "").replace(/\D/g, "").slice(0, 19);
+  return toEnglishDigits(raw || "").replace(/\D/g, "").slice(0, 19);
 }
 
 function prettyCardNumber(raw) {
@@ -4867,7 +4870,7 @@ async function buySelectedGame() {
   if (!state.selectedGameId) {
     throw new Error("ابتدا یک بازی را انتخاب کنید.");
   }
-  const qty = parsePositiveInt(getVal("buyQtyInput") || "1");
+  const qty = parsePositiveInt(getVal("buyQtyInput"));
   if (!qty || qty < 1 || qty > 50) {
     throw new Error("تعداد کارت نامعتبر است.");
   }
@@ -6377,7 +6380,7 @@ async function adminUsersUnrestrict(tgUserId) {
 async function adminUsersAdjustWallet(tgUserId) {
   const tgid = Number(tgUserId || 0);
   const amountRaw = String(prompt("مبلغ اصلاح (+50000 یا -20000):", "") || "").trim();
-  const amount = Number(toEnglishDigits(amountRaw).replace(/,/g, ""));
+  const amount = Number(toEnglishDigits(amountRaw).replace(/[,٬،\s]/g, ""));
   if (!Number.isFinite(amount) || amount === 0) throw new Error("مبلغ اصلاح نامعتبر است.");
   const reason = String(prompt("علت اصلاح کیف پول:", "اصلاح کیف پول توسط ادمین") || "").trim();
   if (reason.length < 3) throw new Error("علت اصلاح کیف پول نامعتبر است.");
@@ -6414,7 +6417,7 @@ async function adminUsersSendTemplate(tgUserId) {
   let amount = null;
   if (kind === "wallet_adjust") {
     const amountRaw = String(prompt("مبلغ برای پیام آماده (اختیاری):", "") || "").trim();
-    const n = Number(toEnglishDigits(amountRaw).replace(/,/g, ""));
+    const n = Number(toEnglishDigits(amountRaw).replace(/[,٬،\s]/g, ""));
     if (Number.isFinite(n) && n !== 0) amount = Math.trunc(n);
   }
   const composed = await apiFetch(`/mini-api/admin/users/${tgid}/compose-message`, {
@@ -6975,7 +6978,7 @@ function focusAdminCallNumberInput() {
 function normalizeAdminCallNumberInput() {
   const input = getEl("adminCallNumberInput");
   if (!input) return;
-  const digits = String(input.value || "").replace(/\D/g, "").slice(0, 2);
+  const digits = toEnglishDigits(input.value || "").replace(/\D/g, "").slice(0, 2);
   if (input.value !== digits) input.value = digits;
 }
 // ADMIN_CALL_PHASE1_UX_END
@@ -7053,7 +7056,7 @@ function hydrateAdminCallPanelFromSnapshot(gameId, snapshot) {
 function setAdminCallNumberDraft(value) {
   const input = getEl("adminCallNumberInput");
   if (!input) return;
-  const digits = String(value || "").replace(/\D/g, "").slice(0, 2);
+  const digits = toEnglishDigits(value || "").replace(/\D/g, "").slice(0, 2);
   input.value = digits;
   input.dispatchEvent(new Event("input", { bubbles: true }));
   focusAdminCallNumberInput();
@@ -7061,7 +7064,7 @@ function setAdminCallNumberDraft(value) {
 
 function appendAdminCallDigit(digit) {
   const input = getEl("adminCallNumberInput");
-  const current = String(input?.value || "").replace(/\D/g, "");
+  const current = toEnglishDigits(input?.value || "").replace(/\D/g, "");
   setAdminCallNumberDraft((current + String(digit || "")).slice(0, 2));
 }
 
@@ -7911,7 +7914,7 @@ async function adminPaidWithdraw(withdrawId) {
 }
 
 async function superAdminGrant() {
-  const tgUserId = Number(getVal("superAdminTgUserInput") || "0");
+  const tgUserId = parseIntegerStrict(getVal("superAdminTgUserInput")) || 0;
   const role = String(getVal("superAdminRoleSelect") || "ADMIN").toUpperCase();
   if (!tgUserId) throw new Error("شناسه تلگرام معتبر وارد کنید.");
   await apiFetch("/mini-api/admin/super/admins/grant", {
@@ -7923,7 +7926,7 @@ async function superAdminGrant() {
 }
 
 async function superAdminRevoke() {
-  const tgUserId = Number(getVal("superAdminTgUserInput") || "0");
+  const tgUserId = parseIntegerStrict(getVal("superAdminTgUserInput")) || 0;
   const role = String(getVal("superAdminRoleSelect") || "ADMIN").toUpperCase();
   if (!tgUserId) throw new Error("شناسه تلگرام معتبر وارد کنید.");
   await apiFetch("/mini-api/admin/super/admins/revoke", {

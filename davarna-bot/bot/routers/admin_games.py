@@ -28,6 +28,7 @@ from bot.services.api_client import ApiClient, ApiError
 from bot.services.telegram_safe import safe_edit_or_send, safe_send
 from bot.services.tg_display import resolve_tg_identity, resolve_tg_identities
 from bot.services.ui import panel
+from bot.services.numerals import normalize_digits, parse_positive_int
 from bot.states.admin_call import AdminCallSG
 from bot.states.admin_game_close import AdminGameCloseSG
 from bot.states.admin_game_create import AdminGameCreateSG
@@ -39,32 +40,6 @@ PAGE_SIZE = 5
 DEFAULT_STATUS = "LOBBY|RUNNING"
 MONITOR_INTERVAL_SEC = 3.0
 DEFAULT_CARD_PRICE = 1000
-PERSIAN_DIGITS_TRANSLATION = str.maketrans(
-    {
-        "۰": "0",
-        "۱": "1",
-        "۲": "2",
-        "۳": "3",
-        "۴": "4",
-        "۵": "5",
-        "۶": "6",
-        "۷": "7",
-        "۸": "8",
-        "۹": "9",
-        "٠": "0",
-        "١": "1",
-        "٢": "2",
-        "٣": "3",
-        "٤": "4",
-        "٥": "5",
-        "٦": "6",
-        "٧": "7",
-        "٨": "8",
-        "٩": "9",
-    }
-)
-
-
 @dataclass
 class MonitorJob:
     task: asyncio.Task
@@ -184,14 +159,7 @@ def _topic_title(topic_id: int | None) -> str:
 
 
 def _parse_card_price_input(text: str | None) -> int | None:
-    raw = str(text or "").strip().translate(PERSIAN_DIGITS_TRANSLATION)
-    cleaned = raw.replace(",", "").replace("٬", "").replace(" ", "")
-    if not cleaned.isdigit():
-        return None
-    amount = int(cleaned)
-    if amount <= 0:
-        return None
-    return amount
+    return parse_positive_int(text, allow_grouping=True)
 
 
 def _parse_game_ctx_from_start(data: str) -> tuple[int, str, int]:
@@ -2567,14 +2535,14 @@ async def admin_call_submit(m: Message, state: FSMContext, api: ApiClient, is_ad
     status = str(data["status"])
     offset = int(data["offset"])
 
-    txt = (m.text or "").strip()
+    txt = normalize_digits(m.text or "").strip()
     if not txt.isdigit():
         await safe_send(m, "❌ فقط عدد بفرست؛ مثلاً <code>42</code> 😉", parse_mode="HTML")
         return
 
     number = int(txt)
-    if not (1 <= number <= 99):
-        await safe_send(m, "❌ عدد باید بین <b>1</b> تا <b>99</b> باشه.", parse_mode="HTML")
+    if not (1 <= number <= 90):
+        await safe_send(m, "❌ عدد باید بین <b>1</b> تا <b>90</b> باشه.", parse_mode="HTML")
         return
 
     msg_id = int(getattr(m, "message_id", 0) or 0)

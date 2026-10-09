@@ -17,12 +17,12 @@ from bot.services.api_client import ApiClient, ApiError
 from bot.services.jalali import format_jalali_datetime
 from bot.services.telegram_safe import safe_edit_or_send
 from bot.services.ui import panel
+from bot.services.numerals import parse_positive_int
 from bot.states.crypto import CryptoAdminSG, CryptoDepositSG
 
 router = Router()
 
 _FA_DIGITS_TRANS = str.maketrans("0123456789", "۰۱۲۳۴۵۶۷۸۹")
-_FA_TO_EN_TRANS = str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "0123456789" * 2)
 
 
 def _fa(value: object) -> str:
@@ -86,9 +86,7 @@ def _invoice_text(item: dict, *, title: str = "فاکتور واریز رمزا�
 
 
 def _parse_amount(text: str | None) -> int:
-    normalized = str(text or "").translate(_FA_TO_EN_TRANS)
-    digits = "".join(ch for ch in normalized if ch.isdigit())
-    return int(digits) if digits else 0
+    return parse_positive_int(text, allow_grouping=True) or 0
 
 
 @router.callback_query(F.data == "menu:crypto")

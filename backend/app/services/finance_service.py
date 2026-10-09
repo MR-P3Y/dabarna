@@ -6,6 +6,7 @@ import re
 from datetime import datetime, timedelta
 
 from app.models.finance import DepositRequest, WithdrawRequest, GatewayPayment
+from app.utils.numerals import clean_numeric, normalize_digits
 from app.models.wallet import Wallet
 from app.services.wallet_service import WalletService
 
@@ -13,7 +14,7 @@ WITHDRAW_IDEMPOTENCY_WINDOW_MINUTES = 10
 
 
 def _clean_numeric(value: str | int | None) -> str:
-    return str(value or "").strip().replace(" ", "").replace("-", "")
+    return clean_numeric(value)
 
 class FinanceService:
     @staticmethod
@@ -96,7 +97,7 @@ class FinanceService:
         if len(full_name) < 3:
             raise HTTPException(status_code=400, detail="نام و نام خانوادگی معتبر نیست.")
 
-        iban = str(payload.get("iban") or "").strip().upper().replace(" ", "")
+        iban = normalize_digits(payload.get("iban")).strip().upper().replace(" ", "")
         if iban and (not re.fullmatch(r"IR\d{24}", iban)):
             raise HTTPException(status_code=400, detail="شماره شبا نامعتبر است.")
 

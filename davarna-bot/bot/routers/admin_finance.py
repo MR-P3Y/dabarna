@@ -29,6 +29,7 @@ from bot.services.jalali import format_jalali_datetime, jalali_date_to_gregorian
 from bot.services.telegram_safe import safe_edit_or_send
 from bot.services.tg_display import resolve_tg_identity
 from bot.services.ui import panel
+from bot.services.numerals import normalize_digits
 from bot.states.admin_reject import AdminRejectSG
 
 router = Router()
@@ -135,7 +136,7 @@ def _deposit_destination_text(item: dict) -> str:
 
 
 def _normalize_digits_en(raw: str) -> str:
-    return (raw or "").translate(_FA_TO_EN_DIGITS_TRANS)
+    return normalize_digits(raw)
 
 
 def _chat_id_from_target(target: CallbackQuery | Message) -> int:

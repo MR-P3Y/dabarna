@@ -31,6 +31,7 @@ from bot.services.admin_acl import (
 from bot.services.api_client import ApiClient, ApiError
 from bot.services.telegram_safe import safe_edit_or_send
 from bot.services.ui import panel
+from bot.services.numerals import normalize_digits
 from bot.states.super_admin import SuperAdminManageSG
 
 router = Router()
@@ -45,7 +46,7 @@ def _require_super_admin(is_super_admin: bool) -> bool:
 
 
 def _normalize_digits(raw: str) -> str:
-    return (raw or "").translate(_FA_TO_EN_DIGITS_TRANS)
+    return normalize_digits(raw)
 
 
 def _parse_tg_user_id(raw: str) -> int | None:
@@ -185,7 +186,7 @@ def _render_destination_detail(item: dict) -> str:
 
 
 def _parse_destination_payload(raw_text: str) -> tuple[dict, str | None]:
-    txt = str(raw_text or "").strip()
+    txt = normalize_digits(raw_text).strip()
     parts = [p.strip() for p in txt.split("|")]
     if len(parts) < 4:
         return {}, "فرمت ورودی کامل نیست. فرمت درست:\nعنوان | نام بانک | شماره کارت | نام صاحب کارت | شبا(اختیاری) | شماره حساب(اختیاری)"
