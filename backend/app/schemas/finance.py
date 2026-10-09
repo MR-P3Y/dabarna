@@ -34,6 +34,7 @@ class WithdrawOut(BaseModel):
     card_number: str
     account_number: str
     paid_tracking: str | None = None
+    rejection_reason: str | None = None
 
 class ApproveWithdrawIn(BaseModel):
     idempotency_key: str
