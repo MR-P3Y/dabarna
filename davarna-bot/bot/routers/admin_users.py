@@ -21,12 +21,10 @@ from bot.services.html import h
 from bot.services.jalali import format_jalali_datetime
 from bot.services.telegram_safe import safe_edit_or_send
 from bot.services.ui import panel
+from bot.services.numerals import normalize_digits
 
 router = Router()
 
-_FA_DIGITS = "۰۱۲۳۴۵۶۷۸۹"
-_AR_DIGITS = "٠١٢٣٤٥٦٧٨٩"
-_FA_TO_EN = str.maketrans(_FA_DIGITS + _AR_DIGITS, "0123456789" * 2)
 _COMPOSE_KIND_LABEL: dict[str, str] = {
     "deposit_reject": "رد واریز",
     "withdraw_reject": "رد برداشت",
@@ -57,7 +55,7 @@ def require_admin(is_admin: bool) -> bool:
 
 def _to_int(raw: object, default: int = 0) -> int:
     try:
-        return int(str(raw or "").translate(_FA_TO_EN))
+        return int(normalize_digits(raw))
     except Exception:
         return default
 
@@ -227,7 +225,7 @@ async def _render_users_panel(target: CallbackQuery | Message, *, state: FSMCont
 
 
 def _parse_search_input(raw: str) -> dict:
-    txt = str(raw or "").strip().translate(_FA_TO_EN)
+    txt = normalize_digits(raw).strip()
     if not txt:
         return {}
     low = txt.lower()
@@ -491,7 +489,7 @@ async def admin_users_restrict_submit(m: Message, state: FSMContext, api: ApiCli
         await m.answer(panel("خطا", "شناسه کاربر نامعتبر است."), parse_mode="HTML")
         return
 
-    parts = [p.strip() for p in txt.translate(_FA_TO_EN).split("|")]
+    parts = [p.strip() for p in normalize_digits(txt).split("|")]
     reason = parts[0] if parts else ""
     minutes = _to_int(parts[1], 0) if len(parts) > 1 and parts[1] else None
     actions = [x.strip().upper() for x in (parts[2].split(",") if len(parts) > 2 else []) if x.strip()]
@@ -617,7 +615,7 @@ async def admin_users_adjust_submit(m: Message, state: FSMContext, api: ApiClien
     if not require_admin(is_admin):
         await m.answer(panel("خطا", "اجازه دسترسی نداری."), parse_mode="HTML")
         return
-    txt = str(m.text or "").strip().translate(_FA_TO_EN)
+    txt = normalize_digits(m.text or "").strip()
     if txt.lower() in {"لغو", "/cancel", "cancel"}:
         await _render_users_panel(m, state=state)
         return
