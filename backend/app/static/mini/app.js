@@ -1414,7 +1414,7 @@ function adminRoleBadgeText() {
 }
 
 function maskCard(cardNumber) {
-  const d = String(cardNumber || "").replace(/\D/g, "");
+  const d = toEnglishDigits(cardNumber || "").replace(/\D/g, "");
   if (!d) return "-";
   if (d.length <= 8) return d;
   return `${d.slice(0, 4)}-${"*".repeat(Math.max(0, d.length - 8))}-${d.slice(-4)}`;
@@ -1428,7 +1428,7 @@ function selectedDepositDestination() {
 }
 
 function normalizedCardNumber(raw) {
-  return String(raw || "").replace(/\D/g, "").slice(0, 19);
+  return toEnglishDigits(raw || "").replace(/\D/g, "").slice(0, 19);
 }
 
 function prettyCardNumber(raw) {
