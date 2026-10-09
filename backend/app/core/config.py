@@ -4,7 +4,7 @@ import os
 import re
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
-from app.utils.numerals import clean_numeric
+from app.utils.numerals import clean_numeric, normalize_digits
 from dotenv import load_dotenv
 
 log = logging.getLogger(__name__)
@@ -174,7 +174,7 @@ def _normalize_destination_item(item: dict[str, object], *, idx: int) -> dict[st
     return {
         "account_name": str(item.get("account_name") or "").strip(),
         "bank_name": str(item.get("bank_name") or "").strip(),
-        "iban": str(item.get("iban") or "").strip().upper(),
+        "iban": normalize_digits(item.get("iban")).strip().upper(),
         "card_number": card_number,
         "account_number": _clean_numeric(item.get("account_number")),
     }
