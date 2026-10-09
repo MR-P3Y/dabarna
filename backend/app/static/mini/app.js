@@ -6975,7 +6975,7 @@ function focusAdminCallNumberInput() {
 function normalizeAdminCallNumberInput() {
   const input = getEl("adminCallNumberInput");
   if (!input) return;
-  const digits = String(input.value || "").replace(/\D/g, "").slice(0, 2);
+  const digits = toEnglishDigits(input.value || "").replace(/\D/g, "").slice(0, 2);
   if (input.value !== digits) input.value = digits;
 }
 // ADMIN_CALL_PHASE1_UX_END
@@ -7053,7 +7053,7 @@ function hydrateAdminCallPanelFromSnapshot(gameId, snapshot) {
 function setAdminCallNumberDraft(value) {
   const input = getEl("adminCallNumberInput");
   if (!input) return;
-  const digits = String(value || "").replace(/\D/g, "").slice(0, 2);
+  const digits = toEnglishDigits(value || "").replace(/\D/g, "").slice(0, 2);
   input.value = digits;
   input.dispatchEvent(new Event("input", { bubbles: true }));
   focusAdminCallNumberInput();
@@ -7061,7 +7061,7 @@ function setAdminCallNumberDraft(value) {
 
 function appendAdminCallDigit(digit) {
   const input = getEl("adminCallNumberInput");
-  const current = String(input?.value || "").replace(/\D/g, "");
+  const current = toEnglishDigits(input?.value || "").replace(/\D/g, "");
   setAdminCallNumberDraft((current + String(digit || "")).slice(0, 2));
 }
 
