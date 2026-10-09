@@ -452,7 +452,7 @@
                 <div class="admin-grid-two">
                   <div>
                     <label id="adminCreateGroupLabel" for="adminCreateGroupIdInput">شناسه گروه</label>
-                    <input id="adminCreateGroupIdInput" type="number" />
+                    <input id="adminCreateGroupIdInput" type="text" autocomplete="off" />
                     <div id="adminCreateGroupHint" class="step-hint"></div>
                   </div>
                   <div>
@@ -462,7 +462,7 @@
                   </div>
                 </div>
                 <label id="adminCreatePriceLabel" for="adminCreateCardPriceInput">قیمت کارت (تومان)</label>
-                <input id="adminCreateCardPriceInput" type="number" min="1000" step="1000" />
+                <input id="adminCreateCardPriceInput" type="text" inputmode="numeric" min="1000" step="1000" autocomplete="off" />
                 <div id="adminPricePresetRow" class="quick-price-row">
                   <button class="price-chip" type="button" data-price="50000">۵۰,۰۰۰</button>
                   <button class="price-chip" type="button" data-price="100000">۱۰۰,۰۰۰</button>
@@ -782,7 +782,7 @@
 
                   <div class="action-form">
                     <label id="superAdminUserLabel" for="superAdminTgUserInput">شناسه تلگرام کاربر</label>
-                    <input id="superAdminTgUserInput" type="number" min="1" />
+                    <input id="superAdminTgUserInput" type="text" inputmode="numeric" min="1" autocomplete="off" />
                     <label id="superAdminRoleLabel" for="superAdminRoleSelect">نقش</label>
                     <select id="superAdminRoleSelect">
                       <option value="GAME_OPERATOR">اپراتور بازی</option>
@@ -949,6 +949,6 @@
     <div id="miniToast" class="mini-toast hidden" role="status" aria-live="polite"></div>
 
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="./app.js?v=admin-draw-ui-20260917-2" type="module"></script>
+    <script src="./app.js?v=localized-numerals-20261009-1" type="module"></script>
   </body>
 </html>
