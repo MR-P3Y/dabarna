@@ -6377,7 +6377,7 @@ async function adminUsersUnrestrict(tgUserId) {
 async function adminUsersAdjustWallet(tgUserId) {
   const tgid = Number(tgUserId || 0);
   const amountRaw = String(prompt("مبلغ اصلاح (+50000 یا -20000):", "") || "").trim();
-  const amount = Number(toEnglishDigits(amountRaw).replace(/,/g, ""));
+  const amount = Number(toEnglishDigits(amountRaw).replace(/[,٬،\s]/g, ""));
   if (!Number.isFinite(amount) || amount === 0) throw new Error("مبلغ اصلاح نامعتبر است.");
   const reason = String(prompt("علت اصلاح کیف پول:", "اصلاح کیف پول توسط ادمین") || "").trim();
   if (reason.length < 3) throw new Error("علت اصلاح کیف پول نامعتبر است.");
@@ -6414,7 +6414,7 @@ async function adminUsersSendTemplate(tgUserId) {
   let amount = null;
   if (kind === "wallet_adjust") {
     const amountRaw = String(prompt("مبلغ برای پیام آماده (اختیاری):", "") || "").trim();
-    const n = Number(toEnglishDigits(amountRaw).replace(/,/g, ""));
+    const n = Number(toEnglishDigits(amountRaw).replace(/[,٬،\s]/g, ""));
     if (Number.isFinite(n) && n !== 0) amount = Math.trunc(n);
   }
   const composed = await apiFetch(`/mini-api/admin/users/${tgid}/compose-message`, {
@@ -7911,7 +7911,7 @@ async function adminPaidWithdraw(withdrawId) {
 }
 
 async function superAdminGrant() {
-  const tgUserId = Number(getVal("superAdminTgUserInput") || "0");
+  const tgUserId = parseIntegerStrict(getVal("superAdminTgUserInput")) || 0;
   const role = String(getVal("superAdminRoleSelect") || "ADMIN").toUpperCase();
   if (!tgUserId) throw new Error("شناسه تلگرام معتبر وارد کنید.");
   await apiFetch("/mini-api/admin/super/admins/grant", {
@@ -7923,7 +7923,7 @@ async function superAdminGrant() {
 }
 
 async function superAdminRevoke() {
-  const tgUserId = Number(getVal("superAdminTgUserInput") || "0");
+  const tgUserId = parseIntegerStrict(getVal("superAdminTgUserInput")) || 0;
   const role = String(getVal("superAdminRoleSelect") || "ADMIN").toUpperCase();
   if (!tgUserId) throw new Error("شناسه تلگرام معتبر وارد کنید.");
   await apiFetch("/mini-api/admin/super/admins/revoke", {
