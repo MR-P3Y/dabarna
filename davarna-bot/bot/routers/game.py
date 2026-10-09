@@ -12,6 +12,7 @@ from bot.services.join_gate import configured_join_group_id, join_gate_body, res
 from bot.services.tg_membership import is_member
 from bot.services.telegram_safe import safe_edit_or_send
 from bot.services.ui import panel
+from bot.services.numerals import normalize_digits
 
 router = Router()
 
@@ -292,8 +293,8 @@ async def games_refresh(cq: CallbackQuery, api: ApiClient):
 
 @router.message(Command("game"))
 async def cmd_game(m: Message, api: ApiClient):
-    parts = (m.text or "").split()
-    if len(parts) != 2 or not parts[1].isdigit():
+    parts = normalize_digits(m.text or "").split()
+    if len(parts) != 2 or not parts[1].isascii() or not parts[1].isdigit():
         await m.answer(panel("راهنما", "روش درست استفاده:\nشناسه بازی را بعد از دستور ارسال کن.\nنمونه: <b>۸</b>"), parse_mode="HTML")
         return
 
