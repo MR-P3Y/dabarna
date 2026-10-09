@@ -1033,7 +1033,7 @@ def _audit_amount_line(details: dict[str, Any]) -> str:
         parts.append(f"مبلغ/تغییر: <b>{_fmt_toman(amount)}</b>")
     if before is not None or after is not None:
         parts.append(f"قبل/بعد: <code>{html_escape(str(before or '—'))}</code> → <code>{html_escape(str(after or '—'))}</code>")
-    return "\\n".join(parts)
+    return "\n".join(parts)
 
 
 async def _process_admin_audit_log_notifications(bot: Bot, api: ApiClient) -> None:
@@ -1098,20 +1098,20 @@ async def _process_admin_audit_log_notifications(bot: Bot, api: ApiClient) -> No
         amount_line = _audit_amount_line(details)
 
         body = (
-            "#لاگ_عملیات #ادمین\\n"
-            f"🧾 شناسه لاگ: <b>{log_id}</b>\\n"
-            f"🔧 عملیات: <b>{html_escape(_audit_action_label(action))}</b>\\n"
-            f"کد عملیات: <code>{html_escape(action)}</code>\\n"
-            f"👮 ادمین: <code>{html_escape(str(actor))}</code>\\n"
-            f"🎯 هدف: <code>{html_escape(str(target))}</code>\\n"
-            f"نوع هدف: <code>{html_escape(str((item or {}).get('target_type') or '—'))}</code>\\n"
-            f"شناسه هدف: <code>{html_escape(str((item or {}).get('target_id') or '—'))}</code>\\n"
+            "#لاگ_عملیات #ادمین\n"
+            f"🧾 شناسه لاگ: <b>{log_id}</b>\n"
+            f"🔧 عملیات: <b>{html_escape(_audit_action_label(action))}</b>\n"
+            f"کد عملیات: <code>{html_escape(action)}</code>\n"
+            f"👮 ادمین: <code>{html_escape(str(actor))}</code>\n"
+            f"🎯 هدف: <code>{html_escape(str(target))}</code>\n"
+            f"نوع هدف: <code>{html_escape(str((item or {}).get('target_type') or '—'))}</code>\n"
+            f"شناسه هدف: <code>{html_escape(str((item or {}).get('target_id') or '—'))}</code>\n"
             f"🕒 زمان: <code>{html_escape(str((item or {}).get('created_at') or '—'))}</code>"
         )
         if amount_line:
-            body += "\\n" + amount_line
+            body += "\n" + amount_line
         if reason:
-            body += f"\\nعلت/وضعیت: <b>{html_escape(str(reason))}</b>"
+            body += f"\nعلت/وضعیت: <b>{html_escape(str(reason))}</b>"
 
         sent = await send_to_topic(
             bot,
