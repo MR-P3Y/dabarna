@@ -7063,6 +7063,16 @@ html[data-theme="light"] .crypto-copy-text-btn {
   color: var(--ui-info-text);
 }
 
+html[data-theme="light"] .crypto-confirm-summary span {
+  color: var(--ui-muted-text);
+}
+
+html[data-theme="light"] .num-chip.win {
+  border-color: rgba(154, 102, 19, 0.50);
+  background: rgba(154, 102, 19, 0.12);
+  color: var(--ui-warning-text);
+}
+
 /* Running-game state should remain legible on light cards */
 html[data-theme="light"] .game-state.running,
 html[data-theme="light"] .running-banner {
