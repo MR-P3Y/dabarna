@@ -61,6 +61,8 @@ def test_critical_light_theme_overrides_exist() -> None:
         'html[data-theme="light"] .wallet-guide-badge',
         'html[data-theme="light"] .crypto-network-health',
         'html[data-theme="light"] .crypto-payment-status.is-pending',
+        'html[data-theme="light"] .crypto-confirm-summary span',
+        'html[data-theme="light"] .num-chip.win',
         'html[data-theme="light"] .game-state.running',
         'html[data-theme="light"] #adminSendLiveBtn:not(:disabled)',
     )
