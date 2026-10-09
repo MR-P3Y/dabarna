@@ -7086,3 +7086,278 @@ html[data-theme="light"] #adminSendLiveBtn:not(:disabled) {
   background: linear-gradient(135deg, #1f4cd7 0%, #355ee2 58%, #8a5e0f 100%) !important;
   box-shadow: 0 10px 22px rgba(31, 63, 138, 0.24);
 }
+
+/* MINI_WITHDRAW_REJECT_REASON_20261009 */
+#withdrawRejectModal {
+  align-items: flex-start;
+  justify-content: center;
+  padding: calc(18px + env(safe-area-inset-top)) 10px calc(96px + env(safe-area-inset-bottom));
+  overflow-y: auto;
+}
+
+.withdraw-reject-modal-card {
+  width: min(620px, calc(100vw - 20px));
+  max-height: calc(100vh - 140px);
+  overflow-y: auto;
+  border-radius: 20px;
+  padding: 14px;
+  color: var(--text);
+  text-align: right;
+}
+
+.withdraw-reject-meta {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+.withdraw-reject-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.withdraw-reject-summary > div {
+  padding: 9px 10px;
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.withdraw-reject-summary > div.wide {
+  grid-column: 1 / -1;
+}
+
+.withdraw-reject-summary span,
+.withdraw-reject-summary b {
+  display: block;
+}
+
+.withdraw-reject-summary span {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.withdraw-reject-summary b {
+  margin-top: 3px;
+  color: var(--text);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.withdraw-reject-section {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.withdraw-reject-section > strong,
+.withdraw-reject-section > label {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.withdraw-reject-section > p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+.withdraw-reject-presets {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.withdraw-reject-preset {
+  min-height: 42px;
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.055);
+  color: var(--text);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 800;
+  text-align: right;
+  cursor: pointer;
+}
+
+.withdraw-reject-preset.is-selected {
+  border-color: rgba(255, 127, 138, 0.62);
+  background: rgba(255, 127, 138, 0.14);
+  color: #ffd9df;
+}
+
+#withdrawRejectReasonInput {
+  width: 100%;
+  min-height: 118px;
+  resize: vertical;
+  border: 1px solid var(--glass-border);
+  border-radius: 14px;
+  padding: 11px 12px;
+  background: rgba(255, 255, 255, 0.055);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.9;
+  outline: none;
+}
+
+#withdrawRejectReasonInput:focus {
+  border-color: rgba(255, 127, 138, 0.62);
+  box-shadow: 0 0 0 3px rgba(255, 127, 138, 0.10);
+}
+
+.withdraw-reject-counter {
+  color: var(--muted);
+  font-size: 10px;
+  text-align: left;
+}
+
+.withdraw-reject-warning {
+  margin-top: 12px;
+  padding: 9px 10px;
+  border: 1px solid rgba(255, 193, 91, 0.28);
+  border-radius: 12px;
+  background: rgba(255, 193, 91, 0.08);
+  color: #ffe0a3;
+  font-size: 11px;
+  line-height: 1.8;
+}
+
+.withdraw-reject-actions {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 10px;
+  background: linear-gradient(0deg, rgba(8, 18, 42, 0.98), rgba(8, 18, 42, 0.76));
+}
+
+#withdrawRejectHint:not(:empty) {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+}
+
+#withdrawRejectHint.error {
+  border-color: rgba(248, 113, 113, 0.28);
+  background: rgba(248, 113, 113, 0.12);
+  color: #fecaca;
+}
+
+#withdrawRejectHint.pending {
+  color: var(--muted);
+}
+
+.withdraw-rejection-reason {
+  color: var(--danger);
+}
+
+.withdraw-user-rejection-reason {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border: 1px solid rgba(255, 127, 138, 0.24);
+  border-radius: 11px;
+  background: rgba(255, 127, 138, 0.08);
+  color: var(--text);
+  font-size: 11px;
+  line-height: 1.8;
+}
+
+.withdraw-user-rejection-reason strong {
+  color: var(--danger);
+}
+
+html[data-theme="light"] .withdraw-user-rejection-reason {
+  border-color: rgba(180, 35, 24, 0.20);
+  background: rgba(180, 35, 24, 0.055);
+  color: var(--ui-strong-text);
+}
+
+html[data-theme="light"] .withdraw-user-rejection-reason strong {
+  color: var(--ui-danger-text);
+}
+
+html[data-theme="light"] .withdraw-reject-modal-card {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.99), rgba(248, 251, 255, 0.97));
+  color: var(--ui-strong-text);
+}
+
+html[data-theme="light"] .withdraw-reject-summary > div,
+html[data-theme="light"] .withdraw-reject-preset,
+html[data-theme="light"] #withdrawRejectReasonInput {
+  border-color: rgba(34, 56, 102, 0.20);
+  background: rgba(23, 63, 189, 0.035);
+  color: var(--ui-strong-text);
+}
+
+html[data-theme="light"] .withdraw-reject-preset.is-selected {
+  border-color: rgba(180, 35, 24, 0.38);
+  background: rgba(180, 35, 24, 0.08);
+  color: var(--ui-danger-text);
+}
+
+html[data-theme="light"] .withdraw-reject-warning {
+  border-color: rgba(154, 102, 19, 0.28);
+  background: rgba(154, 102, 19, 0.08);
+  color: var(--ui-warning-text);
+}
+
+html[data-theme="light"] .withdraw-reject-actions {
+  background: linear-gradient(0deg, rgba(255, 255, 255, 0.99), rgba(248, 251, 255, 0.92));
+  border-top: 1px solid rgba(32, 52, 97, 0.10);
+}
+
+html[data-theme="light"] #withdrawRejectHint.error {
+  border-color: rgba(180, 35, 24, 0.24);
+  background: rgba(180, 35, 24, 0.07);
+  color: var(--ui-danger-text);
+}
+
+html[data-theme="light"] .withdraw-rejection-reason {
+  color: var(--ui-danger-text);
+}
+
+@media (max-width: 430px) {
+  #withdrawRejectModal {
+    padding-top: 10px;
+    padding-left: 7px;
+    padding-right: 7px;
+  }
+
+  .withdraw-reject-modal-card {
+    width: calc(100vw - 14px);
+    max-width: calc(100vw - 14px);
+    max-height: calc(100vh - 128px);
+    padding: 12px;
+  }
+
+  .withdraw-reject-presets,
+  .withdraw-reject-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .withdraw-reject-summary > div.wide {
+    grid-column: auto;
+  }
+
+  .withdraw-reject-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .withdraw-reject-actions .small-btn {
+    width: 100%;
+    min-height: 44px;
+  }
+}
+

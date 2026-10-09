@@ -162,6 +162,7 @@ class MiniWithdrawOut(BaseModel):
     id: int
     amount: int
     status: str
+    rejection_reason: str | None = None
     created_at: str | None = None
 
 
