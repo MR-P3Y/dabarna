@@ -185,14 +185,7 @@ def _topic_title(topic_id: int | None) -> str:
 
 
 def _parse_card_price_input(text: str | None) -> int | None:
-    raw = str(text or "").strip().translate(PERSIAN_DIGITS_TRANSLATION)
-    cleaned = raw.replace(",", "").replace("٬", "").replace(" ", "")
-    if not cleaned.isdigit():
-        return None
-    amount = int(cleaned)
-    if amount <= 0:
-        return None
-    return amount
+    return parse_positive_int(text, allow_grouping=True)
 
 
 def _parse_game_ctx_from_start(data: str) -> tuple[int, str, int]:
