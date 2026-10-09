@@ -1232,8 +1232,11 @@ function toEnglishDigits(raw) {
 }
 
 function parsePositiveInt(raw) {
-  const cleaned = toEnglishDigits(String(raw || "")).replace(/[^\d]/g, "");
-  if (!cleaned) return 0;
+  const normalized = toEnglishDigits(String(raw || "")).trim();
+  if (!normalized) return 0;
+  if (/[^0-9,٬،_\s]/.test(normalized)) return 0;
+  const cleaned = normalized.replace(/[,٬،_\s]/g, "");
+  if (!/^\d+$/.test(cleaned)) return 0;
   const n = Number(cleaned);
   if (!Number.isFinite(n)) return 0;
   return Math.max(0, Math.trunc(n));
