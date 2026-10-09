@@ -4867,7 +4867,7 @@ async function buySelectedGame() {
   if (!state.selectedGameId) {
     throw new Error("ابتدا یک بازی را انتخاب کنید.");
   }
-  const qty = parsePositiveInt(getVal("buyQtyInput") || "1");
+  const qty = parsePositiveInt(getVal("buyQtyInput"));
   if (!qty || qty < 1 || qty > 50) {
     throw new Error("تعداد کارت نامعتبر است.");
   }
