@@ -14,6 +14,7 @@ from uuid import uuid4
 from urllib.parse import urlparse
 
 from app.core.db import get_db
+from app.utils.numerals import clean_numeric
 from app.core.redis_client import get_redis
 from app.core import config as cfg
 from app.core.config import (
@@ -432,7 +433,7 @@ def _single_destination_fallback() -> dict[str, str]:
 
 
 def _clean_numeric(value: object) -> str:
-    return str(value or "").strip().replace(" ", "").replace("-", "")
+    return clean_numeric(value)
 
 
 def _default_destination_title(bank_name: str, card_number: str, idx: int) -> str:
