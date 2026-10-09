@@ -6,6 +6,7 @@ import re
 from datetime import datetime, timedelta
 
 from app.models.finance import DepositRequest, WithdrawRequest, GatewayPayment
+from app.utils.numerals import clean_numeric
 from app.models.wallet import Wallet
 from app.services.wallet_service import WalletService
 
@@ -13,7 +14,7 @@ WITHDRAW_IDEMPOTENCY_WINDOW_MINUTES = 10
 
 
 def _clean_numeric(value: str | int | None) -> str:
-    return str(value or "").strip().replace(" ", "").replace("-", "")
+    return clean_numeric(value)
 
 class FinanceService:
     @staticmethod
