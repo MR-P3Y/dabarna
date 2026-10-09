@@ -43,7 +43,7 @@ class MarkWithdrawPaidIn(BaseModel):
 
 
 class RejectWithdrawIn(BaseModel):
-    reason: str | None = None
+    reason: str = Field(min_length=3, max_length=500)
 
 # ========== Gateway Payment Schemas ==========
 
