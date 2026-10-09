@@ -5746,6 +5746,10 @@ function renderAdminWithdraws(payload) {
         ? `@${safeText(String(w.tg_username).replace(/^@+/, ""))}`
         : safeText(w.tg_user_id || w.user_id || "-");
       const fullName = String(w.full_name || w.name || w.account_name || "").trim();
+      const rejectionReason = String(w.rejection_reason || "").trim();
+      const rejectionLine = status === "REJECTED" && rejectionReason
+        ? `<br />دلیل رد: <b class="withdraw-rejection-reason">${safeText(rejectionReason)}</b>`
+        : "";
 
       const actions = [];
       if (status === "PENDING") {
@@ -5769,7 +5773,7 @@ function renderAdminWithdraws(payload) {
             شبا: ${safeText(w.iban || "-")}<br />
             حساب: ${safeText(w.account_number || "-")}<br />
             پیگیری پرداخت: ${safeText(w.paid_tracking || "-")}<br />
-            زمان: ${safeText(formatFaDateTime(w.created_at))}
+            زمان: ${safeText(formatFaDateTime(w.created_at))}${rejectionLine}
           </div>
           <div id="adminWdrWalletStatus${safeText(id)}" class="withdraw-wallet-status">
             ${renderWithdrawWalletStatusHtml(walletInfo)}
@@ -5800,7 +5804,12 @@ function renderAdminWithdraws(payload) {
     btn.addEventListener("click", () => {
       const id = Number(btn.getAttribute("data-id") || "0");
       if (!id) return;
-      adminRejectWithdraw(id).catch((e) => setAdminLocalError("adminActionHint", e));
+      const item = items.find((entry) => Number(entry?.id || 0) === id) || null;
+      try {
+        openWithdrawRejectModal(id, item);
+      } catch (e) {
+        setAdminLocalError("adminActionHint", e);
+      }
     });
   });
 
@@ -7699,15 +7708,188 @@ async function adminApproveWithdraw(withdrawId) {
   await Promise.allSettled([refreshAdminWithdraws(), refreshWallet()]);
 }
 
-async function adminRejectWithdraw(withdrawId) {
-  await apiFetch(`/mini-api/admin/withdraws/${Number(withdrawId)}/reject`, {
-    method: "POST",
-    body: { reason: "رد توسط ادمین" },
-  });
-  setAdminLocalHint("adminActionHint", `برداشت #${withdrawId} رد شد.`, "success");
-  await refreshAdminWithdraws();
+let withdrawRejectModalWithdrawId = 0;
+let withdrawRejectModalItem = null;
+let withdrawRejectModalBound = false;
+let withdrawRejectSubmitting = false;
+
+function setWithdrawRejectHint(text, kind = "") {
+  const el = getEl("withdrawRejectHint");
+  if (!el) return;
+  el.textContent = String(text || "");
+  el.classList.remove("success", "error", "pending");
+  if (kind) el.classList.add(kind);
 }
 
+function updateWithdrawRejectFormState() {
+  const input = getEl("withdrawRejectReasonInput");
+  const submitBtn = getEl("withdrawRejectSubmitBtn");
+  const countEl = getEl("withdrawRejectReasonCount");
+  const reason = String(input?.value || "").trim();
+  const rawLength = String(input?.value || "").length;
+
+  if (countEl) countEl.textContent = toFaDigits(Math.min(rawLength, 500));
+  if (submitBtn) submitBtn.disabled = withdrawRejectSubmitting || reason.length < 3 || reason.length > 500;
+
+  document.querySelectorAll("#withdrawRejectPresets .withdraw-reject-preset").forEach((btn) => {
+    const preset = String(btn.getAttribute("data-reason") || "").trim();
+    btn.classList.toggle("is-selected", Boolean(preset) && preset === reason);
+  });
+}
+
+function closeWithdrawRejectModal() {
+  if (withdrawRejectSubmitting) return;
+  const modal = getEl("withdrawRejectModal");
+  if (modal) {
+    modal.classList.remove("open");
+    modal.setAttribute("aria-hidden", "true");
+  }
+  withdrawRejectModalWithdrawId = 0;
+  withdrawRejectModalItem = null;
+  const input = getEl("withdrawRejectReasonInput");
+  if (input) input.value = "";
+  setWithdrawRejectHint("");
+  updateWithdrawRejectFormState();
+}
+
+function bindWithdrawRejectModalOnce() {
+  if (withdrawRejectModalBound) return;
+  withdrawRejectModalBound = true;
+
+  const modal = getEl("withdrawRejectModal");
+  const closeBtn = getEl("withdrawRejectCloseBtn");
+  const cancelBtn = getEl("withdrawRejectCancelBtn");
+  const submitBtn = getEl("withdrawRejectSubmitBtn");
+  const input = getEl("withdrawRejectReasonInput");
+
+  if (closeBtn) closeBtn.addEventListener("click", closeWithdrawRejectModal);
+  if (cancelBtn) cancelBtn.addEventListener("click", closeWithdrawRejectModal);
+
+  if (modal) {
+    modal.addEventListener("click", (ev) => {
+      if (ev.target === modal) closeWithdrawRejectModal();
+    });
+  }
+
+  document.querySelectorAll("#withdrawRejectPresets .withdraw-reject-preset").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const reason = String(btn.getAttribute("data-reason") || "").trim();
+      if (input) {
+        input.value = reason;
+        input.focus();
+        input.setSelectionRange(input.value.length, input.value.length);
+      }
+      setWithdrawRejectHint("دلیل آماده انتخاب شد؛ در صورت نیاز متن را ویرایش کنید.", "pending");
+      updateWithdrawRejectFormState();
+    });
+  });
+
+  if (input) {
+    input.addEventListener("input", () => {
+      setWithdrawRejectHint("");
+      updateWithdrawRejectFormState();
+    });
+  }
+
+  if (submitBtn) {
+    submitBtn.addEventListener("click", () => {
+      submitWithdrawRejectModal().catch((e) => {
+        setWithdrawRejectHint(e?.message || "رد برداشت ناموفق بود.", "error");
+      });
+    });
+  }
+}
+
+function openWithdrawRejectModal(withdrawId, item = null) {
+  const id = Number(withdrawId || 0);
+  if (!id) throw new Error("شناسه برداشت نامعتبر است.");
+
+  bindWithdrawRejectModalOnce();
+  withdrawRejectModalWithdrawId = id;
+  withdrawRejectModalItem = item || null;
+  withdrawRejectSubmitting = false;
+
+  const modal = getEl("withdrawRejectModal");
+  const title = getEl("withdrawRejectModalTitle");
+  const summary = getEl("withdrawRejectSummary");
+  const input = getEl("withdrawRejectReasonInput");
+  const submitBtn = getEl("withdrawRejectSubmitBtn");
+
+  if (title) title.textContent = `رد برداشت #${toFaDigits(id)}`;
+  if (input) input.value = "";
+  if (submitBtn) submitBtn.textContent = "تأیید رد برداشت";
+
+  if (summary) {
+    const user = item?.tg_username
+      ? `@${String(item.tg_username).replace(/^@+/, "")}`
+      : String(item?.tg_user_id || item?.user_id || "-");
+    summary.innerHTML = `
+      <div><span>مبلغ</span><b>${safeText(toman(item?.amount || 0))}</b></div>
+      <div><span>کاربر</span><b>${safeText(user)}</b></div>
+      <div class="wide"><span>نام</span><b>${safeText(String(item?.full_name || "-"))}</b></div>
+    `;
+  }
+
+  setWithdrawRejectHint("یک دلیل آماده انتخاب کنید یا دلیل را به صورت دستی بنویسید.", "pending");
+  updateWithdrawRejectFormState();
+
+  if (!modal) throw new Error("پنجره رد برداشت در صفحه پیدا نشد.");
+  modal.classList.add("open");
+  modal.setAttribute("aria-hidden", "false");
+
+  setTimeout(() => {
+    try { input?.focus(); } catch (_) {}
+  }, 50);
+}
+
+async function adminRejectWithdraw(withdrawId, reason) {
+  const cleanReason = String(reason || "").trim();
+  if (cleanReason.length < 3) throw new Error("دلیل رد برداشت باید حداقل ۳ کاراکتر باشد.");
+  if (cleanReason.length > 500) throw new Error("دلیل رد برداشت نباید بیشتر از ۵۰۰ کاراکتر باشد.");
+
+  return apiFetch(`/mini-api/admin/withdraws/${Number(withdrawId)}/reject`, {
+    method: "POST",
+    body: { reason: cleanReason },
+  });
+}
+
+async function submitWithdrawRejectModal() {
+  const id = Number(withdrawRejectModalWithdrawId || 0);
+  const input = getEl("withdrawRejectReasonInput");
+  const submitBtn = getEl("withdrawRejectSubmitBtn");
+  const reason = String(input?.value || "").trim();
+
+  if (!id) throw new Error("شناسه برداشت نامعتبر است.");
+  if (reason.length < 3) throw new Error("دلیل رد برداشت را وارد کنید؛ حداقل ۳ کاراکتر.");
+  if (reason.length > 500) throw new Error("دلیل رد برداشت نباید بیشتر از ۵۰۰ کاراکتر باشد.");
+  if (withdrawRejectSubmitting) return;
+
+  withdrawRejectSubmitting = true;
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.textContent = "در حال رد...";
+  }
+  setWithdrawRejectHint("در حال ثبت دلیل و رد برداشت...", "pending");
+
+  try {
+    const out = await adminRejectWithdraw(id, reason);
+    const notifySent = Boolean(out?.user_notify?.sent);
+    withdrawRejectSubmitting = false;
+    closeWithdrawRejectModal();
+
+    if (notifySent) {
+      setAdminLocalHint("adminActionHint", `برداشت #${id} رد شد و دلیل برای کاربر ارسال شد.`, "success");
+    } else {
+      setAdminLocalHint("adminActionHint", `برداشت #${id} رد شد؛ اما ارسال پیام دلیل به کاربر ناموفق بود.`, "error");
+    }
+    await refreshAdminWithdraws();
+  } catch (e) {
+    withdrawRejectSubmitting = false;
+    if (submitBtn) submitBtn.textContent = "تأیید رد برداشت";
+    updateWithdrawRejectFormState();
+    throw e;
+  }
+}
 
 
 let withdrawProofModalWithdrawId = 0;
