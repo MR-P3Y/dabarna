@@ -187,8 +187,11 @@ def admin_reject_reason_kb(*, kind: str):
     kb = InlineKeyboardBuilder()
     k = (kind or "").strip().lower()
     if k == "withdraw":
-        kb.button(text="⚡ عدم موجودی", callback_data="admin:reject:quick:no_balance")
-        kb.button(text="⚡ مشکل شبکه بانکی", callback_data="admin:reject:quick:bank_issue")
+        kb.button(text="⚡ عدم امکان پرداخت", callback_data="admin:reject:quick:no_balance")
+        kb.button(text="⚡ اختلال شبکه بانکی", callback_data="admin:reject:quick:bank_issue")
+        kb.button(text="💳 اطلاعات بانکی نامعتبر", callback_data="admin:reject:quick:invalid_bank_info")
+        kb.button(text="👤 عدم تطابق نام صاحب حساب", callback_data="admin:reject:quick:name_mismatch")
+        kb.button(text="✏️ نیاز به اصلاح اطلاعات", callback_data="admin:reject:quick:bank_info_correction")
     else:
         kb.button(text="⚡ رسید نامعتبر", callback_data="admin:reject:quick:invalid_receipt")
         kb.button(text="⚡ عدم تطابق مبلغ", callback_data="admin:reject:quick:amount_mismatch")
