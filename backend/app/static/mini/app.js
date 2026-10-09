@@ -4644,16 +4644,23 @@ function drawWithdrawRequests(payload) {
   }
 
   root.innerHTML = items
-    .map((w) => `
-      <div class="item">
-        <h3>برداشت #${w.id}</h3>
-        <p>وضعیت: ${safeText(withdrawStatusLabel(w.status))} | مبلغ: ${toman(w.amount || 0)}</p>
-        <div class="meta">زمان ثبت: ${safeText(formatFaDateTime(w.created_at))}</div>
-        <div class="admin-item-actions">
-          <button class="small-btn receipt-open-btn" data-kind="withdraw" data-id="${safeText(w.id)}" type="button">رسید برداشت</button>
+    .map((w) => {
+      const rejectionReason = String(w?.rejection_reason || "").trim();
+      const rejectionHtml = String(w?.status || "").toUpperCase() === "REJECTED" && rejectionReason
+        ? `<div class="withdraw-user-rejection-reason"><strong>دلیل رد:</strong> ${safeText(rejectionReason)}</div>`
+        : "";
+      return `
+        <div class="item">
+          <h3>برداشت #${w.id}</h3>
+          <p>وضعیت: ${safeText(withdrawStatusLabel(w.status))} | مبلغ: ${toman(w.amount || 0)}</p>
+          <div class="meta">زمان ثبت: ${safeText(formatFaDateTime(w.created_at))}</div>
+          ${rejectionHtml}
+          <div class="admin-item-actions">
+            <button class="small-btn receipt-open-btn" data-kind="withdraw" data-id="${safeText(w.id)}" type="button">رسید برداشت</button>
+          </div>
         </div>
-      </div>
-    `)
+      `;
+    })
     .join("");
 
   root.querySelectorAll(".receipt-open-btn").forEach((btn) => {
