@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from app.core import config as cfg
 from app.core.admin_guard import AdminIdentity, AdminScope, require_admin_any
 from app.core.db import get_db
 from app.services.admin_audit_service import AdminAuditService
@@ -31,6 +32,32 @@ def _require_game_config_access(ident: AdminIdentity) -> None:
     if ident.has_any_role("ADMIN", "GAME_OPERATOR"):
         return
     raise HTTPException(status_code=403, detail="game operator access required")
+
+
+@router.get("/runtime")
+def get_autopilot_runtime(
+    ident: AdminIdentity = Depends(require_admin_any),
+):
+    _require_game_config_access(ident)
+    return {
+        "runtime_enabled": bool(cfg.GAME_AUTOPILOT_RUNTIME_ENABLED),
+        "auto_draw_enabled": bool(cfg.GAME_AUTO_DRAW_ENABLED),
+        "tick_seconds": int(cfg.GAME_AUTOPILOT_TICK_SECONDS),
+        "system_user_id": (
+            int(cfg.GAME_AUTOPILOT_SYSTEM_USER_ID)
+            if cfg.GAME_AUTOPILOT_SYSTEM_USER_ID is not None
+            else None
+        ),
+        "group_id": (
+            int(cfg.USER_FORUM_CHAT_ID or cfg.DEFAULT_TG_GROUP_ID)
+            if (cfg.USER_FORUM_CHAT_ID or cfg.DEFAULT_TG_GROUP_ID) is not None
+            else None
+        ),
+        "topics": {
+            level: GameAutopilotConfigService.topic_id_for_level(level)
+            for level in ("LOW", "MEDIUM", "HIGH")
+        },
+    }
 
 
 @router.get("/config")
