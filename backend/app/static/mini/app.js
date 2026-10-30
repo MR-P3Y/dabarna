@@ -6874,11 +6874,70 @@ async function refreshAdminRiskAlerts() {
   renderAdminRiskAlerts(out);
 }
 
+function autopilotLevelLabel(level) {
+  const key = String(level || "").toUpperCase();
+  return {
+    LOW: "مبلغ پایین",
+    MEDIUM: "مبلغ متوسط",
+    HIGH: "مبلغ بالا",
+  }[key] || key || "-";
+}
+
+function autopilotModeLabel(mode) {
+  return String(mode || "").toUpperCase() === "AUTO" ? "خودکار" : "دستی";
+}
+
+function renderAdminAutopilotConfig(payload) {
+  const root = getEl("adminAutopilotList");
+  if (!root) return;
+  const items = Array.isArray(payload?.items) ? payload.items : [];
+  const canEditCommission = Boolean(payload?.can_edit_commission);
+  if (!items.length) {
+    root.innerHTML = '<div class="empty">تنظیمات اتوماسیون هنوز ایجاد نشده است.</div>';
+    return;
+  }
+
+  root.innerHTML = items
+    .map((item) => {
+      const enabled = Boolean(item?.enabled);
+      const price = item?.card_price == null ? "هنوز تعریف نشده" : toman(item.card_price);
+      const rate = Number(item?.commission_rate || 0) * 100;
+      const commissionHint = canEditCommission
+        ? "کمیسیون فقط با دسترسی سوپرادمین قابل تغییر است."
+        : "نمایش فقط‌خواندنی؛ تغییر کمیسیون فقط برای سوپرادمین مجاز است.";
+      return `
+        <div class="history-item">
+          <strong>${enabled ? "🟢" : "⚪️"} ${safeText(autopilotLevelLabel(item?.level))}</strong>
+          <div class="history-meta">
+            وضعیت Autopilot: ${enabled ? "فعال" : "غیرفعال"}<br />
+            قیمت کارت دسته: ${safeText(price)}<br />
+            زمان‌بندی: ${safeText(autopilotModeLabel(item?.scheduler_mode))}<br />
+            شروع بازی: ${safeText(autopilotModeLabel(item?.start_mode))}<br />
+            شماره‌خوانی: ${safeText(autopilotModeLabel(item?.draw_mode))}<br />
+            فاصله اعداد: ${safeText(toFaDigits(item?.draw_interval_seconds || 0))} ثانیه<br />
+            حداقل شرکت‌کننده مجزا: ${safeText(toFaDigits(item?.min_unique_players || 2))} نفر<br />
+            کمیسیون: ${safeText(rate.toLocaleString("fa-IR", { maximumFractionDigits: 2 }))}٪<br />
+            تاپیک: ${safeText(item?.topic_id == null ? "تعریف نشده" : String(item.topic_id))}
+          </div>
+          <div class="meta">${safeText(commissionHint)}</div>
+        </div>
+      `;
+    })
+    .join("");
+}
+
+async function refreshAdminAutopilotConfig() {
+  if (!state.admin.enabled) return;
+  const out = await apiFetch("/mini-api/admin/autopilot/config");
+  renderAdminAutopilotConfig(out);
+}
+
 async function refreshAdminPanel(options = {}) {
   const silent = Boolean(options?.silent);
   if (!state.admin.enabled) return;
   await Promise.allSettled([
     refreshAdminOpsDashboard(),
+    refreshAdminAutopilotConfig(),
     refreshAdminCreateOptions(),
     refreshAdminGames(),
     refreshAdminRiskAlerts(),
@@ -8419,6 +8478,9 @@ async function boot() {
   bind("submitWithdrawBtn", "click", () => createWithdraw().catch((e) => setLocalError("withdrawSubmitHint", e)));
   bind("refreshAdminBtn", "click", () => runManualRefresh("refreshAdminBtn", () => refreshAdminPanel()).catch(() => {}));
   bind("adminOpsRefreshBtn", "click", () => runManualRefresh("adminOpsRefreshBtn", () => refreshAdminPanel()).catch(() => {}));
+  bind("adminAutopilotRefreshBtn", "click", () =>
+    runManualRefresh("adminAutopilotRefreshBtn", () => refreshAdminAutopilotConfig()).catch(() => {})
+  );
   bind("adminUsersSearchBtn", "click", () => adminUsersSearch().catch((e) => setLocalError("adminUsersHint", e)));
   bind("adminUsersRefreshBtn", "click", () => adminUsersRefreshSelected().catch((e) => setLocalError("adminUsersHint", e)));
   bind("adminUsersSearchInput", "keydown", (ev) => {
