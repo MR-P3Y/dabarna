@@ -34,6 +34,7 @@ class WithdrawOut(BaseModel):
     card_number: str
     account_number: str
     paid_tracking: str | None = None
+    rejection_reason: str | None = None
 
 class ApproveWithdrawIn(BaseModel):
     idempotency_key: str
@@ -43,7 +44,7 @@ class MarkWithdrawPaidIn(BaseModel):
 
 
 class RejectWithdrawIn(BaseModel):
-    reason: str | None = None
+    reason: str = Field(min_length=3, max_length=500)
 
 # ========== Gateway Payment Schemas ==========
 

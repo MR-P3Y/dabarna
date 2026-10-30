@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>مینی‌اپ دبرنای طوفان</title>
-    <link rel="stylesheet" href="./styles.css?v=mini-light-contrast-20261009-1" />
+    <link rel="stylesheet" href="./styles.css?v=mini-withdraw-reject-20261009-1" />
   </head>
   <body>
     <div id="appSplash" class="app-splash" aria-label="در حال آماده‌سازی مینی‌اپ">
@@ -946,9 +946,51 @@
       </div>
     </div>
 
+    <div id="withdrawRejectModal" class="winner-modal" aria-hidden="true">
+      <div class="withdraw-reject-modal-card glass" role="dialog" aria-modal="true" aria-labelledby="withdrawRejectModalTitle">
+        <div class="winner-modal-head">
+          <div>
+            <h2 id="withdrawRejectModalTitle">رد برداشت</h2>
+            <p id="withdrawRejectModalMeta" class="withdraw-reject-meta">دلیل رد برای کاربر ارسال و در سوابق مدیریتی ثبت می‌شود.</p>
+          </div>
+          <button id="withdrawRejectCloseBtn" class="icon-btn" type="button" aria-label="بستن">×</button>
+        </div>
+
+        <div id="withdrawRejectSummary" class="withdraw-reject-summary"></div>
+
+        <div class="withdraw-reject-section">
+          <strong>دلیل پرتکرار</strong>
+          <p>یک گزینه را انتخاب کنید؛ متن کامل داخل کادر قرار می‌گیرد و قابل ویرایش است.</p>
+          <div id="withdrawRejectPresets" class="withdraw-reject-presets">
+            <button class="withdraw-reject-preset" type="button" data-reason="در حال حاضر امکان انجام پرداخت این برداشت وجود ندارد. لطفاً کمی بعد دوباره درخواست ثبت کنید.">💰 عدم امکان پرداخت</button>
+            <button class="withdraw-reject-preset" type="button" data-reason="به دلیل اختلال موقت شبکه بانکی، انجام این برداشت در حال حاضر ممکن نیست. لطفاً بعداً دوباره تلاش کنید.">🏦 اختلال شبکه بانکی</button>
+            <button class="withdraw-reject-preset" type="button" data-reason="اطلاعات بانکی واردشده قابل تأیید نیست. لطفاً شماره کارت، شبا و شماره حساب را بررسی و دوباره درخواست ثبت کنید.">💳 اطلاعات بانکی نامعتبر</button>
+            <button class="withdraw-reject-preset" type="button" data-reason="نام صاحب حساب با اطلاعات ثبت‌شده مطابقت ندارد. لطفاً اطلاعات بانکی به نام صاحب حساب صحیح ثبت شود.">👤 عدم تطابق نام صاحب حساب</button>
+            <button class="withdraw-reject-preset" type="button" data-reason="اطلاعات بانکی این درخواست نیاز به اصلاح دارد. لطفاً اطلاعات صحیح را وارد و درخواست برداشت جدید ثبت کنید.">✏️ نیاز به اصلاح اطلاعات</button>
+          </div>
+        </div>
+
+        <div class="withdraw-reject-section">
+          <label for="withdrawRejectReasonInput">دلیل نهایی رد</label>
+          <textarea id="withdrawRejectReasonInput" rows="5" minlength="3" maxlength="500" placeholder="دلیل رد برداشت را بنویسید..."></textarea>
+          <div class="withdraw-reject-counter"><span id="withdrawRejectReasonCount">۰</span> / ۵۰۰</div>
+        </div>
+
+        <div class="withdraw-reject-warning">
+          ⚠️ پس از تأیید، برداشت رد می‌شود و همین دلیل برای کاربر ارسال خواهد شد.
+        </div>
+
+        <div class="withdraw-reject-actions">
+          <button id="withdrawRejectCancelBtn" class="small-btn" type="button">انصراف</button>
+          <button id="withdrawRejectSubmitBtn" class="small-btn danger" type="button" disabled>تأیید رد برداشت</button>
+        </div>
+        <div id="withdrawRejectHint" class="step-hint"></div>
+      </div>
+    </div>
+
     <div id="miniToast" class="mini-toast hidden" role="status" aria-live="polite"></div>
 
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="./app.js?v=localized-numerals-20261009-1" type="module"></script>
+    <script src="./app.js?v=mini-withdraw-reject-20261009-1" type="module"></script>
   </body>
 </html>

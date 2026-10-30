@@ -16,6 +16,15 @@ WITHDRAW_IDEMPOTENCY_WINDOW_MINUTES = 10
 def _clean_numeric(value: str | int | None) -> str:
     return clean_numeric(value)
 
+
+def normalize_withdraw_rejection_reason(value: object) -> str:
+    reason = str(value or "").strip()
+    if len(reason) < 3:
+        raise HTTPException(status_code=400, detail="دلیل رد برداشت الزامی است و باید حداقل ۳ کاراکتر باشد.")
+    if len(reason) > 500:
+        raise HTTPException(status_code=400, detail="دلیل رد برداشت نباید بیشتر از ۵۰۰ کاراکتر باشد.")
+    return reason
+
 class FinanceService:
     @staticmethod
     def create_deposit_request(db: Session, user_id: int, amount: int) -> DepositRequest:
@@ -208,7 +217,7 @@ class FinanceService:
 
     @staticmethod
     def reject_withdraw(db: Session, withdraw_id: int, admin_user_id: int, reason: str | None = None):
-        _ = reason
+        rejection_reason = normalize_withdraw_rejection_reason(reason)
         wr = db.execute(
             select(WithdrawRequest).where(WithdrawRequest.id == withdraw_id).with_for_update()
         ).scalar_one_or_none()
@@ -218,6 +227,7 @@ class FinanceService:
             raise HTTPException(status_code=400, detail="این درخواست برداشت در وضعیت در انتظار نیست.")
 
         wr.status = "REJECTED"
+        wr.rejection_reason = rejection_reason
         wr.reviewed_by = admin_user_id
         wr.reviewed_at = datetime.utcnow()
         db.flush()

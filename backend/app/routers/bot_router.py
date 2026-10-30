@@ -1001,6 +1001,7 @@ class AdminWithdrawRequestOut(BaseModel):
     card_number: str
     account_number: str
     paid_tracking: str | None = None
+    rejection_reason: str | None = None
     created_at: str
 
     class Config:
@@ -1020,7 +1021,7 @@ class MarkWithdrawPaidIn(BaseModel):
 
 
 class RejectWithdrawIn(BaseModel):
-    reason: str | None = Field(default=None, max_length=200)
+    reason: str = Field(min_length=3, max_length=500)
 
 
 class ManualChargeIn(BaseModel):
@@ -3374,6 +3375,7 @@ def list_admin_withdraw_requests(
             card_number=wr.card_number,
             account_number=wr.account_number,
             paid_tracking=wr.paid_tracking,
+            rejection_reason=wr.rejection_reason,
             created_at=str(wr.created_at) if wr.created_at else "",
         )
         for wr, user in rows
@@ -3409,6 +3411,7 @@ def get_admin_withdraw_request(
         card_number=wr.card_number,
         account_number=wr.account_number,
         paid_tracking=wr.paid_tracking,
+        rejection_reason=wr.rejection_reason,
         created_at=str(wr.created_at) if wr.created_at else "",
     )
 
@@ -3479,6 +3482,7 @@ def mark_admin_withdraw_paid(
 def reject_admin_withdraw_request(
     withdraw_id: int,
     payload: RejectWithdrawIn,
+    request: Request,
     db: Session = Depends(get_db),
     admin: AdminIdentity = Depends(get_admin_identity),
 ):
@@ -3491,11 +3495,28 @@ def reject_admin_withdraw_request(
             admin_user_id=admin_uid,
             reason=payload.reason,
         )
+        AdminAuditService.record(
+            db,
+            admin=admin,
+            action="withdraw.reject",
+            target_type="withdraw_request",
+            target_id=int(wr.id),
+            request=request,
+            details={
+                "withdraw_id": int(wr.id),
+                "user_id": int(wr.user_id),
+                "amount": int(wr.amount),
+                "status": str(wr.status),
+                "reason": str(wr.rejection_reason or ""),
+                "source": "bot",
+            },
+        )
         db.commit()
         return {
             "withdraw_id": int(wr.id),
             "status": str(wr.status),
             "reviewed_by": admin_uid,
+            "rejection_reason": str(wr.rejection_reason or ""),
         }
     except HTTPException:
         db.rollback()

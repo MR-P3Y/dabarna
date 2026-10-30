@@ -61,6 +61,7 @@ class WithdrawRequest(Base):
     reviewed_at: Mapped[str | None] = mapped_column(TIMESTAMP, nullable=True)
 
     paid_tracking: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    rejection_reason: Mapped[str | None] = mapped_column(String(500), nullable=True)
     wallet_tx_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("wallet_txs.id"), nullable=True)
 
     created_at: Mapped[str] = mapped_column(
