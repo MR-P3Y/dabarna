@@ -30,6 +30,7 @@ from app.routers.crypto_router import router as crypto_router
 from app.services.crypto_deposit_service import CryptoDepositService
 from app.services.crypto_worker import run_crypto_worker_forever
 from app.services.game_auto_draw_worker import run_game_auto_draw_worker_forever
+from app.services.game_autopilot_worker import run_game_autopilot_worker_forever
 
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -58,6 +59,13 @@ async def lifespan(app: FastAPI):
         )
         tasks.append(auto_draw_task)
         app.state.game_auto_draw_worker_task = auto_draw_task
+    if cfg.GAME_AUTOPILOT_RUNTIME_ENABLED:
+        autopilot_task = asyncio.create_task(
+            run_game_autopilot_worker_forever(stop_event),
+            name="game-autopilot-worker",
+        )
+        tasks.append(autopilot_task)
+        app.state.game_autopilot_worker_task = autopilot_task
     try:
         yield
     finally:
