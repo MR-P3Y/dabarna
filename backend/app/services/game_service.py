@@ -170,6 +170,39 @@ class GameService:
             if game_level
             else GameAutopilotConfigService.level_for_topic(tg_topic_id)
         )
+
+        if resolved_level:
+            # Serialize creation for each LOW/MEDIUM/HIGH lane so Bot, Mini App,
+            # admin APIs and the future scheduler cannot create two active games
+            # for the same category concurrently.
+            GameAutopilotConfigService.lock_for_update(db, resolved_level)
+
+            expected_topic_id = GameAutopilotConfigService.topic_id_for_level(resolved_level)
+            if (
+                expected_topic_id is not None
+                and tg_topic_id is not None
+                and int(tg_topic_id) != int(expected_topic_id)
+            ):
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"tg_topic_id must match configured {resolved_level} topic",
+                )
+
+            active_same_level = db.execute(
+                select(Game)
+                .where(
+                    Game.game_level == resolved_level,
+                    Game.status.in_(["LOBBY", "RUNNING"]),
+                )
+                .order_by(Game.id.desc())
+                .limit(1)
+            ).scalar_one_or_none()
+            if active_same_level is not None:
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"active game already exists for {resolved_level} level",
+                )
+
         configured_price = GameAutopilotConfigService.configured_card_price(db, resolved_level)
         if configured_price is not None and int(card_price) != int(configured_price):
             raise HTTPException(
