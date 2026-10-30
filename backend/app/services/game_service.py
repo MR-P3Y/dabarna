@@ -6,7 +6,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from typing import Any
 
 from fastapi import HTTPException
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
 from app.core.redis_client import RedisLock, idem_get, idem_set
 from app.models.game import Game, GameAutoDraw, GameCalledNumber, GameCard, GamePurchase
@@ -188,10 +188,23 @@ class GameService:
                     detail=f"tg_topic_id must match configured {resolved_level} topic",
                 )
 
+            level_match = Game.game_level == resolved_level
+            if expected_topic_id is not None:
+                # Compatibility with games created before the autopilot migration:
+                # those rows have game_level=NULL, but their Telegram topic already
+                # identifies the LOW/MEDIUM/HIGH lane.
+                level_match = or_(
+                    level_match,
+                    and_(
+                        Game.game_level.is_(None),
+                        Game.tg_topic_id == int(expected_topic_id),
+                    ),
+                )
+
             active_same_level = db.execute(
                 select(Game)
                 .where(
-                    Game.game_level == resolved_level,
+                    level_match,
                     Game.status.in_(["LOBBY", "RUNNING"]),
                 )
                 .order_by(Game.id.desc())
