@@ -187,12 +187,25 @@ class GameAutopilotConfigService:
             "announce_before_seconds": (10, 86400),
             "countdown_seconds": (5, 600),
             "repeat_interval_seconds": (60, 86400),
-            "draw_interval_seconds": (2, 300),
             "cooldown_seconds": (0, 3600),
         }
         for field, (minimum, maximum) in numeric_rules.items():
             if field in values and values[field] is not None:
                 setattr(row, field, _positive_int(values[field], field, minimum=minimum, maximum=maximum))
+
+        if "draw_interval_seconds" in values and values["draw_interval_seconds"] is not None:
+            draw_interval = _positive_int(
+                values["draw_interval_seconds"],
+                "draw_interval_seconds",
+                minimum=5,
+                maximum=15,
+            )
+            if draw_interval not in {5, 8, 10, 15}:
+                raise HTTPException(
+                    status_code=400,
+                    detail="draw_interval_seconds must be one of 5, 8, 10, 15",
+                )
+            row.draw_interval_seconds = draw_interval
 
         # v1 business rule is intentionally fixed. It is stored in DB for observability,
         # but no admin endpoint can reduce it below two distinct players.
