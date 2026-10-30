@@ -77,11 +77,13 @@ class GameAutopilotConfigService:
         if tg_topic_id is None:
             return None
         topic = int(tg_topic_id)
-        mapping = {
-            int(USER_TOPIC_GAME_LOW_ID): "LOW" if USER_TOPIC_GAME_LOW_ID is not None else None,
-            int(USER_TOPIC_GAME_MEDIUM_ID): "MEDIUM" if USER_TOPIC_GAME_MEDIUM_ID is not None else None,
-            int(USER_TOPIC_GAME_HIGH_ID): "HIGH" if USER_TOPIC_GAME_HIGH_ID is not None else None,
-        }
+        mapping: dict[int, str] = {}
+        if USER_TOPIC_GAME_LOW_ID is not None:
+            mapping[int(USER_TOPIC_GAME_LOW_ID)] = "LOW"
+        if USER_TOPIC_GAME_MEDIUM_ID is not None:
+            mapping[int(USER_TOPIC_GAME_MEDIUM_ID)] = "MEDIUM"
+        if USER_TOPIC_GAME_HIGH_ID is not None:
+            mapping[int(USER_TOPIC_GAME_HIGH_ID)] = "HIGH"
         return mapping.get(topic)
 
     @staticmethod
