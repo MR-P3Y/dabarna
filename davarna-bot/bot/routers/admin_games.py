@@ -1010,7 +1010,6 @@ async def admin_games_autopilot(cq: CallbackQuery, api: ApiClient, is_admin: boo
         )
     await cq.answer()
 
-
 @router.callback_query(F.data == "admin:games")
 async def admin_games_home(cq: CallbackQuery, state: FSMContext, api: ApiClient, is_admin: bool = False):
     if not require_admin(is_admin):
