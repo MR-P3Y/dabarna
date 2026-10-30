@@ -95,6 +95,19 @@ class GameAutopilotConfigService:
         return row
 
     @staticmethod
+    def lock_for_update(db: Session, level: str) -> GameAutopilotConfig:
+        """Serialize game creation per level inside the current DB transaction."""
+        normalized = _normalize_level(level)
+        row = db.execute(
+            select(GameAutopilotConfig)
+            .where(GameAutopilotConfig.level == normalized)
+            .with_for_update()
+        ).scalar_one_or_none()
+        if row is None:
+            raise HTTPException(status_code=404, detail="autopilot config not found")
+        return row
+
+    @staticmethod
     def list(db: Session) -> list[GameAutopilotConfig]:
         rows = db.execute(
             select(GameAutopilotConfig).order_by(GameAutopilotConfig.level.asc())
