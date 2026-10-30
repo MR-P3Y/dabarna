@@ -67,7 +67,6 @@ def admin_autopilot_kb() -> InlineKeyboardMarkup:
     kb.attach(InlineKeyboardBuilder.from_markup(back_to_menu_kb()))
     return kb.as_markup()
 
-
 def admin_game_create_price_kb(*, status: str, offset: int) -> InlineKeyboardMarkup:
     kb = InlineKeyboardBuilder()
     kb.button(text="❌ لغو ایجاد بازی", callback_data=f"admin:games:create:cancel:{status}:{offset}")
