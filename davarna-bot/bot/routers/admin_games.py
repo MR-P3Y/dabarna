@@ -19,6 +19,7 @@ from bot.keyboards.admin_games import (
     admin_game_create_topic_kb,
     admin_game_item_kb,
     admin_live_kb,
+    admin_autopilot_kb,
     admin_games_list_kb,
     admin_monitor_kb,
     admin_winners_archive_kb,
@@ -950,6 +951,64 @@ async def admin_games_start(cq: CallbackQuery, api: ApiClient, is_admin: bool = 
         )
         await cq.answer("خطا", show_alert=False)
 
+
+@router.callback_query(F.data == "admin:games:autopilot")
+async def admin_games_autopilot(cq: CallbackQuery, api: ApiClient, is_admin: bool = False):
+    if not require_admin(is_admin):
+        await cq.answer("اجازه دسترسی نداری.", show_alert=True)
+        return
+
+    try:
+        payload = await api.admin_get_autopilot_config()
+        items = payload.get("items") if isinstance(payload, dict) else []
+        if not isinstance(items, list):
+            items = []
+
+        labels = {"LOW": "مبلغ پایین", "MEDIUM": "مبلغ متوسط", "HIGH": "مبلغ بالا"}
+        lines = [
+            "وضعیت سه دسته بازی از تنظیمات مرکزی Backend خوانده می‌شود.",
+            "Autopilot فعلاً به‌صورت پیش‌فرض خاموش است و بدون فعال‌سازی مدیریت، بازی خودکاری اجرا نمی‌شود.",
+            "",
+        ]
+        for item in items:
+            level = str(item.get("level") or "").upper()
+            title = labels.get(level, level or "-")
+            enabled = bool(item.get("enabled"))
+            price = item.get("card_price")
+            price_text = f"{int(price):,} تومان" if price is not None else "تعریف نشده"
+            rate = float(item.get("commission_rate") or 0) * 100
+            scheduler = "خودکار" if str(item.get("scheduler_mode") or "").upper() == "AUTO" else "دستی"
+            start = "خودکار" if str(item.get("start_mode") or "").upper() == "AUTO" else "دستی"
+            draw = "خودکار" if str(item.get("draw_mode") or "").upper() == "AUTO" else "دستی"
+            lines.extend(
+                [
+                    f"{'🟢' if enabled else '⚪️'} <b>{html_escape(title)}</b>",
+                    f"💳 قیمت کارت: <b>{html_escape(price_text)}</b>",
+                    f"🗓 زمان‌بندی: <b>{scheduler}</b> | شروع: <b>{start}</b>",
+                    f"🔢 شماره‌خوانی: <b>{draw}</b> | هر <b>{int(item.get('draw_interval_seconds') or 0)}</b> ثانیه",
+                    f"👥 حداقل: <b>{int(item.get('min_unique_players') or 2)}</b> کاربر مجزا",
+                    f"💰 کمیسیون: <b>{rate:g}%</b>",
+                    "",
+                ]
+            )
+
+        if not items:
+            lines.append("تنظیمات اتوماسیون هنوز در Backend ایجاد نشده است.")
+
+        await safe_edit_or_send(
+            cq.message,
+            panel("🤖 اتوماسیون بازی‌ها", "\n".join(lines).strip()),
+            parse_mode="HTML",
+            reply_markup=admin_autopilot_kb(),
+        )
+    except ApiError as e:
+        await safe_edit_or_send(
+            cq.message,
+            panel("خطا", f"<code>{e.status}</code>\n<code>{html_escape(e.detail)}</code>"),
+            parse_mode="HTML",
+            reply_markup=admin_autopilot_kb(),
+        )
+    await cq.answer()
 
 @router.callback_query(F.data == "admin:games")
 async def admin_games_home(cq: CallbackQuery, state: FSMContext, api: ApiClient, is_admin: bool = False):

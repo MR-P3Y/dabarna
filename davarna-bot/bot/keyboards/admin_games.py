@@ -35,6 +35,7 @@ def admin_games_list_kb(items: list[dict], *, status: str, offset: int, has_next
 
     kb.button(text="🔄 تازه‌سازی", callback_data=f"admin:games:list:{status}:{offset}")
     kb.button(text="🏆 کارت‌های برنده", callback_data="admin:games:winners:archive:0")
+    kb.button(text="🤖 اتوماسیون بازی‌ها", callback_data="admin:games:autopilot")
     kb.button(text="🆕 ایجاد/فعال‌سازی بازی گروه", callback_data=f"admin:games:ensure:{status}:{offset}")
 
     row: list[tuple[str, str]] = []
@@ -50,12 +51,21 @@ def admin_games_list_kb(items: list[dict], *, status: str, offset: int, has_next
         rows.extend([1] * len(items))
     rows.append(2)
     rows.append(1)
+    rows.append(1)
     if row:
         rows.append(len(row))
     kb.adjust(*rows)
     kb.attach(InlineKeyboardBuilder.from_markup(back_to_menu_kb()))
     return kb.as_markup()
 
+
+def admin_autopilot_kb() -> InlineKeyboardMarkup:
+    kb = InlineKeyboardBuilder()
+    kb.button(text="🔄 بازخوانی وضعیت", callback_data="admin:games:autopilot")
+    kb.button(text="⬅️ بازگشت به بازی‌ها", callback_data="admin:games")
+    kb.adjust(1, 1)
+    kb.attach(InlineKeyboardBuilder.from_markup(back_to_menu_kb()))
+    return kb.as_markup()
 
 def admin_game_create_price_kb(*, status: str, offset: int) -> InlineKeyboardMarkup:
     kb = InlineKeyboardBuilder()

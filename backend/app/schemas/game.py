@@ -13,6 +13,10 @@ class GameOut(BaseModel):
     status: str
     admin_user_id: int
     card_price: int
+    game_level: str | None = None
+    execution_source: str = "ADMIN"
+    commission_rate: float = 0.10
+    scheduled_start_at: str | None = None
     sold_amount: int
     commission_amount: int
     prize_pool: int
@@ -66,6 +70,10 @@ class GameStateOut(BaseModel):
     tg_topic_id: int | None = None
     status: str
     card_price: int
+    game_level: str | None = None
+    execution_source: str = "ADMIN"
+    commission_rate: float = 0.10
+    scheduled_start_at: str | None = None
     sold_amount: int
     commission_amount: int
     prize_pool: int

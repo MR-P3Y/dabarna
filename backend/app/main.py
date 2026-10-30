@@ -23,12 +23,14 @@ from app.routers.auth_router import router as auth_router
 from app.routers.bot_router import router as bot_router
 from app.routers.game_draw_mode_router import router as game_draw_mode_router
 from app.routers.admin_users_router import router as admin_users_router
+from app.routers.admin_autopilot_router import router as admin_autopilot_router
 from app.routers.mini_router import router as mini_router
 from app.routers.admin_audit_router import router as admin_audit_router
 from app.routers.crypto_router import router as crypto_router
 from app.services.crypto_deposit_service import CryptoDepositService
 from app.services.crypto_worker import run_crypto_worker_forever
 from app.services.game_auto_draw_worker import run_game_auto_draw_worker_forever
+from app.services.game_autopilot_worker import run_game_autopilot_worker_forever
 
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -57,6 +59,13 @@ async def lifespan(app: FastAPI):
         )
         tasks.append(auto_draw_task)
         app.state.game_auto_draw_worker_task = auto_draw_task
+    if cfg.GAME_AUTOPILOT_RUNTIME_ENABLED:
+        autopilot_task = asyncio.create_task(
+            run_game_autopilot_worker_forever(stop_event),
+            name="game-autopilot-worker",
+        )
+        tasks.append(autopilot_task)
+        app.state.game_autopilot_worker_task = autopilot_task
     try:
         yield
     finally:
@@ -96,6 +105,7 @@ app.include_router(auth_router)
 app.include_router(bot_router)
 app.include_router(game_draw_mode_router)
 app.include_router(admin_users_router)
+app.include_router(admin_autopilot_router)
 app.include_router(mini_router)
 app.include_router(admin_audit_router)
 app.include_router(crypto_router)

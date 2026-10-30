@@ -21,6 +21,9 @@ class MiniGameItemOut(BaseModel):
     tg_topic_id: int | None = None
     status: str
     card_price: int
+    game_level: str | None = None
+    execution_source: str = "ADMIN"
+    scheduled_start_at: str | None = None
     sold_amount: int
     prize_pool: int
     col_prize_amount: int

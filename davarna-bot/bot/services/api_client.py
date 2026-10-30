@@ -340,6 +340,14 @@ class ApiClient:
         )
         return data if isinstance(data, dict) else {}
 
+    async def admin_get_autopilot_config(self) -> dict:
+        data = await self._request(
+            "GET",
+            "/admin/autopilot/config",
+            headers=self.admin_headers(),
+        )
+        return data if isinstance(data, dict) else {"items": []}
+
     async def admin_list_games(
         self,
         *,
