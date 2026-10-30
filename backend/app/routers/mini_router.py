@@ -109,6 +109,7 @@ from app.services.game_event_service import GameEventService
 from app.services.game_service import GameService
 from app.services.game_auto_draw_service import AUTO_DRAW_INTERVALS, GameAutoDrawService
 from app.services.game_draw_mode_service import GameDrawModeService
+from app.services.game_autopilot_config_service import GameAutopilotConfigService
 from app.services.wallet_service import WalletService
 from app.services.admin_audit_service import AdminAuditService
 from app.services.crypto_deposit_service import (
@@ -556,6 +557,20 @@ class MiniAdminAutoDrawStartIn(BaseModel):
     interval_seconds: int = Field(default=10)
 
 
+class MiniAutopilotConfigUpdateIn(BaseModel):
+    enabled: bool | None = None
+    scheduler_mode: str | None = None
+    start_mode: str | None = None
+    draw_mode: str | None = None
+    card_price: int | None = None
+    commission_rate: float | None = None
+    announce_before_seconds: int | None = None
+    countdown_seconds: int | None = None
+    repeat_interval_seconds: int | None = None
+    draw_interval_seconds: int | None = None
+    cooldown_seconds: int | None = None
+
+
 def _audit_auto_draw(
     db: Session,
     *,
@@ -785,6 +800,61 @@ def _mini_require_finance_or_game_role(ident: MiniAdminIdentity) -> None:
     if _mini_has_role(ident, "ADMIN", "SUPER_ADMIN", "FINANCE_ADMIN", "GAME_OPERATOR"):
         return
     raise HTTPException(status_code=403, detail="برای این بخش دسترسی ادمین لازم است.")
+
+
+@router.get("/admin/autopilot/config")
+def mini_admin_autopilot_config(
+    ident: MiniAdminIdentity = Depends(get_mini_admin_identity),
+    db: Session = Depends(get_db),
+):
+    _mini_require_game_role(ident)
+    items = [
+        GameAutopilotConfigService.serialize(row)
+        for row in GameAutopilotConfigService.list(db)
+    ]
+    return {
+        "items": items,
+        "can_edit_commission": bool(ident.is_super_admin),
+    }
+
+
+@router.put("/admin/autopilot/config/{level}")
+def mini_admin_update_autopilot_config(
+    level: str,
+    payload: MiniAutopilotConfigUpdateIn,
+    request: Request,
+    ident: MiniAdminIdentity = Depends(get_mini_admin_identity),
+    db: Session = Depends(get_db),
+):
+    _mini_require_game_role(ident)
+    values = payload.model_dump(exclude_unset=True)
+    before, after = GameAutopilotConfigService.update(
+        db,
+        level=level,
+        values=values,
+        updated_by=int(ident.user_id),
+        allow_commission_change=bool(ident.is_super_admin),
+    )
+    changed = {
+        key: {"before": before.get(key), "after": after.get(key)}
+        for key in after.keys()
+        if before.get(key) != after.get(key)
+    }
+    AdminAuditService.record(
+        db,
+        admin=_mini_to_admin_identity(ident),
+        action="autopilot.config.update",
+        target_type="game_level",
+        target_id=None,
+        request=request,
+        details={
+            "level": str(after.get("level") or level).upper(),
+            "changed": changed,
+            "commission_changed": "commission_rate" in changed,
+        },
+    )
+    db.commit()
+    return {"ok": True, "item": after}
 
 
 def _mini_get_game_or_404(db: Session, game_id: int) -> Game:
