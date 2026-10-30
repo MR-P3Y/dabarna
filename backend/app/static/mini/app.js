@@ -6928,8 +6928,16 @@ function renderAdminAutopilotConfig(payload) {
 
 async function refreshAdminAutopilotConfig() {
   if (!state.admin.enabled) return;
-  const out = await apiFetch("/mini-api/admin/autopilot/config");
-  renderAdminAutopilotConfig(out);
+  const root = getEl("adminAutopilotList");
+  try {
+    const out = await apiFetch("/mini-api/admin/autopilot/config");
+    renderAdminAutopilotConfig(out);
+  } catch (err) {
+    const msg = localizeApiError(err?.message || err || "");
+    if (root) {
+      root.innerHTML = `<div class="empty">این بخش برای مدیریت بازی و سوپرادمین در دسترس است.<br /><span class="meta">${safeText(msg)}</span></div>`;
+    }
+  }
 }
 
 async function refreshAdminPanel(options = {}) {
