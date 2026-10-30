@@ -209,6 +209,11 @@ class GameAutopilotWorker:
                 topic_id=int(topic_id),
             )
             if active is not None:
+                # Never take over an admin-created/manual game. A manual active
+                # game blocks the lane, but remains fully under admin control.
+                if str(getattr(active, "execution_source", "ADMIN") or "ADMIN").upper() != "SYSTEM":
+                    return "blocked_manual_active"
+
                 result = GameAutopilotWorker._manage_active(
                     db,
                     game=active,
