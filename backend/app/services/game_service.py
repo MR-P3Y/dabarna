@@ -478,6 +478,40 @@ class GameService:
 
             raise HTTPException(status_code=400, detail="cannot start: no cards sold")
 
+        # Global game invariant: every game needs at least two distinct players.
+        # Enforce this here (not only in Autopilot) so Bot, Mini App, admin APIs,
+        # and future automation paths cannot accidentally start a one-player game.
+        unique_players = int(
+            db.execute(
+                select(func.count(func.distinct(GameCard.user_id))).where(
+                    GameCard.game_id == int(game.id)
+                )
+            ).scalar_one()
+            or 0
+        )
+        if unique_players < 2:
+            try:
+                GameEventService.emit(
+                    db,
+                    kind="GAME_START_REJECTED",
+                    game_id=int(game.id),
+                    tg_group_id=int(game.tg_group_id),
+                    actor_user_id=int(admin_user_id),
+                    idem_key=f"GAME_START_REJECTED_PLAYERS:{game.id}:{idempotency_key}",
+                    payload={
+                        "reason": "not_enough_unique_players",
+                        "unique_players": int(unique_players),
+                        "min_unique_players": 2,
+                        "sold_amount": int(game.sold_amount),
+                        "status": str(game.status),
+                    },
+                )
+            except Exception:
+                pass
+            raise HTTPException(
+                status_code=409,
+                detail="cannot start: at least 2 unique players are required",
+            )
 
         prize_pool = int(game.prize_pool)
 
