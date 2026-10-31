@@ -7019,6 +7019,14 @@ function renderAdminAutopilotConfig(payload) {
 
   if (!root.dataset.autopilotEditorBound) {
     root.dataset.autopilotEditorBound = "1";
+
+    const markDirty = (ev) => {
+      if (!ev.target?.closest?.("[data-autopilot-level]")) return;
+      root.dataset.autopilotDirty = "1";
+    };
+    root.addEventListener("input", markDirty);
+    root.addEventListener("change", markDirty);
+
     root.addEventListener("click", (ev) => {
       const btn = ev.target?.closest?.("[data-autopilot-save]");
       if (!btn) return;
@@ -7087,15 +7095,19 @@ async function saveAdminAutopilotLevel(level, canEditCommission, button = null) 
       body: payload,
     });
     setHint(hintId, "تنظیمات با موفقیت ذخیره شد.", "success");
-    await refreshAdminAutopilotConfig();
+    const root = getEl("adminAutopilotList");
+    if (root) root.dataset.autopilotDirty = "0";
+    await refreshAdminAutopilotConfig({ force: true });
   } finally {
     if (button) button.disabled = false;
   }
 }
 
-async function refreshAdminAutopilotConfig() {
+async function refreshAdminAutopilotConfig(options = {}) {
   if (!state.admin.enabled) return;
   const root = getEl("adminAutopilotList");
+  const force = Boolean(options?.force);
+  if (!force && root?.dataset?.autopilotDirty === "1") return;
   try {
     const out = await apiFetch("/mini-api/admin/autopilot/config");
     renderAdminAutopilotConfig(out);
@@ -8654,7 +8666,11 @@ async function boot() {
   bind("refreshAdminBtn", "click", () => runManualRefresh("refreshAdminBtn", () => refreshAdminPanel()).catch(() => {}));
   bind("adminOpsRefreshBtn", "click", () => runManualRefresh("adminOpsRefreshBtn", () => refreshAdminPanel()).catch(() => {}));
   bind("adminAutopilotRefreshBtn", "click", () =>
-    runManualRefresh("adminAutopilotRefreshBtn", () => refreshAdminAutopilotConfig()).catch(() => {})
+    runManualRefresh("adminAutopilotRefreshBtn", () => {
+      const root = getEl("adminAutopilotList");
+      if (root) root.dataset.autopilotDirty = "0";
+      return refreshAdminAutopilotConfig({ force: true });
+    }).catch(() => {})
   );
   bind("adminUsersSearchBtn", "click", () => adminUsersSearch().catch((e) => setLocalError("adminUsersHint", e)));
   bind("adminUsersRefreshBtn", "click", () => adminUsersRefreshSelected().catch((e) => setLocalError("adminUsersHint", e)));
