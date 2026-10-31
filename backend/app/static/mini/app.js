@@ -1301,6 +1301,7 @@ function localizeApiError(detail) {
     "live_url is too long": "طول لینک پخش زنده بیش از حد مجاز است.",
     "cannot revoke your own super admin role": "امکان حذف نقش سوپرادمین از خودتان وجود ندارد.",
     "cannot revoke last super admin": "نقش آخرین سوپرادمین قابل حذف نیست.",
+    "cannot start: at least 2 unique players are required": "برای شروع بازی حداقل ۲ بازیکن متفاوت باید کارت داشته باشند.",
     "super admin owner required": "فقط سوپرادمین اصلی مجاز به این عملیات است.",
     "only game admin can manage this game": "فقط ادمین همان بازی می‌تواند این عملیات را انجام دهد.",
     "invalid bot token": "توکن سرویس ربات نامعتبر است.",
