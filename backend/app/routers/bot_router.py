@@ -2961,7 +2961,7 @@ def ensure_bot_admin_game_active(
             tg_group_id=int(src_game.tg_group_id),
             tg_topic_id=int(src_game.tg_topic_id) if getattr(src_game, "tg_topic_id", None) is not None else None,
             card_price=int(src_game.card_price),
-            commission_rate=float(src_game.commission_rate or 0.10),
+            commission_rate=float(src_game.commission_rate if src_game.commission_rate is not None else 0.10),
         )
         AdminAuditService.record(
             db,
