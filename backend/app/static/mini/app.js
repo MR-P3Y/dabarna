@@ -6888,13 +6888,45 @@ function autopilotModeLabel(mode) {
   return String(mode || "").toUpperCase() === "AUTO" ? "خودکار" : "دستی";
 }
 
+function setAdminGameMode(mode, options = {}) {
+  const key = String(mode || "").toUpperCase() === "AUTO" ? "AUTO" : "MANUAL";
+  const persist = options?.persist !== false;
+  const manualSection = getEl("adminManualModeSection");
+  const autoSection = getEl("adminAutoModeSection");
+  const manualBtn = getEl("adminGameModeManualBtn");
+  const autoBtn = getEl("adminGameModeAutoBtn");
+
+  manualSection?.classList.toggle("hidden", key !== "MANUAL");
+  autoSection?.classList.toggle("hidden", key !== "AUTO");
+  manualBtn?.classList.toggle("active", key === "MANUAL");
+  autoBtn?.classList.toggle("active", key === "AUTO");
+
+  if (persist) {
+    try {
+      localStorage.setItem("davarna_admin_game_mode", key);
+    } catch (_) {}
+  }
+
+  if (key === "AUTO") {
+    refreshAdminAutopilotConfig({ force: true }).catch(() => {});
+  }
+}
+
+function restoreAdminGameMode() {
+  let saved = "MANUAL";
+  try {
+    saved = String(localStorage.getItem("davarna_admin_game_mode") || "MANUAL").toUpperCase();
+  } catch (_) {}
+  setAdminGameMode(saved === "AUTO" ? "AUTO" : "MANUAL", { persist: false });
+}
+
 function renderAdminAutopilotConfig(payload) {
   const root = getEl("adminAutopilotList");
   if (!root) return;
   const items = Array.isArray(payload?.items) ? payload.items : [];
   const canEditCommission = Boolean(payload?.can_edit_commission);
   if (!items.length) {
-    root.innerHTML = '<div class="empty">تنظیمات اتوماسیون هنوز ایجاد نشده است.</div>';
+    root.innerHTML = '<div class="empty">تنظیمات بازی خودکار هنوز ایجاد نشده است.</div>';
     return;
   }
 
@@ -6904,57 +6936,48 @@ function renderAdminAutopilotConfig(payload) {
       const enabled = Boolean(item?.enabled);
       const price = item?.card_price == null ? "" : String(item.card_price);
       const rate = Number(item?.commission_rate || 0) * 100;
-      const schedulerMode = String(item?.scheduler_mode || "MANUAL").toUpperCase();
-      const startMode = String(item?.start_mode || "MANUAL").toUpperCase();
-      const drawMode = String(item?.draw_mode || "MANUAL").toUpperCase();
       const drawInterval = Number(item?.draw_interval_seconds || 10);
+      const repeatInterval = Number(item?.repeat_interval_seconds || 60);
+      const countdown = Number(item?.countdown_seconds || 30);
       const commissionDisabled = canEditCommission ? "" : "disabled";
-      const commissionHint = canEditCommission
-        ? "سوپرادمین می‌تواند کمیسیون این دسته را تغییر دهد."
-        : "کمیسیون فقط برای سوپرادمین قابل تغییر است.";
+      const statusText = enabled ? "فعال" : "غیرفعال";
+      const priceText = price ? toman(Number(price)) : "قیمت تعریف نشده";
 
       return `
-        <div class="history-item" data-autopilot-level="${safeText(level)}">
-          <div class="cards-box-head">
-            <strong>${enabled ? "🟢" : "⚪️"} ${safeText(autopilotLevelLabel(level))}</strong>
-            <span class="meta">تاپیک ${safeText(item?.topic_id == null ? "—" : String(item.topic_id))}</span>
-          </div>
+        <details class="autopilot-level-card ${enabled ? "is-enabled" : ""}" data-autopilot-level="${safeText(level)}">
+          <summary class="autopilot-level-summary">
+            <div class="autopilot-level-main">
+              <span class="autopilot-level-dot" aria-hidden="true"></span>
+              <div>
+                <strong>${safeText(autopilotLevelLabel(level))}</strong>
+                <small>${safeText(statusText)} • ${safeText(priceText)}</small>
+              </div>
+            </div>
+            <div class="autopilot-level-quick">
+              <span>هر ${safeText(toFaDigits(drawInterval))} ثانیه</span>
+              <span>بازی بعدی ${safeText(toFaDigits(repeatInterval))} ثانیه</span>
+            </div>
+          </summary>
 
-          <div class="action-form">
-            <label>
+          <div class="autopilot-level-body">
+            <div class="autopilot-mode-note">
+              <strong>اجرای کامل توسط سیستم</strong>
+              <span>ساخت، شروع، شماره‌خوانی و پایان بازی در این حالت خودکار است.</span>
+            </div>
+
+            <label class="autopilot-enable-row">
               <input id="autopilotEnabled_${safeText(level)}" type="checkbox" ${enabled ? "checked" : ""} />
-              Autopilot این دسته فعال باشد
+              <span>
+                <strong>فعال بودن این سطح</strong>
+                <small>اگر خاموش باشد، سیستم برای این سطح بازی جدید نمی‌سازد.</small>
+              </span>
             </label>
 
-            <div class="admin-grid-two">
+            <div class="admin-grid-two autopilot-primary-fields">
               <div>
-                <label for="autopilotPrice_${safeText(level)}">قیمت کارت (تومان)</label>
+                <label for="autopilotPrice_${safeText(level)}">قیمت هر کارت (تومان)</label>
                 <input id="autopilotPrice_${safeText(level)}" type="text" inputmode="numeric"
                   value="${safeText(price)}" placeholder="مثلاً 5000" />
-              </div>
-
-              <div>
-                <label for="autopilotScheduler_${safeText(level)}">ساخت بازی بعدی</label>
-                <select id="autopilotScheduler_${safeText(level)}">
-                  <option value="MANUAL" ${schedulerMode === "MANUAL" ? "selected" : ""}>دستی</option>
-                  <option value="AUTO" ${schedulerMode === "AUTO" ? "selected" : ""}>خودکار</option>
-                </select>
-              </div>
-
-              <div>
-                <label for="autopilotStart_${safeText(level)}">شروع بازی</label>
-                <select id="autopilotStart_${safeText(level)}">
-                  <option value="MANUAL" ${startMode === "MANUAL" ? "selected" : ""}>دستی</option>
-                  <option value="AUTO" ${startMode === "AUTO" ? "selected" : ""}>خودکار</option>
-                </select>
-              </div>
-
-              <div>
-                <label for="autopilotDraw_${safeText(level)}">شماره‌خوانی</label>
-                <select id="autopilotDraw_${safeText(level)}">
-                  <option value="MANUAL" ${drawMode === "MANUAL" ? "selected" : ""}>دستی</option>
-                  <option value="AUTO" ${drawMode === "AUTO" ? "selected" : ""}>خودکار</option>
-                </select>
               </div>
 
               <div>
@@ -6967,52 +6990,66 @@ function renderAdminAutopilotConfig(payload) {
               </div>
 
               <div>
-                <label for="autopilotCountdown_${safeText(level)}">شمارش معکوس شروع (ثانیه)</label>
+                <label for="autopilotCountdown_${safeText(level)}">شمارش معکوس شروع</label>
                 <input id="autopilotCountdown_${safeText(level)}" type="text" inputmode="numeric"
                   value="${safeText(String(item?.countdown_seconds ?? 30))}" />
+                <small class="field-help">ثانیه پس از رسیدن به حداقل بازیکن</small>
               </div>
 
               <div>
-                <label for="autopilotRepeat_${safeText(level)}">فاصله ساخت بازی بعدی (ثانیه)</label>
+                <label for="autopilotRepeat_${safeText(level)}">فاصله تا بازی بعدی</label>
                 <input id="autopilotRepeat_${safeText(level)}" type="text" inputmode="numeric"
-                  value="${safeText(String(item?.repeat_interval_seconds ?? 600))}" />
-              </div>
-
-              <div>
-                <label for="autopilotCooldown_${safeText(level)}">Cooldown (ثانیه)</label>
-                <input id="autopilotCooldown_${safeText(level)}" type="text" inputmode="numeric"
-                  value="${safeText(String(item?.cooldown_seconds ?? 60))}" />
-              </div>
-
-              <div>
-                <label for="autopilotAnnounce_${safeText(level)}">اعلان قبل از بازی (ثانیه)</label>
-                <input id="autopilotAnnounce_${safeText(level)}" type="text" inputmode="numeric"
-                  value="${safeText(String(item?.announce_before_seconds ?? 300))}" />
-              </div>
-
-              <div>
-                <label for="autopilotCommission_${safeText(level)}">کمیسیون (%)</label>
-                <input id="autopilotCommission_${safeText(level)}" type="text" inputmode="decimal"
-                  value="${safeText(String(rate))}" ${commissionDisabled} />
+                  value="${safeText(String(item?.repeat_interval_seconds ?? 60))}" />
+                <small class="field-help">ثانیه پس از پایان بازی قبلی</small>
               </div>
             </div>
 
-            <div class="history-meta">
-              👥 حداقل بازیکن مجزا: <strong>۲ نفر</strong> (قفل سیستمی)<br />
-              💰 ${safeText(commissionHint)}
-            </div>
+            <details class="autopilot-advanced">
+              <summary>تنظیمات بیشتر</summary>
+              <div class="admin-grid-two">
+                <div>
+                  <label for="autopilotAnnounce_${safeText(level)}">اعلان قبل از بازی</label>
+                  <input id="autopilotAnnounce_${safeText(level)}" type="text" inputmode="numeric"
+                    value="${safeText(String(item?.announce_before_seconds ?? 300))}" />
+                  <small class="field-help">ثانیه</small>
+                </div>
 
-            <button
-              class="small-btn primary"
-              type="button"
-              data-autopilot-save="${safeText(level)}"
-              data-can-edit-commission="${canEditCommission ? "1" : "0"}"
-            >
-              ذخیره تنظیمات ${safeText(autopilotLevelLabel(level))}
-            </button>
+                <div>
+                  <label for="autopilotCooldown_${safeText(level)}">زمان استراحت سیستم</label>
+                  <input id="autopilotCooldown_${safeText(level)}" type="text" inputmode="numeric"
+                    value="${safeText(String(item?.cooldown_seconds ?? 0))}" />
+                  <small class="field-help">ثانیه</small>
+                </div>
+
+                <div>
+                  <label for="autopilotCommission_${safeText(level)}">کمیسیون (%)</label>
+                  <input id="autopilotCommission_${safeText(level)}" type="text" inputmode="decimal"
+                    value="${safeText(String(rate))}" ${commissionDisabled} />
+                  <small class="field-help">${canEditCommission ? "قابل تغییر توسط سوپرادمین" : "فقط سوپرادمین می‌تواند تغییر دهد"}</small>
+                </div>
+
+                <div class="autopilot-locked-field">
+                  <span>حداقل بازیکن مجزا</span>
+                  <strong>۲ نفر</strong>
+                  <small>قانون سیستمی و غیرقابل کاهش</small>
+                </div>
+              </div>
+            </details>
+
+            <div class="autopilot-save-row">
+              <button
+                class="small-btn primary"
+                type="button"
+                data-autopilot-save="${safeText(level)}"
+                data-can-edit-commission="${canEditCommission ? "1" : "0"}"
+              >
+                ذخیره تنظیمات ${safeText(autopilotLevelLabel(level))}
+              </button>
+              <span class="meta">تاپیک: ${safeText(item?.topic_id == null ? "تعریف نشده" : String(item.topic_id))}</span>
+            </div>
             <div id="adminAutopilotHint_${safeText(level)}" class="step-hint"></div>
           </div>
-        </div>
+        </details>
       `;
     })
     .join("");
@@ -7059,15 +7096,15 @@ async function saveAdminAutopilotLevel(level, canEditCommission, button = null) 
   if (price == null || price < 1000) throw new Error("قیمت کارت باید حداقل ۱,۰۰۰ تومان باشد.");
   if (countdown == null || countdown < 5) throw new Error("شمارش معکوس باید حداقل ۵ ثانیه باشد.");
   if (repeatInterval == null || repeatInterval < 60) throw new Error("فاصله ساخت بازی بعدی باید حداقل ۶۰ ثانیه باشد.");
-  if (cooldown == null || cooldown < 0) throw new Error("Cooldown نامعتبر است.");
+  if (cooldown == null || cooldown < 0) throw new Error("زمان استراحت نامعتبر است.");
   if (announceBefore == null || announceBefore < 10) throw new Error("زمان اعلان باید حداقل ۱۰ ثانیه باشد.");
   if (![5, 8, 10, 15].includes(drawInterval)) throw new Error("فاصله اعلام اعداد نامعتبر است.");
 
   const payload = {
     enabled: Boolean(getEl(`autopilotEnabled_${key}`)?.checked),
-    scheduler_mode: String(getVal(`autopilotScheduler_${key}`) || "MANUAL").toUpperCase(),
-    start_mode: String(getVal(`autopilotStart_${key}`) || "MANUAL").toUpperCase(),
-    draw_mode: String(getVal(`autopilotDraw_${key}`) || "MANUAL").toUpperCase(),
+    scheduler_mode: "AUTO",
+    start_mode: "AUTO",
+    draw_mode: "AUTO",
     card_price: price,
     countdown_seconds: countdown,
     repeat_interval_seconds: repeatInterval,
@@ -7094,7 +7131,7 @@ async function saveAdminAutopilotLevel(level, canEditCommission, button = null) 
       method: "PUT",
       body: payload,
     });
-    setHint(hintId, "تنظیمات با موفقیت ذخیره شد.", "success");
+    setHint(hintId, "تنظیمات بازی خودکار ذخیره شد.", "success");
     const root = getEl("adminAutopilotList");
     if (root) root.dataset.autopilotDirty = "0";
     await refreshAdminAutopilotConfig({ force: true });
@@ -8665,6 +8702,10 @@ async function boot() {
   bind("submitWithdrawBtn", "click", () => createWithdraw().catch((e) => setLocalError("withdrawSubmitHint", e)));
   bind("refreshAdminBtn", "click", () => runManualRefresh("refreshAdminBtn", () => refreshAdminPanel()).catch(() => {}));
   bind("adminOpsRefreshBtn", "click", () => runManualRefresh("adminOpsRefreshBtn", () => refreshAdminPanel()).catch(() => {}));
+  bind("adminGameModeManualBtn", "click", () => setAdminGameMode("MANUAL"));
+  bind("adminGameModeAutoBtn", "click", () => setAdminGameMode("AUTO"));
+  restoreAdminGameMode();
+
   bind("adminAutopilotRefreshBtn", "click", () =>
     runManualRefresh("adminAutopilotRefreshBtn", () => {
       const root = getEl("adminAutopilotList");
