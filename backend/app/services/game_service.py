@@ -50,9 +50,9 @@ class GameService:
     KEY_MAX_CARDS = "max_cards_per_purchase"
     KEY_MAX_NUMBER = "max_number"
 
-    # ---- final executable rule (fixed percentages) ----
-    # Commission is 10% of sold_amount. prize_pool = sold_amount - commission_amount (90% of sold).
-    # Column is 30% of sold, Row is 60% of sold. As a share of prize_pool (90%), that is 1/3 and 2/3.
+    # ---- settlement defaults ----
+    # Commission is snapshotted per game at creation time.
+    # The remaining prize pool is split 1/3 for column and 2/3 for row.
     COMMISSION_RATE = DEFAULT_COMMISSION_RATE
     COL_PRIZE_SHARE_OF_POOL = Decimal("1") / Decimal("3")
     ROW_PRIZE_SHARE_OF_POOL = Decimal("2") / Decimal("3")
@@ -161,6 +161,7 @@ class GameService:
         game_level: str | None = None,
         execution_source: str = "ADMIN",
         scheduled_start_at: datetime | None = None,
+        commission_rate: Decimal | float | str | None = None,
     ) -> Game:
         if card_price <= 0:
             raise HTTPException(status_code=400, detail="card_price must be > 0")
@@ -216,18 +217,24 @@ class GameService:
                     detail=f"active game already exists for {resolved_level} level",
                 )
 
-        configured_price = GameAutopilotConfigService.configured_card_price(db, resolved_level)
-        if configured_price is not None and int(card_price) != int(configured_price):
-            raise HTTPException(
-                status_code=409,
-                detail=f"card_price must match configured {resolved_level} price",
-            )
-
         source = str(execution_source or "ADMIN").strip().upper()
         if source not in {"ADMIN", "SYSTEM"}:
             raise HTTPException(status_code=400, detail="execution_source must be ADMIN or SYSTEM")
 
-        commission_rate = GameAutopilotConfigService.commission_rate_for_level(db, resolved_level)
+        if source == "SYSTEM":
+            configured_price = GameAutopilotConfigService.configured_card_price(db, resolved_level)
+            if configured_price is not None and int(card_price) != int(configured_price):
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"card_price must match configured {resolved_level} price",
+                )
+            resolved_commission_rate = GameAutopilotConfigService.commission_rate_for_level(db, resolved_level)
+        else:
+            resolved_commission_rate = (
+                GameService.COMMISSION_RATE
+                if commission_rate is None
+                else GameAutopilotConfigService.normalize_commission_rate(commission_rate)
+            )
 
         g = Game(
             tg_group_id=tg_group_id,
@@ -237,7 +244,7 @@ class GameService:
             game_level=resolved_level,
             execution_source=source,
             scheduled_start_at=scheduled_start_at,
-            commission_rate=commission_rate,
+            commission_rate=resolved_commission_rate,
             status="LOBBY",
         )
         db.add(g)
@@ -257,7 +264,7 @@ class GameService:
                     "tg_topic_id": int(tg_topic_id) if tg_topic_id is not None else None,
                     "game_level": resolved_level,
                     "execution_source": source,
-                    "commission_rate": float(commission_rate),
+                    "commission_rate": float(resolved_commission_rate),
                     "scheduled_start_at": str(scheduled_start_at) if scheduled_start_at is not None else None,
                 },
             )
@@ -411,6 +418,7 @@ class GameService:
                     "purchase_id": int(purchase.id),
                     "wallet_tx_id": int(tx.id),
                     "sold_amount": int(game.sold_amount),
+                    "commission_rate": float(commission_rate),
                     "commission_amount": int(game.commission_amount),
                     "prize_pool": int(game.prize_pool),
                     "card_ids": [int(c.id) for c in cards],
@@ -515,10 +523,10 @@ class GameService:
 
         prize_pool = int(game.prize_pool)
 
-        # Final rule:
-        # - 30% column prize (paid at most once)
-        # - 60% row prize (game-ending prize)
-        # We keep exact total by assigning remainder to row.
+        # Settlement rule after the per-game commission has already been deducted:
+        # - 1/3 of prize_pool for column (paid at most once)
+        # - remaining 2/3 for row (game-ending prize)
+        # We keep the exact total by assigning rounding remainder to row.
         col_amount = _round_int(Decimal(prize_pool) * GameService.COL_PRIZE_SHARE_OF_POOL)
         row_amount = int(prize_pool) - int(col_amount)
 
@@ -545,6 +553,8 @@ class GameService:
                 idem_key=f"GAME_STARTED:{game.id}:{idempotency_key}",
                 payload={
                     "prize_pool": int(game.prize_pool),
+                    "commission_rate": float(Decimal(str(game.commission_rate or GameService.COMMISSION_RATE))),
+                    "commission_amount": int(game.commission_amount),
                     "col_prize_amount": int(game.col_prize_amount),
                     "row_prize_amount": int(game.row_prize_amount),
                     "draw_mode": draw_mode,
