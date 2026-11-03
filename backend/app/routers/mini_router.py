@@ -346,6 +346,7 @@ def _to_game_out(g: Game) -> MiniGameItemOut:
         card_price=int(g.card_price),
         game_level=str(g.game_level) if getattr(g, "game_level", None) else None,
         execution_source=str(getattr(g, "execution_source", "ADMIN") or "ADMIN"),
+        commission_rate=float(g.commission_rate or 0),
         scheduled_start_at=str(g.scheduled_start_at) if getattr(g, "scheduled_start_at", None) else None,
         sold_amount=int(g.sold_amount),
         prize_pool=int(g.prize_pool),
@@ -596,6 +597,7 @@ def _audit_auto_draw(
 
 class MiniAdminCreateGameIn(BaseModel):
     card_price: int = Field(gt=0, le=1_000_000_000)
+    commission_rate: float = Field(default=0.10, ge=0, lt=1)
     tg_group_id: int | None = Field(default=None)
     tg_topic_id: int | None = Field(default=None)
     source_game_id: int | None = Field(default=None, gt=0)
@@ -817,7 +819,7 @@ def mini_admin_autopilot_config(
     ]
     return {
         "items": items,
-        "can_edit_commission": bool(ident.is_super_admin),
+        "can_edit_commission": True,
     }
 
 
@@ -836,7 +838,7 @@ def mini_admin_update_autopilot_config(
         level=level,
         values=values,
         updated_by=int(ident.user_id),
-        allow_commission_change=bool(ident.is_super_admin),
+        allow_commission_change=True,
     )
     changed = {
         key: {"before": before.get(key), "after": after.get(key)}
@@ -4013,7 +4015,9 @@ def mini_admin_create_game(
                 "tg_group_id": int(active.tg_group_id),
                 "tg_topic_id": int(active.tg_topic_id) if active.tg_topic_id is not None else None,
                 "card_price": int(active.card_price),
+                "commission_rate": float(active.commission_rate or 0),
                 "requested_card_price": int(card_price),
+                "requested_commission_rate": float(payload.commission_rate),
                 "status": str(active.status),
                 "reused_active": True,
                 "idempotency_key": idem_key,
@@ -4034,6 +4038,7 @@ def mini_admin_create_game(
         tg_group_id=int(tg_group_id),
         tg_topic_id=int(tg_topic_id) if tg_topic_id is not None else None,
         card_price=int(card_price),
+        commission_rate=float(payload.commission_rate),
     )
     db.flush()
     _setting_set_json(
@@ -4053,6 +4058,7 @@ def mini_admin_create_game(
             "tg_group_id": int(g.tg_group_id),
             "tg_topic_id": int(g.tg_topic_id) if g.tg_topic_id is not None else None,
             "card_price": int(g.card_price),
+            "commission_rate": float(g.commission_rate or 0),
             "status": str(g.status),
             "reused_active": False,
             "source_game_id": int(payload.source_game_id) if payload.source_game_id is not None else None,
