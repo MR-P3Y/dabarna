@@ -1547,7 +1547,8 @@ def dashboard_insights(
         if sold_amount <= 0 and buy_tx_total > 0:
             sold_amount = int(buy_tx_total)
 
-        commission_rate = float(getattr(g, "commission_rate", 0.10) or 0.10)
+        commission_rate_raw = getattr(g, "commission_rate", None)
+        commission_rate = float(0.10 if commission_rate_raw is None else commission_rate_raw)
         commission_amount = int(g.commission_amount or 0)
         if commission_amount <= 0 and sold_amount > 0:
             commission_amount = int(round(sold_amount * commission_rate))
