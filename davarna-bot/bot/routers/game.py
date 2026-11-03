@@ -90,6 +90,11 @@ def _build_game_flow_body(game_id: int, state: dict) -> str:
     buy_state = "باز" if status_raw == "LOBBY" else "بسته"
     col_paid = bool(int(state.get("col_paid") or 0))
     row_paid = bool(int(state.get("row_paid") or 0))
+    commission_raw = state.get("commission_rate")
+    try:
+        commission_percent = float(0.10 if commission_raw is None else commission_raw) * 100.0
+    except Exception:
+        commission_percent = 10.0
 
     lines = [
         f"🎮 بازی: <b>#{game_id}</b>",
@@ -99,6 +104,7 @@ def _build_game_flow_body(game_id: int, state: dict) -> str:
         f"تورنا: <b>{winners['col_users']}</b> نفر | تمام: <b>{winners['row_users']}</b> نفر",
         "",
         f"💳 قیمت کارت: <b>{_fmt_int(state.get('card_price'))}</b>",
+        f"🧾 کمیسیون بازی: <b>{commission_percent:g}%</b>",
         f"🎁 جایزه کل: <b>{_fmt_int(state.get('prize_pool'))}</b>",
         f"💵 فروش کارت: <b>{_fmt_int(state.get('sold_amount'))}</b>",
         "",
