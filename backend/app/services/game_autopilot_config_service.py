@@ -62,6 +62,10 @@ class GameAutopilotConfigService:
         return _normalize_level(level)
 
     @staticmethod
+    def normalize_commission_rate(value: Any) -> Decimal:
+        return _normalize_commission_rate(value)
+
+    @staticmethod
     def topic_id_for_level(level: str | None) -> int | None:
         normalized = _normalize_level(level)
         mapping = {
