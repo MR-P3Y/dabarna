@@ -5383,10 +5383,13 @@ async function refreshAdminBootstrap() {
 function renderAdminGames(payload) {
   const root = getEl("adminGamesList");
   if (!root) return;
-  const items = Array.isArray(payload?.items) ? payload.items : [];
+  const allItems = Array.isArray(payload?.items) ? payload.items : [];
+  const items = allItems.filter(
+    (g) => String(g?.execution_source || "ADMIN").toUpperCase() !== "SYSTEM"
+  );
   state.admin.gamesById = new Map(items.map((g) => [Number(g?.id || 0), g]).filter(([gid]) => gid > 0));
   if (!items.length) {
-    root.innerHTML = '<div class="empty">بازی قابل مدیریت پیدا نشد.</div>';
+    root.innerHTML = '<div class="empty">بازی دستی فعالی برای مدیریت وجود ندارد.</div>';
     setAdminSelectedGame(0);
     return;
   }
