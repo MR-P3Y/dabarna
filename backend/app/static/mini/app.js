@@ -1895,7 +1895,7 @@ function drawGames(items) {
         <div class="prize-progress"><i style="width:${progress}%"></i></div>
         ${runningBanner}
         <div class="item-row">
-          <span class="meta">قیمت هر کارت: ${safeText(toman(g.card_price))}</span>
+          <span class="meta">قیمت هر کارت: ${safeText(toman(g.card_price))} · کمیسیون: ${safeText(toFaDigits(Number(g.commission_rate ?? 0.10) * 100))}٪</span>
           ${cta}
         </div>
       </div>
