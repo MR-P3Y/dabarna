@@ -326,13 +326,14 @@ const UI_TEXT = {
   adminTitle: "پنل مدیریت",
   adminGuideText:
     "ایجاد بازی، مدیریت عملیات و بررسی واریز/برداشت از همین بخش انجام می‌شود.",
-  adminCreateTitle: "ایجاد بازی جدید",
-  adminCreateHint: "با انتخاب تاپیک و قیمت کارت، بازی جدید بسازید.",
+  adminCreateTitle: "ایجاد بازی دستی",
+  adminCreateHint: "تاپیک، قیمت کارت و کمیسیون همین بازی دستی را تعیین کنید.",
   adminCreateGroupLabel: "شناسه گروه",
   adminCreateTopicLabel: "تاپیک بازی",
   adminCreatePriceLabel: "قیمت کارت (تومان)",
+  adminCreateCommissionLabel: "کمیسیون بازی (%)",
   adminCreateBtn: "ایجاد بازی سفارشی",
-  adminGamesTitle: "بازی‌های قابل مدیریت",
+  adminGamesTitle: "بازی‌های دستی فعال",
   adminActionsTitle: "عملیات بازی",
   adminCallLabel: "عدد برای اعلام",
   adminUndoBtn: "حذف آخرین عدد",
@@ -381,6 +382,7 @@ function localizeShell() {
     adminCreateGroupIdInput: "مثال: -1001234567890",
     adminCreateTopicIdInput: "مثال: 14",
     adminCreateCardPriceInput: "مثال: 100000",
+    adminCreateCommissionInput: "مثال: 10",
     adminUsersSearchInput: "مثال: 6171256645 یا @username یا gid:12",
     superAdminTgUserInput: "شناسه عددی تلگرام",
   };
@@ -5269,6 +5271,8 @@ function syncAdminCreateFormFromGame(gameId) {
   setVal("adminCreateGroupIdInput", String(g.tg_group_id || ""));
   setAdminCreateTopic(g.tg_topic_id == null ? null : Number(g.tg_topic_id), { silent: true });
   setVal("adminCreateCardPriceInput", String(g.card_price || ""));
+  const ratePercent = Number(g.commission_rate ?? 0.10) * 100;
+  setVal("adminCreateCommissionInput", String(Number.isFinite(ratePercent) ? ratePercent : 10));
 }
 
 function setAdminSelectedGame(gameId, statusText = "") {
@@ -5404,6 +5408,7 @@ function renderAdminGames(payload) {
           <strong>بازی #${gid} | ${status}</strong>
           <div class="history-meta">
             قیمت کارت: ${safeText(toman(g?.card_price || 0))}<br />
+            کمیسیون: ${safeText(toFaDigits(Number(g?.commission_rate || 0) * 100))}٪<br />
             جایزه: ${safeText(toman(g?.prize_pool || 0))}<br />
             گروه: ${safeText(String(g?.tg_group_id || "-"))}<br />
             تاپیک: ${safeText(g?.tg_topic_id == null ? "-" : String(g?.tg_topic_id))}<br />
@@ -7033,7 +7038,7 @@ function renderAdminAutopilotConfig(payload) {
                   <label for="autopilotCommission_${safeText(level)}">کمیسیون (%)</label>
                   <input id="autopilotCommission_${safeText(level)}" type="text" inputmode="decimal"
                     value="${safeText(String(rate))}" ${commissionDisabled} />
-                  <small class="field-help">${canEditCommission ? "قابل تغییر توسط سوپرادمین" : "فقط سوپرادمین می‌تواند تغییر دهد"}</small>
+                  <small class="field-help">${canEditCommission ? "برای بازی‌های جدید این سطح ذخیره می‌شود" : "امکان تغییر ندارید"}</small>
                 </div>
 
                 <div class="autopilot-locked-field">
@@ -7210,6 +7215,8 @@ async function adminCreateGame() {
   }
 
   let cardPrice = parsePositiveInt(getVal("adminCreateCardPriceInput"));
+  const commissionRaw = toEnglishDigits(String(getVal("adminCreateCommissionInput") || "")).trim().replace(",", ".");
+  const commissionPercent = Number(commissionRaw);
 
   if (state.admin?.create?.enforceTopic && topicId == null) {
     throw new Error("ابتدا یکی از تاپیک‌های بازی را انتخاب کنید.");
@@ -7218,6 +7225,9 @@ async function adminCreateGame() {
   if (groupId === 0) throw new Error("شناسه گروه نامعتبر است.");
   if (topicId != null && topicId <= 0) throw new Error("شناسه تاپیک نامعتبر است.");
   if (!cardPrice || cardPrice <= 0) throw new Error("قیمت کارت باید بیشتر از صفر باشد.");
+  if (!Number.isFinite(commissionPercent) || commissionPercent < 0 || commissionPercent >= 100) {
+    throw new Error("کمیسیون باید بین ۰ تا کمتر از ۱۰۰ درصد باشد.");
+  }
 
   setAdminCreateTopic(topicId, { silent: true });
   setHint("adminCreateHintMsg", "در حال ایجاد بازی جدید...");
@@ -7225,6 +7235,7 @@ async function adminCreateGame() {
     tg_group_id: Number(groupId),
     tg_topic_id: topicId == null ? null : Number(topicId),
     card_price: Number(cardPrice),
+    commission_rate: commissionPercent / 100,
     source_game_id: null,
     idempotency_key: idem("mini_admin_create_game"),
   };
@@ -7232,6 +7243,7 @@ async function adminCreateGame() {
   const newGameId = Number(res?.game?.id || 0);
   const reused = Boolean(res?.reused_active);
   const activePrice = Number(res?.game?.card_price || 0);
+  const activeCommission = Number(res?.game?.commission_rate ?? commissionPercent / 100) * 100;
   const requestedPrice = Number(res?.requested_card_price || cardPrice || 0);
   if (reused) {
     const reuseMsg =
@@ -7240,7 +7252,7 @@ async function adminCreateGame() {
         : `برای این تاپیک، بازی فعال موجود بود و همان بازی #${newGameId} انتخاب شد.`;
     setHint("adminCreateHintMsg", reuseMsg, "success");
   } else {
-    setHint("adminCreateHintMsg", newGameId ? `بازی #${newGameId} با موفقیت ایجاد شد.` : "بازی جدید ایجاد شد.", "success");
+    setHint("adminCreateHintMsg", newGameId ? `بازی #${newGameId} با کمیسیون ${toFaDigits(activeCommission)}٪ ایجاد شد.` : "بازی جدید ایجاد شد.", "success");
   }
 
   await Promise.allSettled([refreshAdminGames(), refreshGames(), refreshAdminCreateOptions()]);
