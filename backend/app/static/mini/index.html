@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>مینی‌اپ دبرنای طوفان</title>
-    <link rel="stylesheet" href="./styles.css?v=mini-withdraw-reject-20261009-1" />
+    <link rel="stylesheet" href="./styles.css?v=admin-game-modes-20261103-1" />
   </head>
   <body>
     <div id="appSplash" class="app-splash" aria-label="در حال آماده‌سازی مینی‌اپ">
@@ -443,20 +443,44 @@
               <div id="adminOpsDashboard" class="admin-ops-grid"></div>
             </div>
 
-            <div class="cards-box">
-              <div class="cards-box-head">
-                <h3>🤖 اتوماسیون بازی‌ها</h3>
-                <button id="adminAutopilotRefreshBtn" class="small-btn" type="button">بازخوانی</button>
-              </div>
-              <p class="hint">
-                تنظیمات هر دسته بازی را از همین‌جا تغییر دهید. حداقل بازیکن روی ۲ نفر قفل است و تغییر کمیسیون فقط برای سوپرادمین مجاز است.
-              </p>
-              <div id="adminAutopilotList" class="stack-list">
-                <div class="empty">در حال دریافت تنظیمات اتوماسیون...</div>
-              </div>
+            <div class="admin-game-mode-picker" aria-label="روش اجرای بازی">
+              <button id="adminGameModeManualBtn" class="admin-game-mode-card active" type="button" data-admin-game-mode="MANUAL">
+                <span class="admin-game-mode-icon">🎮</span>
+                <span>
+                  <strong>بازی دستی</strong>
+                  <small>ایجاد و کنترل بازی توسط ادمین</small>
+                </span>
+              </button>
+              <button id="adminGameModeAutoBtn" class="admin-game-mode-card" type="button" data-admin-game-mode="AUTO">
+                <span class="admin-game-mode-icon">🤖</span>
+                <span>
+                  <strong>بازی خودکار</strong>
+                  <small>مدیریت کامل چرخه توسط سیستم</small>
+                </span>
+              </button>
             </div>
 
-            <div class="cards-box">
+            <section id="adminAutoModeSection" class="admin-game-mode-section hidden">
+              <div class="cards-box">
+                <div class="cards-box-head">
+                  <div>
+                    <h3>🤖 بازی‌های خودکار</h3>
+                    <span class="meta">تنظیمات را یک‌بار تعریف کنید؛ ادامه چرخه با سیستم است.</span>
+                  </div>
+                  <button id="adminAutopilotRefreshBtn" class="small-btn" type="button">بازخوانی</button>
+                </div>
+                <div class="admin-auto-explainer">
+                  <strong>سیستم چه کار می‌کند؟</strong>
+                  <span>ساخت بازی → انتظار برای حداقل بازیکن → شمارش معکوس → شروع → اعلام اعداد → پایان → ساخت بازی بعدی</span>
+                </div>
+                <div id="adminAutopilotList" class="stack-list">
+                  <div class="empty">در حال دریافت تنظیمات بازی خودکار...</div>
+                </div>
+              </div>
+            </section>
+
+            <section id="adminManualModeSection" class="admin-game-mode-section">
+              <div class="cards-box">
               <div class="cards-box-head">
                 <h3 id="adminCreateTitle">ایجاد بازی جدید</h3>
               </div>
@@ -677,6 +701,8 @@
                 <div id="adminActionHint" class="step-hint"></div>
               </div>
             </div>
+
+            </section>
 
             <div class="admin-accordion mt-12">
               <details class="accordion-item">
@@ -1004,6 +1030,6 @@
     <div id="miniToast" class="mini-toast hidden" role="status" aria-live="polite"></div>
 
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="./app.js?v=autopilot-admin-20261031-2" type="module"></script>
+    <script src="./app.js?v=admin-game-modes-20261103-1" type="module"></script>
   </body>
 </html>
