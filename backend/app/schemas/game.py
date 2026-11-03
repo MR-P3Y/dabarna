@@ -5,6 +5,7 @@ class CreateGameIn(BaseModel):
     tg_group_id: int | None = None
     tg_topic_id: int | None = None
     card_price: int
+    commission_rate: float | None = Field(default=None, ge=0, lt=1)
 
 class GameOut(BaseModel):
     id: int
