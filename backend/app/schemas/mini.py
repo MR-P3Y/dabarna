@@ -21,6 +21,10 @@ class MiniGameItemOut(BaseModel):
     tg_topic_id: int | None = None
     status: str
     card_price: int
+    game_level: str | None = None
+    execution_source: str = "ADMIN"
+    commission_rate: float = 0.10
+    scheduled_start_at: str | None = None
     sold_amount: int
     prize_pool: int
     col_prize_amount: int
@@ -188,6 +192,7 @@ class MiniRecentGameStatOut(BaseModel):
     card_price: int = 0
     sold_cards: int
     sold_amount: int = 0
+    commission_rate: float = 0.10
     commission_amount: int = 0
     prize_pool: int
     winners_count: int

@@ -138,6 +138,7 @@ class ApiClient:
         tg_group_id: int,
         *,
         card_price: int,
+        commission_rate: float = 0.10,
         tg_topic_id: int | None = None,
     ) -> dict:
         params: dict[str, int] | None = None
@@ -151,6 +152,7 @@ class ApiClient:
                 "tg_group_id": int(tg_group_id),
                 "tg_topic_id": int(tg_topic_id) if tg_topic_id is not None else None,
                 "card_price": int(card_price),
+                "commission_rate": float(commission_rate),
             },
             headers=self.admin_headers(),
         )
@@ -339,6 +341,14 @@ class ApiClient:
             timeout_sec=45.0,
         )
         return data if isinstance(data, dict) else {}
+
+    async def admin_get_autopilot_config(self) -> dict:
+        data = await self._request(
+            "GET",
+            "/admin/autopilot/config",
+            headers=self.admin_headers(),
+        )
+        return data if isinstance(data, dict) else {"items": []}
 
     async def admin_list_games(
         self,

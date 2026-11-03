@@ -798,6 +798,7 @@ class BotAdminGameOut(BaseModel):
     admin_user_id: int
     status: str
     card_price: int
+    commission_rate: float = 0.10
     sold_amount: int
     commission_amount: int
     prize_pool: int
@@ -868,6 +869,7 @@ class BotAdminGameReportGameOut(BaseModel):
     admin_tg_user_id: int | None = None
     status: str
     card_price: int
+    commission_rate: float = 0.10
     sold_amount: int
     commission_amount: int
     prize_pool: int
@@ -1038,6 +1040,7 @@ def _to_bot_admin_game_out(g: Game) -> BotAdminGameOut:
         admin_user_id=int(g.admin_user_id),
         status=str(g.status),
         card_price=int(g.card_price),
+        commission_rate=float(g.commission_rate or 0),
         sold_amount=int(g.sold_amount),
         commission_amount=int(g.commission_amount),
         prize_pool=int(g.prize_pool),
@@ -2585,7 +2588,7 @@ def list_bot_admin_games(
         text(f"""
             SELECT
               id, tg_group_id, tg_topic_id, admin_user_id, status,
-              card_price, sold_amount, commission_amount, prize_pool,
+              card_price, commission_rate, sold_amount, commission_amount, prize_pool,
               prize_locked, col_prize_amount, row_prize_amount,
               col_paid, payout_state_json, row_winner_user_id,
               created_at
@@ -2746,6 +2749,7 @@ def get_bot_admin_game_report(
             admin_tg_user_id=admin_tg_user_id,
             status=str(game["status"]),
             card_price=int(game["card_price"]),
+            commission_rate=float(game["commission_rate"] or 0),
             sold_amount=int(game["sold_amount"]),
             commission_amount=int(game["commission_amount"]),
             prize_pool=int(game["prize_pool"]),
@@ -2957,6 +2961,7 @@ def ensure_bot_admin_game_active(
             tg_group_id=int(src_game.tg_group_id),
             tg_topic_id=int(src_game.tg_topic_id) if getattr(src_game, "tg_topic_id", None) is not None else None,
             card_price=int(src_game.card_price),
+            commission_rate=float(src_game.commission_rate if src_game.commission_rate is not None else 0.10),
         )
         AdminAuditService.record(
             db,
@@ -2971,6 +2976,7 @@ def ensure_bot_admin_game_active(
                 "tg_group_id": int(created.tg_group_id),
                 "tg_topic_id": int(created.tg_topic_id) if created.tg_topic_id is not None else None,
                 "card_price": int(created.card_price),
+                "commission_rate": float(created.commission_rate or 0),
                 "status": str(created.status),
                 "source": "bot.ensure_active",
             },

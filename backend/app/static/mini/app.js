@@ -326,13 +326,14 @@ const UI_TEXT = {
   adminTitle: "پنل مدیریت",
   adminGuideText:
     "ایجاد بازی، مدیریت عملیات و بررسی واریز/برداشت از همین بخش انجام می‌شود.",
-  adminCreateTitle: "ایجاد بازی جدید",
-  adminCreateHint: "با انتخاب تاپیک و قیمت کارت، بازی جدید بسازید.",
+  adminCreateTitle: "ایجاد بازی دستی",
+  adminCreateHint: "تاپیک، قیمت کارت و کمیسیون همین بازی دستی را تعیین کنید.",
   adminCreateGroupLabel: "شناسه گروه",
   adminCreateTopicLabel: "تاپیک بازی",
   adminCreatePriceLabel: "قیمت کارت (تومان)",
+  adminCreateCommissionLabel: "کمیسیون بازی (%)",
   adminCreateBtn: "ایجاد بازی سفارشی",
-  adminGamesTitle: "بازی‌های قابل مدیریت",
+  adminGamesTitle: "بازی‌های دستی فعال",
   adminActionsTitle: "عملیات بازی",
   adminCallLabel: "عدد برای اعلام",
   adminUndoBtn: "حذف آخرین عدد",
@@ -381,6 +382,7 @@ function localizeShell() {
     adminCreateGroupIdInput: "مثال: -1001234567890",
     adminCreateTopicIdInput: "مثال: 14",
     adminCreateCardPriceInput: "مثال: 100000",
+    adminCreateCommissionInput: "مثال: 10",
     adminUsersSearchInput: "مثال: 6171256645 یا @username یا gid:12",
     superAdminTgUserInput: "شناسه عددی تلگرام",
   };
@@ -1301,6 +1303,7 @@ function localizeApiError(detail) {
     "live_url is too long": "طول لینک پخش زنده بیش از حد مجاز است.",
     "cannot revoke your own super admin role": "امکان حذف نقش سوپرادمین از خودتان وجود ندارد.",
     "cannot revoke last super admin": "نقش آخرین سوپرادمین قابل حذف نیست.",
+    "cannot start: at least 2 unique players are required": "برای شروع بازی حداقل ۲ بازیکن متفاوت باید کارت داشته باشند.",
     "super admin owner required": "فقط سوپرادمین اصلی مجاز به این عملیات است.",
     "only game admin can manage this game": "فقط ادمین همان بازی می‌تواند این عملیات را انجام دهد.",
     "invalid bot token": "توکن سرویس ربات نامعتبر است.",
@@ -1892,7 +1895,7 @@ function drawGames(items) {
         <div class="prize-progress"><i style="width:${progress}%"></i></div>
         ${runningBanner}
         <div class="item-row">
-          <span class="meta">قیمت هر کارت: ${safeText(toman(g.card_price))}</span>
+          <span class="meta">قیمت هر کارت: ${safeText(toman(g.card_price))} · کمیسیون: ${safeText(toFaDigits(Number(g.commission_rate ?? 0.10) * 100))}٪</span>
           ${cta}
         </div>
       </div>
@@ -5268,6 +5271,8 @@ function syncAdminCreateFormFromGame(gameId) {
   setVal("adminCreateGroupIdInput", String(g.tg_group_id || ""));
   setAdminCreateTopic(g.tg_topic_id == null ? null : Number(g.tg_topic_id), { silent: true });
   setVal("adminCreateCardPriceInput", String(g.card_price || ""));
+  const ratePercent = Number(g.commission_rate ?? 0.10) * 100;
+  setVal("adminCreateCommissionInput", String(Number.isFinite(ratePercent) ? ratePercent : 10));
 }
 
 function setAdminSelectedGame(gameId, statusText = "") {
@@ -5382,10 +5387,13 @@ async function refreshAdminBootstrap() {
 function renderAdminGames(payload) {
   const root = getEl("adminGamesList");
   if (!root) return;
-  const items = Array.isArray(payload?.items) ? payload.items : [];
+  const allItems = Array.isArray(payload?.items) ? payload.items : [];
+  const items = allItems.filter(
+    (g) => String(g?.execution_source || "ADMIN").toUpperCase() !== "SYSTEM"
+  );
   state.admin.gamesById = new Map(items.map((g) => [Number(g?.id || 0), g]).filter(([gid]) => gid > 0));
   if (!items.length) {
-    root.innerHTML = '<div class="empty">بازی قابل مدیریت پیدا نشد.</div>';
+    root.innerHTML = '<div class="empty">بازی دستی فعالی برای مدیریت وجود ندارد.</div>';
     setAdminSelectedGame(0);
     return;
   }
@@ -5400,6 +5408,7 @@ function renderAdminGames(payload) {
           <strong>بازی #${gid} | ${status}</strong>
           <div class="history-meta">
             قیمت کارت: ${safeText(toman(g?.card_price || 0))}<br />
+            کمیسیون: ${safeText(toFaDigits(Number(g?.commission_rate || 0) * 100))}٪<br />
             جایزه: ${safeText(toman(g?.prize_pool || 0))}<br />
             گروه: ${safeText(String(g?.tg_group_id || "-"))}<br />
             تاپیک: ${safeText(g?.tg_topic_id == null ? "-" : String(g?.tg_topic_id))}<br />
@@ -5435,9 +5444,14 @@ function renderAdminGames(payload) {
     });
   });
 
-  if (!selectedAdminGameId()) {
+  const selected = selectedAdminGameId();
+  if (!selected || !state.admin.gamesById.has(Number(selected))) {
     const first = Number(items[0]?.id || 0);
-    if (first) setAdminSelectedGame(first, statusLabel(items[0]?.status));
+    if (first) {
+      setAdminSelectedGame(first, statusLabel(items[0]?.status));
+    } else {
+      setAdminSelectedGame(0);
+    }
   }
 }
 
@@ -6874,11 +6888,293 @@ async function refreshAdminRiskAlerts() {
   renderAdminRiskAlerts(out);
 }
 
+function autopilotLevelLabel(level) {
+  const key = String(level || "").toUpperCase();
+  return {
+    LOW: "مبلغ پایین",
+    MEDIUM: "مبلغ متوسط",
+    HIGH: "مبلغ بالا",
+  }[key] || key || "-";
+}
+
+function autopilotModeLabel(mode) {
+  return String(mode || "").toUpperCase() === "AUTO" ? "خودکار" : "دستی";
+}
+
+function setAdminGameMode(mode, options = {}) {
+  const key = String(mode || "").toUpperCase() === "AUTO" ? "AUTO" : "MANUAL";
+  const persist = options?.persist !== false;
+  const manualSection = getEl("adminManualModeSection");
+  const autoSection = getEl("adminAutoModeSection");
+  const manualBtn = getEl("adminGameModeManualBtn");
+  const autoBtn = getEl("adminGameModeAutoBtn");
+
+  manualSection?.classList.toggle("hidden", key !== "MANUAL");
+  autoSection?.classList.toggle("hidden", key !== "AUTO");
+  manualBtn?.classList.toggle("active", key === "MANUAL");
+  autoBtn?.classList.toggle("active", key === "AUTO");
+
+  if (persist) {
+    try {
+      localStorage.setItem("davarna_admin_game_mode", key);
+    } catch (_) {}
+  }
+
+  if (key === "AUTO") {
+    refreshAdminAutopilotConfig({ force: true }).catch(() => {});
+  }
+}
+
+function restoreAdminGameMode() {
+  let saved = "MANUAL";
+  try {
+    saved = String(localStorage.getItem("davarna_admin_game_mode") || "MANUAL").toUpperCase();
+  } catch (_) {}
+  setAdminGameMode(saved === "AUTO" ? "AUTO" : "MANUAL", { persist: false });
+}
+
+function renderAdminAutopilotConfig(payload) {
+  const root = getEl("adminAutopilotList");
+  if (!root) return;
+  const items = Array.isArray(payload?.items) ? payload.items : [];
+  const canEditCommission = Boolean(payload?.can_edit_commission);
+  if (!items.length) {
+    root.innerHTML = '<div class="empty">تنظیمات بازی خودکار هنوز ایجاد نشده است.</div>';
+    return;
+  }
+
+  root.innerHTML = items
+    .map((item) => {
+      const level = String(item?.level || "").toUpperCase();
+      const enabled = Boolean(item?.enabled);
+      const price = item?.card_price == null ? "" : String(item.card_price);
+      const rate = Number(item?.commission_rate || 0) * 100;
+      const drawInterval = Number(item?.draw_interval_seconds || 10);
+      const repeatInterval = Number(item?.repeat_interval_seconds || 60);
+      const countdown = Number(item?.countdown_seconds || 30);
+      const commissionDisabled = canEditCommission ? "" : "disabled";
+      const statusText = enabled ? "فعال" : "غیرفعال";
+      const priceText = price ? toman(Number(price)) : "قیمت تعریف نشده";
+
+      return `
+        <details class="autopilot-level-card ${enabled ? "is-enabled" : ""}" data-autopilot-level="${safeText(level)}">
+          <summary class="autopilot-level-summary">
+            <div class="autopilot-level-main">
+              <span class="autopilot-level-dot" aria-hidden="true"></span>
+              <div>
+                <strong>${safeText(autopilotLevelLabel(level))}</strong>
+                <small>${safeText(statusText)} • ${safeText(priceText)}</small>
+              </div>
+            </div>
+            <div class="autopilot-level-quick">
+              <span>هر ${safeText(toFaDigits(drawInterval))} ثانیه</span>
+              <span>بازی بعدی ${safeText(toFaDigits(repeatInterval))} ثانیه</span>
+            </div>
+          </summary>
+
+          <div class="autopilot-level-body">
+            <div class="autopilot-mode-note">
+              <strong>اجرای کامل توسط سیستم</strong>
+              <span>ساخت، شروع، شماره‌خوانی و پایان بازی در این حالت خودکار است.</span>
+            </div>
+
+            <label class="autopilot-enable-row">
+              <input id="autopilotEnabled_${safeText(level)}" type="checkbox" ${enabled ? "checked" : ""} />
+              <span>
+                <strong>فعال بودن این سطح</strong>
+                <small>اگر خاموش باشد، سیستم برای این سطح بازی جدید نمی‌سازد.</small>
+              </span>
+            </label>
+
+            <div class="admin-grid-two autopilot-primary-fields">
+              <div>
+                <label for="autopilotPrice_${safeText(level)}">قیمت هر کارت (تومان)</label>
+                <input id="autopilotPrice_${safeText(level)}" type="text" inputmode="numeric"
+                  value="${safeText(price)}" placeholder="مثلاً 5000" />
+              </div>
+
+              <div>
+                <label for="autopilotDrawInterval_${safeText(level)}">فاصله اعلام اعداد</label>
+                <select id="autopilotDrawInterval_${safeText(level)}">
+                  ${[5, 8, 10, 15].map((value) => `
+                    <option value="${value}" ${drawInterval === value ? "selected" : ""}>${toFaDigits(value)} ثانیه</option>
+                  `).join("")}
+                </select>
+              </div>
+
+              <div>
+                <label for="autopilotCountdown_${safeText(level)}">شمارش معکوس شروع</label>
+                <input id="autopilotCountdown_${safeText(level)}" type="text" inputmode="numeric"
+                  value="${safeText(String(item?.countdown_seconds ?? 30))}" />
+                <small class="field-help">ثانیه پس از رسیدن به حداقل بازیکن</small>
+              </div>
+
+              <div>
+                <label for="autopilotRepeat_${safeText(level)}">فاصله تا بازی بعدی</label>
+                <input id="autopilotRepeat_${safeText(level)}" type="text" inputmode="numeric"
+                  value="${safeText(String(item?.repeat_interval_seconds ?? 60))}" />
+                <small class="field-help">ثانیه پس از پایان بازی قبلی</small>
+              </div>
+            </div>
+
+            <details class="autopilot-advanced">
+              <summary>تنظیمات بیشتر</summary>
+              <div class="admin-grid-two">
+                <div>
+                  <label for="autopilotAnnounce_${safeText(level)}">اعلان قبل از بازی</label>
+                  <input id="autopilotAnnounce_${safeText(level)}" type="text" inputmode="numeric"
+                    value="${safeText(String(item?.announce_before_seconds ?? 300))}" />
+                  <small class="field-help">ثانیه</small>
+                </div>
+
+                <div>
+                  <label for="autopilotCooldown_${safeText(level)}">زمان استراحت سیستم</label>
+                  <input id="autopilotCooldown_${safeText(level)}" type="text" inputmode="numeric"
+                    value="${safeText(String(item?.cooldown_seconds ?? 0))}" />
+                  <small class="field-help">ثانیه</small>
+                </div>
+
+                <div>
+                  <label for="autopilotCommission_${safeText(level)}">کمیسیون (%)</label>
+                  <input id="autopilotCommission_${safeText(level)}" type="text" inputmode="decimal"
+                    value="${safeText(String(rate))}" ${commissionDisabled} />
+                  <small class="field-help">${canEditCommission ? "برای بازی‌های جدید این سطح ذخیره می‌شود" : "امکان تغییر ندارید"}</small>
+                </div>
+
+                <div class="autopilot-locked-field">
+                  <span>حداقل بازیکن مجزا</span>
+                  <strong>۲ نفر</strong>
+                  <small>قانون سیستمی و غیرقابل کاهش</small>
+                </div>
+              </div>
+            </details>
+
+            <div class="autopilot-save-row">
+              <button
+                class="small-btn primary"
+                type="button"
+                data-autopilot-save="${safeText(level)}"
+                data-can-edit-commission="${canEditCommission ? "1" : "0"}"
+              >
+                ذخیره تنظیمات ${safeText(autopilotLevelLabel(level))}
+              </button>
+              <span class="meta">تاپیک: ${safeText(item?.topic_id == null ? "تعریف نشده" : String(item.topic_id))}</span>
+            </div>
+            <div id="adminAutopilotHint_${safeText(level)}" class="step-hint"></div>
+          </div>
+        </details>
+      `;
+    })
+    .join("");
+
+  if (!root.dataset.autopilotEditorBound) {
+    root.dataset.autopilotEditorBound = "1";
+
+    const markDirty = (ev) => {
+      if (!ev.target?.closest?.("[data-autopilot-level]")) return;
+      root.dataset.autopilotDirty = "1";
+    };
+    root.addEventListener("input", markDirty);
+    root.addEventListener("change", markDirty);
+
+    root.addEventListener("click", (ev) => {
+      const btn = ev.target?.closest?.("[data-autopilot-save]");
+      if (!btn) return;
+      const level = String(btn.dataset.autopilotSave || "").toUpperCase();
+      const canEdit = String(btn.dataset.canEditCommission || "") === "1";
+      saveAdminAutopilotLevel(level, canEdit, btn).catch((err) => {
+        setHint(
+          `adminAutopilotHint_${level}`,
+          localizeApiError(err?.message || err || "خطا در ذخیره تنظیمات"),
+          "error",
+        );
+      });
+    });
+  }
+}
+
+async function saveAdminAutopilotLevel(level, canEditCommission, button = null) {
+  const key = String(level || "").toUpperCase();
+  if (!["LOW", "MEDIUM", "HIGH"].includes(key)) {
+    throw new Error("سطح بازی نامعتبر است.");
+  }
+
+  const price = parseIntegerStrict(getVal(`autopilotPrice_${key}`));
+  const countdown = parseIntegerStrict(getVal(`autopilotCountdown_${key}`));
+  const repeatInterval = parseIntegerStrict(getVal(`autopilotRepeat_${key}`));
+  const cooldown = parseIntegerStrict(getVal(`autopilotCooldown_${key}`));
+  const announceBefore = parseIntegerStrict(getVal(`autopilotAnnounce_${key}`));
+  const drawInterval = parseIntegerStrict(getVal(`autopilotDrawInterval_${key}`));
+
+  if (price == null || price < 1000) throw new Error("قیمت کارت باید حداقل ۱,۰۰۰ تومان باشد.");
+  if (countdown == null || countdown < 5) throw new Error("شمارش معکوس باید حداقل ۵ ثانیه باشد.");
+  if (repeatInterval == null || repeatInterval < 60) throw new Error("فاصله ساخت بازی بعدی باید حداقل ۶۰ ثانیه باشد.");
+  if (cooldown == null || cooldown < 0) throw new Error("زمان استراحت نامعتبر است.");
+  if (announceBefore == null || announceBefore < 10) throw new Error("زمان اعلان باید حداقل ۱۰ ثانیه باشد.");
+  if (![5, 8, 10, 15].includes(drawInterval)) throw new Error("فاصله اعلام اعداد نامعتبر است.");
+
+  const payload = {
+    enabled: Boolean(getEl(`autopilotEnabled_${key}`)?.checked),
+    scheduler_mode: "AUTO",
+    start_mode: "AUTO",
+    draw_mode: "AUTO",
+    card_price: price,
+    countdown_seconds: countdown,
+    repeat_interval_seconds: repeatInterval,
+    cooldown_seconds: cooldown,
+    announce_before_seconds: announceBefore,
+    draw_interval_seconds: drawInterval,
+  };
+
+  if (canEditCommission) {
+    const rawRate = toEnglishDigits(String(getVal(`autopilotCommission_${key}`) || "")).trim().replace(",", ".");
+    const percent = Number(rawRate);
+    if (!Number.isFinite(percent) || percent < 0 || percent >= 100) {
+      throw new Error("کمیسیون باید بین ۰ تا کمتر از ۱۰۰ درصد باشد.");
+    }
+    payload.commission_rate = percent / 100;
+  }
+
+  const hintId = `adminAutopilotHint_${key}`;
+  setHint(hintId, "در حال ذخیره...");
+  if (button) button.disabled = true;
+
+  try {
+    await apiFetch(`/mini-api/admin/autopilot/config/${key}`, {
+      method: "PUT",
+      body: payload,
+    });
+    setHint(hintId, "تنظیمات بازی خودکار ذخیره شد.", "success");
+    const root = getEl("adminAutopilotList");
+    if (root) root.dataset.autopilotDirty = "0";
+    await refreshAdminAutopilotConfig({ force: true });
+  } finally {
+    if (button) button.disabled = false;
+  }
+}
+
+async function refreshAdminAutopilotConfig(options = {}) {
+  if (!state.admin.enabled) return;
+  const root = getEl("adminAutopilotList");
+  const force = Boolean(options?.force);
+  if (!force && root?.dataset?.autopilotDirty === "1") return;
+  try {
+    const out = await apiFetch("/mini-api/admin/autopilot/config");
+    renderAdminAutopilotConfig(out);
+  } catch (err) {
+    const msg = localizeApiError(err?.message || err || "");
+    if (root) {
+      root.innerHTML = `<div class="empty">این بخش برای مدیریت بازی و سوپرادمین در دسترس است.<br /><span class="meta">${safeText(msg)}</span></div>`;
+    }
+  }
+}
+
 async function refreshAdminPanel(options = {}) {
   const silent = Boolean(options?.silent);
   if (!state.admin.enabled) return;
   await Promise.allSettled([
     refreshAdminOpsDashboard(),
+    refreshAdminAutopilotConfig(),
     refreshAdminCreateOptions(),
     refreshAdminGames(),
     refreshAdminRiskAlerts(),
@@ -6919,6 +7215,8 @@ async function adminCreateGame() {
   }
 
   let cardPrice = parsePositiveInt(getVal("adminCreateCardPriceInput"));
+  const commissionRaw = toEnglishDigits(String(getVal("adminCreateCommissionInput") || "")).trim().replace(",", ".");
+  const commissionPercent = Number(commissionRaw);
 
   if (state.admin?.create?.enforceTopic && topicId == null) {
     throw new Error("ابتدا یکی از تاپیک‌های بازی را انتخاب کنید.");
@@ -6927,6 +7225,9 @@ async function adminCreateGame() {
   if (groupId === 0) throw new Error("شناسه گروه نامعتبر است.");
   if (topicId != null && topicId <= 0) throw new Error("شناسه تاپیک نامعتبر است.");
   if (!cardPrice || cardPrice <= 0) throw new Error("قیمت کارت باید بیشتر از صفر باشد.");
+  if (!Number.isFinite(commissionPercent) || commissionPercent < 0 || commissionPercent >= 100) {
+    throw new Error("کمیسیون باید بین ۰ تا کمتر از ۱۰۰ درصد باشد.");
+  }
 
   setAdminCreateTopic(topicId, { silent: true });
   setHint("adminCreateHintMsg", "در حال ایجاد بازی جدید...");
@@ -6934,6 +7235,7 @@ async function adminCreateGame() {
     tg_group_id: Number(groupId),
     tg_topic_id: topicId == null ? null : Number(topicId),
     card_price: Number(cardPrice),
+    commission_rate: commissionPercent / 100,
     source_game_id: null,
     idempotency_key: idem("mini_admin_create_game"),
   };
@@ -6941,6 +7243,7 @@ async function adminCreateGame() {
   const newGameId = Number(res?.game?.id || 0);
   const reused = Boolean(res?.reused_active);
   const activePrice = Number(res?.game?.card_price || 0);
+  const activeCommission = Number(res?.game?.commission_rate ?? commissionPercent / 100) * 100;
   const requestedPrice = Number(res?.requested_card_price || cardPrice || 0);
   if (reused) {
     const reuseMsg =
@@ -6949,7 +7252,7 @@ async function adminCreateGame() {
         : `برای این تاپیک، بازی فعال موجود بود و همان بازی #${newGameId} انتخاب شد.`;
     setHint("adminCreateHintMsg", reuseMsg, "success");
   } else {
-    setHint("adminCreateHintMsg", newGameId ? `بازی #${newGameId} با موفقیت ایجاد شد.` : "بازی جدید ایجاد شد.", "success");
+    setHint("adminCreateHintMsg", newGameId ? `بازی #${newGameId} با کمیسیون ${toFaDigits(activeCommission)}٪ ایجاد شد.` : "بازی جدید ایجاد شد.", "success");
   }
 
   await Promise.allSettled([refreshAdminGames(), refreshGames(), refreshAdminCreateOptions()]);
@@ -8419,6 +8722,17 @@ async function boot() {
   bind("submitWithdrawBtn", "click", () => createWithdraw().catch((e) => setLocalError("withdrawSubmitHint", e)));
   bind("refreshAdminBtn", "click", () => runManualRefresh("refreshAdminBtn", () => refreshAdminPanel()).catch(() => {}));
   bind("adminOpsRefreshBtn", "click", () => runManualRefresh("adminOpsRefreshBtn", () => refreshAdminPanel()).catch(() => {}));
+  bind("adminGameModeManualBtn", "click", () => setAdminGameMode("MANUAL"));
+  bind("adminGameModeAutoBtn", "click", () => setAdminGameMode("AUTO"));
+  restoreAdminGameMode();
+
+  bind("adminAutopilotRefreshBtn", "click", () =>
+    runManualRefresh("adminAutopilotRefreshBtn", () => {
+      const root = getEl("adminAutopilotList");
+      if (root) root.dataset.autopilotDirty = "0";
+      return refreshAdminAutopilotConfig({ force: true });
+    }).catch(() => {})
+  );
   bind("adminUsersSearchBtn", "click", () => adminUsersSearch().catch((e) => setLocalError("adminUsersHint", e)));
   bind("adminUsersRefreshBtn", "click", () => adminUsersRefreshSelected().catch((e) => setLocalError("adminUsersHint", e)));
   bind("adminUsersSearchInput", "keydown", (ev) => {

@@ -6,7 +6,6 @@ from app.models.settings import AppSetting
 
 DEFAULT_SETTINGS = {
     "allowed_topup_amounts": [50000, 100000, 200000, 500000, 1000000],
-    "commission_rate": 0.10,
     "max_cards_per_purchase": 50,
     "card_rows": 5,
     "card_cols": 4,

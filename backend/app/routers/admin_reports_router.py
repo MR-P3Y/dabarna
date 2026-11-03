@@ -128,7 +128,7 @@ def list_games(
     items = db.execute(text(f"""
         SELECT
           id, tg_group_id, status,
-          card_price, sold_amount, commission_amount, prize_pool,
+          card_price, commission_rate, sold_amount, commission_amount, prize_pool,
           prize_locked, col_prize_amount, row_prize_amount,
           col_paid, row_winner_user_id,
           created_at
@@ -151,7 +151,7 @@ def game_report(
     game = db.execute(text("""
         SELECT
           id, tg_group_id, admin_user_id, status,
-          card_price, sold_amount, commission_amount, prize_pool,
+          card_price, commission_rate, sold_amount, commission_amount, prize_pool,
           prize_locked, col_prize_amount, row_prize_amount,
           col_paid, payout_state_json, row_winner_user_id,
           created_at
@@ -343,10 +343,11 @@ def games_sales_summary(
         if gid > 0:
             game_ids.add(gid)
 
+        raw_rate = row.get("commission_rate")
         try:
-            rate = Decimal(str(row.get("commission_rate") or "0.1000"))
+            rate = Decimal(str(DEFAULT_COMMISSION_RATE if raw_rate is None else raw_rate))
         except Exception:
-            rate = Decimal("0.1000")
+            rate = DEFAULT_COMMISSION_RATE
         commission_total += _round_int(Decimal(total_price) * rate)
 
     event_rows = db.execute(

@@ -6,7 +6,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from typing import Any
 
 from fastapi import HTTPException
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
 from app.core.redis_client import RedisLock, idem_get, idem_set
 from app.models.game import Game, GameAutoDraw, GameCalledNumber, GameCard, GamePurchase
@@ -15,6 +15,10 @@ from app.models.settings import AppSetting
 from sqlalchemy.exc import IntegrityError as SAIntegrityError
 from app.services.game_event_service import GameEventService
 from app.services.wallet_service import WalletService
+from app.services.game_autopilot_config_service import (
+    DEFAULT_COMMISSION_RATE,
+    GameAutopilotConfigService,
+)
 from app.utils.bingo import (
     card_fingerprint,
     check_line,
@@ -46,10 +50,10 @@ class GameService:
     KEY_MAX_CARDS = "max_cards_per_purchase"
     KEY_MAX_NUMBER = "max_number"
 
-    # ---- final executable rule (fixed percentages) ----
-    # Commission is 10% of sold_amount. prize_pool = sold_amount - commission_amount (90% of sold).
-    # Column is 30% of sold, Row is 60% of sold. As a share of prize_pool (90%), that is 1/3 and 2/3.
-    COMMISSION_RATE = Decimal("0.10")
+    # ---- settlement defaults ----
+    # Commission is snapshotted per game at creation time.
+    # The remaining prize pool is split 1/3 for column and 2/3 for row.
+    COMMISSION_RATE = DEFAULT_COMMISSION_RATE
     COL_PRIZE_SHARE_OF_POOL = Decimal("1") / Decimal("3")
     ROW_PRIZE_SHARE_OF_POOL = Decimal("2") / Decimal("3")
 
@@ -59,6 +63,14 @@ class GameService:
         if not s:
             return default
         return s.v_json
+
+    @staticmethod
+    def _commission_rate_for_game(game: Game) -> Decimal:
+        raw = getattr(game, "commission_rate", None)
+        if raw is None:
+            return GameService.COMMISSION_RATE
+        return GameAutopilotConfigService.normalize_commission_rate(raw)
+
 
     @staticmethod
     def _split_equal(total_amount: int, winners_count: int) -> list[int]:
@@ -153,15 +165,94 @@ class GameService:
         tg_group_id: int,
         tg_topic_id: int | None,
         card_price: int,
+        *,
+        game_level: str | None = None,
+        execution_source: str = "ADMIN",
+        scheduled_start_at: datetime | None = None,
+        commission_rate: Decimal | float | str | None = None,
     ) -> Game:
         if card_price <= 0:
             raise HTTPException(status_code=400, detail="card_price must be > 0")
+
+        resolved_level = (
+            GameAutopilotConfigService.normalize_level(game_level)
+            if game_level
+            else GameAutopilotConfigService.level_for_topic(tg_topic_id)
+        )
+
+        if resolved_level:
+            # Serialize creation for each LOW/MEDIUM/HIGH lane so Bot, Mini App,
+            # admin APIs and the future scheduler cannot create two active games
+            # for the same category concurrently.
+            GameAutopilotConfigService.lock_for_update(db, resolved_level)
+
+            expected_topic_id = GameAutopilotConfigService.topic_id_for_level(resolved_level)
+            if (
+                expected_topic_id is not None
+                and tg_topic_id is not None
+                and int(tg_topic_id) != int(expected_topic_id)
+            ):
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"tg_topic_id must match configured {resolved_level} topic",
+                )
+
+            level_match = Game.game_level == resolved_level
+            if expected_topic_id is not None:
+                # Compatibility with games created before the autopilot migration:
+                # those rows have game_level=NULL, but their Telegram topic already
+                # identifies the LOW/MEDIUM/HIGH lane.
+                level_match = or_(
+                    level_match,
+                    and_(
+                        Game.game_level.is_(None),
+                        Game.tg_topic_id == int(expected_topic_id),
+                    ),
+                )
+
+            active_same_level = db.execute(
+                select(Game)
+                .where(
+                    level_match,
+                    Game.status.in_(["LOBBY", "RUNNING"]),
+                )
+                .order_by(Game.id.desc())
+                .limit(1)
+            ).scalar_one_or_none()
+            if active_same_level is not None:
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"active game already exists for {resolved_level} level",
+                )
+
+        source = str(execution_source or "ADMIN").strip().upper()
+        if source not in {"ADMIN", "SYSTEM"}:
+            raise HTTPException(status_code=400, detail="execution_source must be ADMIN or SYSTEM")
+
+        if source == "SYSTEM":
+            configured_price = GameAutopilotConfigService.configured_card_price(db, resolved_level)
+            if configured_price is not None and int(card_price) != int(configured_price):
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"card_price must match configured {resolved_level} price",
+                )
+            resolved_commission_rate = GameAutopilotConfigService.commission_rate_for_level(db, resolved_level)
+        else:
+            resolved_commission_rate = (
+                GameService.COMMISSION_RATE
+                if commission_rate is None
+                else GameAutopilotConfigService.normalize_commission_rate(commission_rate)
+            )
 
         g = Game(
             tg_group_id=tg_group_id,
             tg_topic_id=tg_topic_id,
             admin_user_id=admin_user_id,
             card_price=card_price,
+            game_level=resolved_level,
+            execution_source=source,
+            scheduled_start_at=scheduled_start_at,
+            commission_rate=resolved_commission_rate,
             status="LOBBY",
         )
         db.add(g)
@@ -179,6 +270,10 @@ class GameService:
                 payload={
                     "card_price": int(card_price),
                     "tg_topic_id": int(tg_topic_id) if tg_topic_id is not None else None,
+                    "game_level": resolved_level,
+                    "execution_source": source,
+                    "commission_rate": float(resolved_commission_rate),
+                    "scheduled_start_at": str(scheduled_start_at) if scheduled_start_at is not None else None,
                 },
             )
 
@@ -302,8 +397,9 @@ class GameService:
                 raise HTTPException(status_code=500, detail="failed to generate unique card after retries")
 
 
-        # Final rule: fixed 10% commission
-        commission_rate = GameService.COMMISSION_RATE
+        # Commission is snapshotted on the game at creation time.
+        # AUTO and MANUAL games therefore use the exact same settlement basis.
+        commission_rate = GameService._commission_rate_for_game(game)
 
         sold_new = int(game.sold_amount) + int(total_price)
         commission_new = int(game.commission_amount) + _round_int(Decimal(total_price) * commission_rate)
@@ -330,6 +426,7 @@ class GameService:
                     "purchase_id": int(purchase.id),
                     "wallet_tx_id": int(tx.id),
                     "sold_amount": int(game.sold_amount),
+                    "commission_rate": float(commission_rate),
                     "commission_amount": int(game.commission_amount),
                     "prize_pool": int(game.prize_pool),
                     "card_ids": [int(c.id) for c in cards],
@@ -397,13 +494,47 @@ class GameService:
 
             raise HTTPException(status_code=400, detail="cannot start: no cards sold")
 
+        # Global game invariant: every game needs at least two distinct players.
+        # Enforce this here (not only in Autopilot) so Bot, Mini App, admin APIs,
+        # and future automation paths cannot accidentally start a one-player game.
+        unique_players = int(
+            db.execute(
+                select(func.count(func.distinct(GameCard.user_id))).where(
+                    GameCard.game_id == int(game.id)
+                )
+            ).scalar_one()
+            or 0
+        )
+        if unique_players < 2:
+            try:
+                GameEventService.emit(
+                    db,
+                    kind="GAME_START_REJECTED",
+                    game_id=int(game.id),
+                    tg_group_id=int(game.tg_group_id),
+                    actor_user_id=int(admin_user_id),
+                    idem_key=f"GAME_START_REJECTED_PLAYERS:{game.id}:{idempotency_key}",
+                    payload={
+                        "reason": "not_enough_unique_players",
+                        "unique_players": int(unique_players),
+                        "min_unique_players": 2,
+                        "sold_amount": int(game.sold_amount),
+                        "status": str(game.status),
+                    },
+                )
+            except Exception:
+                pass
+            raise HTTPException(
+                status_code=409,
+                detail="cannot start: at least 2 unique players are required",
+            )
 
         prize_pool = int(game.prize_pool)
 
-        # Final rule:
-        # - 30% column prize (paid at most once)
-        # - 60% row prize (game-ending prize)
-        # We keep exact total by assigning remainder to row.
+        # Settlement rule after the per-game commission has already been deducted:
+        # - 1/3 of prize_pool for column (paid at most once)
+        # - remaining 2/3 for row (game-ending prize)
+        # We keep the exact total by assigning rounding remainder to row.
         col_amount = _round_int(Decimal(prize_pool) * GameService.COL_PRIZE_SHARE_OF_POOL)
         row_amount = int(prize_pool) - int(col_amount)
 
@@ -430,6 +561,8 @@ class GameService:
                 idem_key=f"GAME_STARTED:{game.id}:{idempotency_key}",
                 payload={
                     "prize_pool": int(game.prize_pool),
+                    "commission_rate": float(GameService._commission_rate_for_game(game)),
+                    "commission_amount": int(game.commission_amount),
                     "col_prize_amount": int(game.col_prize_amount),
                     "row_prize_amount": int(game.row_prize_amount),
                     "draw_mode": draw_mode,
@@ -1169,6 +1302,10 @@ class GameService:
             "tg_topic_id": int(g.tg_topic_id) if getattr(g, "tg_topic_id", None) is not None else None,
             "status": str(g.status),
             "card_price": int(g.card_price),
+            "game_level": str(g.game_level) if getattr(g, "game_level", None) else None,
+            "execution_source": str(getattr(g, "execution_source", "ADMIN") or "ADMIN"),
+            "commission_rate": float(g.commission_rate or 0),
+            "scheduled_start_at": str(g.scheduled_start_at) if getattr(g, "scheduled_start_at", None) else None,
             "sold_amount": int(g.sold_amount),
             "commission_amount": int(g.commission_amount),
             "prize_pool": int(g.prize_pool),

@@ -408,6 +408,17 @@ CRYPTO_TON_EXPLORER_TX_BASE = (
 
 GAME_AUTO_DRAW_ENABLED = _safe_bool("GAME_AUTO_DRAW_ENABLED", True)
 
+# ---- Game autopilot runtime ----
+# Two-key safety model:
+# 1) this environment switch must be enabled;
+# 2) each LOW/MEDIUM/HIGH DB config must also be enabled.
+GAME_AUTOPILOT_RUNTIME_ENABLED = _safe_bool("GAME_AUTOPILOT_RUNTIME_ENABLED", False)
+GAME_AUTOPILOT_TICK_SECONDS = _safe_positive_int("GAME_AUTOPILOT_TICK_SECONDS", 2, minimum=1)
+GAME_AUTOPILOT_SYSTEM_USER_ID = (
+    _parse_optional_int("GAME_AUTOPILOT_SYSTEM_USER_ID")
+    or RBAC_OWNER_USER_ID
+)
+
 
 def crypto_config_warnings() -> list[str]:
     warnings: list[str] = []

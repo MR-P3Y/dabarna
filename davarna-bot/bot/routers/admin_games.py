@@ -19,6 +19,7 @@ from bot.keyboards.admin_games import (
     admin_game_create_topic_kb,
     admin_game_item_kb,
     admin_live_kb,
+    admin_autopilot_kb,
     admin_games_list_kb,
     admin_monitor_kb,
     admin_winners_archive_kb,
@@ -950,6 +951,64 @@ async def admin_games_start(cq: CallbackQuery, api: ApiClient, is_admin: bool = 
         )
         await cq.answer("خطا", show_alert=False)
 
+
+@router.callback_query(F.data == "admin:games:autopilot")
+async def admin_games_autopilot(cq: CallbackQuery, api: ApiClient, is_admin: bool = False):
+    if not require_admin(is_admin):
+        await cq.answer("اجازه دسترسی نداری.", show_alert=True)
+        return
+
+    try:
+        payload = await api.admin_get_autopilot_config()
+        items = payload.get("items") if isinstance(payload, dict) else []
+        if not isinstance(items, list):
+            items = []
+
+        labels = {"LOW": "مبلغ پایین", "MEDIUM": "مبلغ متوسط", "HIGH": "مبلغ بالا"}
+        lines = [
+            "وضعیت سه دسته بازی از تنظیمات مرکزی Backend خوانده می‌شود.",
+            "Autopilot فعلاً به‌صورت پیش‌فرض خاموش است و بدون فعال‌سازی مدیریت، بازی خودکاری اجرا نمی‌شود.",
+            "",
+        ]
+        for item in items:
+            level = str(item.get("level") or "").upper()
+            title = labels.get(level, level or "-")
+            enabled = bool(item.get("enabled"))
+            price = item.get("card_price")
+            price_text = f"{int(price):,} تومان" if price is not None else "تعریف نشده"
+            rate = float(item.get("commission_rate") or 0) * 100
+            scheduler = "خودکار" if str(item.get("scheduler_mode") or "").upper() == "AUTO" else "دستی"
+            start = "خودکار" if str(item.get("start_mode") or "").upper() == "AUTO" else "دستی"
+            draw = "خودکار" if str(item.get("draw_mode") or "").upper() == "AUTO" else "دستی"
+            lines.extend(
+                [
+                    f"{'🟢' if enabled else '⚪️'} <b>{html_escape(title)}</b>",
+                    f"💳 قیمت کارت: <b>{html_escape(price_text)}</b>",
+                    f"🗓 زمان‌بندی: <b>{scheduler}</b> | شروع: <b>{start}</b>",
+                    f"🔢 شماره‌خوانی: <b>{draw}</b> | هر <b>{int(item.get('draw_interval_seconds') or 0)}</b> ثانیه",
+                    f"👥 حداقل: <b>{int(item.get('min_unique_players') or 2)}</b> کاربر مجزا",
+                    f"💰 کمیسیون: <b>{rate:g}%</b>",
+                    "",
+                ]
+            )
+
+        if not items:
+            lines.append("تنظیمات اتوماسیون هنوز در Backend ایجاد نشده است.")
+
+        await safe_edit_or_send(
+            cq.message,
+            panel("🤖 اتوماسیون بازی‌ها", "\n".join(lines).strip()),
+            parse_mode="HTML",
+            reply_markup=admin_autopilot_kb(),
+        )
+    except ApiError as e:
+        await safe_edit_or_send(
+            cq.message,
+            panel("خطا", f"<code>{e.status}</code>\n<code>{html_escape(e.detail)}</code>"),
+            parse_mode="HTML",
+            reply_markup=admin_autopilot_kb(),
+        )
+    await cq.answer()
 
 @router.callback_query(F.data == "admin:games")
 async def admin_games_home(cq: CallbackQuery, state: FSMContext, api: ApiClient, is_admin: bool = False):
@@ -2283,18 +2342,13 @@ async def admin_game_create_price_submit(m: Message, state: FSMContext, api: Api
     data = await state.get_data()
     status = str(data.get("status") or DEFAULT_STATUS)
     offset = max(0, _to_int(str(data.get("offset") or "0"), 0))
-    group_id = _to_int(str(data.get("target_group_id") or ""), 0)
-    topic_id_raw = data.get("target_topic_id")
-    topic_id = _to_int(str(topic_id_raw), 0) if topic_id_raw is not None else None
-    if topic_id is not None and topic_id <= 0:
-        topic_id = None
 
     raw_text = (m.text or "").strip()
     if raw_text.lower() in {"cancel", "/cancel", "لغو"}:
         await state.clear()
         await safe_send(
             m,
-            panel("ایجاد/فعال‌سازی بازی گروه", "ایجاد بازی لغو شد."),
+            panel("ایجاد بازی دستی", "ایجاد بازی لغو شد."),
             parse_mode="HTML",
             reply_markup=admin_games_list_kb([], status=status, offset=offset, has_next=False),
         )
@@ -2305,7 +2359,7 @@ async def admin_game_create_price_submit(m: Message, state: FSMContext, api: Api
         await safe_send(
             m,
             panel(
-                "ایجاد/فعال‌سازی بازی گروه",
+                "ایجاد بازی دستی",
                 "❌ مبلغ نامعتبر است.\n"
                 "فقط عدد مثبت (به تومان) بفرست.\n"
                 "مثال: <code>100000</code>",
@@ -2315,24 +2369,100 @@ async def admin_game_create_price_submit(m: Message, state: FSMContext, api: Api
         )
         return
 
-    if group_id == 0:
+    await state.update_data(card_price=int(card_price))
+    await state.set_state(AdminGameCreateSG.waiting_commission_rate)
+    await safe_send(
+        m,
+        panel(
+            "ایجاد بازی دستی | کمیسیون",
+            f"💳 قیمت کارت: <b>{int(card_price):,}</b> تومان\n\n"
+            "درصد کمیسیون همین بازی را وارد کن.\n"
+            "این مقدار فقط برای همین بازی ذخیره می‌شود و بعد از ایجاد بازی تغییر نمی‌کند.\n\n"
+            "مثال برای ۱۰ درصد: <code>10</code>",
+        ),
+        parse_mode="HTML",
+        reply_markup=admin_game_create_price_kb(status=status, offset=offset),
+    )
+
+
+@router.message(AdminGameCreateSG.waiting_commission_rate)
+async def admin_game_create_commission_submit(m: Message, state: FSMContext, api: ApiClient, is_admin: bool = False):
+    if not require_admin(is_admin):
+        await safe_send(m, "اجازه دسترسی نداری.")
+        await state.clear()
+        return
+
+    data = await state.get_data()
+    status = str(data.get("status") or DEFAULT_STATUS)
+    offset = max(0, _to_int(str(data.get("offset") or "0"), 0))
+    group_id = _to_int(str(data.get("target_group_id") or ""), 0)
+    topic_id_raw = data.get("target_topic_id")
+    topic_id = _to_int(str(topic_id_raw), 0) if topic_id_raw is not None else None
+    if topic_id is not None and topic_id <= 0:
+        topic_id = None
+    card_price = _to_int(str(data.get("card_price") or ""), 0)
+
+    raw_text = (m.text or "").strip()
+    if raw_text.lower() in {"cancel", "/cancel", "لغو"}:
         await state.clear()
         await safe_send(
             m,
-            panel("خطا", "شناسه گروه نامعتبر است. دوباره از منوی ادمین بازی اقدام کن."),
+            panel("ایجاد بازی دستی", "ایجاد بازی لغو شد."),
             parse_mode="HTML",
             reply_markup=admin_games_list_kb([], status=status, offset=offset, has_next=False),
         )
         return
 
+    normalized = normalize_digits(raw_text).replace("٪", "").replace("%", "").replace(",", ".").strip()
+    try:
+        commission_percent = float(normalized)
+    except Exception:
+        commission_percent = -1.0
+
+    if commission_percent < 0 or commission_percent >= 100:
+        await safe_send(
+            m,
+            panel(
+                "ایجاد بازی دستی | کمیسیون",
+                "❌ درصد کمیسیون نامعتبر است.\n"
+                "عددی بین ۰ تا کمتر از ۱۰۰ بفرست.\n"
+                "مثال: <code>10</code>",
+            ),
+            parse_mode="HTML",
+            reply_markup=admin_game_create_price_kb(status=status, offset=offset),
+        )
+        return
+
+    if group_id == 0 or card_price <= 0:
+        await state.clear()
+        await safe_send(
+            m,
+            panel("خطا", "اطلاعات ساخت بازی ناقص شد. دوباره از منوی ادمین بازی اقدام کن."),
+            parse_mode="HTML",
+            reply_markup=admin_games_list_kb([], status=status, offset=offset, has_next=False),
+        )
+        return
+
+    commission_rate = commission_percent / 100.0
+
     try:
         active_before = await _get_active_game_for_group(api, group_id=group_id, topic_id=topic_id)
         active_before_id = _to_int(str((active_before or {}).get("id") or ""), -1)
-        g = await api.ensure_active_game_for_group(group_id, card_price=card_price, tg_topic_id=topic_id)
+        g = await api.ensure_active_game_for_group(
+            group_id,
+            card_price=card_price,
+            commission_rate=commission_rate,
+            tg_topic_id=topic_id,
+        )
         await state.clear()
         game_id = _to_int(str(g.get("id") or ""), -1)
         game_status = str(g.get("status") or "")
         result_price = _to_int(str(g.get("card_price") or ""), card_price)
+        try:
+            result_commission_raw = g.get("commission_rate")
+            result_commission_percent = float(0.10 if result_commission_raw is None else result_commission_raw) * 100.0
+        except Exception:
+            result_commission_percent = 10.0
         reused_active = bool(active_before_id > 0 and active_before_id == game_id)
 
         if game_id <= 0:
@@ -2347,18 +2477,12 @@ async def admin_game_create_price_submit(m: Message, state: FSMContext, api: Api
         note_lines: list[str] = []
         if reused_active:
             note_lines.append("ℹ️ بازی فعال از قبل وجود داشت؛ بازی جدید ساخته نشد.")
-            if result_price != card_price:
+            if result_price != card_price or abs(result_commission_percent - commission_percent) > 0.0001:
                 note_lines.append(
-                    "⚠️ مبلغ واردشده روی بازی فعال فعلی اعمال نشد. برای اعمال مبلغ جدید، بازی فعال فعلی را تمام/بسته کن و سپس بازی جدید بساز."
+                    "⚠️ قیمت یا کمیسیون جدید روی بازی فعال فعلی اعمال نشد. برای تنظیم جدید، بازی فعلی باید پایان یابد/بسته شود."
                 )
-            else:
-                note_lines.append("✅ مبلغ واردشده با قیمت کارت بازی فعال یکسان است.")
         else:
-            note_lines.append("✅ بازی جدید ساخته شد و مبلغ واردشده برای آن اعمال شد.")
-            if result_price != card_price and str(game_status).strip().upper() in {"LOBBY", "RUNNING"}:
-                note_lines.append(
-                    "⚠️ یک بازی فعال موجود بوده یا همزمان ساخته شده؛ قیمت کارت بازی فعال با مبلغ واردشده متفاوت است."
-                )
+            note_lines.append("✅ بازی دستی جدید با قیمت و کمیسیون انتخابی ساخته شد.")
 
         topic_info = ""
         if topic_id is not None:
@@ -2368,18 +2492,18 @@ async def admin_game_create_price_submit(m: Message, state: FSMContext, api: Api
             )
 
         txt = (
-            "مرحله <b>2 از 2</b> — انجام شد ✅\n\n"
+            "ایجاد بازی دستی انجام شد ✅\n\n"
             f"🎮 بازی: <b>#{game_id}</b>\n"
             f"گروه: <code>{group_id}</code>\n"
             f"{topic_info}"
             f"وضعیت: <b>{_fa_status(game_status)}</b>\n"
-            f"💵 مبلغ واردشده: <b>{card_price:,}</b> تومان\n"
-            f"💳 قیمت کارت بازی: <b>{result_price:,}</b> تومان\n\n"
+            f"💳 قیمت کارت: <b>{result_price:,}</b> تومان\n"
+            f"🧾 کمیسیون: <b>{result_commission_percent:g}%</b>\n\n"
             + "\n".join(note_lines)
         )
         await safe_send(
             m,
-            panel("🕹️ ادمین بازی | بازی گروه", txt),
+            panel("🕹️ ادمین بازی | بازی دستی", txt),
             parse_mode="HTML",
             reply_markup=admin_game_item_kb(
                 game_id=game_id,
@@ -2396,12 +2520,11 @@ async def admin_game_create_price_submit(m: Message, state: FSMContext, api: Api
             panel(
                 "خطا در ایجاد بازی",
                 f"<code>{e.status}</code>\n<code>{e.detail}</code>\n\n"
-                "مبلغ را دوباره درست وارد کن یا لغو بزن.",
+                "درصد کمیسیون را دوباره وارد کن یا لغو بزن.",
             ),
             parse_mode="HTML",
             reply_markup=admin_game_create_price_kb(status=status, offset=offset),
         )
-
 
 
 @router.message(AdminGameLiveSG.waiting_url)

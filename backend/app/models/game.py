@@ -13,6 +13,7 @@ class Game(Base):
         Index("idx_group_status", "tg_group_id", "status"),
         Index("idx_group_topic_status", "tg_group_id", "tg_topic_id", "status"),
         Index("idx_games_draw_mode", "draw_mode"),
+        Index("idx_games_level_status", "game_level", "status"),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
@@ -23,6 +24,9 @@ class Game(Base):
     admin_user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id"), nullable=False)
 
     card_price: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    game_level: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    execution_source: Mapped[str] = mapped_column(String(16), nullable=False, server_default="ADMIN")
+    scheduled_start_at: Mapped[str | None] = mapped_column(TIMESTAMP, nullable=True)
 
     sold_amount: Mapped[int] = mapped_column(BigInteger, nullable=False, server_default="0")
     commission_rate: Mapped[str] = mapped_column(DECIMAL(5,4), nullable=False, server_default="0.1000")

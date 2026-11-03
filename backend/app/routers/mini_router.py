@@ -109,6 +109,7 @@ from app.services.game_event_service import GameEventService
 from app.services.game_service import GameService
 from app.services.game_auto_draw_service import AUTO_DRAW_INTERVALS, GameAutoDrawService
 from app.services.game_draw_mode_service import GameDrawModeService
+from app.services.game_autopilot_config_service import GameAutopilotConfigService
 from app.services.wallet_service import WalletService
 from app.services.admin_audit_service import AdminAuditService
 from app.services.crypto_deposit_service import (
@@ -343,6 +344,10 @@ def _to_game_out(g: Game) -> MiniGameItemOut:
         tg_topic_id=int(g.tg_topic_id) if g.tg_topic_id is not None else None,
         status=str(g.status),
         card_price=int(g.card_price),
+        game_level=str(g.game_level) if getattr(g, "game_level", None) else None,
+        execution_source=str(getattr(g, "execution_source", "ADMIN") or "ADMIN"),
+        commission_rate=float(g.commission_rate or 0),
+        scheduled_start_at=str(g.scheduled_start_at) if getattr(g, "scheduled_start_at", None) else None,
         sold_amount=int(g.sold_amount),
         prize_pool=int(g.prize_pool),
         col_prize_amount=int(g.col_prize_amount),
@@ -556,6 +561,20 @@ class MiniAdminAutoDrawStartIn(BaseModel):
     interval_seconds: int = Field(default=10)
 
 
+class MiniAutopilotConfigUpdateIn(BaseModel):
+    enabled: bool | None = None
+    scheduler_mode: str | None = None
+    start_mode: str | None = None
+    draw_mode: str | None = None
+    card_price: int | None = None
+    commission_rate: float | None = None
+    announce_before_seconds: int | None = None
+    countdown_seconds: int | None = None
+    repeat_interval_seconds: int | None = None
+    draw_interval_seconds: int | None = None
+    cooldown_seconds: int | None = None
+
+
 def _audit_auto_draw(
     db: Session,
     *,
@@ -578,6 +597,7 @@ def _audit_auto_draw(
 
 class MiniAdminCreateGameIn(BaseModel):
     card_price: int = Field(gt=0, le=1_000_000_000)
+    commission_rate: float = Field(default=0.10, ge=0, lt=1)
     tg_group_id: int | None = Field(default=None)
     tg_topic_id: int | None = Field(default=None)
     source_game_id: int | None = Field(default=None, gt=0)
@@ -785,6 +805,61 @@ def _mini_require_finance_or_game_role(ident: MiniAdminIdentity) -> None:
     if _mini_has_role(ident, "ADMIN", "SUPER_ADMIN", "FINANCE_ADMIN", "GAME_OPERATOR"):
         return
     raise HTTPException(status_code=403, detail="برای این بخش دسترسی ادمین لازم است.")
+
+
+@router.get("/admin/autopilot/config")
+def mini_admin_autopilot_config(
+    ident: MiniAdminIdentity = Depends(get_mini_admin_identity),
+    db: Session = Depends(get_db),
+):
+    _mini_require_game_role(ident)
+    items = [
+        GameAutopilotConfigService.serialize(row)
+        for row in GameAutopilotConfigService.list(db)
+    ]
+    return {
+        "items": items,
+        "can_edit_commission": True,
+    }
+
+
+@router.put("/admin/autopilot/config/{level}")
+def mini_admin_update_autopilot_config(
+    level: str,
+    payload: MiniAutopilotConfigUpdateIn,
+    request: Request,
+    ident: MiniAdminIdentity = Depends(get_mini_admin_identity),
+    db: Session = Depends(get_db),
+):
+    _mini_require_game_role(ident)
+    values = payload.model_dump(exclude_unset=True)
+    before, after = GameAutopilotConfigService.update(
+        db,
+        level=level,
+        values=values,
+        updated_by=int(ident.user_id),
+        allow_commission_change=True,
+    )
+    changed = {
+        key: {"before": before.get(key), "after": after.get(key)}
+        for key in after.keys()
+        if before.get(key) != after.get(key)
+    }
+    AdminAuditService.record(
+        db,
+        admin=_mini_to_admin_identity(ident),
+        action="autopilot.config.update",
+        target_type="game_level",
+        target_id=None,
+        request=request,
+        details={
+            "level": str(after.get("level") or level).upper(),
+            "changed": changed,
+            "commission_changed": "commission_rate" in changed,
+        },
+    )
+    db.commit()
+    return {"ok": True, "item": after}
 
 
 def _mini_get_game_or_404(db: Session, game_id: int) -> Game:
@@ -1472,9 +1547,11 @@ def dashboard_insights(
         if sold_amount <= 0 and buy_tx_total > 0:
             sold_amount = int(buy_tx_total)
 
+        commission_rate_raw = getattr(g, "commission_rate", None)
+        commission_rate = float(0.10 if commission_rate_raw is None else commission_rate_raw)
         commission_amount = int(g.commission_amount or 0)
         if commission_amount <= 0 and sold_amount > 0:
-            commission_amount = int(round(sold_amount * 0.10))
+            commission_amount = int(round(sold_amount * commission_rate))
 
         prize_pool = int(g.prize_pool or 0)
         if prize_pool <= 0 and sold_amount > 0:
@@ -1498,7 +1575,7 @@ def dashboard_insights(
             row_prize_total = int(prize_pool) - int(col_prize_total or 0)
             row_winner_amount = int(row_prize_total // row_winners_count) if row_winners_count > 0 else 0
         if col_prize_total <= 0 and prize_pool > 0 and col_winners_count > 0:
-            col_prize_total = int(round(prize_pool * 0.30))
+            col_prize_total = int(round(prize_pool / 3))
             col_winner_amount = int(col_prize_total // col_winners_count) if col_winners_count > 0 else 0
 
         tx_rows = (
@@ -1559,6 +1636,7 @@ def dashboard_insights(
                 card_price=int(g.card_price or 0),
                 sold_cards=int(sold_cards),
                 sold_amount=int(sold_amount),
+                commission_rate=float(commission_rate),
                 commission_amount=int(commission_amount),
                 prize_pool=int(prize_pool),
                 winners_count=int(winners_count),
@@ -3940,7 +4018,9 @@ def mini_admin_create_game(
                 "tg_group_id": int(active.tg_group_id),
                 "tg_topic_id": int(active.tg_topic_id) if active.tg_topic_id is not None else None,
                 "card_price": int(active.card_price),
+                "commission_rate": float(active.commission_rate or 0),
                 "requested_card_price": int(card_price),
+                "requested_commission_rate": float(payload.commission_rate),
                 "status": str(active.status),
                 "reused_active": True,
                 "idempotency_key": idem_key,
@@ -3961,6 +4041,7 @@ def mini_admin_create_game(
         tg_group_id=int(tg_group_id),
         tg_topic_id=int(tg_topic_id) if tg_topic_id is not None else None,
         card_price=int(card_price),
+        commission_rate=float(payload.commission_rate),
     )
     db.flush()
     _setting_set_json(
@@ -3980,6 +4061,7 @@ def mini_admin_create_game(
             "tg_group_id": int(g.tg_group_id),
             "tg_topic_id": int(g.tg_topic_id) if g.tg_topic_id is not None else None,
             "card_price": int(g.card_price),
+            "commission_rate": float(g.commission_rate or 0),
             "status": str(g.status),
             "reused_active": False,
             "source_game_id": int(payload.source_game_id) if payload.source_game_id is not None else None,

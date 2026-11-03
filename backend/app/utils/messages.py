@@ -34,8 +34,8 @@ def format_game_running(game_state: dict) -> str:
         f"Game: `{game_state['game_id']}`\n"
         f"Card price: *{money_toman(game_state['card_price'])}*\n"
         f"Prize pool: *{money_toman(game_state['prize_pool'])}*\n"
-        f"Column prize (30%): *{money_toman(_col_amount(game_state))}*\n"
-        f"Row prize (60%): *{money_toman(_row_amount(game_state))}*\n\n"
+        f"Column prize (1/3 of prize pool): *{money_toman(_col_amount(game_state))}*\n"
+        f"Row prize (2/3 of prize pool): *{money_toman(_row_amount(game_state))}*\n\n"
         f"Called numbers: `{called_str}`\n"
         f"Last number: *{game_state.get('last_number') or '-'}*"
     )

@@ -15,12 +15,10 @@ from app.services.crypto_deposit_service import CRYPTO_RUNTIME_SETTING_KEY
 router = APIRouter(prefix="/admin/settings", tags=["admin-settings"])
 
 LOCK_WHEN_ANY_RUNNING_OR_ENDED = {
-    "commission_rate",
     "max_number",
 }
 
 LOCK_WHEN_ANY_RUNNING = {
-    "commission_rate",
     "max_number",
 }
 
@@ -52,6 +50,12 @@ def update_setting(
         raise HTTPException(
             status_code=403,
             detail="این تنظیم فقط از کنترل اختصاصی سوپرادمین قابل تغییر است.",
+        )
+
+    if key == "commission_rate":
+        raise HTTPException(
+            status_code=409,
+            detail="commission_rate سراسری منسوخ شده است؛ کمیسیون را برای بازی دستی هنگام ایجاد بازی یا برای هر سطح بازی خودکار تنظیم کنید.",
         )
 
     # سوپرادمین هست، اما باز هم قانون قفل را اعمال می‌کنیم

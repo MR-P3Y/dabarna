@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>مینی‌اپ دبرنای طوفان</title>
-    <link rel="stylesheet" href="./styles.css?v=mini-withdraw-reject-20261009-1" />
+    <link rel="stylesheet" href="./styles.css?v=game-commission-20261103-1" />
   </head>
   <body>
     <div id="appSplash" class="app-splash" aria-label="در حال آماده‌سازی مینی‌اپ">
@@ -443,11 +443,48 @@
               <div id="adminOpsDashboard" class="admin-ops-grid"></div>
             </div>
 
-            <div class="cards-box">
-              <div class="cards-box-head">
-                <h3 id="adminCreateTitle">ایجاد بازی جدید</h3>
+            <div class="admin-game-mode-picker" aria-label="روش اجرای بازی">
+              <button id="adminGameModeManualBtn" class="admin-game-mode-card active" type="button" data-admin-game-mode="MANUAL">
+                <span class="admin-game-mode-icon">🎮</span>
+                <span>
+                  <strong>بازی دستی</strong>
+                  <small>ایجاد و کنترل بازی توسط ادمین</small>
+                </span>
+              </button>
+              <button id="adminGameModeAutoBtn" class="admin-game-mode-card" type="button" data-admin-game-mode="AUTO">
+                <span class="admin-game-mode-icon">🤖</span>
+                <span>
+                  <strong>بازی خودکار</strong>
+                  <small>مدیریت کامل چرخه توسط سیستم</small>
+                </span>
+              </button>
+            </div>
+
+            <section id="adminAutoModeSection" class="admin-game-mode-section hidden">
+              <div class="cards-box">
+                <div class="cards-box-head">
+                  <div>
+                    <h3>🤖 بازی‌های خودکار</h3>
+                    <span class="meta">تنظیمات را یک‌بار تعریف کنید؛ ادامه چرخه با سیستم است.</span>
+                  </div>
+                  <button id="adminAutopilotRefreshBtn" class="small-btn" type="button">بازخوانی</button>
+                </div>
+                <div class="admin-auto-explainer">
+                  <strong>سیستم چه کار می‌کند؟</strong>
+                  <span>ساخت بازی → انتظار برای حداقل بازیکن → شمارش معکوس → شروع → اعلام اعداد → پایان → ساخت بازی بعدی</span>
+                </div>
+                <div id="adminAutopilotList" class="stack-list">
+                  <div class="empty">در حال دریافت تنظیمات بازی خودکار...</div>
+                </div>
               </div>
-              <p id="adminCreateHint" class="hint">بازی جدید را با انتخاب تاپیک و تعیین قیمت کارت بسازید.</p>
+            </section>
+
+            <section id="adminManualModeSection" class="admin-game-mode-section">
+              <div class="cards-box">
+              <div class="cards-box-head">
+                <h3 id="adminCreateTitle">ایجاد بازی دستی</h3>
+              </div>
+              <p id="adminCreateHint" class="hint">این بازی توسط ادمین ساخته و کنترل می‌شود؛ امکانات قبلی مدیریت بازی حفظ شده است.</p>
               <div class="action-form">
                 <div class="admin-grid-two">
                   <div>
@@ -461,8 +498,17 @@
                     <input id="adminCreateTopicIdInput" type="hidden" />
                   </div>
                 </div>
-                <label id="adminCreatePriceLabel" for="adminCreateCardPriceInput">قیمت کارت (تومان)</label>
-                <input id="adminCreateCardPriceInput" type="text" inputmode="numeric" min="1000" step="1000" autocomplete="off" />
+                <div class="admin-grid-two">
+                  <div>
+                    <label id="adminCreatePriceLabel" for="adminCreateCardPriceInput">قیمت کارت (تومان)</label>
+                    <input id="adminCreateCardPriceInput" type="text" inputmode="numeric" min="1000" step="1000" autocomplete="off" />
+                  </div>
+                  <div>
+                    <label id="adminCreateCommissionLabel" for="adminCreateCommissionInput">کمیسیون بازی (%)</label>
+                    <input id="adminCreateCommissionInput" type="text" inputmode="decimal" value="10" autocomplete="off" />
+                    <div class="step-hint">این درصد فقط برای همین بازی دستی ذخیره می‌شود.</div>
+                  </div>
+                </div>
                 <div id="adminPricePresetRow" class="quick-price-row">
                   <button class="price-chip" type="button" data-price="50000">۵۰,۰۰۰</button>
                   <button class="price-chip" type="button" data-price="100000">۱۰۰,۰۰۰</button>
@@ -479,7 +525,7 @@
 
             <div class="cards-box mt-12">
               <div class="cards-box-head">
-                <h3 id="adminGamesTitle">بازی‌های قابل مدیریت</h3>
+                <h3 id="adminGamesTitle">بازی‌های دستی فعال</h3>
                 <span id="adminSelectedGameMeta" class="meta">هیچ بازی انتخاب نشده</span>
               </div>
               <div id="adminGamesList" class="cards-history-scroll"></div>
@@ -494,8 +540,8 @@
                     <div class="admin-draw-step-head">
                       <span class="admin-draw-step-no">۱</span>
                       <div>
-                        <strong>حالت اعلام عدد</strong>
-                        <small>حالت اجرای بازی را انتخاب کنید.</small>
+                        <strong>روش اعلام عدد</strong>
+                        <small>برای همین بازی دستی، روش خواندن اعداد را انتخاب کنید.</small>
                       </div>
                     </div>
 
@@ -503,8 +549,8 @@
                       <button id="adminDrawModeManualBtn" class="admin-draw-mode-card" type="button">
                         <span class="admin-draw-mode-icon">M</span>
                         <span class="admin-draw-mode-copy">
-                          <strong>دستی</strong>
-                          <small>اعلام عدد توسط ادمین</small>
+                          <strong>توسط ادمین</strong>
+                          <small>اعداد با کیپد توسط ادمین اعلام می‌شوند</small>
                         </span>
                         <span class="admin-draw-mode-state">انتخاب</span>
                       </button>
@@ -512,8 +558,8 @@
                       <button id="adminDrawModeAutoBtn" class="admin-draw-mode-card" type="button">
                         <span class="admin-draw-mode-icon">A</span>
                         <span class="admin-draw-mode-copy">
-                          <strong>خودکار</strong>
-                          <small>اعلام خودکار با فاصله زمانی مشخص</small>
+                          <strong>شماره‌خوان خودکار</strong>
+                          <small>فقط اعلام اعداد این بازی خودکار می‌شود</small>
                         </span>
                         <span class="admin-draw-mode-state">انتخاب</span>
                       </button>
@@ -531,8 +577,8 @@
                     </div>
 
                     <div id="adminDrawModeEmpty" class="admin-draw-empty-state">
-                      <strong>یک حالت انتخاب کنید</strong>
-                      <span>برای ادامه، دستی یا خودکار را انتخاب کنید.</span>
+                      <strong>روش اعلام عدد را انتخاب کنید</strong>
+                      <span>توسط ادمین یا شماره‌خوان خودکار.</span>
                     </div>
 
                     <div id="adminManualDrawPanel" class="admin-draw-config-panel hidden">
@@ -664,6 +710,8 @@
                 <div id="adminActionHint" class="step-hint"></div>
               </div>
             </div>
+
+            </section>
 
             <div class="admin-accordion mt-12">
               <details class="accordion-item">
@@ -991,6 +1039,6 @@
     <div id="miniToast" class="mini-toast hidden" role="status" aria-live="polite"></div>
 
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="./app.js?v=mini-withdraw-reject-20261009-1" type="module"></script>
+    <script src="./app.js?v=game-commission-20261103-2" type="module"></script>
   </body>
 </html>

@@ -58,6 +58,10 @@ def _to_game_out(g: Game) -> GameOut:
         status=g.status,
         admin_user_id=g.admin_user_id,
         card_price=g.card_price,
+        game_level=str(g.game_level) if getattr(g, "game_level", None) else None,
+        execution_source=str(getattr(g, "execution_source", "ADMIN") or "ADMIN"),
+        commission_rate=float(g.commission_rate or 0),
+        scheduled_start_at=str(g.scheduled_start_at) if getattr(g, "scheduled_start_at", None) else None,
         sold_amount=g.sold_amount,
         commission_amount=g.commission_amount,
         prize_pool=g.prize_pool,
@@ -91,6 +95,7 @@ def create_game(
         tg_group_id=tg_group_id,
         tg_topic_id=payload.tg_topic_id,
         card_price=payload.card_price,
+        commission_rate=payload.commission_rate,
     )
     AdminAuditService.record(
         db,
@@ -104,6 +109,7 @@ def create_game(
             "tg_group_id": int(g.tg_group_id),
             "tg_topic_id": int(g.tg_topic_id) if g.tg_topic_id is not None else None,
             "card_price": int(g.card_price),
+            "commission_rate": float(g.commission_rate or 0),
             "status": str(g.status),
         },
     )

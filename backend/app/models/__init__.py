@@ -4,6 +4,7 @@ from .wallet import Wallet, WalletTx
 from .finance import DepositRequest, GatewayPayment, WithdrawRequest
 from .settings import AppSetting
 from .game import Game, GamePurchase, GameCard, GameCalledNumber, GameAutoDraw
+from .game_autopilot import GameAutopilotConfig
 from .game_event import GameEvent
 from .admin_audit import AdminAuditLog
 from .crypto import CryptoDepositRequest
@@ -15,6 +16,7 @@ __all__ = [
     "DepositRequest", "GatewayPayment", "WithdrawRequest",
     "AppSetting",
     "Game", "GamePurchase", "GameCard", "GameCalledNumber", "GameAutoDraw",
+    "GameAutopilotConfig",
     "GameEvent",
     "AdminAuditLog",
     "CryptoDepositRequest",
