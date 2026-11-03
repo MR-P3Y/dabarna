@@ -27,8 +27,8 @@ def group_message_running(
         f"{md2_escape('Game')}: `{game_id}`\n"
         f"{md2_escape('Card price')}: *{_money(card_price)} {md2_escape('toman')}*\n"
         f"{md2_escape('Prize pool')}: *{_money(prize_pool)} {md2_escape('toman')}*\n"
-        f"{md2_escape('Column prize (30%)')}: *{_money(col_prize_amount)} {md2_escape('toman')}*\n"
-        f"{md2_escape('Row prize (60%)')}: *{_money(row_prize_amount)} {md2_escape('toman')}*\n\n"
+        f"{md2_escape('Column prize (1/3 of prize pool)')}: *{_money(col_prize_amount)} {md2_escape('toman')}*\n"
+        f"{md2_escape('Row prize (2/3 of prize pool)')}: *{_money(row_prize_amount)} {md2_escape('toman')}*\n\n"
         f"{md2_escape('Called numbers')}: `{called_txt}`\n"
         f"{md2_escape('Last number')}: *{last_txt}*"
     )
