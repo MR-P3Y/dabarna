@@ -1547,9 +1547,10 @@ def dashboard_insights(
         if sold_amount <= 0 and buy_tx_total > 0:
             sold_amount = int(buy_tx_total)
 
+        commission_rate = float(getattr(g, "commission_rate", 0.10) or 0.10)
         commission_amount = int(g.commission_amount or 0)
         if commission_amount <= 0 and sold_amount > 0:
-            commission_amount = int(round(sold_amount * 0.10))
+            commission_amount = int(round(sold_amount * commission_rate))
 
         prize_pool = int(g.prize_pool or 0)
         if prize_pool <= 0 and sold_amount > 0:
@@ -1573,7 +1574,7 @@ def dashboard_insights(
             row_prize_total = int(prize_pool) - int(col_prize_total or 0)
             row_winner_amount = int(row_prize_total // row_winners_count) if row_winners_count > 0 else 0
         if col_prize_total <= 0 and prize_pool > 0 and col_winners_count > 0:
-            col_prize_total = int(round(prize_pool * 0.30))
+            col_prize_total = int(round(prize_pool / 3))
             col_winner_amount = int(col_prize_total // col_winners_count) if col_winners_count > 0 else 0
 
         tx_rows = (
@@ -1634,6 +1635,7 @@ def dashboard_insights(
                 card_price=int(g.card_price or 0),
                 sold_cards=int(sold_cards),
                 sold_amount=int(sold_amount),
+                commission_rate=float(commission_rate),
                 commission_amount=int(commission_amount),
                 prize_pool=int(prize_pool),
                 winners_count=int(winners_count),
