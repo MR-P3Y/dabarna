@@ -5439,9 +5439,14 @@ function renderAdminGames(payload) {
     });
   });
 
-  if (!selectedAdminGameId()) {
+  const selected = selectedAdminGameId();
+  if (!selected || !state.admin.gamesById.has(Number(selected))) {
     const first = Number(items[0]?.id || 0);
-    if (first) setAdminSelectedGame(first, statusLabel(items[0]?.status));
+    if (first) {
+      setAdminSelectedGame(first, statusLabel(items[0]?.status));
+    } else {
+      setAdminSelectedGame(0);
+    }
   }
 }
 
