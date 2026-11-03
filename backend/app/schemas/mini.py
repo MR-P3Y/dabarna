@@ -23,6 +23,7 @@ class MiniGameItemOut(BaseModel):
     card_price: int
     game_level: str | None = None
     execution_source: str = "ADMIN"
+    commission_rate: float = 0.10
     scheduled_start_at: str | None = None
     sold_amount: int
     prize_pool: int
