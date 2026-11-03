@@ -14,6 +14,7 @@
 - [Overview](#overview)
 - [Core Features](#core-features)
 - [Architecture](#architecture)
+- [Game Execution Modes and Financial Rules](#game-execution-modes-and-financial-rules)
 - [Tech Stack](#tech-stack)
 - [Repository Structure](#repository-structure)
 - [Payment Flows](#payment-flows)
@@ -115,6 +116,37 @@ davarna-bot        Telegram bot
 davarna-nginx      Optional edge reverse proxy profile
 certbot            Optional TLS certificate helper profile
 ```
+
+---
+
+## Game Execution Modes and Financial Rules
+
+Game management has two independent execution modes.
+
+### 1. Admin-managed manual game
+
+- The admin chooses the topic, card price, and commission rate before the game is created.
+- Price and commission are snapshotted on the game and are not changed for that game after creation.
+- A manual game's price and commission are independent from Autopilot level settings.
+- Existing admin controls remain available: start, number-calling mode, manual calls, per-game automatic number caller, pause/resume, and lobby cancellation.
+- The automatic number caller inside a manual game only calls numbers for that game; it is not the full Autopilot lifecycle.
+
+### 2. System-managed automatic game
+
+- Each LOW / MEDIUM / HIGH level is configured by an authorized game admin.
+- Level settings include enabled state, card price, commission, countdown, draw interval, repeat interval, and cooldown.
+- Once enabled, the system manages the lifecycle: create lobby → wait for minimum players → countdown → start → call numbers → finish → create the next game.
+- SYSTEM games snapshot price and commission from their Autopilot level.
+
+### Shared rules
+
+- Every game requires at least **2 distinct players** with cards before it can start.
+- Commission may be configured from **0% to less than 100%**. Ten percent is only the initial default, not a fixed business rule.
+- Prize pool = **card sales minus that game's commission**.
+- Column/Torna prize = **one third of the prize pool**.
+- Row/Tamam prize = **the remaining prize pool, approximately two thirds**; rounding remainder is assigned to this bucket.
+- Each game's commission rate and sales/commission/prize amounts remain auditable in game records and admin reports.
+- The old global `commission_rate` app setting is deprecated and must not drive new games.
 
 ---
 
