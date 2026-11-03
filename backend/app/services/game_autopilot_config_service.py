@@ -128,7 +128,7 @@ class GameAutopilotConfigService:
             "start_mode": str(row.start_mode or "MANUAL").upper(),
             "draw_mode": str(row.draw_mode or "MANUAL").upper(),
             "card_price": int(row.card_price) if row.card_price is not None else None,
-            "commission_rate": float(Decimal(str(row.commission_rate or DEFAULT_COMMISSION_RATE))),
+            "commission_rate": float(Decimal(str(row.commission_rate if row.commission_rate is not None else DEFAULT_COMMISSION_RATE))),
             "announce_before_seconds": int(row.announce_before_seconds),
             "countdown_seconds": int(row.countdown_seconds),
             "repeat_interval_seconds": int(row.repeat_interval_seconds),
