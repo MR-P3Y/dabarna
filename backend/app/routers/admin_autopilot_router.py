@@ -69,7 +69,7 @@ def get_autopilot_config(
     items = [GameAutopilotConfigService.serialize(row) for row in GameAutopilotConfigService.list(db)]
     return {
         "items": items,
-        "can_edit_commission": bool(ident.scope == AdminScope.SUPER_ADMIN or "SUPER_ADMIN" in ident.roles),
+        "can_edit_commission": True,
     }
 
 
@@ -82,7 +82,6 @@ def update_autopilot_config(
     db: Session = Depends(get_db),
 ):
     _require_game_config_access(ident)
-    is_super_admin = bool(ident.scope == AdminScope.SUPER_ADMIN or "SUPER_ADMIN" in ident.roles)
     values = payload.model_dump(exclude_unset=True)
 
     before, after = GameAutopilotConfigService.update(
@@ -90,7 +89,7 @@ def update_autopilot_config(
         level=level,
         values=values,
         updated_by=ident.user_id,
-        allow_commission_change=is_super_admin,
+        allow_commission_change=True,
     )
     changed = {
         key: {"before": before.get(key), "after": after.get(key)}
