@@ -2459,7 +2459,8 @@ async def admin_game_create_commission_submit(m: Message, state: FSMContext, api
         game_status = str(g.get("status") or "")
         result_price = _to_int(str(g.get("card_price") or ""), card_price)
         try:
-            result_commission_percent = float(g.get("commission_rate") or 0.10) * 100.0
+            result_commission_raw = g.get("commission_rate")
+            result_commission_percent = float(0.10 if result_commission_raw is None else result_commission_raw) * 100.0
         except Exception:
             result_commission_percent = 10.0
         reused_active = bool(active_before_id > 0 and active_before_id == game_id)
