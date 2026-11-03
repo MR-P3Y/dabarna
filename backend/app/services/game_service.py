@@ -391,7 +391,7 @@ class GameService:
 
         # Commission is snapshotted on the game at creation time.
         # AUTO and MANUAL games therefore use the exact same settlement basis.
-        commission_rate = Decimal(str(game.commission_rate or GameService.COMMISSION_RATE))
+        commission_rate = Decimal(str(game.commission_rate if game.commission_rate is not None else GameService.COMMISSION_RATE))
 
         sold_new = int(game.sold_amount) + int(total_price)
         commission_new = int(game.commission_amount) + _round_int(Decimal(total_price) * commission_rate)
@@ -553,7 +553,7 @@ class GameService:
                 idem_key=f"GAME_STARTED:{game.id}:{idempotency_key}",
                 payload={
                     "prize_pool": int(game.prize_pool),
-                    "commission_rate": float(Decimal(str(game.commission_rate or GameService.COMMISSION_RATE))),
+                    "commission_rate": float(Decimal(str(game.commission_rate if game.commission_rate is not None else GameService.COMMISSION_RATE))),
                     "commission_amount": int(game.commission_amount),
                     "col_prize_amount": int(game.col_prize_amount),
                     "row_prize_amount": int(game.row_prize_amount),
