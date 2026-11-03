@@ -192,6 +192,7 @@ class MiniRecentGameStatOut(BaseModel):
     card_price: int = 0
     sold_cards: int
     sold_amount: int = 0
+    commission_rate: float = 0.10
     commission_amount: int = 0
     prize_pool: int
     winners_count: int
