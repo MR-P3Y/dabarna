@@ -7360,3 +7360,286 @@ html[data-theme="light"] .withdraw-rejection-reason {
     min-height: 44px;
   }
 }
+
+
+/* Admin game execution modes: manual vs system autopilot */
+.admin-game-mode-picker {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 12px 0;
+}
+
+.admin-game-mode-card {
+  min-width: 0;
+  min-height: 92px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: right;
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.035);
+  color: var(--text);
+  cursor: pointer;
+  transition: border-color .18s ease, background .18s ease, transform .18s ease;
+}
+
+.admin-game-mode-card:hover {
+  transform: translateY(-1px);
+}
+
+.admin-game-mode-card.active {
+  border-color: rgba(100, 214, 255, 0.68);
+  background: linear-gradient(145deg, rgba(100, 214, 255, 0.14), rgba(126, 245, 188, 0.07));
+  box-shadow: inset 0 0 0 1px rgba(100, 214, 255, 0.12);
+}
+
+.admin-game-mode-icon {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  font-size: 22px;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.admin-game-mode-card > span:last-child {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.admin-game-mode-card strong {
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.admin-game-mode-card small {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.admin-game-mode-section {
+  animation: fadeIn .18s ease;
+}
+
+.admin-auto-explainer,
+.autopilot-mode-note {
+  display: grid;
+  gap: 5px;
+  border: 1px solid rgba(100, 214, 255, 0.22);
+  border-radius: 13px;
+  padding: 10px 11px;
+  margin-bottom: 10px;
+  background: rgba(100, 214, 255, 0.06);
+}
+
+.admin-auto-explainer strong,
+.autopilot-mode-note strong {
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.admin-auto-explainer span,
+.autopilot-mode-note span {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.8;
+}
+
+.autopilot-level-card {
+  border: 1px solid var(--glass-border);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.035);
+  overflow: hidden;
+}
+
+.autopilot-level-card.is-enabled {
+  border-color: rgba(126, 245, 188, 0.32);
+}
+
+.autopilot-level-summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 11px 12px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.autopilot-level-summary::-webkit-details-marker {
+  display: none;
+}
+
+.autopilot-level-main {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.autopilot-level-main > div {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.autopilot-level-main strong {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 950;
+}
+
+.autopilot-level-main small {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.autopilot-level-dot {
+  width: 10px;
+  height: 10px;
+  flex: 0 0 10px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.75);
+  box-shadow: 0 0 0 4px rgba(148, 163, 184, 0.08);
+}
+
+.autopilot-level-card.is-enabled .autopilot-level-dot {
+  background: #7ef5bc;
+  box-shadow: 0 0 0 4px rgba(126, 245, 188, 0.1);
+}
+
+.autopilot-level-quick {
+  display: grid;
+  justify-items: end;
+  gap: 3px;
+  color: var(--muted);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.autopilot-level-body {
+  border-top: 1px solid var(--glass-border);
+  padding: 11px 12px 12px;
+}
+
+.autopilot-enable-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 9px 10px;
+  margin-bottom: 10px;
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.autopilot-enable-row input {
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+}
+
+.autopilot-enable-row span {
+  display: grid;
+  gap: 3px;
+}
+
+.autopilot-enable-row strong {
+  margin: 0;
+  font-size: 12px;
+}
+
+.autopilot-enable-row small,
+.field-help {
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+.autopilot-primary-fields {
+  margin-top: 0;
+}
+
+.autopilot-advanced {
+  margin-top: 10px;
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.autopilot-advanced > summary {
+  cursor: pointer;
+  padding: 9px 10px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.autopilot-advanced > .admin-grid-two {
+  padding: 0 10px 10px;
+}
+
+.autopilot-locked-field {
+  border: 1px dashed var(--glass-border);
+  border-radius: 10px;
+  padding: 8px 9px;
+  display: grid;
+  gap: 3px;
+}
+
+.autopilot-locked-field span,
+.autopilot-locked-field small {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.autopilot-locked-field strong {
+  margin: 0;
+  font-size: 13px;
+}
+
+.autopilot-save-row {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 520px) {
+  .admin-game-mode-picker {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-game-mode-card {
+    min-height: 76px;
+  }
+
+  .autopilot-level-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .autopilot-level-quick {
+    grid-template-columns: repeat(2, max-content);
+    justify-content: start;
+  }
+}
+
+html[data-theme="light"] .admin-game-mode-card,
+html[data-theme="light"] .autopilot-level-card,
+html[data-theme="light"] .autopilot-enable-row {
+  background: rgba(255, 255, 255, 0.84);
+}
+
+html[data-theme="light"] .admin-game-mode-card.active {
+  background: linear-gradient(145deg, rgba(31, 76, 215, 0.10), rgba(18, 158, 105, 0.07));
+  border-color: rgba(31, 76, 215, 0.42);
+}
