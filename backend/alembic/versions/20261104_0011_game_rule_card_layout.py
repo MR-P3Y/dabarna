@@ -49,6 +49,18 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    bind = op.get_bind()
+    v2_games = int(
+        bind.execute(
+            sa.text("SELECT COUNT(*) FROM games WHERE card_layout_version = 2")
+        ).scalar_one()
+        or 0
+    )
+    if v2_games:
+        raise RuntimeError(
+            "Cannot downgrade Tambola V2 while V2 games exist; preserve their 27-cell cards and rule metadata."
+        )
+
     op.drop_column("game_autopilot_configs", "game_rule")
     op.drop_column("games", "game_rule")
     op.drop_column("games", "card_layout_version")
