@@ -13,17 +13,7 @@ os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
 
 from app.services.game_auto_draw_service import GameAutoDrawService
 from app.services.game_auto_draw_worker import GameAutoDrawWorker
-
-
-class _ScalarRows:
-    def __init__(self, rows):
-        self.rows = list(rows)
-
-    def scalars(self):
-        return self
-
-    def all(self):
-        return list(self.rows)
+from app.services.game_draw_mode_service import GameDrawModeService, sequence_commitment
 
 
 class GameAutoDrawServiceTests(unittest.TestCase):
@@ -34,7 +24,10 @@ class GameAutoDrawServiceTests(unittest.TestCase):
         self.assertEqual(len(sequence), 20)
         self.assertEqual(len(sequence), len(set(sequence)))
         self.assertEqual(set(sequence), set(range(1, 21)))
-        self.assertEqual(sequence_commitment(sequence), sequence_commitment(list(sequence)))
+        commitment = sequence_commitment(sequence)
+        self.assertEqual(commitment, sequence_commitment(list(sequence)))
+        rotated = sequence[1:] + sequence[:1]
+        self.assertNotEqual(commitment, sequence_commitment(rotated))
 
     @patch.object(GameAutoDrawService, "_game_for_update")
     def test_start_rejects_unsafe_interval(self, game_for_update: Mock) -> None:
