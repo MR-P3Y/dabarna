@@ -798,6 +798,8 @@ class BotAdminGameOut(BaseModel):
     admin_user_id: int
     status: str
     card_price: int
+    card_layout_version: int = 1
+    game_rule: str = "LEGACY"
     commission_rate: float = 0.10
     sold_amount: int
     commission_amount: int
@@ -869,6 +871,8 @@ class BotAdminGameReportGameOut(BaseModel):
     admin_tg_user_id: int | None = None
     status: str
     card_price: int
+    card_layout_version: int = 1
+    game_rule: str = "LEGACY"
     commission_rate: float = 0.10
     sold_amount: int
     commission_amount: int
@@ -1040,6 +1044,8 @@ def _to_bot_admin_game_out(g: Game) -> BotAdminGameOut:
         admin_user_id=int(g.admin_user_id),
         status=str(g.status),
         card_price=int(g.card_price),
+        card_layout_version=int(g.card_layout_version or 1),
+        game_rule=str(g.game_rule or "LEGACY"),
         commission_rate=float(g.commission_rate or 0),
         sold_amount=int(g.sold_amount),
         commission_amount=int(g.commission_amount),
@@ -2588,7 +2594,7 @@ def list_bot_admin_games(
         text(f"""
             SELECT
               id, tg_group_id, tg_topic_id, admin_user_id, status,
-              card_price, commission_rate, sold_amount, commission_amount, prize_pool,
+              card_price, card_layout_version, game_rule, commission_rate, sold_amount, commission_amount, prize_pool,
               prize_locked, col_prize_amount, row_prize_amount,
               col_paid, payout_state_json, row_winner_user_id,
               created_at
@@ -2749,6 +2755,8 @@ def get_bot_admin_game_report(
             admin_tg_user_id=admin_tg_user_id,
             status=str(game["status"]),
             card_price=int(game["card_price"]),
+            card_layout_version=int(game["card_layout_version"] or 1),
+            game_rule=str(game["game_rule"] or "LEGACY"),
             commission_rate=float(game["commission_rate"] or 0),
             sold_amount=int(game["sold_amount"]),
             commission_amount=int(game["commission_amount"]),
