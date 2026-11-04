@@ -92,6 +92,11 @@ class GameAutoDrawService:
             raise HTTPException(status_code=409, detail="select AUTO draw mode before game start")
 
         configured_interval = int(game.draw_interval_seconds or 0)
+        if configured_interval not in AUTO_DRAW_INTERVALS:
+            raise HTTPException(
+                status_code=400,
+                detail="valid auto draw interval must be selected before game start",
+            )
         if int(interval_seconds) != configured_interval:
             raise HTTPException(status_code=409, detail="AUTO interval is fixed by the pre-game selection")
 
