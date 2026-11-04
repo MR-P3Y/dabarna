@@ -6921,9 +6921,9 @@ async function refreshAdminRiskAlerts() {
 function autopilotLevelLabel(level) {
   const key = String(level || "").toUpperCase();
   return {
-    LOW: "مبلغ پایین",
-    MEDIUM: "مبلغ متوسط",
-    HIGH: "مبلغ بالا",
+    LOW: "خطی ۱",
+    MEDIUM: "خطی ۲",
+    HIGH: "پرکردنی",
   }[key] || key || "-";
 }
 
