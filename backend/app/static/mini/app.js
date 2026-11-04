@@ -2289,7 +2289,8 @@ function resolveWinnerAmount(payload) {
 
 function resolveWinnerKindLabel(kind, payload) {
   const key = String(kind || "").toUpperCase();
-  if (key === "PRIZE_COL" || key === "PRIZE_ROW") return winnerKindLabelByReason(key);
+  const eventRule = String(payload?.game_rule || "LEGACY").toUpperCase();
+  if (key === "PRIZE_COL" || key === "PRIZE_ROW") return winnerKindLabelByReason(key, eventRule);
   const myId = Number(state.currentUserId || 0);
   const rowIds = normalizeIntList(payload?.row_winner_user_ids || []);
   const colIds = normalizeIntList(payload?.col_winner_user_ids || []);
