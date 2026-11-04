@@ -1305,6 +1305,8 @@ class GameService:
                         "winner_card_ids": winner_card_ids,
                         "winner_user_ids": winner_user_ids,
                         "winner_users": winner_users_payload,
+                        "game_rule": str(game.game_rule or "LEGACY"),
+                        "card_layout_version": int(game.card_layout_version or 1),
                         "amount_total": int(col_total),
                         "amounts_by_card": shares,
                         "call_number": int(called_number),
