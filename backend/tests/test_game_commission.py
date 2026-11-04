@@ -50,6 +50,8 @@ class GameCommissionTests(unittest.TestCase):
         )
         payload = GameAutopilotConfigService.serialize(row)
         self.assertEqual(payload["commission_rate"], 0.0)
+        # Older config-like objects without the V2 field retain the LINE default.
+        self.assertEqual(payload["game_rule"], "LINE")
 
     def test_invalid_commission_is_rejected(self) -> None:
         for value in ("-0.01", "1", "1.5"):
