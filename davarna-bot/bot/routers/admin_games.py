@@ -964,7 +964,7 @@ async def admin_games_autopilot(cq: CallbackQuery, api: ApiClient, is_admin: boo
         if not isinstance(items, list):
             items = []
 
-        labels = {"LOW": "مبلغ پایین", "MEDIUM": "مبلغ متوسط", "HIGH": "مبلغ بالا"}
+        labels = {"LOW": "خطی ۱", "MEDIUM": "خطی ۲", "HIGH": "پرکردنی"}
         lines = [
             "وضعیت سه دسته بازی از تنظیمات مرکزی Backend خوانده می‌شود.",
             "Autopilot فعلاً به‌صورت پیش‌فرض خاموش است و بدون فعال‌سازی مدیریت، بازی خودکاری اجرا نمی‌شود.",
