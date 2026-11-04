@@ -41,6 +41,7 @@ def get_autopilot_runtime(
     _require_game_config_access(ident)
     return {
         "runtime_enabled": bool(cfg.GAME_AUTOPILOT_RUNTIME_ENABLED),
+        "tambola_v2_enabled": bool(cfg.GAME_TAMBOLA_V2_ENABLED),
         "auto_draw_enabled": bool(cfg.GAME_AUTO_DRAW_ENABLED),
         "tick_seconds": int(cfg.GAME_AUTOPILOT_TICK_SECONDS),
         "system_user_id": (

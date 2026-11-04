@@ -766,6 +766,8 @@ def admin_user_games_history(
         items.append({
             "game_id": gid,
             "game_status": str(g.status) if g else None,
+            "game_rule": str(g.game_rule or "LEGACY") if g else "LEGACY",
+            "card_layout_version": int(g.card_layout_version or 1) if g else 1,
             "game_topic_id": int(g.tg_topic_id) if (g and g.tg_topic_id is not None) else None,
             "card_price": int(g.card_price) if g else None,
             "row_prize_amount": int(g.row_prize_amount) if g else None,

@@ -1,18 +1,25 @@
 from __future__ import annotations
+
 from typing import Iterable
 
+
 def render_card_text(numbers: list[int], called: Iterable[int], rows: int = 4, cols: int = 5) -> str:
-    called_set = set(int(x) for x in called)
-    if len(numbers) != rows * cols:
+    """Render legacy 4x5 or V2 3x9 cards. Zero means a blank V2 cell."""
+    if len(numbers) == 27:
+        rows, cols = 3, 9
+    elif len(numbers) != rows * cols:
         return "INVALID_CARD"
 
-    lines = []
-    for r in range(rows):
-        row = numbers[r*cols:(r+1)*cols]
+    called_set = {int(n) for n in called}
+    lines: list[str] = []
+    for row in range(rows):
+        row_numbers = numbers[row * cols:(row + 1) * cols]
         cells = []
-        for n in row:
-            if n in called_set:
-                # هایلایت ساده
+        for raw in row_numbers:
+            n = int(raw)
+            if n == 0:
+                cells.append(" -- ")
+            elif n in called_set:
                 cells.append(f"[{n:02d}]")
             else:
                 cells.append(f" {n:02d} ")

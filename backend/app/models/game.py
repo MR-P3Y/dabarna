@@ -25,6 +25,10 @@ class Game(Base):
 
     card_price: Mapped[int] = mapped_column(BigInteger, nullable=False)
     game_level: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    # 1 = legacy 4x5 / 20 numbers; 2 = 3x9 / 15 numbers / zero blanks.
+    card_layout_version: Mapped[int] = mapped_column(Integer, nullable=False, server_default="1")
+    # LEGACY / LINE / FULL_CARD; historical games remain LEGACY.
+    game_rule: Mapped[str] = mapped_column(String(16), nullable=False, server_default="LEGACY")
     execution_source: Mapped[str] = mapped_column(String(16), nullable=False, server_default="ADMIN")
     scheduled_start_at: Mapped[str | None] = mapped_column(TIMESTAMP, nullable=True)
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import secrets
 from datetime import datetime, timezone
 from decimal import Decimal, ROUND_HALF_UP
 from typing import Any
@@ -9,6 +10,7 @@ from fastapi import HTTPException
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
 from app.core.redis_client import RedisLock, idem_get, idem_set
+from app.core import config as cfg
 from app.models.game import Game, GameAutoDraw, GameCalledNumber, GameCard, GamePurchase
 from app.models.user import User
 from app.models.settings import AppSetting
@@ -23,6 +25,12 @@ from app.utils.bingo import (
     card_fingerprint,
     check_line,
     generate_card_numbers,
+)
+from app.utils.bingo_v2 import (
+    generate_tambola_card,
+    is_tourna,
+    is_line_complete,
+    is_full_card,
 )
 
 
@@ -135,15 +143,37 @@ class GameService:
         return out
 
     @staticmethod
-    def _winner_cards(cards: list[GameCard], called_set: set[int], mode: str) -> list[tuple[int, int]]:
+    def _winner_cards(
+        cards: list[GameCard],
+        called_set: set[int],
+        mode: str,
+        *,
+        layout_version: int = 1,
+        game_rule: str = "LEGACY",
+    ) -> list[tuple[int, int]]:
         out: list[tuple[int, int]] = []
-        for c in cards:
-            nums = c.numbers_json
+        for card in cards:
+            nums = card.numbers_json
             if isinstance(nums, str):
                 nums = json.loads(nums)
-            if check_line(nums, called_set, mode=mode):
-                out.append((int(c.id), int(c.user_id)))
-        out.sort(key=lambda x: x[0])  # deterministic
+
+            if layout_version == 2:
+                if game_rule == "FULL_CARD":
+                    matched = mode == "ROW" and is_full_card(nums, called_set)
+                elif game_rule == "LINE":
+                    matched = (
+                        is_line_complete(nums, called_set)
+                        if mode == "ROW"
+                        else is_tourna(nums, called_set) if mode == "COL" else False
+                    )
+                else:
+                    raise ValueError(f"invalid V2 game rule: {game_rule}")
+            else:
+                matched = check_line(nums, called_set, mode=mode)
+
+            if matched:
+                out.append((int(card.id), int(card.user_id)))
+        out.sort(key=lambda item: item[0])
         return out
 
     @staticmethod
@@ -244,12 +274,23 @@ class GameService:
                 else GameAutopilotConfigService.normalize_commission_rate(commission_rate)
             )
 
+        layout_version = 1
+        game_rule = "LEGACY"
+        if cfg.GAME_TAMBOLA_V2_ENABLED and resolved_level is not None:
+            config = GameAutopilotConfigService.get(db, resolved_level)
+            game_rule = str(config.game_rule or "").strip().upper()
+            if game_rule not in {"LINE", "FULL_CARD"}:
+                raise HTTPException(status_code=409, detail="invalid configured V2 game rule")
+            layout_version = 2
+
         g = Game(
             tg_group_id=tg_group_id,
             tg_topic_id=tg_topic_id,
             admin_user_id=admin_user_id,
             card_price=card_price,
             game_level=resolved_level,
+            card_layout_version=layout_version,
+            game_rule=game_rule,
             execution_source=source,
             scheduled_start_at=scheduled_start_at,
             commission_rate=resolved_commission_rate,
@@ -271,6 +312,8 @@ class GameService:
                     "card_price": int(card_price),
                     "tg_topic_id": int(tg_topic_id) if tg_topic_id is not None else None,
                     "game_level": resolved_level,
+                    "card_layout_version": layout_version,
+                    "game_rule": game_rule,
                     "execution_source": source,
                     "commission_rate": float(resolved_commission_rate),
                     "scheduled_start_at": str(scheduled_start_at) if scheduled_start_at is not None else None,
@@ -362,7 +405,11 @@ class GameService:
 
             for attempt in range(MAX_RETRY):
                 seed = f"game:{game.id}|user:{user_id}|purchase:{purchase.id}|i:{i}|a:{attempt}"
-                nums = generate_card_numbers(seed=seed, max_number=max_number, count=20)
+                if int(game.card_layout_version or 1) == 2:
+                    # Production cards must not be predictable from public IDs.
+                    nums = generate_tambola_card(f"{seed}|nonce:{secrets.token_hex(16)}")
+                else:
+                    nums = generate_card_numbers(seed=seed, max_number=max_number, count=20)
                 fp = card_fingerprint(nums)
 
                 try:
@@ -535,8 +582,12 @@ class GameService:
         # - 1/3 of prize_pool for column (paid at most once)
         # - remaining 2/3 for row (game-ending prize)
         # We keep the exact total by assigning rounding remainder to row.
-        col_amount = _round_int(Decimal(prize_pool) * GameService.COL_PRIZE_SHARE_OF_POOL)
-        row_amount = int(prize_pool) - int(col_amount)
+        if int(game.card_layout_version or 1) == 2 and game.game_rule == "FULL_CARD":
+            col_amount = 0  # FULL_CARD has no Torna/intermediate payout.
+            row_amount = int(prize_pool)
+        else:
+            col_amount = _round_int(Decimal(prize_pool) * GameService.COL_PRIZE_SHARE_OF_POOL)
+            row_amount = int(prize_pool) - int(col_amount)
 
         game.col_prize_amount = int(col_amount)   # backward-compatible storage for column bucket
         game.row_prize_amount = int(row_amount)   # backward-compatible storage for row bucket
@@ -1106,10 +1157,14 @@ class GameService:
 
         # 1) Check ROW first
         if not row_paid:
-            row_winner_cards = GameService._winner_cards(cards, called_set, mode="ROW")
+            row_winner_cards = GameService._winner_cards(
+                cards, called_set, mode="ROW",
+                layout_version=int(game.card_layout_version or 1),
+                game_rule=str(game.game_rule or "LEGACY"),
+            )
             if row_winner_cards:
-                row_bucket = int(game.row_prize_amount)  # 60%
-                col_bucket = int(game.col_prize_amount)  # 30%
+                row_bucket = int(game.row_prize_amount)
+                col_bucket = int(game.col_prize_amount)
                 row_total = row_bucket + (0 if col_paid else col_bucket)
 
                 shares = GameService._split_equal(row_total, len(row_winner_cards))
@@ -1137,10 +1192,10 @@ class GameService:
                     "amount_total": int(row_total),
                     "amounts_by_card": shares,
                     "call_number": int(called_number),
-                    "includes_col_share": bool(not col_paid),
+                    "includes_col_share": bool(not col_paid and col_bucket > 0),
                 }
 
-                if not col_paid:
+                if not col_paid and col_bucket > 0:
                     game.col_paid = 1
                     payout_state["col_paid"] = 1
                     payout_state["col"] = {
@@ -1170,10 +1225,12 @@ class GameService:
                         "winner_card_ids": winner_card_ids,
                         "winner_user_ids": winner_user_ids,
                         "winner_users": winner_users_payload,
+                        "game_rule": str(game.game_rule or "LEGACY"),
+                        "card_layout_version": int(game.card_layout_version or 1),
                         "amount_total": int(row_total),
                         "amounts_by_card": shares,
                         "call_number": int(called_number),
-                        "includes_col_share": bool(not col_paid),
+                        "includes_col_share": bool(not col_paid and col_bucket > 0),
                     },
                 )
                 _emit_safe_v2(
@@ -1181,7 +1238,12 @@ class GameService:
                     f"GAME_ENDED:{game_id}",
                     {
                         "status": "ENDED",
-                        "end_reason": "ROW_WIN",
+                        "end_reason": (
+                            "FULL_CARD_WIN"
+                            if int(game.card_layout_version or 1) == 2 and game.game_rule == "FULL_CARD"
+                            else "LINE_WIN" if int(game.card_layout_version or 1) == 2
+                            else "ROW_WIN"
+                        ),
                         "winner_card_ids": winner_card_ids,
                         "winner_user_ids": winner_user_ids,
                         "col_paid": int(game.col_paid),
@@ -1191,7 +1253,11 @@ class GameService:
 
         # 2) If no ROW winner and COL is not paid yet, check COL
         if not col_paid:
-            col_winner_cards = GameService._winner_cards(cards, called_set, mode="COL")
+            col_winner_cards = GameService._winner_cards(
+                cards, called_set, mode="COL",
+                layout_version=int(game.card_layout_version or 1),
+                game_rule=str(game.game_rule or "LEGACY"),
+            )
             if col_winner_cards:
                 col_total = int(game.col_prize_amount)
                 shares = GameService._split_equal(col_total, len(col_winner_cards))
@@ -1239,6 +1305,8 @@ class GameService:
                         "winner_card_ids": winner_card_ids,
                         "winner_user_ids": winner_user_ids,
                         "winner_users": winner_users_payload,
+                        "game_rule": str(game.game_rule or "LEGACY"),
+                        "card_layout_version": int(game.card_layout_version or 1),
                         "amount_total": int(col_total),
                         "amounts_by_card": shares,
                         "call_number": int(called_number),
@@ -1303,6 +1371,8 @@ class GameService:
             "status": str(g.status),
             "card_price": int(g.card_price),
             "game_level": str(g.game_level) if getattr(g, "game_level", None) else None,
+            "card_layout_version": int(g.card_layout_version or 1),
+            "game_rule": str(g.game_rule or "LEGACY"),
             "execution_source": str(getattr(g, "execution_source", "ADMIN") or "ADMIN"),
             "commission_rate": float(g.commission_rate or 0),
             "scheduled_start_at": str(g.scheduled_start_at) if getattr(g, "scheduled_start_at", None) else None,
@@ -1350,12 +1420,16 @@ class GameService:
         ).scalars().all()
 
         def _fmt_cell(n: int) -> str:
+            if n == 0:
+                return " -- "
             return f"[{n:02d}]" if n in called_set else f" {n:02d} "
 
         def _grid_text(nums: list[int]) -> str:
+            is_v2 = int(g.card_layout_version or 1) == 2
+            rows_count, cols_count = (3, 9) if is_v2 else (4, 5)
             rows = []
-            for r in range(4):
-                row_nums = nums[r * 5 : (r + 1) * 5]
+            for row in range(rows_count):
+                row_nums = nums[row * cols_count:(row + 1) * cols_count]
                 rows.append(" ".join(_fmt_cell(int(x)) for x in row_nums))
             return "\n".join(rows)
 
@@ -1366,7 +1440,8 @@ class GameService:
                 nums = json.loads(nums)
             nums = [int(x) for x in nums]
 
-            if len(nums) != 20:
+            expected = 27 if int(g.card_layout_version or 1) == 2 else 20
+            if len(nums) != expected:
                 raise HTTPException(status_code=500, detail=f"invalid card numbers count: card_id={c.id}")
 
             out_cards.append(

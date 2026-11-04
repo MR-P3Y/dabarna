@@ -15,6 +15,8 @@ class GameOut(BaseModel):
     admin_user_id: int
     card_price: int
     game_level: str | None = None
+    card_layout_version: int = 1
+    game_rule: str = "LEGACY"
     execution_source: str = "ADMIN"
     commission_rate: float = 0.10
     scheduled_start_at: str | None = None
@@ -59,7 +61,7 @@ class CallNumberOut(BaseModel):
 class CardOut(BaseModel):
     card_id: int
     fingerprint: str
-    numbers: list[int]  # 20 عدد row-major (5×4)
+    numbers: list[int]  # V1 20 numbers; V2 27 cells with 0 for blank
 
 class MyCardsOut(BaseModel):
     game_id: int
@@ -72,6 +74,8 @@ class GameStateOut(BaseModel):
     status: str
     card_price: int
     game_level: str | None = None
+    card_layout_version: int = 1
+    game_rule: str = "LEGACY"
     execution_source: str = "ADMIN"
     commission_rate: float = 0.10
     scheduled_start_at: str | None = None

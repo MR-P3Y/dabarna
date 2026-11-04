@@ -15,6 +15,8 @@ class GameAutopilotConfig(Base):
     draw_mode: Mapped[str] = mapped_column(String(16), nullable=False, server_default="MANUAL")
 
     card_price: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    # Future rule mapping: LOW/MEDIUM => LINE, HIGH => FULL_CARD.
+    game_rule: Mapped[str] = mapped_column(String(16), nullable=False, server_default="LINE")
     commission_rate: Mapped[str] = mapped_column(DECIMAL(5, 4), nullable=False, server_default="0.1000")
 
     announce_before_seconds: Mapped[int] = mapped_column(Integer, nullable=False, server_default="300")

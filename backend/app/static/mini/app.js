@@ -358,9 +358,9 @@ const UI_TEXT = {
 };
 
 const ADMIN_CREATE_TOPIC_LABELS = {
-  game_low: "🎯 بازی ۱ (مبلغ پایین)",
-  game_medium: "🎯 بازی ۲ (مبلغ متوسط)",
-  game_high: "🎯 بازی ۳ (مبلغ بالا)",
+  game_low: "🎯 خطی ۱",
+  game_medium: "🎯 خطی ۲",
+  game_high: "🏆 پرکردنی",
 };
 
 function localizeShell() {
@@ -904,8 +904,11 @@ function cryptoStatusLabel(value) {
   return CRYPTO_STATUS_LABELS[key] || statusLabel(value);
 }
 
-function eventKindLabel(value) {
+function eventKindLabel(value, payload = {}) {
   const key = String(value || "").toUpperCase();
+  if (key === "PRIZE_COL" || key === "PRIZE_ROW") {
+    return winnerKindLabelByReason(key, payload?.game_rule || "LEGACY");
+  }
   return EVENT_KIND_LABELS[key] || String(value || "رویداد");
 }
 
@@ -932,6 +935,7 @@ const WALLET_REASON_LABELS = {
 
 function walletReasonLabel(reason) {
   const key = String(reason || "").toUpperCase();
+  if (key === "PRIZE_ROW") return "جایزه نهایی بازی";
   if (WALLET_REASON_LABELS[key]) return WALLET_REASON_LABELS[key];
   if (!key) return "-";
   return key.replaceAll("_", " ");
@@ -1185,6 +1189,9 @@ const WIN_PATTERN_LABELS = {
   ROW: "برد سطری(تمام)",
   COL: "برد ستونی(تورنا)",
   FULL: "برد سطری(تمام)",
+  LINE: "برد خطی (۵ عدد)",
+  FULL_CARD: "برد پرکردنی (۱۵ عدد)",
+  TOURNA: "تورنا (۳ عدد از یک ردیف)",
 };
 
 function repairMojibakeText(raw) {
@@ -1212,14 +1219,27 @@ function normalizeWinPatternLabel(raw) {
   return val;
 }
 
-function winnerKindLabelByReason(reason) {
+function winnerKindLabelByReason(reason, rule = "LEGACY") {
   const key = String(reason || "").toUpperCase();
-  if (key === "PRIZE_COL") return "برد ستونی(تورنا)";
-  if (key === "PRIZE_ROW") return "برد سطری(تمام)";
+  const gameRule = String(rule || "LEGACY").toUpperCase();
+  if (key === "PRIZE_COL") return gameRule === "LINE" ? "تورنا (۳ عدد از یک ردیف)" : "برد ستونی(تورنا)";
+  if (key === "PRIZE_ROW") {
+    if (gameRule === "FULL_CARD") return "برد پرکردنی (۱۵ عدد)";
+    if (gameRule === "LINE") return "برد خطی (۵ عدد)";
+    return "برد سطری(تمام)";
+  }
   return "برد";
 }
 
-function winnerKindLabelByFlags({ row = false, col = false } = {}) {
+function winnerKindLabelByFlags({ row = false, col = false, rule = "LEGACY" } = {}) {
+  const gameRule = String(rule || "LEGACY").toUpperCase();
+  if (gameRule === "FULL_CARD") return row ? "برد پرکردنی (۱۵ عدد)" : "";
+  if (gameRule === "LINE") {
+    if (row && col) return "تورنا (۳ عدد) + خطی (۵ عدد)";
+    if (row) return "برد خطی (۵ عدد)";
+    if (col) return "تورنا (۳ عدد)";
+    return "";
+  }
   if (row && col) return "برد ستونی(تورنا) + برد سطری(تمام)";
   if (row) return "برد سطری(تمام)";
   if (col) return "برد ستونی(تورنا)";
@@ -2276,7 +2296,8 @@ function resolveWinnerAmount(payload) {
 
 function resolveWinnerKindLabel(kind, payload) {
   const key = String(kind || "").toUpperCase();
-  if (key === "PRIZE_COL" || key === "PRIZE_ROW") return winnerKindLabelByReason(key);
+  const eventRule = String(payload?.game_rule || "LEGACY").toUpperCase();
+  if (key === "PRIZE_COL" || key === "PRIZE_ROW") return winnerKindLabelByReason(key, eventRule);
   const myId = Number(state.currentUserId || 0);
   const rowIds = normalizeIntList(payload?.row_winner_user_ids || []);
   const colIds = normalizeIntList(payload?.col_winner_user_ids || []);
@@ -2286,7 +2307,7 @@ function resolveWinnerKindLabel(kind, payload) {
   const colByAmount = Number(payload?.col_payout_total || 0) > 0;
   const row = rowByIds || (!colByIds && rowByAmount);
   const col = colByIds || (!rowByIds && colByAmount);
-  return winnerKindLabelByFlags({ row, col }) || winnerKindLabelByReason(key);
+  return winnerKindLabelByFlags({ row, col, rule: eventRule }) || winnerKindLabelByReason(key, eventRule);
 }
 
 function extractWinnerInfo(event) {
@@ -2362,13 +2383,16 @@ function renderWinnerBannerFromState(gameId, st) {
   if (!rowMine && !colMine) { host.innerHTML = ""; return; }
 
   const notes = [];
+  const gameRule = String(st?.game_rule || "LEGACY").toUpperCase();
   if (colMine) {
     const colAmount = Number(st?.col_payout_total || 0);
-    notes.push(colAmount > 0 ? `برد ستونی(تورنا): ${toman(colAmount)}` : "برد ستونی(تورنا) ثبت شد");
+    const label = gameRule === "LINE" ? "تورنا (۳ عدد از یک ردیف)" : "تورنا";
+    notes.push(colAmount > 0 ? `برد ${label}: ${toman(colAmount)}` : `برد ${label} ثبت شد`);
   }
   if (rowMine) {
     const rowAmount = Number(st?.row_payout_total || 0);
-    notes.push(rowAmount > 0 ? `برد سطری(تمام): ${toman(rowAmount)}` : "برد سطری(تمام) ثبت شد");
+    const label = gameRule === "FULL_CARD" ? "پرکردنی (۱۵ عدد)" : gameRule === "LINE" ? "خطی (۵ عدد)" : "تمام";
+    notes.push(rowAmount > 0 ? `برد ${label}: ${toman(rowAmount)}` : `برد ${label} ثبت شد`);
   }
 
   host.innerHTML = `
@@ -2498,7 +2522,7 @@ function renderLiveEvents(events, { notifyFresh = false, notifyAfterId = 0 } = {
             : "";
           return `
           <div class="${chipClass}">
-            <strong>${safeText(eventKindLabel(e.kind))}</strong>
+            <strong>${safeText(eventKindLabel(e.kind, e.payload || {}))}</strong>
             <div>${safeText(formatFaDateTime(e.created_at))}</div>
             ${winnerText}
           </div>`;
@@ -2645,7 +2669,7 @@ function appendEvents(events) {
       const winnerText = mine ? '<div class="winner-note">تبریک! این برد برای شما ثبت شد.</div>' : "";
       return `
       <div class="${chipClass}">
-        <strong>${safeText(eventKindLabel(e.kind))}</strong>
+        <strong>${safeText(eventKindLabel(e.kind, e.payload || {}))}</strong>
         <div>${safeText(formatFaDateTime(e.created_at))}</div>
         ${winnerText}
       </div>`;
@@ -3026,6 +3050,9 @@ function buildCardGrid(numbers, calledSet, freshSet, winnerSet = new Set()) {
   return list
     .map((n, idx) => {
       const num = Number(n);
+      if (list.length === 27 && num === 0) {
+        return '<span class="num-chip empty-cell" aria-hidden="true"></span>';
+      }
       let cls = freshSet.has(num) ? "num-chip called fresh" : calledSet.has(num) ? "num-chip called" : "num-chip";
       if (winnerSet.has(idx)) cls += " win";
       return `<span class="${cls}">${safeText(num)}</span>`;
@@ -3036,8 +3063,21 @@ function buildCardGrid(numbers, calledSet, freshSet, winnerSet = new Set()) {
 function calcWinnerCellIndices(numbers, calledSet, { row = false, col = false } = {}) {
   const out = new Set();
   const nums = Array.isArray(numbers) ? numbers : [];
-  if (nums.length < 20) return out;
 
+  if (nums.length === 27) {
+    for (let r = 0; r < 3; r += 1) {
+      const start = r * 9;
+      const indices = Array.from({ length: 9 }, (_, i) => start + i)
+        .filter((i) => Number(nums[i]) > 0);
+      const matches = indices.filter((i) => calledSet.has(Number(nums[i])));
+      if ((row && matches.length === 5) || (col && matches.length >= 3)) {
+        for (const idx of matches) out.add(idx);
+      }
+    }
+    return out;
+  }
+
+  if (nums.length !== 20) return out;
   if (row) {
     for (let r = 0; r < 4; r += 1) {
       const start = r * 5;
@@ -3047,7 +3087,6 @@ function calcWinnerCellIndices(numbers, calledSet, { row = false, col = false } 
       }
     }
   }
-
   if (col) {
     for (let c = 0; c < 5; c += 1) {
       const colNums = [nums[c], nums[c + 5], nums[c + 10], nums[c + 15]];
@@ -3206,8 +3245,8 @@ function renderCardsActive(activeGames) {
             ${g.cards
               .map((c) => {
                 const nums = Array.isArray(c.numbers) ? c.numbers : [];
-                const calledCount = nums.reduce((acc, n) => acc + (calledSet.has(Number(n)) ? 1 : 0), 0);
-                const total = nums.length || 0;
+                const calledCount = nums.reduce((acc, n) => acc + (Number(n) > 0 && calledSet.has(Number(n)) ? 1 : 0), 0);
+                const total = nums.filter((n) => Number(n) > 0).length;
                 const percent = total ? Math.round((calledCount / total) * 100) : 0;
                 const rowWinner = new Set((g.rowWinnerCardIds || []).map((x) => Number(x)));
                 const colWinner = new Set((g.colWinnerCardIds || []).map((x) => Number(x)));
@@ -3217,13 +3256,12 @@ function renderCardsActive(activeGames) {
                   row: isRowWinner,
                   col: isColWinner,
                 });
-                const winnerLabel = isRowWinner && isColWinner
-                  ? '<span class="winner-kind-pill">برنده ستونی(تورنا) + سطری(تمام)</span>'
-                  : isRowWinner
-                    ? '<span class="winner-kind-pill">برنده سطری(تمام)</span>'
-                    : isColWinner
-                      ? '<span class="winner-kind-pill">برنده ستونی(تورنا)</span>'
-                      : "";
+                const winnerText = winnerKindLabelByFlags({
+                  row: isRowWinner,
+                  col: isColWinner,
+                  rule: nums.length === 27 ? g.gameRule : "LEGACY",
+                });
+                const winnerLabel = winnerText ? `<span class="winner-kind-pill">${safeText(winnerText)}</span>` : "";
                 const cardClass = isRowWinner || isColWinner ? "card-pro winner-focus" : "card-pro";
                 return `
                   <div class="${cardClass}">
@@ -3236,7 +3274,7 @@ function renderCardsActive(activeGames) {
                       <span>${calledCount} از ${total} عدد کارت خوانده شده</span>
                       <div class="card-progress-bar"><i style="width:${percent}%"></i></div>
                     </div>
-                    <div class="mini-card-grid">${buildCardGrid(nums, calledSet, freshSet, winnerCells)}</div>
+                    <div class="mini-card-grid ${nums.length === 27 ? "v2" : ""}">${buildCardGrid(nums, calledSet, freshSet, winnerCells)}</div>
                   </div>
                 `;
               })
@@ -3331,6 +3369,7 @@ async function openHistoryModalForGame(gameId, { cardId = 0, source = "history" 
     const calledSet = new Set(calledNumbers);
     const rowWinnerSet = new Set((st.row_winner_card_ids || []).map((x) => Number(x)));
     const colWinnerSet = new Set((st.col_winner_card_ids || []).map((x) => Number(x)));
+    const gameRule = String(st.game_rule || snapshot?.game?.game_rule || "LEGACY").toUpperCase();
 
     titleEl.textContent = source === "wins" ? `جزئیات برد بازی #${gid}` : `جزئیات کارت‌های بازی #${gid}`;
     metaEl.textContent = `وضعیت: ${statusLabel(st.status || snapshot?.game?.status)} | اعداد اعلام‌شده: ${calledNumbers.length}`;
@@ -3353,7 +3392,7 @@ async function openHistoryModalForGame(gameId, { cardId = 0, source = "history" 
         const isRowWinner = rowWinnerSet.has(Number(c.card_id || 0));
         const isColWinner = colWinnerSet.has(Number(c.card_id || 0));
         const winnerCells = calcWinnerCellIndices(nums, calledSet, { row: isRowWinner, col: isColWinner });
-        const winnerLabel = winnerKindLabelByFlags({ row: isRowWinner, col: isColWinner });
+        const winnerLabel = winnerKindLabelByFlags({ row: isRowWinner, col: isColWinner, rule: nums.length === 27 ? gameRule : "LEGACY" });
         const resultText = winnerLabel ? `برنده: ${winnerLabel}` : "هنوز برنده ثبت نشده";
         return `
           <div class="history-modal-card-item history-modal-card-item-ux21">
@@ -3364,7 +3403,7 @@ async function openHistoryModalForGame(gameId, { cardId = 0, source = "history" 
             </div>
             ${winnerLabel ? `<span class="winner-kind-pill">${safeText(winnerLabel)}</span>` : ""}
             <div class="history-modal-result history-modal-result-ux21">${safeText(resultText)}</div>
-            <div class="mini-card-grid">${buildCardGrid(nums, calledSet, new Set(), winnerCells)}</div>
+            <div class="mini-card-grid ${nums.length === 27 ? "v2" : ""}">${buildCardGrid(nums, calledSet, new Set(), winnerCells)}</div>
           </div>
         `;
       })
@@ -3421,8 +3460,9 @@ async function openAdminWinnerCardModal(gameId, cardId) {
     const nums = Array.isArray(card?.numbers) ? card.numbers : [];
     const isRowWinner = rowWinnerSet.has(Number(cid));
     const isColWinner = colWinnerSet.has(Number(cid));
+    const gameRule = String(st.game_rule || snapshot?.game?.game_rule || "LEGACY").toUpperCase();
     const winnerCells = calcWinnerCellIndices(nums, calledSet, { row: isRowWinner, col: isColWinner });
-    const winnerLabel = winnerKindLabelByFlags({ row: isRowWinner, col: isColWinner }) || "کارت برنده";
+    const winnerLabel = winnerKindLabelByFlags({ row: isRowWinner, col: isColWinner, rule: nums.length === 27 ? gameRule : "LEGACY" }) || "کارت برنده";
     const user = card?.user || {};
     const username = String(user?.username || "").trim();
     const displayName = String(user?.display_name || "").trim();
@@ -3441,7 +3481,7 @@ async function openAdminWinnerCardModal(gameId, cardId) {
         | آخرین عدد: ${safeText(st.last_number ?? "-")}
         | اعداد اعلام‌شده: ${safeText(calledNumbers.length)}
       </div>
-      <div class="mini-card-grid">${buildCardGrid(nums, calledSet, new Set(), winnerCells)}</div>
+      <div class="mini-card-grid ${nums.length === 27 ? "v2" : ""}">${buildCardGrid(nums, calledSet, new Set(), winnerCells)}</div>
     `;
     if (btn) {
       btn.disabled = false;
@@ -3518,6 +3558,7 @@ async function refreshCards({ silent = false } = {}) {
       calledNumbers,
       freshNumbers,
       lastNumber: snap?.state?.last_number ?? (calledNumbers.length ? calledNumbers[calledNumbers.length - 1] : null),
+      gameRule: String(snap?.state?.game_rule || snap?.game?.game_rule || "LEGACY").toUpperCase(),
       rowWinnerCardIds: Array.isArray(snap?.state?.row_winner_card_ids) ? snap.state.row_winner_card_ids.map((x) => Number(x)) : [],
       colWinnerCardIds: Array.isArray(snap?.state?.col_winner_card_ids) ? snap.state.col_winner_card_ids.map((x) => Number(x)) : [],
       cards,
@@ -6361,14 +6402,18 @@ async function adminUsersShowGames(tgUserId, options = {}) {
     const winRow = Number(g?.win?.wins_row_amount || 0);
     const winColCount = Number(g?.win?.wins_col_count || 0);
     const winRowCount = Number(g?.win?.wins_row_count || 0);
+    const gameRule = String(g?.game_rule || "LEGACY").toUpperCase();
+    const winColLabel = gameRule === "LINE" ? "تورنا (۳ عدد)" : "تورنا";
+    const winRowLabel = gameRule === "FULL_CARD" ? "پرکردنی (۱۵ عدد)" : gameRule === "LINE" ? "خطی (۵ عدد)" : "تمام";
+    const colHistoryLine = gameRule === "FULL_CARD" ? "" : `تورنا: ${safeText(String(winColCount))} | ${safeText(toman(winCol))}<br/>`;
     return `
       <div class="history-item">
         <strong>بازی #${safeText(String(g?.game_id || 0))}</strong>
         <div class="history-meta">
           وضعیت: ${safeText(statusLabel(g?.game_status || ""))}<br/>
           کارت: ${safeText(String(g?.cards_qty || 0))} | هزینه: ${safeText(toman(g?.total_spent || 0))}<br/>
-          برد ستونی(تورنا): ${safeText(String(winColCount))} | ${safeText(toman(winCol))}<br/>
-          برد سطری(تمام): ${safeText(String(winRowCount))} | ${safeText(toman(winRow))}<br/>
+          ${colHistoryLine}
+          برد ${safeText(winRowLabel)}: ${safeText(String(winRowCount))} | ${safeText(toman(winRow))}<br/>
           مجموع برد: ${safeText(toman(win))}<br/>
           آخرین خرید: ${safeText(formatFaDateTime(g?.last_buy_at))}
         </div>
@@ -6891,9 +6936,9 @@ async function refreshAdminRiskAlerts() {
 function autopilotLevelLabel(level) {
   const key = String(level || "").toUpperCase();
   return {
-    LOW: "مبلغ پایین",
-    MEDIUM: "مبلغ متوسط",
-    HIGH: "مبلغ بالا",
+    LOW: "خطی ۱",
+    MEDIUM: "خطی ۲",
+    HIGH: "پرکردنی",
   }[key] || key || "-";
 }
 

@@ -133,9 +133,9 @@ def _parse_create_cancel_ctx(data: str) -> tuple[str, int]:
 
 def _configured_game_topics() -> list[tuple[str, int]]:
     raw: list[tuple[str, int | None]] = [
-        ("🎯 بازی ۱ (مبلغ پایین)", settings.USER_TOPIC_GAME_LOW_ID),
-        ("🎯 بازی ۲ (مبلغ متوسط)", settings.USER_TOPIC_GAME_MEDIUM_ID),
-        ("🎯 بازی ۳ (مبلغ بالا)", settings.USER_TOPIC_GAME_HIGH_ID),
+        ("🎯 خطی ۱", settings.USER_TOPIC_GAME_LOW_ID),
+        ("🎯 خطی ۲", settings.USER_TOPIC_GAME_MEDIUM_ID),
+        ("🏆 پرکردنی", settings.USER_TOPIC_GAME_HIGH_ID),
     ]
     out: list[tuple[str, int]] = []
     seen: set[int] = set()
@@ -964,7 +964,7 @@ async def admin_games_autopilot(cq: CallbackQuery, api: ApiClient, is_admin: boo
         if not isinstance(items, list):
             items = []
 
-        labels = {"LOW": "مبلغ پایین", "MEDIUM": "مبلغ متوسط", "HIGH": "مبلغ بالا"}
+        labels = {"LOW": "خطی ۱", "MEDIUM": "خطی ۲", "HIGH": "پرکردنی"}
         lines = [
             "وضعیت سه دسته بازی از تنظیمات مرکزی Backend خوانده می‌شود.",
             "Autopilot فعلاً به‌صورت پیش‌فرض خاموش است و بدون فعال‌سازی مدیریت، بازی خودکاری اجرا نمی‌شود.",

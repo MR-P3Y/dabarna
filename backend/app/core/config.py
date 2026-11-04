@@ -412,6 +412,8 @@ GAME_AUTO_DRAW_ENABLED = _safe_bool("GAME_AUTO_DRAW_ENABLED", True)
 # Two-key safety model:
 # 1) this environment switch must be enabled;
 # 2) each LOW/MEDIUM/HIGH DB config must also be enabled.
+# Keep the new 15-number format disabled until all Mini App/Bot views are verified.
+GAME_TAMBOLA_V2_ENABLED = _safe_bool("GAME_TAMBOLA_V2_ENABLED", False)
 GAME_AUTOPILOT_RUNTIME_ENABLED = _safe_bool("GAME_AUTOPILOT_RUNTIME_ENABLED", False)
 GAME_AUTOPILOT_TICK_SECONDS = _safe_positive_int("GAME_AUTOPILOT_TICK_SECONDS", 2, minimum=1)
 GAME_AUTOPILOT_SYSTEM_USER_ID = (
