@@ -358,9 +358,9 @@ const UI_TEXT = {
 };
 
 const ADMIN_CREATE_TOPIC_LABELS = {
-  game_low: "🎯 بازی ۱ (مبلغ پایین)",
-  game_medium: "🎯 بازی ۲ (مبلغ متوسط)",
-  game_high: "🎯 بازی ۳ (مبلغ بالا)",
+  game_low: "🎯 خطی ۱",
+  game_medium: "🎯 خطی ۲",
+  game_high: "🏆 پرکردنی",
 };
 
 function localizeShell() {
