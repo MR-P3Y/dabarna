@@ -58,6 +58,7 @@ class GameAutoDrawServiceTests(unittest.TestCase):
             status="RUNNING",
             interval_seconds=8,
             sequence_json=[11, 22, 33, 44],
+            sequence_commitment="test-sequence-commitment",
             cursor=2,
             next_draw_at=datetime(2026, 9, 16, 12, 0, 8),
         )
