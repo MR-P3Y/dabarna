@@ -27,15 +27,23 @@ class _ScalarRows:
 
 
 class GameAutoDrawServiceTests(unittest.TestCase):
-    def test_remaining_sequence_excludes_called_numbers_without_duplicates(self) -> None:
-        db = SimpleNamespace(execute=lambda statement: _ScalarRows([2, 9, 15]))
-        sequence = GameAutoDrawService._remaining_sequence(db, game_id=7, max_number=20)
+    def test_prepared_sequence_contains_each_number_once(self) -> None:
+        # AUTO mode prepares and commits the full random sequence before the game starts.
+        sequence = GameDrawModeService._sequence(max_number=20)
 
-        self.assertEqual(len(sequence), 17)
+        self.assertEqual(len(sequence), 20)
         self.assertEqual(len(sequence), len(set(sequence)))
-        self.assertEqual(set(sequence), set(range(1, 21)) - {2, 9, 15})
+        self.assertEqual(set(sequence), set(range(1, 21)))
+        self.assertEqual(sequence_commitment(sequence), sequence_commitment(list(sequence)))
 
-    def test_start_rejects_unsafe_interval_before_database_work(self) -> None:
+    @patch.object(GameAutoDrawService, "_game_for_update")
+    def test_start_rejects_unsafe_interval(self, game_for_update: Mock) -> None:
+        # The compatibility start endpoint must reject invalid persisted intervals too.
+        game_for_update.return_value = SimpleNamespace(
+            admin_user_id=2,
+            draw_mode="AUTO",
+            draw_interval_seconds=1,
+        )
         with self.assertRaises(HTTPException) as ctx:
             GameAutoDrawService.start(
                 Mock(),
@@ -47,7 +55,12 @@ class GameAutoDrawServiceTests(unittest.TestCase):
         self.assertEqual(ctx.exception.status_code, 400)
 
     def test_state_reports_countdown_and_remaining_numbers(self) -> None:
-        game = SimpleNamespace(id=3, status="RUNNING")
+        game = SimpleNamespace(
+            id=3,
+            status="RUNNING",
+            draw_mode="AUTO",
+            draw_mode_locked_at=datetime(2026, 9, 16, 11, 59, 0),
+        )
         control = SimpleNamespace(
             status="RUNNING",
             interval_seconds=8,
