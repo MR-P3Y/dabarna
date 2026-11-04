@@ -90,6 +90,16 @@ def _build_game_flow_body(game_id: int, state: dict) -> str:
     buy_state = "باز" if status_raw == "LOBBY" else "بسته"
     col_paid = bool(int(state.get("col_paid") or 0))
     row_paid = bool(int(state.get("row_paid") or 0))
+    game_rule = str(state.get("game_rule") or "LEGACY").upper()
+    if game_rule == "FULL_CARD":
+        win_rule = "پرکردنی: تکمیل هر ۱۵ عدد کارت"
+        intermediate = "بدون تورنا"
+    elif game_rule == "LINE":
+        win_rule = "خطی: تکمیل ۵ عدد یک ردیف"
+        intermediate = "تورنا: هر ۳ عدد یک ردیف"
+    else:
+        win_rule = "تمام: ردیف ۵ عددی"
+        intermediate = "تورنا: ستون ۴ عددی"
     commission_raw = state.get("commission_rate")
     try:
         commission_percent = float(0.10 if commission_raw is None else commission_raw) * 100.0
@@ -103,6 +113,7 @@ def _build_game_flow_body(game_id: int, state: dict) -> str:
         f"🪪 کارت‌های برنده: <b>{winners['cards_total']}</b>",
         f"تورنا: <b>{winners['col_users']}</b> نفر | تمام: <b>{winners['row_users']}</b> نفر",
         "",
+        f"📋 قانون: <b>{win_rule}</b> | {intermediate}",
         f"💳 قیمت کارت: <b>{_fmt_int(state.get('card_price'))}</b>",
         f"🧾 کمیسیون بازی: <b>{commission_percent:g}%</b>",
         f"🎁 جایزه کل: <b>{_fmt_int(state.get('prize_pool'))}</b>",
