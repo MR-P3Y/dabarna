@@ -2300,7 +2300,7 @@ function resolveWinnerKindLabel(kind, payload) {
   const colByAmount = Number(payload?.col_payout_total || 0) > 0;
   const row = rowByIds || (!colByIds && rowByAmount);
   const col = colByIds || (!rowByIds && colByAmount);
-  return winnerKindLabelByFlags({ row, col }) || winnerKindLabelByReason(key);
+  return winnerKindLabelByFlags({ row, col, rule: eventRule }) || winnerKindLabelByReason(key, eventRule);
 }
 
 function extractWinnerInfo(event) {
