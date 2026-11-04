@@ -3450,8 +3450,9 @@ async function openAdminWinnerCardModal(gameId, cardId) {
     const nums = Array.isArray(card?.numbers) ? card.numbers : [];
     const isRowWinner = rowWinnerSet.has(Number(cid));
     const isColWinner = colWinnerSet.has(Number(cid));
+    const gameRule = String(st.game_rule || snapshot?.game?.game_rule || "LEGACY").toUpperCase();
     const winnerCells = calcWinnerCellIndices(nums, calledSet, { row: isRowWinner, col: isColWinner });
-    const winnerLabel = winnerKindLabelByFlags({ row: isRowWinner, col: isColWinner }) || "کارت برنده";
+    const winnerLabel = winnerKindLabelByFlags({ row: isRowWinner, col: isColWinner, rule: nums.length === 27 ? gameRule : "LEGACY" }) || "کارت برنده";
     const user = card?.user || {};
     const username = String(user?.username || "").trim();
     const displayName = String(user?.display_name || "").trim();
