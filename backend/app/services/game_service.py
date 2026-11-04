@@ -1192,7 +1192,7 @@ class GameService:
                     "amount_total": int(row_total),
                     "amounts_by_card": shares,
                     "call_number": int(called_number),
-                    "includes_col_share": bool(not col_paid),
+                    "includes_col_share": bool(not col_paid and col_bucket > 0),
                 }
 
                 if not col_paid and col_bucket > 0:
@@ -1228,7 +1228,7 @@ class GameService:
                         "amount_total": int(row_total),
                         "amounts_by_card": shares,
                         "call_number": int(called_number),
-                        "includes_col_share": bool(not col_paid),
+                        "includes_col_share": bool(not col_paid and col_bucket > 0),
                     },
                 )
                 _emit_safe_v2(
