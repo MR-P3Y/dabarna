@@ -22,6 +22,8 @@ class MiniGameItemOut(BaseModel):
     status: str
     card_price: int
     game_level: str | None = None
+    card_layout_version: int = 1
+    game_rule: str = "LEGACY"
     execution_source: str = "ADMIN"
     commission_rate: float = 0.10
     scheduled_start_at: str | None = None
