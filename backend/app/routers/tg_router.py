@@ -62,6 +62,8 @@ def _to_game_out(g: Game) -> GameOut:
         admin_user_id=g.admin_user_id,
         card_price=g.card_price,
         game_level=str(g.game_level) if getattr(g, "game_level", None) else None,
+        card_layout_version=int(g.card_layout_version or 1),
+        game_rule=str(g.game_rule or "LEGACY"),
         execution_source=str(getattr(g, "execution_source", "ADMIN") or "ADMIN"),
         commission_rate=float(g.commission_rate or 0),
         scheduled_start_at=str(g.scheduled_start_at) if getattr(g, "scheduled_start_at", None) else None,
