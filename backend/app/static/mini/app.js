@@ -1212,10 +1212,15 @@ function normalizeWinPatternLabel(raw) {
   return val;
 }
 
-function winnerKindLabelByReason(reason) {
+function winnerKindLabelByReason(reason, rule = "LEGACY") {
   const key = String(reason || "").toUpperCase();
-  if (key === "PRIZE_COL") return "برد ستونی(تورنا)";
-  if (key === "PRIZE_ROW") return "برد سطری(تمام)";
+  const gameRule = String(rule || "LEGACY").toUpperCase();
+  if (key === "PRIZE_COL") return gameRule === "LINE" ? "تورنا (۳ عدد از یک ردیف)" : "برد ستونی(تورنا)";
+  if (key === "PRIZE_ROW") {
+    if (gameRule === "FULL_CARD") return "برد پرکردنی (۱۵ عدد)";
+    if (gameRule === "LINE") return "برد خطی (۵ عدد)";
+    return "برد سطری(تمام)";
+  }
   return "برد";
 }
 
