@@ -106,12 +106,22 @@ def _build_game_flow_body(game_id: int, state: dict) -> str:
     except Exception:
         commission_percent = 10.0
 
+    if game_rule == "FULL_CARD":
+        winner_stats = f"پرکردنی: <b>{winners['row_users']}</b> نفر"
+        payout_status = f"پرکردنی {'✅' if row_paid else '❌'} | تورنا: ندارد"
+    elif game_rule == "LINE":
+        winner_stats = f"تورنا: <b>{winners['col_users']}</b> نفر | خطی: <b>{winners['row_users']}</b> نفر"
+        payout_status = f"تورنا {'✅' if col_paid else '❌'} | خطی {'✅' if row_paid else '❌'}"
+    else:
+        winner_stats = f"تورنا: <b>{winners['col_users']}</b> نفر | تمام: <b>{winners['row_users']}</b> نفر"
+        payout_status = f"تورنا {'✅' if col_paid else '❌'} | تمام {'✅' if row_paid else '❌'}"
+
     lines = [
         f"🎮 بازی: <b>#{game_id}</b>",
         f"وضعیت بازی: <b>{status_fa}</b>",
         f"👥 تعداد برندگان: <b>{winners['users_total']}</b> نفر",
         f"🪪 کارت‌های برنده: <b>{winners['cards_total']}</b>",
-        f"تورنا: <b>{winners['col_users']}</b> نفر | تمام: <b>{winners['row_users']}</b> نفر",
+        winner_stats,
         "",
         f"📋 قانون: <b>{win_rule}</b> | {intermediate}",
         f"💳 قیمت کارت: <b>{_fmt_int(state.get('card_price'))}</b>",
@@ -124,7 +134,7 @@ def _build_game_flow_body(game_id: int, state: dict) -> str:
         f"📊 تعداد اعداد اعلام‌شده: <b>{len(called_numbers)}</b>",
         "",
         f"🧭 وضعیت خرید کارت: <b>{buy_state}</b>",
-        f"🏁 وضعیت پرداخت: تورنا {'✅' if col_paid else '❌'} | تمام {'✅' if row_paid else '❌'}",
+        f"🏁 وضعیت پرداخت: {payout_status}",
     ]
 
     if status_raw == "ENDED":
