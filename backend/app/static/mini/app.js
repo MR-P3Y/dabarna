@@ -222,8 +222,8 @@ const EVENT_KIND_LABELS = {
   NUMBER_UNDONE: "حذف آخرین عدد",
   CARDS_PURCHASED: "خرید کارت",
   CARD_BOUGHT: "خرید کارت",
-  PRIZE_COL: "برد ستونی(تورنا)",
-  PRIZE_ROW: "برد سطری(تمام)",
+  PRIZE_COL: "جایزه تورنا",
+  PRIZE_ROW: "جایزه نهایی بازی",
   CLAIM_SUBMITTED: "ثبت ادعا",
   CLAIM_APPROVED: "تایید ادعا",
   CLAIM_REJECTED: "رد ادعا",
@@ -6403,9 +6403,8 @@ async function adminUsersShowGames(tgUserId, options = {}) {
     const winColCount = Number(g?.win?.wins_col_count || 0);
     const winRowCount = Number(g?.win?.wins_row_count || 0);
     const gameRule = String(g?.game_rule || "LEGACY").toUpperCase();
-    const winColLabel = gameRule === "LINE" ? "تورنا (۳ عدد)" : "تورنا";
     const winRowLabel = gameRule === "FULL_CARD" ? "پرکردنی (۱۵ عدد)" : gameRule === "LINE" ? "خطی (۵ عدد)" : "تمام";
-    const colHistoryLine = gameRule === "FULL_CARD" ? "" : `تورنا: ${safeText(String(winColCount))} | ${safeText(toman(winCol))}<br/>`;
+    const colHistoryLine = gameRule === "FULL_CARD" ? "" : `برد ${safeText(gameRule === "LINE" ? "تورنا (۳ عدد)" : "تورنا")}: ${safeText(String(winColCount))} | ${safeText(toman(winCol))}<br/>`;
     return `
       <div class="history-item">
         <strong>بازی #${safeText(String(g?.game_id || 0))}</strong>
