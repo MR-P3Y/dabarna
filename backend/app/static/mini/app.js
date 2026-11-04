@@ -904,8 +904,11 @@ function cryptoStatusLabel(value) {
   return CRYPTO_STATUS_LABELS[key] || statusLabel(value);
 }
 
-function eventKindLabel(value) {
+function eventKindLabel(value, payload = {}) {
   const key = String(value || "").toUpperCase();
+  if (key === "PRIZE_COL" || key === "PRIZE_ROW") {
+    return winnerKindLabelByReason(key, payload?.game_rule || "LEGACY");
+  }
   return EVENT_KIND_LABELS[key] || String(value || "رویداد");
 }
 
@@ -932,6 +935,7 @@ const WALLET_REASON_LABELS = {
 
 function walletReasonLabel(reason) {
   const key = String(reason || "").toUpperCase();
+  if (key === "PRIZE_ROW") return "جایزه نهایی بازی";
   if (WALLET_REASON_LABELS[key]) return WALLET_REASON_LABELS[key];
   if (!key) return "-";
   return key.replaceAll("_", " ");
@@ -1185,6 +1189,9 @@ const WIN_PATTERN_LABELS = {
   ROW: "برد سطری(تمام)",
   COL: "برد ستونی(تورنا)",
   FULL: "برد سطری(تمام)",
+  LINE: "برد خطی (۵ عدد)",
+  FULL_CARD: "برد پرکردنی (۱۵ عدد)",
+  TOURNA: "تورنا (۳ عدد از یک ردیف)",
 };
 
 function repairMojibakeText(raw) {
@@ -2376,13 +2383,16 @@ function renderWinnerBannerFromState(gameId, st) {
   if (!rowMine && !colMine) { host.innerHTML = ""; return; }
 
   const notes = [];
+  const gameRule = String(st?.game_rule || "LEGACY").toUpperCase();
   if (colMine) {
     const colAmount = Number(st?.col_payout_total || 0);
-    notes.push(colAmount > 0 ? `برد ستونی(تورنا): ${toman(colAmount)}` : "برد ستونی(تورنا) ثبت شد");
+    const label = gameRule === "LINE" ? "تورنا (۳ عدد از یک ردیف)" : "تورنا";
+    notes.push(colAmount > 0 ? `برد ${label}: ${toman(colAmount)}` : `برد ${label} ثبت شد`);
   }
   if (rowMine) {
     const rowAmount = Number(st?.row_payout_total || 0);
-    notes.push(rowAmount > 0 ? `برد سطری(تمام): ${toman(rowAmount)}` : "برد سطری(تمام) ثبت شد");
+    const label = gameRule === "FULL_CARD" ? "پرکردنی (۱۵ عدد)" : gameRule === "LINE" ? "خطی (۵ عدد)" : "تمام";
+    notes.push(rowAmount > 0 ? `برد ${label}: ${toman(rowAmount)}` : `برد ${label} ثبت شد`);
   }
 
   host.innerHTML = `
@@ -2512,7 +2522,7 @@ function renderLiveEvents(events, { notifyFresh = false, notifyAfterId = 0 } = {
             : "";
           return `
           <div class="${chipClass}">
-            <strong>${safeText(eventKindLabel(e.kind))}</strong>
+            <strong>${safeText(eventKindLabel(e.kind, e.payload || {}))}</strong>
             <div>${safeText(formatFaDateTime(e.created_at))}</div>
             ${winnerText}
           </div>`;
@@ -2659,7 +2669,7 @@ function appendEvents(events) {
       const winnerText = mine ? '<div class="winner-note">تبریک! این برد برای شما ثبت شد.</div>' : "";
       return `
       <div class="${chipClass}">
-        <strong>${safeText(eventKindLabel(e.kind))}</strong>
+        <strong>${safeText(eventKindLabel(e.kind, e.payload || {}))}</strong>
         <div>${safeText(formatFaDateTime(e.created_at))}</div>
         ${winnerText}
       </div>`;
@@ -6392,14 +6402,18 @@ async function adminUsersShowGames(tgUserId, options = {}) {
     const winRow = Number(g?.win?.wins_row_amount || 0);
     const winColCount = Number(g?.win?.wins_col_count || 0);
     const winRowCount = Number(g?.win?.wins_row_count || 0);
+    const gameRule = String(g?.game_rule || "LEGACY").toUpperCase();
+    const winColLabel = gameRule === "LINE" ? "تورنا (۳ عدد)" : "تورنا";
+    const winRowLabel = gameRule === "FULL_CARD" ? "پرکردنی (۱۵ عدد)" : gameRule === "LINE" ? "خطی (۵ عدد)" : "تمام";
+    const colHistoryLine = gameRule === "FULL_CARD" ? "" : `تورنا: ${safeText(String(winColCount))} | ${safeText(toman(winCol))}<br/>`;
     return `
       <div class="history-item">
         <strong>بازی #${safeText(String(g?.game_id || 0))}</strong>
         <div class="history-meta">
           وضعیت: ${safeText(statusLabel(g?.game_status || ""))}<br/>
           کارت: ${safeText(String(g?.cards_qty || 0))} | هزینه: ${safeText(toman(g?.total_spent || 0))}<br/>
-          برد ستونی(تورنا): ${safeText(String(winColCount))} | ${safeText(toman(winCol))}<br/>
-          برد سطری(تمام): ${safeText(String(winRowCount))} | ${safeText(toman(winRow))}<br/>
+          ${colHistoryLine}
+          برد ${safeText(winRowLabel)}: ${safeText(String(winRowCount))} | ${safeText(toman(winRow))}<br/>
           مجموع برد: ${safeText(toman(win))}<br/>
           آخرین خرید: ${safeText(formatFaDateTime(g?.last_buy_at))}
         </div>
