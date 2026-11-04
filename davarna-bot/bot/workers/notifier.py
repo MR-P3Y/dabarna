@@ -446,6 +446,8 @@ def _end_reason_fa(reason: str | None) -> str:
     raw = str(reason or "").strip().upper()
     mapping = {
         "ROW_WIN": "برد تمام",
+        "LINE_WIN": "برد خطی (۵ عدد یک ردیف)",
+        "FULL_CARD_WIN": "برد پرکردنی (۱۵ عدد کامل)",
         "COL_WIN": "برد تورنا",
         "MANUAL_END": "پایان دستی",
         "LOBBY_CLOSED": "بسته شدن لابی",
@@ -1256,7 +1258,13 @@ async def _queue_prize_notifications(
     amounts_by_card = _as_int_list(payload.get("amounts_by_card"))
     admin_tg_user_id = _to_int(game.get("admin_tg_user_id"), 0)
     game_topic_id = _to_int(game.get("tg_topic_id"), 0)
-    kind_title = "تورنا" if kind == "PRIZE_COL" else "تمام"
+    game_rule = str(game.get("game_rule") or "LEGACY").upper()
+    kind_title = (
+        "تورنا" if kind == "PRIZE_COL"
+        else "پرکردنی" if game_rule == "FULL_CARD"
+        else "خطی" if game_rule == "LINE"
+        else "تمام"
+    )
 
     if kind == "PRIZE_COL":
         winner_tg_user_ids = _as_int_list(game.get("col_winner_tg_user_ids"))
