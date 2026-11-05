@@ -487,6 +487,21 @@ def _numbers_from_json(raw: Any) -> list[int]:
             return []
     return []
 
+def _card_call_progress(numbers: list[int], called_set: set[int]) -> tuple[int, int, int, int]:
+    """Return (valid_count, called_count, missing_count, percentage).
+
+    Tambola V2 cards store twelve zero placeholders; only positive card numbers
+    count toward progress. This also preserves legacy 20-number behavior.
+    """
+    valid = [int(n) for n in numbers if int(n) > 0]
+    total = len(valid)
+    called = sum(1 for n in valid if n in called_set)
+    missing = max(0, total - called)
+    percent = int(round(called * 100 / total)) if total else 0
+    return total, called, missing, percent
+
+
+
 
 def _winner_ids_from_payload_state(raw_state: Any, key: str) -> list[int]:
     if not isinstance(raw_state, dict):
@@ -1788,7 +1803,9 @@ def game_snapshot(
     if not game:
         raise HTTPException(status_code=404, detail="بازی موردنظر پیدا نشد.")
 
-    state = GameService.get_state(db, game_id=int(game_id), last_n=50)
+    # A V2 FULL_CARD winner requires all 15 called numbers; the snapshot
+    # must include the full 1..90 draw history, not only the last 50 calls.
+    state = GameService.get_state(db, game_id=int(game_id), last_n=90)
     live_link_url, live_link_updated_at = _read_game_live_link(db, game_id=int(game_id))
     cards = GameService.get_user_cards(db, game_id=int(game_id), user_id=int(user_id))
     my_cards = [
@@ -1819,12 +1836,9 @@ def game_snapshot(
     for card_id, card_user_id, numbers_json in all_cards_rows:
         players.add(int(card_user_id))
         numbers = _numbers_from_json(numbers_json)
-        total = len(numbers)
+        total, called_count, missing, percent = _card_call_progress(numbers, called_set)
         if total <= 0:
             continue
-        called_count = sum(1 for n in numbers if int(n) in called_set)
-        missing = max(0, total - called_count)
-        percent = int(round((called_count / total) * 100))
         if best_missing is None or missing < best_missing or (
             missing == best_missing and percent > int(nearest_card["percent"] or 0)
         ):
