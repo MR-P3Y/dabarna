@@ -2117,6 +2117,10 @@ function drawRecentStats(items) {
       const rowTotal = Number(g.row_prize_total || 0);
       const colWinners = Number(g.col_winners_count || 0);
       const rowWinners = Number(g.row_winners_count || 0);
+      const gameRule = String(g.game_rule || "LEGACY").toUpperCase();
+      const colLabel = gameRule === "LINE" ? "تورنا (۳ عدد از یک ردیف)" : "ستونی (تورنا)";
+      const rowLabel = gameRule === "FULL_CARD" ? "پرکردنی (۱۵ عدد)"
+        : gameRule === "LINE" ? "خطی (۵ عدد از یک ردیف)" : "سطری (تمام)";
 
       const colWinnerText = colTotal > 0
         ? `تعداد: ${safeText(colWinners || 1)} | مجموع: ${safeText(toman(colTotal))}`
@@ -2135,8 +2139,8 @@ function drawRecentStats(items) {
         <div class="meta-row">🧾 کمیسیون: ${safeText(toman(g.commission_amount || 0))}</div>
         <div class="meta-row">💰 مجموع برنده‌ها: ${safeText(toman(g.prize_pool || 0))}</div>
         <div class="meta-row">🏆 تعداد برنده‌ها: ${safeText(g.winners_count)}</div>
-        <div class="meta-row">🔷 نوع برنده ستونی(تورنا): ${colWinnerText}</div>
-        <div class="meta-row">🟩 نوع برنده سطری(تمام): ${rowWinnerText}</div>
+        ${gameRule === "FULL_CARD" ? "" : `<div class="meta-row">🔷 برد ${safeText(colLabel)}: ${colWinnerText}</div>`}
+        <div class="meta-row">🟩 برد ${safeText(rowLabel)}: ${rowWinnerText}</div>
       </div>
     `
     })
@@ -2417,7 +2421,10 @@ function renderGameTimeline(game, st) {
   if (rowPaid || colPaid) stage = Math.max(stage, 4);
   if (status === "ENDED") stage = 5;
 
-  const labels = ["لابی", "شروع", "نیمه بازی", "تورنا", "پایان"];
+  const gameRule = String(st?.game_rule || game?.game_rule || "LEGACY").toUpperCase();
+  const labels = gameRule === "FULL_CARD"
+    ? ["لابی", "شروع", "نیمه بازی", "تکمیل کارت", "پایان"]
+    : ["لابی", "شروع", "نیمه بازی", "تورنا", "پایان"];
   root.innerHTML = labels
     .map((label, idx) => {
       const n = idx + 1;
