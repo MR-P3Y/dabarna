@@ -13,6 +13,7 @@ from app.core.redis_client import RedisLock, idem_get, idem_set
 from app.core import config as cfg
 from app.models.game import Game, GameAutoDraw, GameCalledNumber, GameCard, GamePurchase
 from app.models.user import User
+from app.models.wallet import Wallet, WalletTx
 from app.models.settings import AppSetting
 from sqlalchemy.exc import IntegrityError as SAIntegrityError
 from app.services.game_event_service import GameEventService
@@ -354,7 +355,67 @@ class GameService:
         unit_price = int(game.card_price)
         total_price = unit_price * int(qty)
 
-        # debit wallet (idempotent inside WalletService)
+        # Lock the player's wallet before inspecting an idempotency key.
+        # This serializes concurrent requests for that wallet on MySQL.
+        WalletService._validate_key(str(idempotency_key))
+        wallet = db.execute(
+            select(Wallet).where(Wallet.user_id == int(user_id)).with_for_update()
+        ).scalar_one_or_none()
+        if wallet is None:
+            raise HTTPException(status_code=404, detail="wallet not found")
+
+        existing_tx = db.execute(
+            select(WalletTx).where(
+                WalletTx.wallet_id == int(wallet.id),
+                WalletTx.idempotency_key == str(idempotency_key),
+            ).with_for_update()
+        ).scalar_one_or_none()
+        if existing_tx is not None:
+            WalletService.validate_replay(
+                existing_tx,
+                direction="DEBIT",
+                amount=int(total_price),
+                reason="BUY_CARDS",
+                ref_type="GAME",
+                ref_id=int(game.id),
+            )
+            existing_purchase = db.execute(
+                select(GamePurchase)
+                .where(GamePurchase.wallet_tx_id == int(existing_tx.id))
+                .with_for_update()
+            ).scalar_one_or_none()
+            if existing_purchase is None:
+                raise HTTPException(
+                    status_code=409,
+                    detail="wallet debit exists without a matching card purchase",
+                )
+            if (
+                int(existing_purchase.game_id) != int(game.id)
+                or int(existing_purchase.user_id) != int(user_id)
+                or int(existing_purchase.qty) != int(qty)
+                or int(existing_purchase.unit_price) != int(unit_price)
+                or int(existing_purchase.total_price) != int(total_price)
+            ):
+                raise HTTPException(
+                    status_code=409,
+                    detail="idempotency key conflicts with a different card purchase",
+                )
+            existing_cards = db.execute(
+                select(GameCard).where(GameCard.purchase_id == int(existing_purchase.id))
+            ).scalars().all()
+            if len(existing_cards) != int(qty) or any(
+                int(c.game_id) != int(game.id)
+                or int(c.user_id) != int(user_id)
+                or int(c.purchase_id) != int(existing_purchase.id)
+                for c in existing_cards
+            ):
+                raise HTTPException(
+                    status_code=409,
+                    detail="existing purchase has inconsistent card records",
+                )
+            return existing_purchase, existing_cards, int(game.prize_pool)
+
+        # No prior debit exists; debit and card creation share one DB transaction.
         tx = WalletService.debit(
             db=db,
             user_id=int(user_id),
@@ -364,23 +425,6 @@ class GameService:
             ref_type="GAME",
             ref_id=int(game.id),
         )
-
-        # If tx existed before -> return existing purchase & cards
-        existing_purchase = (
-            db.execute(
-                select(GamePurchase)
-                .where(GamePurchase.wallet_tx_id == tx.id)
-                .with_for_update()
-            )
-            .scalar_one_or_none()
-        )
-        if existing_purchase:
-            existing_cards = (
-                db.execute(select(GameCard).where(GameCard.purchase_id == existing_purchase.id))
-                .scalars()
-                .all()
-            )
-            return existing_purchase, existing_cards, int(game.prize_pool)
 
         purchase = GamePurchase(
             game_id=int(game.id),
