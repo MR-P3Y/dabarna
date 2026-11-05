@@ -1,0 +1,22 @@
+# Apply only with the original production docker-compose.yml first.
+# Example (from /opt/davarna):
+#   TAMBOLA_V2_BACKEND_IMAGE=davarna-backend:v2-<sha> \
+#   TAMBOLA_V2_BOT_IMAGE=davarna-bot:v2-<sha> \
+#   docker compose --env-file .env.prod \
+#     -f docker-compose.yml \
+#     -f /opt/davarna-v2/deploy/tambola-v2-inactive.compose.yml \
+#     config --services
+#
+# When applied with --no-build --no-deps, this override replaces ONLY the
+# backend/bot images and safely holds V2/autopilot/auto draw disabled. Do not
+# remove the production base compose file or attach a new compose project.
+services:
+  backend:
+    image: ${TAMBOLA_V2_BACKEND_IMAGE:?Set immutable tested backend candidate tag}
+    environment:
+      GAME_TAMBOLA_V2_ENABLED: "false"
+      GAME_AUTOPILOT_RUNTIME_ENABLED: "false"
+      GAME_AUTO_DRAW_ENABLED: "false"
+
+  bot:
+    image: ${TAMBOLA_V2_BOT_IMAGE:?Set immutable tested bot candidate tag}
