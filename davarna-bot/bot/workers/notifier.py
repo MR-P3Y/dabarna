@@ -639,6 +639,12 @@ async def _send_game_started_report(bot: Bot, *, game_id: int, report: dict, eve
     col_prize = _to_int(g.get("col_prize_amount"), 0)
     row_prize = _to_int(g.get("row_prize_amount"), 0)
     card_price = _to_int(g.get("card_price"), 0)
+    rule = str(g.get("game_rule") or "LEGACY").upper()
+    final_label = "پرکردنی" if rule == "FULL_CARD" else "خطی" if rule == "LINE" else "تمام"
+    intermediate_prize = (
+        "" if rule == "FULL_CARD"
+        else f"🏆 جایزه برد تورنا: <b>{_fmt_amount(col_prize)}</b>\n"
+    )
 
     sold_card_ids = _purchase_card_ids_from_events(events)
     sold_cards_text = _fmt_int_list(sold_card_ids, max_items=160)
@@ -660,8 +666,8 @@ async def _send_game_started_report(bot: Bot, *, game_id: int, report: dict, eve
         f"🃏 تعداد کارت فروخته‌شده: <b>{_fmt_amount(cards_sold)}</b>\n"
         f"💰 مبلغ فروش: <b>{_fmt_amount(max(sales_total, sold_amount))}</b>\n"
         f"🎁 جایزه کل: <b>{_fmt_amount(prize_pool)}</b>\n"
-        f"🏆 جایزه برد تورنا: <b>{_fmt_amount(col_prize)}</b>\n"
-        f"🏁 جایزه برد تمام: <b>{_fmt_amount(row_prize)}</b>\n\n"
+        f"{intermediate_prize}"
+        f"🏁 جایزه برد {final_label}: <b>{_fmt_amount(row_prize)}</b>\n\n"
         f"🪪 کارت‌های فروخته‌شده: <code>{sold_cards_text}</code>"
         f"{coverage_note}",
     )
@@ -672,6 +678,8 @@ async def _send_game_started_report(bot: Bot, *, game_id: int, report: dict, eve
 
 async def _send_game_ended_report(bot: Bot, *, game_id: int, report: dict, event: dict) -> None:
     g = report.get("game") or {}
+    rule = str(g.get("game_rule") or "LEGACY").upper()
+    final_label = "پرکردنی" if rule == "FULL_CARD" else "خطی" if rule == "LINE" else "تمام"
     purchases = report.get("purchases") or {}
     events = report.get("events") or []
     payload = _event_payload(event)
@@ -688,6 +696,11 @@ async def _send_game_ended_report(bot: Bot, *, game_id: int, report: dict, event
     row_event = _latest_event(events, "PRIZE_ROW")
     col_paid_total = _to_int(_event_payload(col_event).get("amount_total"), 0)
     row_paid_total = _to_int(_event_payload(row_event).get("amount_total"), 0)
+    intermediate_report = (
+        "" if rule == "FULL_CARD" else
+        f"🏆 جایزه تورنا (تعریف‌شده/پرداخت): <b>{_fmt_amount(_to_int(g.get('col_prize_amount'), 0))}</b> / <b>{_fmt_amount(col_paid_total)}</b>\n"
+        f"👥 برندگان تورنا: <b>{_fmt_amount(len(set(col_users)))}</b> | کارت: <b>{_fmt_amount(len(set(col_cards)))}</b>\n"
+    )
 
     text = panel(
         "پایان بازی",
@@ -700,10 +713,9 @@ async def _send_game_ended_report(bot: Bot, *, game_id: int, report: dict, event
         f"🃏 تعداد کارت فروخته‌شده: <b>{_fmt_amount(_to_int(purchases.get('cards_sold'), 0))}</b>\n"
         f"💰 مبلغ بازی (فروش): <b>{_fmt_amount(_to_int(g.get('sold_amount'), 0))}</b>\n"
         f"🎁 جایزه کل: <b>{_fmt_amount(_to_int(g.get('prize_pool'), 0))}</b>\n"
-        f"🏆 جایزه تورنا (تعریف‌شده/پرداخت): <b>{_fmt_amount(_to_int(g.get('col_prize_amount'), 0))}</b> / <b>{_fmt_amount(col_paid_total)}</b>\n"
-        f"🏁 جایزه تمام (تعریف‌شده/پرداخت): <b>{_fmt_amount(_to_int(g.get('row_prize_amount'), 0))}</b> / <b>{_fmt_amount(row_paid_total)}</b>\n\n"
-        f"👥 برندگان تورنا: <b>{_fmt_amount(len(set(col_users)))}</b> | کارت: <b>{_fmt_amount(len(set(col_cards)))}</b>\n"
-        f"👥 برندگان تمام: <b>{_fmt_amount(len(set(row_users)))}</b> | کارت: <b>{_fmt_amount(len(set(row_cards)))}</b>\n"
+        f"{intermediate_report}"
+        f"🏁 جایزه {final_label} (تعریف‌شده/پرداخت): <b>{_fmt_amount(_to_int(g.get('row_prize_amount'), 0))}</b> / <b>{_fmt_amount(row_paid_total)}</b>\n"
+        f"👥 برندگان {final_label}: <b>{_fmt_amount(len(set(row_users)))}</b> | کارت: <b>{_fmt_amount(len(set(row_cards)))}</b>\n"
         f"🔢 تعداد اعداد خوانده‌شده: <b>{_fmt_amount(len(called))}</b>\n"
         f"📍 آخرین عدد: <b>{last_number if last_number is not None else '—'}</b>\n\n"
         f"🧾 اعداد خوانده‌شده به ترتیب نوبت:\n<code>{_fmt_int_list(called, max_items=200)}</code>",
