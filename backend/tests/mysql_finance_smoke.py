@@ -12,6 +12,7 @@ import secrets
 import unittest
 from decimal import Decimal
 from pathlib import Path
+from unittest.mock import patch
 
 TEST_DB = "davarna_tambola_v2_test_20261104"
 
@@ -276,6 +277,55 @@ class MySQLFinanceSmokeTests(unittest.TestCase):
         self.assertEqual(self.game.status, "ENDED")
         self.assertEqual(self._count(WalletTx, WalletTx.reason == "PRIZE_ROW",
                                      WalletTx.ref_id == self.game.id), 1)
+
+
+    def test_v2_snapshot_nearest_progress_with_full_ninety_calls(self):
+        """The V2 preview must count 15 numbers, never 27 cells or just 50 calls."""
+        from app.routers.mini_router import game_snapshot
+
+        _, cards, _ = self._buy(self.alice, "snapshot-alice")
+        actual = [int(n) for n in cards[0].numbers_json if n > 0]
+        rest = [n for n in range(1, 91) if n not in set(actual)]
+        self.assertEqual(len(actual) + len(rest), 90)
+        self.db.add_all([
+            GameCalledNumber(
+                game_id=int(self.game.id),
+                number=number,
+                called_by=int(self.alice.id),
+            )
+            for number in actual + rest
+        ])
+        self.db.flush()
+        with patch("app.routers.mini_router._read_game_live_link", return_value=(None, None)):
+            snapshot = game_snapshot(
+                game_id=int(self.game.id),
+                events_limit=5,
+                user_id=int(self.alice.id),
+                db=self.db,
+            )
+        st = snapshot.state
+        nearest = st["nearest_to_win"]
+        self.assertEqual(st["called_count"], 90)
+        self.assertEqual(len(st["called_numbers"]), 90)
+        self.assertEqual(nearest["total_numbers"], 15)
+        self.assertEqual(nearest["called_count"], 15)
+        self.assertEqual(nearest["missing"], 0)
+        self.assertEqual(nearest["percent"], 100)
+
+    def test_bot_admin_report_responds_with_v2_metadata(self):
+        """Regression guard: game report's raw SQL must include V2 fields."""
+        from app.routers.bot_router import get_bot_admin_game_report
+
+        with patch("app.routers.bot_router._require_game_admin_access"):
+            report = get_bot_admin_game_report(
+                game_id=int(self.game.id),
+                events_limit=5,
+                db=self.db,
+                admin=object(),
+            )
+        self.assertEqual(report.game.card_layout_version, 2)
+        self.assertEqual(report.game.game_rule, "LINE")
+        self.assertEqual(report.game.commission_rate, 0.1)
 
 
 if __name__ == "__main__":
