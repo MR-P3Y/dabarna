@@ -13,8 +13,18 @@ if [[ "$(id -u)" != 0 ]]; then
   echo "FAIL: run as root on NODE2" >&2
   exit 1
 fi
-if [[ ! -d "$SRC/.git" || ! -r "$ROOT/.env.prod" ]]; then
-  echo "FAIL: expected source checkout or production environment is missing" >&2
+# A linked Git worktree has a .git FILE, not a .git directory.
+# Ask Git to validate the checkout rather than assuming its on-disk layout.
+if [[ ! -r "$ROOT/.env.prod" ]]; then
+  echo "FAIL: production environment is missing or unreadable" >&2
+  exit 1
+fi
+if [[ ! -d "$SRC" ]] || ! git -C "$SRC" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  echo "FAIL: development source is not a valid Git working tree" >&2
+  exit 1
+fi
+if [[ "$(git -C "$SRC" rev-parse --show-toplevel)" != "$SRC" ]]; then
+  echo "FAIL: development checkout root is unexpected" >&2
   exit 1
 fi
 if [[ ! -f "$BACKUP" ]]; then
