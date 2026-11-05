@@ -400,8 +400,15 @@ class GameService:
                     status_code=409,
                     detail="idempotency key conflicts with a different card purchase",
                 )
+            # MySQL REPEATABLE READ: a normal SELECT can use a snapshot created
+            # before another request committed its cards. We already acquired
+            # current-read locks for the game, wallet, debit and purchase; use
+            # a current read here as well so concurrent exact retries see the
+            # committed cards rather than incorrectly reporting corruption.
             existing_cards = db.execute(
-                select(GameCard).where(GameCard.purchase_id == int(existing_purchase.id))
+                select(GameCard)
+                .where(GameCard.purchase_id == int(existing_purchase.id))
+                .with_for_update()
             ).scalars().all()
             if len(existing_cards) != int(qty) or any(
                 int(c.game_id) != int(game.id)
