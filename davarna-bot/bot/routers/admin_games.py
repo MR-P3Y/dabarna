@@ -572,6 +572,8 @@ def build_monitor_text(game_id: int, rep: dict) -> str:
     card_price = g.get("card_price")
     sold_amount = g.get("sold_amount")
     prize_pool = g.get("prize_pool")
+    game_rule = str(g.get("game_rule") or "LEGACY").upper()
+    final_win_label = "پرکردنی" if game_rule == "FULL_CARD" else "خطی" if game_rule == "LINE" else "تمام"
 
     row_paid = int(g.get("row_paid") or rep.get("row_paid") or 0)
     col_paid = int(g.get("col_paid") or rep.get("col_paid") or 0)
@@ -590,7 +592,7 @@ def build_monitor_text(game_id: int, rep: dict) -> str:
     if col_paid == 1:
         lines.append("🏆 <b>برد تورنا پرداخت شد</b>")
     if row_paid == 1:
-        lines.append("🏁 <b>برد تمام پرداخت شد</b>")
+        lines.append(f"🏁 <b>برد {final_win_label} پرداخت شد</b>")
 
     if tail:
         tail_head = "  •  ".join(str(n) for n in tail[:-1])
@@ -870,7 +872,7 @@ async def _render_winners_archive(cq: CallbackQuery, api: ApiClient, *, offset: 
     ]
 
     if winner_items:
-        lines.append("روی بازی بزن تا کارت‌های برنده تمام/تورنا با جزئیات نمایش داده شود 👇")
+        lines.append("روی بازی بزن تا کارت‌های برنده و نوع برد هر بازی با جزئیات نمایش داده شود 👇")
         lines.append("💳 قیمت هر کارت کنار هر بازی در دکمه‌ها نمایش داده شده است.")
     else:
         lines.append("در این صفحه بازی برنده‌دار پیدا نشد.")
@@ -1365,6 +1367,8 @@ async def admin_games_report(cq: CallbackQuery, api: ApiClient, is_admin: bool =
         rep = await api.admin_get_game_report(game_id)
 
         g = rep.get("game") or {}
+        game_rule = str(g.get("game_rule") or "LEGACY").upper()
+        final_win_label = "پرکردنی" if game_rule == "FULL_CARD" else "خطی" if game_rule == "LINE" else "تمام"
         purchases = rep.get("purchases") or {}
         called_numbers = rep.get("called_numbers") or []
         events = rep.get("events") or []
@@ -1446,18 +1450,18 @@ async def admin_games_report(cq: CallbackQuery, api: ApiClient, is_admin: bool =
                     f"🪪 کارت(های) تورنا: <code>{', '.join(str(x) for x in col_winner_cards) or '—'}</code>"
                 )
         if row_paid == 1:
-            payout_lines.append("🏁 پرداخت برد تمام انجام شد.")
+            payout_lines.append(f"🏁 پرداخت برد {final_win_label} انجام شد.")
             if row_winner_cards or row_winner_users or row_winner_tg_users:
                 if row_winner_names:
                     payout_lines.append(
-                        f"👤 برنده(های) تمام: <b>{html_escape('، '.join(row_winner_names))}</b>"
+                        f"👤 برنده(های) {final_win_label}: <b>{html_escape('، '.join(row_winner_names))}</b>"
                     )
                 elif row_winner_users:
                     payout_lines.append(
-                        f"👤 برنده(های) تمام: <code>شناسه داخلی: {', '.join(str(x) for x in row_winner_users)}</code>"
+                        f"👤 برنده(های) {final_win_label}: <code>شناسه داخلی: {', '.join(str(x) for x in row_winner_users)}</code>"
                     )
                 payout_lines.append(
-                    f"🪪 کارت(های) تمام: <code>{', '.join(str(x) for x in row_winner_cards) or '—'}</code>"
+                    f"🪪 کارت(های) {final_win_label}: <code>{', '.join(str(x) for x in row_winner_cards) or '—'}</code>"
                 )
         if game_status.strip().upper() == "ENDED":
             payout_lines.append("⛔️ بازی تمام شده و اعلام عدد متوقف است.")
