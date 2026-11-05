@@ -515,14 +515,30 @@ def _winner_ids_from_payload_state(raw_state: Any, key: str) -> list[int]:
     return []
 
 
-def _guess_win_pattern(row_winners: set[int], col_winners: set[int]) -> str:
-    if row_winners and col_winners:
-        return "برد سطری(تمام) + برد ستونی(تورنا)"
-    if row_winners:
+def _prize_label_for_rule(reason: str, game_rule: str = "LEGACY") -> str:
+    """Label a wallet prize using the rule snapshotted on its own game."""
+    reason = str(reason or "").upper()
+    game_rule = str(game_rule or "LEGACY").upper()
+    if reason == "PRIZE_COL":
+        return "برد تورنا (۳ عدد از یک ردیف)" if game_rule == "LINE" else "برد ستونی(تورنا)"
+    if reason == "PRIZE_ROW":
+        if game_rule == "FULL_CARD":
+            return "برد پرکردنی (۱۵ عدد)"
+        if game_rule == "LINE":
+            return "برد خطی (۵ عدد از یک ردیف)"
         return "برد سطری(تمام)"
+    return "برد"
+
+
+def _guess_win_pattern(
+    row_winners: set[int], col_winners: set[int], game_rule: str = "LEGACY"
+) -> str:
+    labels = []
+    if row_winners:
+        labels.append(_prize_label_for_rule("PRIZE_ROW", game_rule))
     if col_winners:
-        return "برد ستونی(تورنا)"
-    return "نامشخص"
+        labels.append(_prize_label_for_rule("PRIZE_COL", game_rule))
+    return " + ".join(labels) if labels else "نامشخص"
 
 
 def _user_alias(user: User | None) -> str:
@@ -1663,7 +1679,8 @@ def dashboard_insights(
                 row_winners_count=int(row_winners_count),
                 col_winner_amount=int(col_winner_amount),
                 row_winner_amount=int(row_winner_amount),
-                win_pattern=_guess_win_pattern(row_winner_ids, col_winner_ids),
+                win_pattern=_guess_win_pattern(row_winner_ids, col_winner_ids, str(g.game_rule or "LEGACY")),
+                game_rule=str(g.game_rule or "LEGACY"),
             )
         )
 
@@ -2298,17 +2315,30 @@ def mini_my_notifications(
             .order_by(WalletTx.id.desc())
             .limit(int(limit))
         ).scalars().all()
+        prize_game_ids = {
+            int(tx.ref_id)
+            for tx in tx_rows
+            if str(tx.ref_type or "").upper() == "GAME"
+            and tx.ref_id is not None
+            and str(tx.reason or "").upper() in ("PRIZE_COL", "PRIZE_ROW")
+        }
+        game_rules = {
+            int(gid): str(rule or "LEGACY")
+            for gid, rule in db.execute(
+                select(Game.id, Game.game_rule).where(Game.id.in_(prize_game_ids))
+            ).all()
+        } if prize_game_ids else {}
         for tx in tx_rows:
             reason = str(tx.reason)
             if reason in ("PRIZE_COL", "PRIZE_ROW"):
-                game_id = int(tx.ref_id) if tx.ref_id is not None else None
+                game_id = int(tx.ref_id) if str(tx.ref_type or "").upper() == "GAME" and tx.ref_id is not None else None
                 card_id = _mini_prize_card_id_from_tx(tx)
                 notifications.append(
                     _mini_notification(
                         key=f"prize:{int(tx.id)}",
                         kind="win",
                         title="جایزه به کیف پول اضافه شد",
-                        body=f"{'برد ستونی(تورنا)' if reason == 'PRIZE_COL' else 'برد سطری(تمام)'} | مبلغ {int(tx.amount):,} تومان",
+                        body=f"{_prize_label_for_rule(reason, game_rules.get(game_id, 'LEGACY'))} | مبلغ {int(tx.amount):,} تومان",
                         status="DONE",
                         severity="success",
                         created_at=tx.created_at,
@@ -2474,7 +2504,18 @@ def mini_my_receipt(
         return {
             "kind": normalized,
             "id": int(tx.id),
-            "title": title_map.get(str(tx.reason), "رسید تراکنش کیف پول"),
+            "title": (
+                "رسید " + _prize_label_for_rule(
+                    str(tx.reason),
+                    (
+                        str(db.execute(select(Game.game_rule).where(Game.id == int(tx.ref_id))).scalar_one_or_none() or "LEGACY")
+                        if str(tx.ref_type or "").upper() == "GAME" and tx.ref_id is not None
+                        else "LEGACY"
+                    ),
+                )
+                if str(tx.reason) in ("PRIZE_COL", "PRIZE_ROW")
+                else title_map.get(str(tx.reason), "رسید تراکنش کیف پول")
+            ),
             "status": "ثبت شده",
             "amount": int(tx.amount),
             "direction": str(tx.direction),
