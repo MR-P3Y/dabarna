@@ -7,6 +7,38 @@ from app.models.wallet import Wallet, WalletTx
 
 class WalletService:
     @staticmethod
+    def validate_replay(
+        existing: WalletTx,
+        *,
+        direction: str,
+        amount: int,
+        reason: str,
+        ref_type: str | None,
+        ref_id: int | None,
+    ) -> None:
+        """An idempotency key may replay only its exact original operation."""
+        old_ref_type = str(existing.ref_type) if existing.ref_type is not None else None
+        new_ref_type = str(ref_type) if ref_type is not None else None
+        old_ref_id = int(existing.ref_id) if existing.ref_id is not None else None
+        new_ref_id = int(ref_id) if ref_id is not None else None
+        if (
+            str(existing.direction) != direction
+            or int(existing.amount) != int(amount)
+            or str(existing.reason) != str(reason)
+            or old_ref_type != new_ref_type
+            or old_ref_id != new_ref_id
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail="idempotency key conflicts with a different wallet operation",
+            )
+
+    @staticmethod
+    def _validate_key(key: str) -> None:
+        if not key.strip() or len(key) > 80:
+            raise HTTPException(status_code=400, detail="invalid idempotency key")
+
+    @staticmethod
     def get_or_create_wallet(db: Session, user_id: int) -> Wallet:
         w = db.execute(
             select(Wallet).where(Wallet.user_id == int(user_id))
@@ -56,6 +88,7 @@ class WalletService:
 
         user_id = int(user_id)
         idempotency_key = str(idempotency_key)
+        WalletService._validate_key(idempotency_key)
         reason = str(reason)
 
         wallet = db.execute(
@@ -74,6 +107,10 @@ class WalletService:
             )
         ).scalar_one_or_none()
         if existing:
+            WalletService.validate_replay(
+                existing, direction="CREDIT", amount=amount, reason=reason,
+                ref_type=ref_type, ref_id=ref_id,
+            )
             return existing
 
         tx = WalletTx(
@@ -107,6 +144,7 @@ class WalletService:
 
         user_id = int(user_id)
         idempotency_key = str(idempotency_key)
+        WalletService._validate_key(idempotency_key)
         reason = str(reason)
 
         wallet = db.execute(
@@ -124,6 +162,10 @@ class WalletService:
             )
         ).scalar_one_or_none()
         if existing:
+            WalletService.validate_replay(
+                existing, direction="DEBIT", amount=amount, reason=reason,
+                ref_type=ref_type, ref_id=ref_id,
+            )
             return existing
 
         if int(wallet.balance) < amount:
