@@ -20,3 +20,7 @@ services:
 
   bot:
     image: ${TAMBOLA_V2_BOT_IMAGE:?Set immutable tested bot candidate tag}
+    # Restore localhost-only webhook ingress used before the V2 swap.
+    # Never publish this webhook listener on 0.0.0.0.
+    ports:
+      - "127.0.0.1:18081:8080"
