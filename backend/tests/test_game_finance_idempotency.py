@@ -9,7 +9,7 @@ os.environ.setdefault("DATABASE_URL", "sqlite+pysqlite:///:memory:")
 os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
 
 from fastapi import HTTPException
-from sqlalchemy import BigInteger, create_engine, func, select
+from sqlalchemy import BigInteger, MetaData, create_engine, func, select
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import sessionmaker
 
@@ -31,14 +31,22 @@ def _sqlite_bigint(_type, _compiler, **_kwargs):
 class GameFinanceIdempotencyTests(unittest.TestCase):
     def setUp(self):
         self.engine = create_engine("sqlite+pysqlite:///:memory:")
-        Base.metadata.create_all(
-            self.engine,
-            tables=[
-                User.__table__, Wallet.__table__, WalletTx.__table__,
-                Game.__table__, GamePurchase.__table__, GameCard.__table__,
-                GameCalledNumber.__table__, AppSetting.__table__,
-            ],
-        )
+        # SQLite uses one global namespace for index names, whereas MySQL
+        # scopes index names per table. The production models intentionally
+        # reuse idx_game_user on two different tables. Clone only the test
+        # schema and give its indexes table-qualified names; never mutate the
+        # original ORM metadata or the production migrations.
+        test_metadata = MetaData()
+        for table in (
+            User.__table__, Wallet.__table__, WalletTx.__table__,
+            Game.__table__, GamePurchase.__table__, GameCard.__table__,
+            GameCalledNumber.__table__, AppSetting.__table__,
+        ):
+            table.to_metadata(test_metadata)
+        for table in test_metadata.tables.values():
+            for index in table.indexes:
+                index.name = f"{table.name}_{index.name}"
+        test_metadata.create_all(self.engine)
         self.db = sessionmaker(bind=self.engine, expire_on_commit=False)()
         self.addCleanup(self.engine.dispose)
         self.addCleanup(self.db.close)
