@@ -467,17 +467,26 @@ def _int_list(values) -> list[int]:
 
 
 def _render_card_grid(numbers: list[int], called_set: set[int]) -> str:
-    rows: list[str] = []
     nums = [int(x) for x in numbers]
-    for i in range(0, len(nums), 5):
-        chunk = nums[i : i + 5]
+    if len(nums) not in {20, 27}:
+        return "کارت نامعتبر"
+
+    is_v2 = len(nums) == 27
+    cols = 9 if is_v2 else 5
+    rows: list[str] = []
+    for i in range(0, len(nums), cols):
+        chunk = nums[i : i + cols]
         cells: list[str] = []
         for n in chunk:
-            if n in called_set:
+            if is_v2:
+                # Compact 3x9 layout on narrow Telegram screens. Blank cells
+                # do not display 00 and never count as called numbers.
+                cells.append(" · " if n == 0 else f"✓{n:02d}" if n in called_set else f" {n:02d}")
+            elif n in called_set:
                 cells.append(f"✅{n:02d}")
             else:
                 cells.append(f"⬜️{n:02d}")
-        rows.append("  ".join(cells))
+        rows.append((" " if is_v2 else "  ").join(cells))
     return "\n".join(rows)
 
 
@@ -1500,6 +1509,9 @@ async def admin_games_winners(cq: CallbackQuery, api: ApiClient, is_admin: bool 
     try:
         rep = await api.admin_get_game_report(game_id)
         g = rep.get("game") or {}
+        game_rule = str(g.get("game_rule") or "LEGACY").upper()
+        is_v2 = int(g.get("card_layout_version") or 1) == 2
+        final_win_label = "پرکردنی" if game_rule == "FULL_CARD" else "خطی" if game_rule == "LINE" else "تمام"
         game_status = str(g.get("status") or "")
         called = _extract_numbers(rep.get("called_numbers") or [])
         called_set = set(called)
@@ -1545,7 +1557,7 @@ async def admin_games_winners(cq: CallbackQuery, api: ApiClient, is_admin: bool 
             f"وضعیت: <b>{_fa_status(game_status)}</b>",
             f"تعداد اعداد اعلام‌شده: <b>{len(called)}</b>",
             "",
-            "راهنما: ✅ عدد اعلام‌شده | ⬜️ عدد اعلام‌نشده",
+            ("راهنما: ✓ عدد اعلام‌شده | · خانه خالی" if is_v2 else "راهنما: ✅ عدد اعلام‌شده | ⬜️ عدد اعلام‌نشده"),
             "",
         ]
 
@@ -1563,7 +1575,7 @@ async def admin_games_winners(cq: CallbackQuery, api: ApiClient, is_admin: bool 
 
         if row_winner_cards:
             lines += [
-                "🏁 <b>برنده‌های تمام</b>",
+                f"🏁 <b>برنده‌های {final_win_label}</b>",
                 f"🪪 کارت(ها): <code>{', '.join(str(x) for x in row_winner_cards)}</code>",
             ]
             for cid in row_winner_cards:
@@ -1571,7 +1583,7 @@ async def admin_games_winners(cq: CallbackQuery, api: ApiClient, is_admin: bool 
             lines.append("")
 
         if not col_winner_cards and not row_winner_cards:
-            lines.append("هنوز کارت برنده تمام/تورنا ثبت نشده است.")
+            lines.append("هنوز کارت برنده ثبت نشده است.")
 
         await safe_edit_or_send(
             cq.message,
