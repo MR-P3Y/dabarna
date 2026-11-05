@@ -2654,7 +2654,8 @@ def get_bot_admin_game_report(
         text("""
             SELECT
               id, tg_group_id, tg_topic_id, admin_user_id, status,
-              card_price, sold_amount, commission_amount, prize_pool,
+              card_price, card_layout_version, game_rule, commission_rate,
+              sold_amount, commission_amount, prize_pool,
               prize_locked, col_prize_amount, row_prize_amount,
               col_paid, payout_state_json, row_winner_user_id,
               created_at
