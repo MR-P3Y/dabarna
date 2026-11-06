@@ -1,8 +1,11 @@
-import inspect
+import ast
+from pathlib import Path
 import unittest
 
 from app.schemas.mini import MiniWalletTxOut
-from app.routers.mini_router import my_wallet_txs
+
+
+ROUTER_PATH = Path(__file__).resolve().parents[1] / "app" / "routers" / "mini_router.py"
 
 
 class WalletPrizeRuleMetadataTests(unittest.TestCase):
@@ -33,9 +36,23 @@ class WalletPrizeRuleMetadataTests(unittest.TestCase):
         self.assertEqual(new.reason, "PRIZE_ROW")
 
     def test_api_looks_up_prize_rules_in_batch(self):
-        source = inspect.getsource(my_wallet_txs)
-        self.assertIn("select(Game.id, Game.game_rule)", source)
-        self.assertIn('{"PRIZE_COL", "PRIZE_ROW"}', source)
+        # Parse endpoint source without importing the router. Importing it loads
+        # production-oriented config and requires DATABASE_URL and REDIS_URL.
+        source = ROUTER_PATH.read_text(encoding="utf-8")
+        module = ast.parse(source, filename=str(ROUTER_PATH))
+        endpoint = next(
+            (
+                node for node in module.body
+                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+                and node.name == "my_wallet_txs"
+            ),
+            None,
+        )
+        self.assertIsNotNone(endpoint, "Wallet transaction endpoint is missing")
+        endpoint_source = ast.get_source_segment(source, endpoint)
+        self.assertIn("select(Game.id, Game.game_rule)", endpoint_source)
+        self.assertIn('{"PRIZE_COL", "PRIZE_ROW"}', endpoint_source)
+        self.assertIn("game_rule=game_rules.get(", endpoint_source)
 
 
 if __name__ == "__main__":
