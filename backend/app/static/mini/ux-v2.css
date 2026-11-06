@@ -449,3 +449,11 @@ html[data-theme="light"] .games-overview-stats > div {
   .games-overview-stats > div:last-child { grid-column: 1 / -1; }
   .game-hero-actions:has(.game-open-my-cards) { grid-template-columns: 1fr; }
 }
+
+/* A deep link from the game list highlights only that game's owned cards. */
+.active-game-block[data-game-id] { scroll-margin-top: 24px; }
+.focused-game-v2 {
+  border-color: rgba(80, 192, 240, .75);
+  box-shadow: 0 0 0 2px rgba(80, 192, 240, .18), 0 12px 35px rgba(2, 9, 24, .18);
+  transition: border-color .18s ease, box-shadow .18s ease;
+}
