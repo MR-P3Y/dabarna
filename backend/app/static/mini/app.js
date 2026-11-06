@@ -2605,7 +2605,7 @@ function renderLive(snapshot, options = {}) {
   state.gameSnapshots.set(Number(game.id), snapshot);
 
   if (liveGameMeta) {
-    liveGameMeta.textContent = `#${game.id} | ${statusLabel(game.status)}`;
+    liveGameMeta.textContent = `#${toFaDigits(game.id)} | ${statusLabel(game.status)} | ${gameRuleUiMeta(game, snapshot).label}`;
   }
 
   const called = Array.isArray(st.called_numbers) ? st.called_numbers : [];
@@ -3259,6 +3259,36 @@ function renderCardsBadge(activeGames) {
   calledStream.innerHTML = buildCalledStream(g.calledNumbers, g.freshNumbers, 55);
 }
 
+function cardProgressInfo(nums, calledSet, rule) {
+  const values = Array.isArray(nums) ? nums : [];
+  const matched = values.filter((n) => Number(n) > 0 && calledSet.has(Number(n))).length;
+  const total = values.filter((n) => Number(n) > 0).length;
+  const gameRule = String(rule || "LEGACY").toUpperCase();
+  if (values.length === 27 && gameRule === "LINE") {
+    const matchedByRow = [0, 1, 2].map((r) =>
+      values.slice(r * 9, (r + 1) * 9).filter((n) => Number(n) > 0 && calledSet.has(Number(n))).length
+    );
+    const bestRow = Math.max(0, ...matchedByRow);
+    return {
+      label: `بیشترین تطابق یک ردیف: ${toFaDigits(bestRow)} از ۵ عدد`,
+      ruleHint: "تورنا: ۳ عدد یک ردیف · خطی: ۵ عدد یک ردیف",
+      percent: Math.round((bestRow / 5) * 100),
+    };
+  }
+  if (values.length === 27 && gameRule === "FULL_CARD") {
+    return {
+      label: `اعداد تکمیل‌شده: ${toFaDigits(matched)} از ۱۵`,
+      ruleHint: "پرکردنی: تمام ۱۵ عدد · بدون تورنا",
+      percent: Math.round((matched / 15) * 100),
+    };
+  }
+  return {
+    label: `اعداد تکمیل‌شده: ${toFaDigits(matched)} از ${toFaDigits(total)}`,
+    ruleHint: "قوانین قدیمی: ستونی و ردیفی",
+    percent: total ? Math.round((matched / total) * 100) : 0,
+  };
+}
+
 function renderCardsActive(activeGames) {
   const root = getEl("cardsActiveList");
   const activeMeta = getEl("cardsActiveMeta");
@@ -3302,9 +3332,7 @@ function renderCardsActive(activeGames) {
             ${g.cards
               .map((c) => {
                 const nums = Array.isArray(c.numbers) ? c.numbers : [];
-                const calledCount = nums.reduce((acc, n) => acc + (Number(n) > 0 && calledSet.has(Number(n)) ? 1 : 0), 0);
-                const total = nums.filter((n) => Number(n) > 0).length;
-                const percent = total ? Math.round((calledCount / total) * 100) : 0;
+                const progress = cardProgressInfo(nums, calledSet, nums.length === 27 ? g.gameRule : "LEGACY");
                 const rowWinner = new Set((g.rowWinnerCardIds || []).map((x) => Number(x)));
                 const colWinner = new Set((g.colWinnerCardIds || []).map((x) => Number(x)));
                 const isRowWinner = rowWinner.has(Number(c.card_id));
@@ -3327,9 +3355,10 @@ function renderCardsActive(activeGames) {
                       <span>${safeText(formatFaDateTime(c.created_at))}</span>
                     </div>
                     ${winnerLabel}
-                    <div class="card-progress">
-                      <span>${calledCount} از ${total} عدد کارت خوانده شده</span>
-                      <div class="card-progress-bar"><i style="width:${percent}%"></i></div>
+                    <div class="card-progress card-progress-v2">
+                      <span>${safeText(progress.label)}</span>
+                      <small class="card-progress-rule">${safeText(progress.ruleHint)}</small>
+                      <div class="card-progress-bar" role="progressbar" aria-label="${safeText(progress.label)}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${progress.percent}"><i style="width:${progress.percent}%"></i></div>
                     </div>
                     <div class="mini-card-grid ${nums.length === 27 ? "v2" : ""}">${buildCardGrid(nums, calledSet, freshSet, winnerCells)}</div>
                   </div>
