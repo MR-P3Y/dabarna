@@ -325,7 +325,7 @@ const UI_TEXT = {
   navAdminText: "مدیریت",
   adminTitle: "پنل مدیریت",
   adminGuideText:
-    "ایجاد بازی، مدیریت عملیات و بررسی واریز/برداشت از همین بخش انجام می‌شود.",
+    "بازی موردنظر را انتخاب کن، سپس همان بازی را کنترل کن. برای واریزی‌ها و برداشت‌ها از میانبرهای بالا استفاده کن.",
   adminCreateTitle: "ایجاد بازی دستی",
   adminCreateHint: "تاپیک، قیمت کارت و کمیسیون همین بازی دستی را تعیین کنید.",
   adminCreateGroupLabel: "شناسه گروه",
@@ -5540,7 +5540,7 @@ function updateAdminActionButtons() {
   setBtn("adminAutoDrawResumeBtn", hasGame && isRunning && drawMode === "AUTO" && autoStatus === "PAUSED", "ادامه همان ترتیب قفل‌شده.");
 
   const intervalEl = getEl("adminAutoDrawInterval");
-  if (intervalEl) intervalEl.disabled = !(hasGame && isLobby && !drawLocked);
+  if (intervalEl) intervalEl.disabled = !(hasGame && isLobby && !drawLocked && canManage);
   setBtn("adminSendLiveBtn", hasGame && hasLiveLink, hasLiveLink ? "ارسال لینک لایو به خریداران کارت همین بازی." : "ابتدا لینک لایو را ثبت کنید.");
   setBtn("adminClearLiveBtn", hasGame && hasLiveLink, hasLiveLink ? "حذف لینک لایو ثبت‌شده برای این بازی." : "لینک لایو ثبت نشده است.");
   setBtn("adminSetLiveBtn", hasGame, hasGame ? "ثبت یا ویرایش لینک پخش زنده همین بازی." : "ابتدا بازی را انتخاب کنید.");
@@ -7133,6 +7133,8 @@ function setAdminGameMode(mode, options = {}) {
   autoSection?.classList.toggle("hidden", key !== "AUTO");
   manualBtn?.classList.toggle("active", key === "MANUAL");
   autoBtn?.classList.toggle("active", key === "AUTO");
+  manualBtn?.setAttribute("aria-pressed", String(key === "MANUAL"));
+  autoBtn?.setAttribute("aria-pressed", String(key === "AUTO"));
 
   if (persist) {
     try {
