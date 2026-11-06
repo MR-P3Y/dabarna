@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { Script } from "node:vm";
 
 const base = new URL("../../app/static/mini/", import.meta.url);
-const html = readFileSync(new URL("ux-preview.html", base), "utf8");
+const html = readFileSync(new URL("../../../dev/ux-preview/index.html", import.meta.url), "utf8");
 
 assert.match(html, /<meta name="robots" content="noindex, nofollow">/);
 assert.match(html, /تمام داده‌ها ساختگی‌اند/);
@@ -13,7 +13,7 @@ assert.doesNotMatch(html, /<script[^>]*src=/);
 assert.doesNotMatch(html, /app\.js\?/);
 assert.match(html, /id="preview-line-card"/);
 assert.match(html, /id="preview-full-card"/);
-assert.match(html, /data-demo-view="wallet"/.replace("wallet", "cards")); // button to cards exists
+assert.match(html, /data-demo-view="cards"/);
 
 const script = html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
 assert.ok(script, "Preview script is missing");
