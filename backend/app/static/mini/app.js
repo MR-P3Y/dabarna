@@ -1855,99 +1855,146 @@ function playersCount(game, snap) {
   return Number(snap?.state?.players_count || 0);
 }
 
+function gameRuleUiMeta(game, snapshot = null) {
+  const rule = String(game?.game_rule || snapshot?.state?.game_rule || snapshot?.game?.game_rule || "LEGACY").toUpperCase();
+  const level = String(game?.game_level || snapshot?.game?.game_level || "").toUpperCase();
+  if (rule === "FULL_CARD") return {
+    rule, label: "پرکردنی",
+    levelLabel: "سطح پرکردنی",
+    description: "شرط برد: تکمیل تمام ۱۵ عدد یک کارت؛ بدون تورنا یا جایزه میانی.",
+  };
+  if (rule === "LINE") return {
+    rule, label: "تورنا و خطی",
+    levelLabel: level === "LOW" ? "خطی ۱" : level === "MEDIUM" ? "خطی ۲" : "بازی خطی",
+    description: "تورنا: ۳ عدد از یک ردیف · خطی: ۵ عدد از یک ردیف",
+  };
+  return {
+    rule: "LEGACY", label: "قوانین قدیمی",
+    levelLabel: "نسخه قدیمی",
+    description: "کارت ۲۰عددی با قوانین ستونی و ردیفی قدیمی",
+  };
+}
+
+function drawGamesOverview(items) {
+  const root = getEl("gamesOverview");
+  if (!root) return;
+  const list = Array.isArray(items) ? items : [];
+  const lobby = list.filter((g) => String(g?.status || "").toUpperCase() === "LOBBY").length;
+  const running = list.filter((g) => String(g?.status || "").toUpperCase() === "RUNNING").length;
+  const owned = list.reduce((sum, g) => sum + Number(state.myCardsByGame.get(Number(g?.id || 0)) || 0), 0);
+
+  root.innerHTML = `
+    <div class="games-overview-head">
+      <div>
+        <span class="games-overview-eyebrow">داشبورد بازی</span>
+        <strong>بازی مناسب خودت را انتخاب کن</strong>
+        <p>قوانین، قیمت کارت و وضعیت بازی را پیش از ورود ببین.</p>
+      </div>
+      <button class="small-btn games-overview-cards" type="button">کارت‌های من</button>
+    </div>
+    <div class="games-overview-stats">
+      <div><span>آماده خرید</span><strong>${safeText(toFaDigits(lobby))}</strong></div>
+      <div><span>در حال اجرا</span><strong>${safeText(toFaDigits(running))}</strong></div>
+      <div><span>کارت‌های من در بازی‌های جاری</span><strong>${safeText(toFaDigits(owned))}</strong></div>
+    </div>
+  `;
+  root.querySelector(".games-overview-cards")?.addEventListener("click", () => switchToView("cards"));
+}
+
 function drawGames(items) {
   const root = getEl("gamesList");
   const hotBanner = getEl("hotGameBanner");
   if (!root) return;
 
-  if (!items?.length) {
-    root.innerHTML = '<div class="empty">بازی فعالی پیدا نشد.</div>';
-    if (hotBanner) {
-      hotBanner.classList.add("hidden");
-      hotBanner.textContent = "";
-    }
+  const games = Array.isArray(items) ? items : [];
+  drawGamesOverview(games);
+  if (hotBanner) {
+    hotBanner.classList.add("hidden");
+    hotBanner.textContent = "";
+  }
+  if (!games.length) {
+    root.innerHTML = `
+      <div class="empty-rich game-empty-v2">
+        <strong>فعلاً بازی فعالی وجود ندارد</strong>
+        <span>وقتی بازی جدید ایجاد شود، اطلاعات و دکمه ورود همین‌جا نمایش داده می‌شود.</span>
+        <button class="small-btn game-empty-reload" type="button">بررسی دوباره بازی‌ها</button>
+      </div>
+    `;
+    root.querySelector(".game-empty-reload")?.addEventListener("click", () =>
+      refreshGames().catch((err) => setLocalError("gamesHint", err))
+    );
     return;
   }
 
-  const soldCounts = items.map((g) => soldCardsCount(g, state.gameSnapshots.get(Number(g.id))));
-  const maxSold = Math.max(1, ...soldCounts);
-  if (hotBanner) {
-    const hotId = Number(state.hotGameId || 0);
-    if (hotId > 0) {
-      hotBanner.classList.add("hidden");
-      hotBanner.textContent = "";
-    } else {
-      hotBanner.classList.add("hidden");
-      hotBanner.textContent = "";
-    }
-  }
+  const sorted = [...games].sort((a, b) => {
+    const rank = (g) => String(g?.status || "").toUpperCase() === "LOBBY" ? 0 : 1;
+    return rank(a) - rank(b) || Number(b?.id || 0) - Number(a?.id || 0);
+  });
+  root.innerHTML = sorted.map((g) => {
+    const gid = Number(g.id);
+    const snap = state.gameSnapshots.get(gid);
+    const ruleMeta = gameRuleUiMeta(g, snap);
+    const statusKey = String(g.status || "").toUpperCase();
+    const isLobby = statusKey === "LOBBY";
+    const isRunning = statusKey === "RUNNING";
+    const myCards = Number(state.myCardsByGame.get(gid) || 0);
+    const soldCards = soldCardsCount(g, snap);
+    const players = playersCount(g, snap);
+    const statusClass = isRunning ? "running" : "lobby";
+    const price = Number(g.card_price || 0);
+    const commissionRate = Number(g.commission_rate ?? 0.10);
+    const commission = Number.isFinite(commissionRate) ? `${toFaDigits(Math.round(commissionRate * 10000) / 100)}٪` : "—";
+    const primaryLabel = isLobby
+      ? (myCards > 0 ? "خرید کارت بیشتر" : "خرید کارت")
+      : "مشاهده اعداد زنده";
 
-  root.innerHTML = items
-    .map((g) => {
-      const gid = Number(g.id);
-      const snap = state.gameSnapshots.get(gid);
-      const statusKey = String(g.status || "").toUpperCase();
-      const isLobby = statusKey === "LOBBY";
-      const isRunning = statusKey === "RUNNING";
-      const myCards = Number(state.myCardsByGame.get(gid) || 0);
-      const soldCards = soldCardsCount(g, snap);
-      const players = playersCount(g, snap);
-      const progress = Math.max(0, Math.min(100, Math.round((soldCards / maxSold) * 100)));
-      const hot = false;
-      const statusClass = isRunning ? "running" : "lobby";
-      const runningBanner = isRunning
-        ? '<div class="running-banner">🔴 بازی در حال اجراست</div>'
-        : "";
-      const cta = isLobby && myCards <= 0
-        ? `<button class="small-btn primary cta-big open-btn" data-game-id="${gid}">خرید کارت</button>`
-        : `<button class="small-btn open-btn" data-game-id="${gid}">مشاهده بازی</button>`;
-
-      return `
-      <div class="item game-hero">
-        <div class="item-row">
-          <h3>بازی #${gid}</h3>
-          <span class="game-state ${statusClass}">${safeText(statusLabel(g.status))}</span>
+    return `
+      <article class="item game-hero game-hero-v2" data-game-id="${safeText(gid)}">
+        <div class="item-row game-hero-top">
+          <div class="game-identity">
+            <span class="game-identity-overline">${safeText(ruleMeta.levelLabel)}</span>
+            <h3>بازی #${safeText(toFaDigits(gid))}</h3>
+          </div>
+          <span class="game-state ${statusClass}">${safeText(statusLabel(statusKey))}</span>
         </div>
-
+        <div class="rule-chip-v2 rule-chip-${safeText(ruleMeta.rule.toLowerCase())}">
+          <strong>${safeText(ruleMeta.label)}</strong>
+          <span>${safeText(ruleMeta.description)}</span>
+        </div>
         <div class="game-kpis">
-          <div class="kpi"><div class="label">کارت فروخته‌شده</div><div class="value">${safeText(soldCards)}</div></div>
-          <div class="kpi"><div class="label">بازیکنان فعلی</div><div class="value">${safeText(players)}</div></div>
-          <div class="kpi"><div class="label">جایزه</div><div class="value">${safeText(toman(g.prize_pool))}</div></div>
+          <div class="kpi"><div class="label">قیمت هر کارت</div><div class="value">${safeText(toman(price))}</div></div>
+          <div class="kpi"><div class="label">جایزه فعلی</div><div class="value">${safeText(toman(g.prize_pool || 0))}</div></div>
+          <div class="kpi"><div class="label">کارت‌های فروخته‌شده</div><div class="value">${safeText(toFaDigits(soldCards))}</div></div>
         </div>
-        <div class="meta">روند شکل‌گیری جایزه</div>
-        <div class="prize-progress"><i style="width:${progress}%"></i></div>
-        ${runningBanner}
-        <div class="item-row">
-          <span class="meta">قیمت هر کارت: ${safeText(toman(g.card_price))} · کمیسیون: ${safeText(toFaDigits(Number(g.commission_rate ?? 0.10) * 100))}٪</span>
-          ${cta}
+        <div class="game-hero-details">
+          <span>بازیکنان: <strong>${players > 0 ? safeText(toFaDigits(players)) : "—"}</strong></span>
+          <span>کمیسیون: <strong>${safeText(commission)}</strong></span>
+          ${myCards > 0 ? `<span>کارت‌های شما: <strong>${safeText(toFaDigits(myCards))}</strong></span>` : ""}
         </div>
-      </div>
+        <div class="game-hero-actions">
+          <button type="button" class="small-btn ${isLobby ? "primary cta-big" : ""} open-btn" data-game-id="${gid}" data-action="${isLobby ? "buy" : "live"}">
+            ${safeText(primaryLabel)}
+          </button>
+          ${myCards > 0 ? `<button type="button" class="small-btn game-open-my-cards" data-game-id="${gid}">کارت‌های من</button>` : ""}
+        </div>
+      </article>
     `;
-    })
-    .join("");
+  }).join("");
 
   root.querySelectorAll(".open-btn").forEach((btn) => {
-  btn.addEventListener("click", () => {
-    const gameId = Number(btn.getAttribute("data-game-id") || "0");
-    if (!gameId) return;
-
-    const isBuyButton = btn.classList.contains("cta-big");
-
-    openLiveGame(gameId)
-      .then(() => {
-        setTimeout(() => {
-          const liveTitle = getEl("liveTitle");
-          const buyForm = getEl("buyActionForm");
-          const target = isBuyButton ? (buyForm || liveTitle) : liveTitle;
-
-          if (target) {
-            target.scrollIntoView({ behavior: "smooth", block: "start" });
-          }
-        }, 100);
-      })
-      .catch((err) => setLocalError("liveActionHint", err));
+    btn.addEventListener("click", () => {
+      const gid = Number(btn.getAttribute("data-game-id") || "0");
+      if (!gid || btn.disabled) return;
+      const buy = btn.getAttribute("data-action") === "buy";
+      btn.disabled = true;
+      openLiveBarGame(gid, { buy })
+        .catch((err) => setLocalError(buy ? "buyStatusHint" : "liveActionHint", err))
+        .finally(() => { btn.disabled = false; });
+    });
   });
-});
+  root.querySelectorAll(".game-open-my-cards").forEach((btn) => {
+    btn.addEventListener("click", () => switchToView("cards"));
+  });
 }
 
 function liveBarGameInfo(game) {
