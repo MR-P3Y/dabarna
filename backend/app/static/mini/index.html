@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>مینی‌اپ دبرنای طوفان</title>
     <link rel="stylesheet" href="./styles.css?v=tambola-card-v2-20261105-1" />
-    <link rel="stylesheet" href="./ux-v2.css?v=20261106-wave3" />
+    <link rel="stylesheet" href="./ux-v2.css?v=20261106-payments-admin-wave1" />
   </head>
   <body>
     <div id="appSplash" class="app-splash" aria-label="در حال آماده‌سازی مینی‌اپ">
@@ -179,9 +179,11 @@
                 </div>
 
                 <div class="deposit-mode-switch" role="tablist" aria-label="روش واریز">
-                  <button class="deposit-mode-btn active" data-deposit-mode="bank" role="tab" aria-selected="true" type="button">کارت بانکی</button>
+                  <button id="bankDepositModeBtn" class="deposit-mode-btn active" data-deposit-mode="bank" role="tab" aria-selected="true" type="button">کارت بانکی</button>
                   <button id="cryptoDepositModeBtn" class="deposit-mode-btn" data-deposit-mode="crypto" role="tab" aria-selected="false" type="button">ارز دیجیتال</button>
                 </div>
+
+                <div id="depositUnavailableNote" class="step-hint hidden" role="status">روش واریز فعالی وجود ندارد. تاریخچه و درخواست‌های قبلی همچنان قابل پیگیری هستند.</div>
 
                 <div id="bankDepositPanel" class="deposit-mode-panel">
                   <div class="crypto-guide-card crypto-guide-card-main bank-deposit-guide" aria-label="راهنمای واریز کارت بانکی">
@@ -790,6 +792,7 @@
                     </div>
                     <div id="adminUsersHint" class="step-hint"></div>
                   </div>
+                  <div id="adminUsersRecent" class="admin-quick-history hidden mt-12" aria-label="کاربران اخیر"></div>
                   <div id="adminUsersSearchResults" class="cards-history-scroll mt-12"></div>
                   <div id="adminUsersProfileBox" class="cards-history-scroll mt-12"></div>
                 </div>
@@ -854,6 +857,11 @@
                     </div>
                     <div id="superAdminHint" class="step-hint"></div>
                   </div>
+                  <div class="admin-list-filter mt-12">
+                    <input id="superAdminFilterInput" type="search" autocomplete="off" aria-label="فیلتر ادمین‌ها" placeholder="جستجوی سریع نام، شناسه یا نقش ادمین" />
+                    <button id="superAdminListRefreshBtn" class="small-btn" type="button">تازه‌سازی فهرست</button>
+                  </div>
+                  <div id="superAdminListSummary" class="step-hint" aria-live="polite"></div>
                   <div id="superAdminList" class="cards-history-scroll mt-12"></div>
                 </div>
               </details>
@@ -1049,6 +1057,6 @@
     <div id="miniToast" class="mini-toast hidden" role="status" aria-live="polite"></div>
 
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="./app.js?v=ux-v2-wave5-20261106" type="module"></script>
+    <script src="./app.js?v=payments-admin-wave1-20261106" type="module"></script>
   </body>
 </html>

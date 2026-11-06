@@ -4,15 +4,16 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 def super_admin_panel_kb() -> InlineKeyboardMarkup:
     kb = InlineKeyboardBuilder()
-    kb.button(text="📋 لیست ادمین‌ها", callback_data="super:admin:list")
-    kb.button(text="➕ افزودن ادمین", callback_data="super:admin:add")
-    kb.button(text="➖ حذف ادمین", callback_data="super:admin:remove")
-    kb.button(text="💳 مدیریت کارت‌های واریز", callback_data="super:deposit:cards")
-    kb.button(text="🟦 وضعیت کارت‌به‌کارت", callback_data="super:deposit:settings")
-    kb.button(text="🪙 مدیریت پرداخت رمزارزی", callback_data="super:crypto:settings")
+    kb.button(text="📋 فهرست ادمین‌ها", callback_data="super:admin:list")
+    kb.button(text="➕ ادمین جدید", callback_data="super:admin:add")
+    kb.button(text="➖ لغو دسترسی ادمین", callback_data="super:admin:remove")
+    kb.button(text="🧑‍💼 مدیریت کاربران", callback_data="admin:users")
+    kb.button(text="💳 کارت‌های مقصد", callback_data="super:deposit:cards")
+    kb.button(text="🟦 کارت‌به‌کارت", callback_data="super:deposit:settings")
+    kb.button(text="🪙 پرداخت رمزارزی", callback_data="super:crypto:settings")
     kb.button(text="🔄 تازه‌سازی", callback_data="super:admin:panel")
     kb.button(text="⬅️ منوی اصلی", callback_data="nav:menu")
-    kb.adjust(1, 1, 1, 1, 1, 1, 1, 1)
+    kb.adjust(2, 2, 2, 2, 1)
     return kb.as_markup()
 
 
@@ -30,7 +31,7 @@ def super_admin_role_select_kb() -> InlineKeyboardMarkup:
     kb.button(text="🛠 ادمین کامل", callback_data="super:admin:add:role:ADMIN")
     kb.button(text="👑 سوپرادمین", callback_data="super:admin:add:role:SUPER_ADMIN")
     kb.button(text="❌ لغو", callback_data="super:admin:panel")
-    kb.adjust(1, 1, 1, 1, 1)
+    kb.adjust(2, 2, 1)
     return kb.as_markup()
 
 
@@ -60,13 +61,14 @@ def super_admin_admins_list_kb(items: list[dict], *, mode: str) -> InlineKeyboar
 
 def super_admin_admin_detail_kb(*, tg_user_id: int, source: str = "list") -> InlineKeyboardMarkup:
     kb = InlineKeyboardBuilder()
+    kb.button(text="👤 پروفایل و فعالیت کاربر", callback_data=f"admin:users:profile:{int(tg_user_id)}")
     kb.button(text="🗑 حذف ادمین", callback_data=f"super:admin:remove:pick:{int(tg_user_id)}")
     if str(source).lower() == "remove":
         kb.button(text="⬅️ بازگشت به لیست حذف", callback_data="super:admin:remove")
     else:
         kb.button(text="⬅️ بازگشت به لیست ادمین‌ها", callback_data="super:admin:list")
     kb.button(text="⬅️ پنل سوپرادمین", callback_data="super:admin:panel")
-    kb.adjust(1, 1, 1)
+    kb.adjust(1, 1, 1, 1)
     return kb.as_markup()
 
 

@@ -258,7 +258,10 @@ async def _show_profile(
     await safe_edit_or_send(
         msg,
         _profile_text(profile),
-        reply_markup=admin_user_profile_kb(int(tg_user_id)),
+        reply_markup=admin_user_profile_kb(
+            int(tg_user_id),
+            restriction_active=bool((profile.get("restriction") or {}).get("active")),
+        ),
         parse_mode="HTML",
     )
 

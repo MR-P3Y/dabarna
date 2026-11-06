@@ -8,6 +8,7 @@ from app.core.user_guard import get_current_user_id
 from app.core.admin_guard import get_admin_identity, AdminIdentity
 
 from app.models.finance import DepositRequest, WithdrawRequest, GatewayPayment
+from app.models.settings import AppSetting
 from app.schemas.finance import (
     CreateDepositIn,
     UploadReceiptIn,
@@ -58,6 +59,19 @@ def create_deposit(
     current_user_id: int = Depends(get_current_user_id),
 ):
     try:
+        # Also protect the legacy /finance endpoint, not only Mini App / bot routes.
+        # Existing installations without a runtime setting retain their prior behavior.
+        setting = db.get(AppSetting, "bank_deposit_enabled")
+        if setting is not None:
+            raw = setting.v_json
+            if isinstance(raw, bool):
+                enabled = raw
+            elif isinstance(raw, str):
+                enabled = raw.strip().lower() not in {"0", "false", "no", "off", "disabled"}
+            else:
+                enabled = bool(raw)
+            if not enabled:
+                raise HTTPException(status_code=503, detail="واریز کارت بانکی توسط مدیریت غیرفعال شده است.")
         # اگر پروژه‌ات از create_deposit_request استفاده می‌کند:
         dr = FinanceService.create_deposit_request(db, current_user_id, data.amount)
         db.commit()
