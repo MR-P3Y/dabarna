@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from html import escape
 
 from aiogram import F, Router
@@ -105,15 +106,37 @@ def _tx_reason_fa(
     return "نامشخص"
 
 
-def _wallet_kb():
+def _wallet_kb(*, bank_enabled: bool = False, crypto_enabled: bool = False):
     kb = InlineKeyboardBuilder()
-    kb.button(text="📥 واریز", callback_data="menu:deposit")
-    kb.button(text="💎 واریز رمزارز", callback_data="menu:crypto")
+    if bank_enabled:
+        kb.button(text="📥 واریز کارت‌به‌کارت", callback_data="menu:deposit")
+    if crypto_enabled:
+        kb.button(text="💎 واریز رمزارز", callback_data="menu:crypto")
     kb.button(text="📤 برداشت", callback_data="menu:withdraw")
     kb.button(text="🔄 تازه‌سازی", callback_data="menu:wallet")
     kb.button(text="⬅️ منو", callback_data="nav:menu")
     kb.adjust(1)
     return kb.as_markup()
+
+
+async def _deposit_method_visibility(api: ApiClient, tg_user_id: int, tg_username: str | None) -> tuple[bool, bool]:
+    # Read the same user-facing endpoints used when starting a deposit.
+    # If either status cannot be verified, do not advertise that method.
+    async def bank_available() -> bool:
+        try:
+            result = await asyncio.wait_for(api.bot_list_deposit_destinations(tg_user_id, tg_username), timeout=6)
+            return bool(isinstance(result, dict) and result.get("items"))
+        except Exception:
+            return False
+
+    async def crypto_available() -> bool:
+        try:
+            result = await asyncio.wait_for(api.bot_crypto_options(tg_user_id, tg_username), timeout=6)
+            return bool(isinstance(result, dict) and result.get("enabled") and result.get("options"))
+        except Exception:
+            return False
+
+    return await asyncio.gather(bank_available(), crypto_available())
 
 
 @router.callback_query(F.data == "menu:wallet")
@@ -173,5 +196,12 @@ async def wallet(cq: CallbackQuery, api: ApiClient, tg_user_id: int, tg_username
     except ApiError as e:
         text = panel("خطا", f"دریافت اطلاعات کیف پول ناموفق بود.\n<code>{e.status}</code>\n<code>{escape(e.detail)}</code>")
 
-    await safe_edit_or_send(cq.message, text, reply_markup=_wallet_kb(), parse_mode="HTML")
+    bank_enabled, crypto_enabled = await _deposit_method_visibility(api, tg_user_id, tg_username)
+    if not bank_enabled and not crypto_enabled:
+        text += "\n\nℹ️ روش واریز جدید فعلاً در دسترس نیست؛ تاریخچه کیف پول همچنان قابل مشاهده است."
+    await safe_edit_or_send(
+        cq.message, text,
+        reply_markup=_wallet_kb(bank_enabled=bank_enabled, crypto_enabled=crypto_enabled),
+        parse_mode="HTML",
+    )
     await cq.answer()
