@@ -46,7 +46,7 @@ def update_setting(
     ident: AdminIdentity = Depends(require_admin_any),
     db: Session = Depends(get_db),
 ):
-    if key == CRYPTO_RUNTIME_SETTING_KEY:
+    if key in {CRYPTO_RUNTIME_SETTING_KEY, "bank_deposit_enabled"}:
         raise HTTPException(
             status_code=403,
             detail="این تنظیم فقط از کنترل اختصاصی سوپرادمین قابل تغییر است.",
