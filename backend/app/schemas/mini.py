@@ -107,6 +107,7 @@ class MiniWalletTxOut(BaseModel):
     reason: str
     ref_type: str | None = None
     ref_id: int | None = None
+    game_rule: str | None = None  # Read-only UI label metadata; no ledger/schema change
     created_at: str
 
 
