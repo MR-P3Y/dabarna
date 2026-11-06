@@ -764,7 +764,7 @@ async function openNotificationRoute(item) {
   }
 
   if (view === "cards" || section === "wins" || route.action === "open_winning_card") {
-    switchToView("cards");
+    switchToView("cards", { skipCardsRefresh: true });
     await refreshCards({ silent: true });
     const gameId = id || Number(route.meta?.game_id || 0);
     const cardId = Number(route.meta?.card_id || 0);
@@ -774,11 +774,18 @@ async function openNotificationRoute(item) {
     return;
   }
 
-  switchToView("wallet");
-  await refreshWallet();
-  if (route.action === "open_receipt" && route.receiptKind && route.receiptId) {
-    await openReceiptModal(route.receiptKind, route.receiptId);
+  const walletSections = new Set(["wallet_history", "bank_deposits", "withdraws", "crypto_deposits"]);
+  if (view === "wallet" || walletSections.has(section) || route.action === "open_receipt") {
+    switchToView("wallet");
+    await refreshWallet();
+    if (route.action === "open_receipt" && route.receiptKind && route.receiptId) {
+      await openReceiptModal(route.receiptKind, route.receiptId);
+    }
+    return;
   }
+
+  switchToView("games");
+  showToast("مقصد این اعلان مشخص نیست. صفحه بازی‌ها نمایش داده شد.", "error");
 }
 
 function wireAdminNotify() {
@@ -973,7 +980,7 @@ function notificationRoute(item) {
   const route = item?.route && typeof item.route === "object" ? item.route : {};
   const meta = route.meta && typeof route.meta === "object" ? route.meta : {};
   return {
-    view: String(route.view || item?.target_view || "wallet").trim() || "wallet",
+    view: String(route.view || item?.target_view || "").trim(),
     section: String(route.section || item?.target_section || "").trim(),
     targetType: String(route.target_type || item?.target_type || "").trim(),
     targetId: Number(route.target_id ?? item?.target_id ?? 0) || 0,
@@ -2005,7 +2012,7 @@ function drawGames(items) {
 async function openMyCardsForGame(gameId) {
   const gid = Number(gameId || 0);
   if (!gid) return;
-  switchToView("cards");
+  switchToView("cards", { skipCardsRefresh: true });
   await refreshCards({ silent: true });
   const root = getEl("cardsActiveList");
   const block = [...(root?.querySelectorAll(".active-game-block") || [])]
@@ -8668,7 +8675,7 @@ function isAdminViewActive() {
   return Boolean(v && v.classList.contains("active"));
 }
 
-function switchToView(target) {
+function switchToView(target, { skipCardsRefresh = false } = {}) {
   const views = {
     games: getEl("view-games"),
     cards: getEl("view-cards"),
@@ -8695,7 +8702,7 @@ function switchToView(target) {
 
   if (normalized === "cards") {
     startCardsPolling();
-    refreshCards({ silent: true }).catch(() => {});
+    if (!skipCardsRefresh) refreshCards({ silent: true }).catch(() => {});
   } else {
     stopCardsPolling();
   }
