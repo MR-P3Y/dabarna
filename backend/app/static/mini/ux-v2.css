@@ -551,3 +551,43 @@ html[data-theme="light"] .games-overview-stats > div {
   .admin-quick-nav-v2 button { font-size: 12px; min-height: 44px; }
   .admin-game-list-item-v2 { padding: 10px; }
 }
+
+
+/* Fast admin/user management controls, additive and responsive. */
+.admin-list-filter {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+.admin-list-filter input {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--ux-border);
+  background: var(--ux-raised);
+  color: var(--text);
+  font: inherit;
+}
+.admin-list-filter input:focus-visible {
+  outline: 3px solid var(--ux-ring);
+  outline-offset: 2px;
+}
+.admin-quick-history {
+  padding: 12px;
+  border: 1px solid var(--ux-border);
+  border-radius: 12px;
+  background: var(--ux-raised);
+}
+.admin-quick-history > strong { display: block; margin-bottom: 8px; }
+.admin-quick-history .admin-item-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+@media (max-width: 520px) {
+  .admin-list-filter { grid-template-columns: 1fr; }
+  .admin-list-filter .small-btn { min-height: 44px; }
+}
