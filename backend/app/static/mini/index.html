@@ -60,13 +60,14 @@
               <h2 id="gamesTitle">بازی‌ها</h2>
               <button id="refreshGamesBtn" class="small-btn" type="button">به‌روزرسانی</button>
             </div>
-            <p id="gamesHint" class="hint">ورود سریع به بازی‌های فعال و مشاهده وضعیت لحظه‌ای</p>
-            <div class="quick-guide">
-              <strong>راهنمای سریع</strong>
-              <p id="gamesGuideText">بازی فعال را انتخاب کنید، وارد وضعیت زنده شوید و خرید کارت را انجام دهید.</p>
-            </div>
+            <p id="gamesHint" class="hint">بازی‌ها و جوایز را مقایسه کن و با یک لمس وارد شو.</p>
+            <div id="gamesOverview" class="games-overview-v2" aria-label="خلاصه بازی‌های جاری"></div>
+            <details class="quick-guide quick-guide-collapse">
+              <summary>راهنمای کوتاه بازی</summary>
+              <p id="gamesGuideText">بازی را انتخاب کنید، قوانین را بخوانید و قبل از شروع کارت بخرید. بعد از شروع، اعداد زنده را در همین صفحه دنبال کنید.</p>
+            </details>
             <div id="hotGameBanner" class="hot-banner hidden"></div>
-            <div id="gamesList" class="stack-list"></div>
+            <div id="gamesList" class="stack-list" aria-label="فهرست بازی‌های فعال"></div>
           </article>
 
           <article class="glass panel">
@@ -110,10 +111,10 @@
               <button id="refreshCardsBtn" class="small-btn" type="button">به‌روزرسانی</button>
             </div>
             <p id="cardsHint" class="hint">نمایش زنده کارت‌ها و هایلایت اعداد اعلام‌شده</p>
-            <div class="quick-guide">
-              <strong>راهنمای سریع</strong>
-              <p id="cardsGuideText">کارت‌های خریداری‌شده، اعداد خوانده‌شده و تاریخچه برد را اینجا ببینید.</p>
-            </div>
+            <details class="quick-guide quick-guide-collapse">
+              <summary>راهنمای کارت‌ها و برد</summary>
+              <p id="cardsGuideText">برای هر کارت می‌بینی چند عدد خوانده شده و چه نوع بردی در انتظار است. جزئیات بازی‌های قبلی را از تاریخچه باز کن.</p>
+            </details>
 
             <div id="cardsPullHint" class="pull-hint" data-state="idle">برای نوسازی، صفحه را به پایین بکشید</div>
 
