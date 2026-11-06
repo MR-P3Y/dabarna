@@ -1,0 +1,6 @@
+# Image overrides ONLY. Original Production Compose chain stays intact.
+services:
+  backend:
+    image: ${DAVARNA_UX5_BACKEND_IMAGE:?Must set candidate backend image}
+  bot:
+    image: ${DAVARNA_UX5_BOT_IMAGE:?Must set candidate bot image}
