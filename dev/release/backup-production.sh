@@ -87,9 +87,16 @@ mkdir -m 0700 "$DIR/configs" "$DIR/data" "$DIR/images"
   printf 'backend=%s\nbackend_image_id=%s\n' "$BACKEND" "$BACKEND_ID"
   printf 'bot=%s\nbot_image_id=%s\n' "$BOT" "$BOT_ID"
   echo "production_workdir=$PROD"
+  for ct in davarna-backend davarna-bot davarna-mysql davarna-redis; do
+    printf 'compose_files_%s=%s\n' "$ct" "$(docker inspect -f '{{index .Config.Labels "com.docker.compose.project.config_files"}}' "$ct")"
+  done
 } > "$DIR/manifest.txt"
 
 echo "===== CONFIG SNAPSHOT (ROOT ONLY) ====="
+# Private: complete runtime inspection preserves effective env/mount metadata.
+# NEVER print or share this file; it contains credentials.
+docker inspect davarna-backend davarna-bot davarna-mysql davarna-redis > "$DIR/configs/runtime-private.json"
+chmod 0600 "$DIR/configs/runtime-private.json"
 i=0
 for p in "${compose[@]}"; do
   i=$((i+1))
