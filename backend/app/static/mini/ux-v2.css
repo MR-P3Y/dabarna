@@ -457,3 +457,97 @@ html[data-theme="light"] .games-overview-stats > div {
   box-shadow: 0 0 0 2px rgba(80, 192, 240, .18), 0 12px 35px rgba(2, 9, 24, .18);
   transition: border-color .18s ease, box-shadow .18s ease;
 }
+
+
+/* Wave 3: Admin workflow readability and accurate navigation destinations. */
+.admin-quick-nav-v2 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 12px 0 14px;
+}
+.admin-quick-nav-v2 button {
+  border: 1px solid var(--ux-border);
+  background: var(--ux-raised);
+  color: var(--text);
+  border-radius: 13px;
+  padding: 9px;
+  min-height: 46px;
+  line-height: 1.65;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 850;
+  cursor: pointer;
+}
+.admin-quick-nav-v2 button:hover,
+.admin-quick-nav-v2 button:focus-visible {
+  border-color: var(--ux-ring);
+  box-shadow: 0 0 0 2px rgba(90, 172, 223, .13);
+}
+#view-admin .cards-box,
+#view-admin .accordion-item,
+#view-admin [id^="admin"] {
+  scroll-margin-top: 18px;
+}
+#adminGamesList { max-height: min(460px, 52vh); }
+.admin-game-list-item-v2 {
+  border-radius: 14px;
+  border: 1px solid var(--ux-border);
+  background: var(--ux-raised);
+  margin: 5px 0 10px;
+  padding: 12px;
+  transition: border-color .16s ease, box-shadow .16s ease;
+}
+.admin-game-list-item-v2.is-selected {
+  border-color: rgba(86, 194, 231, .85);
+  box-shadow: inset 0 0 0 1px rgba(86, 194, 231, .2);
+}
+.admin-game-list-title-v2 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  line-height: 1.8;
+}
+.admin-game-list-title-v2 strong {
+  font-size: 14px;
+  font-weight: 900;
+}
+.admin-game-rule-v2 {
+  color: var(--accent);
+  border: 1px solid var(--ux-border);
+  background: rgba(77, 158, 204, .07);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 850;
+}
+.admin-game-list-item-v2 .history-meta {
+  margin: 9px 0;
+  line-height: 2;
+  font-size: 12px;
+}
+.admin-game-list-item-v2 .admin-item-actions {
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.admin-game-list-item-v2 .admin-select-game-btn[aria-pressed="true"] {
+  border-color: rgba(76, 195, 171, .55);
+  background: rgba(76, 195, 171, .11);
+  color: var(--text);
+}
+#view-admin .admin-action-row .small-btn {
+  min-height: 43px;
+  line-height: 1.7;
+}
+#view-admin .small-btn:disabled {
+  opacity: .52;
+  box-shadow: none;
+}
+#view-admin .action-local-hint:not(:empty) { line-height: 1.9; }
+@media (max-width: 520px) {
+  .admin-quick-nav-v2 { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+  .admin-quick-nav-v2 button { font-size: 12px; min-height: 44px; }
+  .admin-game-list-item-v2 { padding: 10px; }
+}
