@@ -32,19 +32,22 @@ def admin_users_search_results_kb(items: list[dict]) -> InlineKeyboardMarkup:
     return kb.as_markup()
 
 
-def admin_user_profile_kb(tg_user_id: int) -> InlineKeyboardMarkup:
+def admin_user_profile_kb(tg_user_id: int, *, restriction_active: bool | None = None) -> InlineKeyboardMarkup:
     uid = int(tg_user_id)
     kb = InlineKeyboardBuilder()
     kb.button(text="📊 تاریخچه مالی", callback_data=f"admin:users:fin:{uid}")
     kb.button(text="🎮 تاریخچه بازی", callback_data=f"admin:users:games:{uid}")
-    kb.button(text="⛔ محدودسازی", callback_data=f"admin:users:restrict:{uid}")
-    kb.button(text="✅ رفع محدودیت", callback_data=f"admin:users:unrestrict:{uid}")
+    if restriction_active is not True:
+        kb.button(text="⛔ محدودسازی", callback_data=f"admin:users:restrict:{uid}")
+    if restriction_active is not False:
+        kb.button(text="✅ رفع محدودیت", callback_data=f"admin:users:unrestrict:{uid}")
     kb.button(text="💳 اصلاح کیف پول", callback_data=f"admin:users:adjust:{uid}")
     kb.button(text="🧩 پیام آماده", callback_data=f"admin:users:compose:{uid}")
     kb.button(text="✉️ پیام دستی", callback_data=f"admin:users:notify:{uid}")
     kb.button(text="🔄 تازه‌سازی", callback_data=f"admin:users:profile:{uid}")
+    kb.button(text="🔎 جستجوی کاربر دیگر", callback_data="admin:users:search")
     kb.button(text="⬅️ پنل ادمین کاربران", callback_data="admin:users")
-    kb.adjust(2, 2, 2, 2, 1)
+    kb.adjust(2, 2, 2, 2, 2)
     return kb.as_markup()
 
 
