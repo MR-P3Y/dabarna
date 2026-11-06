@@ -46,9 +46,11 @@ def _tx_reason_fa(
     idempotency_key: object = None,
     ref_type: object = None,
     ref_id: object = None,
+    game_rule: object = None,
 ) -> str:
     raw = str(reason or "").strip()
     up = raw.upper()
+    rule = str(game_rule or "LEGACY").strip().upper()
     idem = str(idempotency_key or "").strip().upper()
     ref_t = str(ref_type or "").strip().upper()
     try:
@@ -61,11 +63,23 @@ def _tx_reason_fa(
         "DEPOSIT_GATEWAY": "واریز از درگاه پرداخت",
         "DEPOSIT_CRYPTO": "واریز تاییدشده رمزارز",
         "BUY_CARDS": "خرید کارت بازی",
-        "PRIZE_COL": "دریافت جایزه برد تورنا",
-        "PRIZE_ROW": "دریافت جایزه برد تمام",
+
         "WITHDRAW": "برداشت از کیف پول",
         "ADJUST": "اصلاح حساب توسط سیستم/ادمین",
     }
+
+    if up == "PRIZE_COL":
+        if rule == "LINE":
+            return "دریافت جایزه تورنا (۳ عدد یک ردیف)"
+        if rule == "FULL_CARD":
+            return "دریافت جایزه میانی بازی"
+        return "دریافت جایزه برد ستونی (تورنا)"
+    if up == "PRIZE_ROW":
+        if rule == "FULL_CARD":
+            return "دریافت جایزه پرکردنی (۱۵ عدد)"
+        if rule == "LINE":
+            return "دریافت جایزه خطی (۵ عدد یک ردیف)"
+        return "دریافت جایزه برد ردیفی (تمام)"
 
     if up == "ADJUST":
         if idem.startswith("LOBBY_REFUND:GAME:"):
@@ -73,7 +87,7 @@ def _tx_reason_fa(
                 return f"بازگشت وجه خرید کارت (کنسل بازی #{_to_fa_digits(ref_id_int)})"
             return "بازگشت وجه خرید کارت (کنسل بازی)"
         if idem.startswith("UNDO_PRIZE_ROW:GAME:"):
-            return "اصلاح جایزه برد تمام (بازگردانی اعلام عدد)"
+            return "اصلاح جایزه نهایی بازی (بازگردانی اعلام عدد)"
         if idem.startswith("UNDO_PRIZE_COL:GAME:"):
             return "اصلاح جایزه برد تورنا (بازگردانی اعلام عدد)"
 
@@ -143,6 +157,7 @@ async def wallet(cq: CallbackQuery, api: ApiClient, tg_user_id: int, tg_username
                     idempotency_key=t.get("idempotency_key"),
                     ref_type=t.get("ref_type"),
                     ref_id=t.get("ref_id"),
+                    game_rule=t.get("game_rule"),
                 )
                 at = _fmt_datetime(t.get("created_at"))
                 lines += [
