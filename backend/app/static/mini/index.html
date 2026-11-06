@@ -432,10 +432,18 @@
               <button id="refreshAdminBtn" class="small-btn" type="button">به‌روزرسانی</button>
             </div>
             <p id="adminRoleText" class="hint">در حال بارگذاری سطح دسترسی...</p>
-            <div class="quick-guide">
-              <strong>راهنمای سریع</strong>
-              <p id="adminGuideText">ایجاد بازی، مدیریت عملیات و بررسی واریز/برداشت از همین بخش انجام می‌شود.</p>
-            </div>
+            <nav class="admin-quick-nav-v2" aria-label="دسترسی سریع به بخش‌های مدیریت">
+              <button type="button" data-admin-jump="adminOpsDashboard">داشبورد</button>
+              <button type="button" data-admin-jump="adminGamesList">بازی‌های دستی</button>
+              <button type="button" data-admin-jump="adminDrawModeShell">کنترل اعداد</button>
+              <button type="button" data-admin-jump="adminAutopilotList">بازی خودکار</button>
+              <button type="button" data-admin-jump="adminDepositsList">واریزی‌ها</button>
+              <button type="button" data-admin-jump="adminWithdrawsList">برداشت‌ها</button>
+            </nav>
+            <details class="quick-guide quick-guide-collapse">
+              <summary>راهنمای پنل مدیریت</summary>
+              <p id="adminGuideText">ابتدا بازی موردنظر را انتخاب کن، سپس عملیات مرتبط با همان بازی را انجام بده. گزارش‌های مالی را از میانبرهای بالای پنل باز کن.</p>
+            </details>
 
             <div class="cards-box admin-ops-dashboard mt-12">
               <div class="cards-box-head">
