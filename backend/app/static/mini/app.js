@@ -1052,17 +1052,18 @@ function renderNotificationCenter() {
       row.classList.add("is-read");
     };
     row.querySelector(".notification-open-btn")?.addEventListener("click", () => {
-      markRead();
-      closeNotificationCenter();
       const idx = Number(row.getAttribute("data-index") || "-1");
       const item = Array.isArray(state.notifications) ? state.notifications[idx] : null;
-      openNotificationRoute(item).catch((e) => showToast(localizeApiError(e?.message || e), "error"));
+      closeNotificationCenter();
+      openNotificationRoute(item)
+        .then(() => markRead())
+        .catch((e) => showToast(localizeApiError(e?.message || e), "error"));
     });
     row.querySelector(".notification-receipt-btn")?.addEventListener("click", (ev) => {
       ev.stopPropagation();
-      markRead();
       const btn = ev.currentTarget;
       openReceiptModal(String(btn.getAttribute("data-kind") || ""), Number(btn.getAttribute("data-id") || 0))
+        .then(() => markRead())
         .catch((e) => showToast(localizeApiError(e?.message || e), "error"));
     });
   });
