@@ -87,6 +87,38 @@ bash dev/release/backup-production.sh
 
 **هنوز نباید** `docker compose up` اجرا شود. از آنجا که کانتینرهای Backend و Bot به Compose overrideهای متفاوتی متصل‌اند (از جمله فایل خصوصی `/root/davarna-v2-release-backups/tambola-v2-manual.compose.yml` برای Backend)، دستور بازآفرینی باید بعد از بررسی تنظیمات دقیق نسخه‌های نامزد آماده شود. این فایل خصوصی یا اطلاعات `runtime-private.json` را در چت منتشر نکنید.
 
+## گام ایمن قبل از جابه‌جایی کانتینرها — تطبیق واقعی Compose
+
+ایمیج‌های نامزد زیر روی NODE2 با پیام `CANDIDATE IMAGES VERIFIED` ساخته شدند:
+
+- Backend: `davarna-backend:ux5-f3c649e22593`
+- Bot: `davarna-bot:ux5-f3c649e22593`
+- Rollback Backend: `davarna-backend:rollback-20261106-937ef711`
+- Rollback Bot: `davarna-bot:rollback-20261106-937ef711`
+
+کانتینرهای فعلی با زنجیره Compose متفاوت ساخته شده‌اند:
+
+- Backend: `/opt/davarna/docker-compose.yml` + `/opt/davarna-v2/deploy/tambola-v2-inactive.compose.yml` + `/root/davarna-v2-release-backups/tambola-v2-manual.compose.yml`
+- Bot: همان دو فایل اول، **بدون** فایل دستی اضافی Backend.
+
+**احتیاط:** از `docker compose up` عمومی یا یک زنجیره یکسان برای هر دو سرویس استفاده نشود.
+
+`dev/release/ux5-candidate.compose.yml` فقط نام ایمیج‌ها را تنظیم می‌کند. `dev/release/predeploy-audit.sh` برای هر سرویس همان زنجیره Compose اولیه را به همراه این لایه تصویری رندر می‌کند و *بدون اجرا* با کانتینر فعال مقایسه می‌کند:
+
+- تغییر ناخواسته متغیرهای محیطی یا Flagها (بدون افشای مقادیر رمزها)
+- تغییر پورت‌های منتشرشده یا Bind Mountها
+- تغییر Restart Policy یا تنظیمات امنیتی
+- عدم تطابق ایمیج نامزد با Build تأییدشده
+
+```bash
+cd /opt/davarna-v2
+git pull --ff-only origin feature/ui-ux-refresh-tambola-v2-20261106
+bash -n dev/release/predeploy-audit.sh
+bash dev/release/predeploy-audit.sh
+```
+
+**فقط** خروجی `PREDEPLOY CONFIG MATCH: IMAGE-ONLY CHANGE` مجوز رفتن به مرحله ساخت دستور انتشار است؛ این خروجی خودش هیچ سرویس اصلی را تغییر نمی‌دهد. در صورت `NO-GO` باید علت بررسی شود و هیچ‌یک از guardها را حذف نکنیم. رندر Compose در فضای موقت root-only انجام می‌شود؛ فایل JSON موقت شامل مقادیر حساس است و به‌صورت خودکار حذف خواهد شد.
+
 ## اولین فرمان مجاز
 
 \`\`\`bash
