@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="fa" dir="rtl" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow">
+  <title>پیش‌نمایش UI/UX دبرنای طوفان — داده‌های نمایشی</title>
+  <link rel="stylesheet" href="./styles.css?v=tambola-card-v2-20261105-1">
+  <link rel="stylesheet" href="./ux-v2.css?v=20261106-wave2">
+  <style>
+    .ux-demo-strip {position:sticky;top:0;z-index:60;background:#3b224c;color:#ffe9fb;border-bottom:1px solid #9466b4;padding:9px 12px;text-align:center;font-size:12px;line-height:1.8;font-weight:800}
+    .ux-demo-label {font-size:12px;color:var(--muted);margin:0 0 12px;line-height:1.8}
+    .ux-demo-section {scroll-margin-top:70px}
+    .ux-demo-section .panel {margin-top:10px}
+    .ux-demo-header-controls {display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+    .ux-demo-header-controls .small-btn {min-height:36px}
+    .ux-demo-hero-copy {font-size:12px;line-height:1.8;color:var(--muted);margin:4px 0 0}
+    .ux-demo-card-title {font-size:14px;margin:0}
+    .ux-demo-live {border:1px solid var(--ux-border);background:var(--ux-raised);border-radius:15px;padding:14px;display:grid;gap:10px}
+    .ux-demo-live .last-num {font-size:34px;font-weight:900;color:var(--accent)}
+    .ux-demo-live-row {display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
+    .ux-demo-live-numbers {display:flex;flex-wrap:wrap;gap:6px;direction:ltr;justify-content:flex-start}
+    .ux-demo-live-numbers span {display:grid;place-items:center;min-width:36px;min-height:36px;border-radius:10px;background:rgba(100,214,255,.12);border:1px solid var(--ux-border);font-weight:800}
+    .ux-demo-note {border:1px solid var(--ux-border);border-radius:12px;padding:12px;background:var(--ux-raised);font-size:12px;line-height:1.9}
+    .ux-demo-wallet-grid {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:12px 0}
+    .ux-demo-wallet-grid .small-btn {min-height:46px}
+    .ux-demo-num {font-variant-numeric:tabular-nums}
+    .ux-demo-toaster {position:fixed;bottom:105px;left:50%;transform:translateX(-50%);max-width:90vw;background:#152849;color:#fff;border:1px solid #5e92c3;border-radius:14px;padding:10px 15px;z-index:75;font-size:12px;text-align:center;box-shadow:0 10px 36px #0008}
+    .ux-demo-toaster[hidden] {display:none}
+    .ux-demo-chart {margin:10px 0 6px}
+    .ux-demo-chart .card-progress-bar {height:9px}
+    .ux-demo-bottom-name {display:block}
+    @media (min-width:680px){.ux-demo-dashboard {display:grid;grid-template-columns:1fr 1fr;gap:12px}.ux-demo-dashboard > .panel {margin:0}}
+    @media (max-width:420px){.ux-demo-strip{font-size:10px}.ux-demo-wallet-grid{grid-template-columns:1fr 1fr}.ux-demo-live .last-num{font-size:29px}}
+  </style>
+</head>
+<body>
+  <div class="ux-demo-strip" role="status">پیش‌نمایش طراحی — تمام داده‌ها ساختگی‌اند — هیچ خرید، برداشت یا اتصال به کیف پول واقعی انجام نمی‌شود</div>
+  <div class="app-shell">
+    <header class="topbar glass">
+      <div class="topbar-main">
+        <div class="brand">
+          <img class="brand-logo" src="./assets/bot-logo.jpg?v=20260630assetfix2" alt="لوگوی دبرنا">
+          <div><h1>دبرنای طوفان</h1><small class="ux-demo-hero-copy">نسخه آزمایشی رابط کاربری</small></div>
+        </div>
+        <div class="smart-head smart-head-primary">
+          <div class="smart-chip"><span>کاربر نمونه</span><strong>بازیکن آزمایشی</strong></div>
+          <div class="smart-chip"><span>موجودی فرضی</span><strong>۲۵۰٬۰۰۰ تومان</strong></div>
+        </div>
+      </div>
+      <div class="ux-demo-header-controls">
+        <button id="demoTheme" class="theme-toggle-btn" type="button" aria-label="تغییر پوسته">◐ تغییر پوسته</button>
+        <span class="game-state lobby">پیش‌نمایش غیرعملیاتی</span>
+      </div>
+    </header>
+
+    <main class="content">
+      <section id="view-games" class="view active ux-demo-section" aria-hidden="false">
+        <article class="glass panel">
+          <div class="panel-head">
+            <h2>بازی‌ها</h2>
+            <button class="small-btn" type="button" data-demo-toast="داده‌ها ثابت و نمایشی هستند">به‌روزرسانی</button>
+          </div>
+          <p class="hint">بازی‌ها را مقایسه کن؛ قانون، قیمت و وضعیت خرید هر بازی مشخص است.</p>
+          <div id="gamesOverview" class="games-overview-v2">
+            <div class="games-overview-head">
+              <div>
+                <span class="games-overview-eyebrow">داشبورد بازی</span>
+                <strong>بازی مناسب خودت را انتخاب کن</strong>
+                <p>قوانین، قیمت کارت و وضعیت بازی را پیش از ورود ببین.</p>
+              </div>
+              <button class="small-btn" type="button" data-demo-view="cards">کارت‌های من</button>
+            </div>
+            <div class="games-overview-stats">
+              <div><span>آماده خرید</span><strong>۱</strong></div>
+              <div><span>در حال اجرا</span><strong>۱</strong></div>
+              <div><span>کارت‌های من در بازی‌های جاری</span><strong>۲</strong></div>
+            </div>
+          </div>
+          <details class="quick-guide quick-guide-collapse">
+            <summary>راهنمای کوتاه بازی</summary>
+            <p>در بازی‌های خطی، تورنا با ۳ عدد از یک ردیف و خطی با ۵ عدد از همان ردیف است. بازی پرکردنی تنها با تکمیل ۱۵ عدد کارت برنده دارد.</p>
+          </details>
+          <div id="gamesList" class="stack-list">
+            <article class="item game-hero game-hero-v2">
+              <div class="item-row game-hero-top">
+                <div class="game-identity"><span class="game-identity-overline">خطی ۱</span><h3>بازی نمونه A</h3></div>
+                <span class="game-state lobby">در انتظار شروع</span>
+              </div>
+              <div class="rule-chip-v2 rule-chip-line">
+                <strong>تورنا و خطی</strong>
+                <span>تورنا: ۳ عدد از یک ردیف · خطی: ۵ عدد از یک ردیف</span>
+              </div>
+              <div class="game-kpis">
+                <div class="kpi"><div class="label">قیمت هر کارت</div><div class="value">۵٬۰۰۰ تومان</div></div>
+                <div class="kpi"><div class="label">جایزه فعلی</div><div class="value">۳۸٬۲۵۰ تومان</div></div>
+                <div class="kpi"><div class="label">کارت‌های فروخته‌شده</div><div class="value">۹</div></div>
+              </div>
+              <div class="game-hero-details"><span>بازیکنان: <strong>۴</strong></span><span>کمیسیون: <strong>۱۵٪</strong></span><span>کارت‌های شما: <strong>۱</strong></span></div>
+              <div class="game-hero-actions">
+                <button class="small-btn primary cta-big" type="button" data-demo-live="line">خرید کارت بیشتر</button>
+                <button class="small-btn" type="button" data-demo-view="cards" data-demo-card="line">کارت‌های من</button>
+              </div>
+            </article>
+            <article class="item game-hero game-hero-v2">
+              <div class="item-row game-hero-top">
+                <div class="game-identity"><span class="game-identity-overline">سطح پرکردنی</span><h3>بازی نمونه B</h3></div>
+                <span class="game-state running">در حال اجرا</span>
+              </div>
+              <div class="rule-chip-v2 rule-chip-full_card">
+                <strong>پرکردنی</strong>
+                <span>شرط برد: تکمیل تمام ۱۵ عدد یک کارت؛ بدون تورنا یا جایزه میانی.</span>
+              </div>
+              <div class="game-kpis">
+                <div class="kpi"><div class="label">قیمت هر کارت</div><div class="value">۲۰٬۰۰۰ تومان</div></div>
+                <div class="kpi"><div class="label">جایزه فعلی</div><div class="value">۶۸٬۰۰۰ تومان</div></div>
+                <div class="kpi"><div class="label">کارت‌های فروخته‌شده</div><div class="value">۴</div></div>
+              </div>
+              <div class="game-hero-details"><span>بازیکنان: <strong>۲</strong></span><span>کمیسیون: <strong>۱۵٪</strong></span><span>کارت‌های شما: <strong>۱</strong></span></div>
+              <div class="game-hero-actions">
+                <button class="small-btn" type="button" data-demo-live="full">مشاهده اعداد زنده</button>
+                <button class="small-btn" type="button" data-demo-view="cards" data-demo-card="full">کارت‌های من</button>
+              </div>
+            </article>
+          </div>
+        </article>
+        <div class="ux-demo-dashboard">
+          <article class="glass panel ux-demo-section" id="demo-live-section">
+            <div class="panel-head"><h2>وضعیت زنده بازی</h2><span id="demoLiveMeta" class="meta">بازی نمونه A · تورنا و خطی</span></div>
+            <div class="ux-demo-live">
+              <div class="ux-demo-live-row">
+                <div><strong id="demoLiveStatus">در انتظار شروع</strong><p class="ux-demo-hero-copy" id="demoLiveExplain">خرید فقط تا پیش از شروع بازی امکان‌پذیر است.</p></div>
+                <div style="text-align:center"><small class="meta">آخرین عدد</small><div id="demoLiveLast" class="last-num">—</div></div>
+              </div>
+              <div class="ux-demo-live-numbers" id="demoLiveNumbers"><span>—</span></div>
+              <button id="demoBuyDisabled" class="small-btn primary" type="button">پیش‌نمایش خرید کارت</button>
+            </div>
+          </article>
+          <article class="glass panel">
+            <div class="panel-head"><h2>معنای جوایز</h2></div>
+            <div class="ux-demo-note"><strong>خطی:</strong> تورنا یعنی ۳ عدد یک ردیف، برد خطی یعنی ۵ عدد یک ردیف.</div>
+            <div class="ux-demo-note" style="margin-top:10px"><strong>پرکردنی:</strong> تنها پس از تکمیل ۱۵ عدد کارت برنده ثبت می‌شود. جایزه میانی ندارد.</div>
+          </article>
+        </div>
+      </section>
+
+      <section id="view-cards" class="view ux-demo-section" aria-hidden="true">
+        <article class="glass panel">
+          <div class="panel-head"><h2>کارت‌های من</h2><button class="small-btn" type="button" data-demo-toast="کارت‌ها نمونه و ثابت‌اند">به‌روزرسانی</button></div>
+          <p class="hint">تطبیق اعداد، پیشرفت قوانین و وضعیت کارت را خوانا و لحظه‌ای ببین.</p>
+          <details class="quick-guide quick-guide-collapse"><summary>راهنمای کارت‌ها و برد</summary><p>در خطی پیشرفت بهترین ردیف از پنج عدد را ببین. در پرکردنی باید ۱۵ عدد تکمیل شود.</p></details>
+          <div class="cards-active-list" id="previewCardsList">
+            <div class="active-game-block game-emphasis-block active-game-block-ux21" id="preview-line-block">
+              <div class="active-game-head"><h4>بازی نمونه A · خطی</h4><div class="active-game-meta"><span>۳ عدد خوانده‌شده از یک ردیف</span><button class="small-btn" type="button" data-demo-live="line">ورود</button></div></div>
+              <div class="cards-active-grid">
+                <div class="card-pro">
+                  <div class="card-pro-head"><strong>کارت آزمایشی خطی</strong><span>نسخه ۳×۹</span></div>
+                  <div class="card-progress card-progress-v2"><span>بیشترین تطابق یک ردیف: ۳ از ۵ عدد</span><small class="card-progress-rule">تورنا: ۳ عدد یک ردیف · خطی: ۵ عدد یک ردیف</small><div class="card-progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="60"><i style="width:60%"></i></div></div>
+                  <div class="mini-card-grid v2" id="preview-line-card" aria-label="کارت نمونه خطی"></div>
+                </div>
+              </div>
+            </div>
+            <div class="active-game-block game-emphasis-block active-game-block-ux21" id="preview-full-block">
+              <div class="active-game-head"><h4>بازی نمونه B · پرکردنی</h4><div class="active-game-meta"><span>۵ از ۱۵ عدد خوانده شده</span><button class="small-btn" type="button" data-demo-live="full">ورود</button></div></div>
+              <div class="cards-active-grid">
+                <div class="card-pro">
+                  <div class="card-pro-head"><strong>کارت آزمایشی پرکردنی</strong><span>نسخه ۳×۹</span></div>
+                  <div class="card-progress card-progress-v2"><span>اعداد تکمیل‌شده: ۵ از ۱۵</span><small class="card-progress-rule">پرکردنی: تمام ۱۵ عدد · بدون تورنا</small><div class="card-progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="33"><i style="width:33%"></i></div></div>
+                  <div class="mini-card-grid v2" id="preview-full-card" aria-label="کارت نمونه پرکردنی"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <article class="cards-box mt-12">
+            <div class="cards-box-head"><h3>تاریخچه بردها (نمونه)</h3></div>
+            <div class="history-item"><strong>برد پرکردنی (۱۵ عدد) · ۶۸٬۰۰۰ تومان</strong><div class="history-meta">عنوان برنده براساس قانون ذخیره‌شده همان بازی تعیین می‌شود.</div></div>
+          </article>
+        </article>
+      </section>
+
+      <section id="view-wallet" class="view ux-demo-section" aria-hidden="true">
+        <article class="glass panel">
+          <div class="panel-head"><h2>کیف پول</h2><span class="meta">حالت نمایشی؛ بدون اتصال به حساب</span></div>
+          <p class="hint">چیدمان کارت موجودی، تراکنش‌ها و دسترسی سریع به واریز و برداشت.</p>
+          <div class="wallet-balance-wrap"><span>موجودی فرضی</span><strong>۲۵۰٬۰۰۰ تومان</strong></div>
+          <div class="ux-demo-wallet-grid">
+            <button class="small-btn primary" type="button" data-demo-toast="واریز در پیش‌نمایش غیرفعال است">شارژ کیف پول</button>
+            <button class="small-btn" type="button" data-demo-toast="برداشت در پیش‌نمایش غیرفعال است">درخواست برداشت</button>
+          </div>
+          <div class="cards-box">
+            <div class="cards-box-head"><h3>آخرین تراکنش‌ها (نمونه)</h3></div>
+            <div class="tx-chip credit"><div><strong>برد پرکردنی (۱۵ عدد)</strong><div class="meta">نمونه تراکنش؛ بدون موجودی واقعی</div></div><strong>+۶۸٬۰۰۰ تومان</strong></div>
+            <div class="tx-chip debit" style="margin-top:8px"><div><strong>خرید کارت</strong><div class="meta">نمونه تراکنش؛ بدون موجودی واقعی</div></div><strong>−۲۰٬۰۰۰ تومان</strong></div>
+          </div>
+        </article>
+      </section>
+    </main>
+
+    <nav class="bottom-nav glass" aria-label="ناوبری پیش‌نمایش">
+      <button class="nav-btn active" data-view="games" aria-current="page" type="button"><span class="nav-icon">🎲</span><span class="ux-demo-bottom-name">بازی‌ها</span></button>
+      <button class="nav-btn" data-view="cards" type="button"><span class="nav-icon">🎫</span><span class="ux-demo-bottom-name">کارت‌های من</span></button>
+      <button class="nav-btn" data-view="wallet" type="button"><span class="nav-icon">💰</span><span class="ux-demo-bottom-name">کیف پول</span></button>
+    </nav>
+  </div>
+
+  <div class="ux-demo-toaster" id="demoToast" hidden role="status" aria-live="polite"></div>
+  <script>
+  (() => {
+    "use strict";
+    const lineCard = [0,0,0,31,45,50,0,70,80,2,0,22,35,0,0,61,0,86,6,13,0,37,0,55,0,78,0];
+    const fullCard = [3,0,0,38,0,51,65,0,80,7,13,28,0,0,0,68,0,81,0,0,0,39,45,52,0,74,85];
+    const lineCalled = new Set([31,45,50]);
+    const fullCalled = new Set([3,38,51,65,80]);
+
+    function paintCard(targetId, numbers, called) {
+      const root = document.getElementById(targetId);
+      for (const n of numbers) {
+        const cell = document.createElement("span");
+        cell.className = "num-chip" + (n === 0 ? " empty-cell" : called.has(n) ? " called" : "");
+        cell.textContent = n ? n.toLocaleString("fa-IR") : "";
+        root.appendChild(cell);
+      }
+    }
+    paintCard("preview-line-card", lineCard, lineCalled);
+    paintCard("preview-full-card", fullCard, fullCalled);
+
+    let toastTimeout;
+    function toast(message) {
+      const el = document.getElementById("demoToast");
+      clearTimeout(toastTimeout);
+      el.textContent = message;
+      el.hidden = false;
+      toastTimeout = setTimeout(() => { el.hidden = true; }, 2500);
+    }
+    function view(name) {
+      if (!["games","cards","wallet"].includes(name)) return;
+      for (const btn of document.querySelectorAll(".nav-btn")) {
+        const active = btn.dataset.view === name;
+        btn.classList.toggle("active", active);
+        if (active) btn.setAttribute("aria-current", "page");
+        else btn.removeAttribute("aria-current");
+      }
+      for (const section of document.querySelectorAll("main > section.view")) {
+        const active = section.id === "view-" + name;
+        section.classList.toggle("active", active);
+        section.setAttribute("aria-hidden", String(!active));
+      }
+      window.scrollTo({top:0,behavior:"instant"});
+    }
+    function openLive(kind) {
+      view("games");
+      const line = kind === "line";
+      document.getElementById("demoLiveMeta").textContent = line ? "بازی نمونه A · تورنا و خطی" : "بازی نمونه B · پرکردنی";
+      document.getElementById("demoLiveStatus").textContent = line ? "در انتظار شروع" : "در حال اجرا";
+      document.getElementById("demoLiveExplain").textContent = line ? "تا پیش از شروع می‌توان کارت خرید؛ خرید در این صفحه نمایشی غیرفعال است." : "در این مرحله فقط می‌توانید اعداد زنده را دنبال کنید؛ خرید بسته است.";
+      document.getElementById("demoLiveLast").textContent = line ? "—" : "۸۰";
+      document.getElementById("demoLiveNumbers").replaceChildren();
+      for (const n of (line ? [] : [3,38,51,65,80])) {
+        const el = document.createElement("span");
+        el.textContent = n.toLocaleString("fa-IR");
+        document.getElementById("demoLiveNumbers").appendChild(el);
+      }
+      document.getElementById("demoBuyDisabled").textContent = line ? "فرم خرید کارت (فقط نمایش)" : "خرید در حال اجرا بسته است";
+      document.getElementById("demo-live-section").scrollIntoView({behavior:"smooth",block:"start"});
+    }
+    document.querySelectorAll(".nav-btn").forEach((button) => {
+      button.addEventListener("click", () => view(button.dataset.view));
+    });
+    document.querySelectorAll("[data-demo-view]").forEach((button) => {
+      button.addEventListener("click", () => {
+        view(button.dataset.demoView);
+        const card = button.dataset.demoCard;
+        if (card) document.getElementById(card === "line" ? "preview-line-block" : "preview-full-block").scrollIntoView({behavior:"smooth",block:"start"});
+      });
+    });
+    document.querySelectorAll("[data-demo-live]").forEach((button) => {
+      button.addEventListener("click", () => openLive(button.dataset.demoLive));
+    });
+    document.querySelectorAll("[data-demo-toast]").forEach((button) => {
+      button.addEventListener("click", () => toast(button.dataset.demoToast));
+    });
+    document.getElementById("demoBuyDisabled").addEventListener("click", () => toast("پیش‌نمایش است؛ خرید واقعی انجام نمی‌شود."));
+    document.getElementById("demoTheme").addEventListener("click", () => {
+      document.documentElement.dataset.theme = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+    });
+  })();
+  </script>
+</body>
+</html>
