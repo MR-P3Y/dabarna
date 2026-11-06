@@ -756,7 +756,10 @@ async function openNotificationRoute(item) {
 
   if (view === "games" || section === "live" || route.action === "open_live_game") {
     switchToView("games");
-    if (id) await openLiveGame(id);
+    if (id) {
+      await openLiveGame(id);
+      getEl("liveTitle")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
     return;
   }
 
@@ -3297,7 +3300,9 @@ function renderCardsActive(activeGames) {
       const gid = Number(btn.getAttribute("data-game-id") || "0");
       if (!gid) return;
       switchToView("games");
-      openLiveGame(gid).catch((err) => setLocalError("liveActionHint", err));
+      openLiveGame(gid)
+        .then(() => getEl("liveTitle")?.scrollIntoView({ behavior: "smooth", block: "start" }))
+        .catch((err) => setLocalError("liveActionHint", err));
     });
   });
 }
