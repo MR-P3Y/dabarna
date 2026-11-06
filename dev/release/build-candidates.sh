@@ -39,10 +39,14 @@ for file in \
 done
 
 while IFS= read -r file; do
+  if [[ -n "${allowed[$file]+set}" ]]; then
+    continue
+  fi
   case "$file" in
-    backend/app/*|davarna-bot/bot/*|backend/alembic/*|backend/Dockerfile|davarna-bot/Dockerfile|docker-compose*)
-      [[ -n "${allowed[$file]+set}" ]] ||
-        die "Unreviewed application/deployment change: $file"
+    backend/tests/*|davarna-bot/tests/*|dev/*|docs/*)
+      ;; # Tests, developer scripts, and documentation are not copied into images.
+    *)
+      die "Unreviewed or un-packaged production change: $file"
       ;;
   esac
 done < <(git diff --name-only "$BASE_SHA" HEAD)
