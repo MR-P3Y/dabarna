@@ -497,6 +497,16 @@ def _is_user_forum_game(report: dict) -> bool:
     return game_group_id != 0 and game_group_id == int(target_group_id)
 
 
+def _game_rule_notice_line(game: dict) -> str:
+    """Show stored rules for each game, regardless of Telegram topic."""
+    rule = str(game.get("game_rule") or "LEGACY").strip().upper()
+    if rule == "FULL_CARD":
+        return "🏆 قانون برد: <b>پرکردنی؛ تکمیل ۱۵ عدد کارت، بدون تورنا</b>\n"
+    if rule == "LINE":
+        return "🏆 قانون برد: <b>تورنا ۳ عدد یک ردیف | خطی ۵ عدد یک ردیف</b>\n"
+    return "🏆 قانون برد: <b>قدیمی؛ تورنا ستون ۴ عددی، تمام ردیف ۵ عددی</b>\n"
+
+
 def _game_start_draw_line(event: dict | None) -> str:
     payload = _event_payload(event)
     mode = str(payload.get("draw_mode") or "").upper()
@@ -524,6 +534,7 @@ async def _send_user_game_started_notice(bot: Bot, *, game_id: int, report: dict
         f"🎮 بازی: <b>#{game_id}</b>\n"
         f"{(_game_start_draw_line(event) + chr(10)) if _game_start_draw_line(event) else ''}"
         f"🧵 دسته بازی: <b>{topic_label}</b>\n"
+        f"{_game_rule_notice_line(game)}"
         f"💳 قیمت هر کارت: <b>{_fmt_amount(_to_int(game.get('card_price'), 0))}</b>\n"
         f"🃏 کارت‌های فروخته‌شده: <b>{_fmt_amount(_to_int(purchases.get('cards_sold'), 0))}</b>\n"
         f"🎁 جایزه کل فعلی: <b>{_fmt_amount(_to_int(game.get('prize_pool'), 0))}</b>\n"
@@ -545,6 +556,7 @@ async def _send_user_game_created_notice(bot: Bot, *, game_id: int, report: dict
         f"🕒 زمان ایجاد: <code>{_event_time_text(event)}</code>\n"
         f"🎮 بازی: <b>#{game_id}</b>\n"
         f"🧵 دسته بازی: <b>{topic_label}</b>\n"
+        f"{_game_rule_notice_line(game)}"
         f"💳 قیمت هر کارت: <b>{_fmt_amount(_to_int(game.get('card_price'), 0))}</b>\n"
         "🛒 خرید کارت برای این بازی باز است.",
     )
@@ -565,6 +577,7 @@ async def _send_user_game_ended_notice(bot: Bot, *, game_id: int, report: dict, 
         "#نتایج #پایان_بازی\n"
         f"🎮 بازی: <b>#{game_id}</b>\n"
         f"🧵 دسته بازی: <b>{topic_label}</b>\n"
+        f"{_game_rule_notice_line(game)}"
         f"📌 دلیل پایان: <b>{_end_reason_fa(end_reason)}</b>\n"
         f"🔢 تعداد اعداد خوانده‌شده: <b>{_fmt_amount(len(called))}</b>\n"
         f"📍 آخرین عدد: <b>{last if last is not None else '—'}</b>\n"
@@ -894,8 +907,8 @@ async def _send_income_daily_summary(bot: Bot, api: ApiClient, *, now_local: dat
         f"<b>{_fmt_amount(crypto_tron_total)}</b> تومان\n"
         f"🔵 TON: <b>{_fmt_amount(crypto_ton_count)}</b> مورد | "
         f"<b>{_fmt_amount(crypto_ton_total)}</b> تومان\n\n"
-        f"🏁 برندگان تمام: <b>{_fmt_amount(row_users)}</b> کاربر | <b>{_fmt_amount(row_cards)}</b> کارت\n"
-        f"🏆 برندگان تورنا: <b>{_fmt_amount(col_users)}</b> کاربر | <b>{_fmt_amount(col_cards)}</b> کارت",
+        f"🏁 برد نهایی (تمام/خطی/پرکردنی): <b>{_fmt_amount(row_users)}</b> کاربر | <b>{_fmt_amount(row_cards)}</b> کارت\n"
+        f"🏆 برد میانی (تورنا): <b>{_fmt_amount(col_users)}</b> کاربر | <b>{_fmt_amount(col_cards)}</b> کارت",
     )
     await send_to_topic(bot, name="income", text=text, parse_mode="HTML")
 
