@@ -58,6 +58,35 @@ bash dev/release/backup-production.sh
 
 در پایان باید `===== BACKUP VERIFIED =====` دیده شود. این فرایند سرویس را ری‌استارت نمی‌کند و اطلاعات جدید را به دیتابیس نمی‌نویسد، اما خواندن دیتابیس، آرشیو ایمیج‌ها و Storage مصرف I/O و CPU دارد؛ در ساعات خلوت اجرا شود. اگر مانع یا شکست رخ دهد، انتشار متوقف است و اسکریپت آرشیو ناقص ساخته‌شده توسط خود را حذف می‌کند. هیچ دستور `docker compose up` یا Migration در این مرحله وجود ندارد.
 
+## گام بعد از بکاپ — ایمیج نامزد انتشار بدون دست‌زدن به Production
+
+بکاپ `release-20261106T164544Z.TV2FyH` از نظر `gzip/tar/SHA256` در NODE2 بررسی شد. بازیابی عملی دیتابیس هنوز در محیط مستقل آزمایش نشده است.
+
+برای جلوگیری از Build سنگین `npm ci` و `pip install` با RAM محدود NODE2، دو Dockerfile کوچک فقط **فایل‌های تغییرکرده این پنج موج** را روی همان ایمیج‌های ثابت `v2-937ef711a9db` قرار می‌دهند. هیچ فایل `.env` وارد Build Context نمی‌شود؛ شبکه Build و تست نیز `none` است.
+
+```bash
+(
+  set -Eeuo pipefail
+  cd /opt/davarna-v2
+  git pull --ff-only origin feature/ui-ux-refresh-tambola-v2-20261106
+  bash -n dev/release/build-candidates.sh
+  DAVARNA_RELEASE_BACKUP=/root/davarna-v2-release-backups/release-20261106T164544Z.TV2FyH \
+    bash dev/release/build-candidates.sh
+)
+```
+
+اسکریپت ابتدا checksum بکاپ و تطابق ایمیج‌های در حال اجرا را کنترل می‌کند، سپس:
+
+- از تصاویر فعلی تگ‌های `rollback-20261106-937ef711` می‌سازد (کانتینرها را تغییر نمی‌دهد).
+- از `git archive` تنها ۶ فایل تغییرکرده Backend و ۷ فایل تغییرکرده Bot را به پوشه موقت Build می‌برد؛ هیچ secret، کل ریپو یا storage وارد Context نمی‌شود.
+- ایمیج Backend و Bot را **جداگانه و بدون شبکه** می‌سازد، سپس `compileall` آن‌ها را در کانتینرهای موقت بدون شبکه اجرا می‌کند.
+- مشخصات نامزد را در `/root/davarna-v2-release-backups/candidate-ux5-<commit>.txt` با دسترسی root-only ذخیره می‌کند.
+- چنانچه RAM آزاد پیش از Build کمتر از ۱۲۸۰ MiB باشد، اقدام را متوقف می‌کند. این آستانه تضمین عدم فشار نیست؛ مصرف منابع حین عملیات باید بررسی شود.
+
+**شرط مهم:** `CANDIDATE IMAGES VERIFIED` فقط یعنی ایمیج‌ها ساخته شده‌اند و Syntax پایتون سالم است؛ به معنای انتشار موفق یا آماده‌شدن تمام سناریوهای واقعی نیست.
+
+**هنوز نباید** `docker compose up` اجرا شود. از آنجا که کانتینرهای Backend و Bot به Compose overrideهای متفاوتی متصل‌اند (از جمله فایل خصوصی `/root/davarna-v2-release-backups/tambola-v2-manual.compose.yml` برای Backend)، دستور بازآفرینی باید بعد از بررسی تنظیمات دقیق نسخه‌های نامزد آماده شود. این فایل خصوصی یا اطلاعات `runtime-private.json` را در چت منتشر نکنید.
+
 ## اولین فرمان مجاز
 
 \`\`\`bash
