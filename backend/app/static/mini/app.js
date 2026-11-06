@@ -5617,8 +5617,11 @@ function renderAdminGames(payload) {
       const status = safeText(statusLabel(g?.status));
       const canManage = Boolean(g?.can_manage);
       return `
-        <div class="history-item">
-          <strong>بازی #${gid} | ${status}</strong>
+        <div class="history-item admin-game-list-item-v2" data-game-id="${gid}">
+          <div class="admin-game-list-title-v2">
+            <strong>بازی #${safeText(toFaDigits(gid))} | ${status}</strong>
+            <span class="admin-game-rule-v2">${safeText(gameRuleUiMeta(g).label)}</span>
+          </div>
           <div class="history-meta">
             قیمت کارت: ${safeText(toman(g?.card_price || 0))}<br />
             کمیسیون: ${safeText(toFaDigits(Number(g?.commission_rate || 0) * 100))}٪<br />
@@ -5628,8 +5631,8 @@ function renderAdminGames(payload) {
             وضعیت لایو: ${g?.live_link_url ? "ثبت شده" : "ثبت نشده"}
           </div>
           <div class="admin-item-actions">
-            <button class="small-btn admin-select-game-btn" data-game-id="${gid}" data-status="${status}" type="button">انتخاب</button>
-            <button class="small-btn admin-open-game-btn" data-game-id="${gid}" type="button">نمایش زنده</button>
+            <button class="small-btn admin-select-game-btn" data-game-id="${gid}" data-status="${status}" type="button" aria-pressed="false">انتخاب بازی</button>
+            <button class="small-btn admin-open-game-btn" data-game-id="${gid}" type="button">مشاهده زنده همین بازی</button>
             ${canManage ? "" : '<span class="meta">بدون دسترسی مدیریت این بازی</span>'}
           </div>
         </div>
@@ -5652,8 +5655,7 @@ function renderAdminGames(payload) {
       const gid = Number(btn.getAttribute("data-game-id") || "0");
       if (!gid) return;
       setAdminSelectedGame(gid);
-      switchToView("games");
-      openLiveGame(gid).catch((e) => setAdminLocalError("adminActionHint", e));
+      openLiveBarGame(gid).catch((e) => showToast(localizeApiError(e?.message || e), "error"));
     });
   });
 
@@ -5665,6 +5667,8 @@ function renderAdminGames(payload) {
     } else {
       setAdminSelectedGame(0);
     }
+  } else {
+    syncAdminSelectedGameListV2();
   }
 }
 
