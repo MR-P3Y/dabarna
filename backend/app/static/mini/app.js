@@ -3879,12 +3879,22 @@ function toFaDigits(value) {
   return String(value ?? "").replace(/\d/g, (digit) => "۰۱۲۳۴۵۶۷۸۹"[Number(digit)]);
 }
 
+function depositMethodAvailability() {
+  return {
+    bank: Array.isArray(state.depositDestinations) && state.depositDestinations.length > 0,
+    crypto: Boolean(state.cryptoOptions?.enabled && Array.isArray(state.cryptoOptions?.options) && state.cryptoOptions.options.length),
+  };
+}
+
 function setDepositMode(mode) {
-  const normalized = mode === "crypto" ? "crypto" : "bank";
+  const available = depositMethodAvailability();
+  const requested = mode === "crypto" ? "crypto" : "bank";
+  const normalized = available[requested] ? requested : (available.bank ? "bank" : (available.crypto ? "crypto" : null));
   document.querySelectorAll(".deposit-mode-btn").forEach((btn) => {
     const active = btn.getAttribute("data-deposit-mode") === normalized;
     btn.classList.toggle("active", active);
     btn.setAttribute("aria-selected", active ? "true" : "false");
+    btn.tabIndex = active ? 0 : -1;
   });
   getEl("bankDepositPanel")?.classList.toggle("hidden", normalized !== "bank");
   getEl("cryptoDepositPanel")?.classList.toggle("hidden", normalized !== "crypto");
@@ -3892,8 +3902,27 @@ function setDepositMode(mode) {
   if (description) {
     description.textContent = normalized === "crypto"
       ? "۱) مبلغ شارژ ۲) انتخاب شبکه ۳) دریافت مبلغ دقیق و آدرس پرداخت"
-      : "۱) مبلغ دلخواه ۲) انتخاب کارت مقصد ۳) آپلود رسید ۴) ثبت نهایی";
+      : normalized === "bank"
+        ? "۱) مبلغ دلخواه ۲) انتخاب کارت مقصد ۳) آپلود رسید ۴) ثبت نهایی"
+        : "در حال حاضر روش واریز فعالی وجود ندارد.";
   }
+}
+
+function syncDepositMethodAvailability() {
+  const available = depositMethodAvailability();
+  const bankBtn = getEl("bankDepositModeBtn");
+  const cryptoBtn = getEl("cryptoDepositModeBtn");
+  if (bankBtn) {
+    bankBtn.classList.toggle("hidden", !available.bank);
+    bankBtn.disabled = !available.bank;
+  }
+  if (cryptoBtn) {
+    cryptoBtn.classList.toggle("hidden", !available.crypto);
+    cryptoBtn.disabled = !available.crypto;
+  }
+  getEl("depositUnavailableNote")?.classList.toggle("hidden", available.bank || available.crypto);
+  const current = document.querySelector(".deposit-mode-btn.active")?.getAttribute("data-deposit-mode") || "bank";
+  setDepositMode(current);
 }
 
 function renderCryptoHealthSummary(payload) {
@@ -3943,6 +3972,7 @@ function drawCryptoOptions(payload) {
     modeBtn.disabled = !enabled;
     modeBtn.title = enabled ? "واریز با ارز دیجیتال" : "واریز ارز دیجیتال فعال نیست";
   }
+  syncDepositMethodAvailability();
   const networkInput = getEl("cryptoNetworkSelect");
   if (!networkInput) return;
   const optionMap = new Map(
@@ -3978,8 +4008,7 @@ function drawCryptoOptions(payload) {
   if (!enabled) {
     networkInput.value = "";
     setHint("cryptoNetworkHint", "واریز ارز دیجیتال روی سرور فعال نشده است.");
-    if (!getEl("cryptoDepositPanel")?.classList.contains("hidden")) setDepositMode("bank");
-    return;
+     return;
   }
   const current = String(networkInput.value || "").toUpperCase();
   const selected = available.has(current) ? current : ([...available][0] || "");
@@ -5016,7 +5045,8 @@ function drawDepositDestinations(payload) {
     el.innerHTML = '<option value="">کارت مقصدی موجود نیست</option>';
     el.classList.remove("has-selection");
     if (copyBtn) copyBtn.disabled = true;
-    setHint("depositDestinationHint", "هیچ کارت مقصد فعالی در سیستم تعریف نشده است.");
+    setHint("depositDestinationHint", String(payload?.instructions || "هیچ کارت مقصد فعالی در سیستم تعریف نشده است."));
+    syncDepositMethodAvailability();
     return;
   }
 
@@ -5034,6 +5064,7 @@ function drawDepositDestinations(payload) {
   }
   if (copyBtn) copyBtn.disabled = false;
   renderDepositDestinationHint();
+  syncDepositMethodAvailability();
 }
 
 async function buySelectedGame() {
@@ -6820,10 +6851,10 @@ async function refreshSuperBankDepositSettings() {
     }
     const button = getEl("superBankDepositToggleBtn");
     if (button) {
-      button.disabled = false;
-      button.dataset.nextEnabled = "false";
-      button.setAttribute("aria-checked", "true");
-      button.textContent = "خاموش کردن کارت‌به‌کارت";
+      button.disabled = true;
+      button.dataset.nextEnabled = "";
+      button.setAttribute("aria-checked", "false");
+      button.textContent = "وضعیت نامشخص؛ دوباره تلاش کنید";
       button.classList.add("danger");
       button.classList.remove("primary");
     }
