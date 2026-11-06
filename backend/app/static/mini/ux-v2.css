@@ -241,3 +241,211 @@ html[data-theme="light"] .mini-card-grid.v2 .num-chip.called {
   .view { animation: none; }
   .num-chip.fresh { animation: none; }
 }
+
+
+/* Wave 2: game discovery, responsive cards, accessible progress. */
+#gamesOverview {
+  margin: 15px 0 17px;
+  padding: clamp(14px, 2vw, 20px);
+  border: 1px solid var(--ux-border);
+  border-radius: 17px;
+  background:
+    radial-gradient(60% 100% at 100% 0%, rgba(72, 176, 235, .14), transparent 88%),
+    var(--ux-raised);
+}
+
+.games-overview-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.games-overview-head > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.games-overview-eyebrow {
+  font-size: 11px;
+  letter-spacing: .2px;
+  color: var(--accent);
+  font-weight: 800;
+}
+.games-overview-head strong {
+  font-size: clamp(16px, 2vw, 20px);
+  line-height: 1.6;
+  font-weight: 900;
+}
+.games-overview-head p {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.8;
+}
+.games-overview-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 15px;
+}
+.games-overview-stats > div {
+  display: grid;
+  align-content: center;
+  gap: 5px;
+  padding: 11px 12px;
+  border: 1px solid var(--ux-border);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, .035);
+  min-width: 0;
+}
+.games-overview-stats span {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+.games-overview-stats strong {
+  font-size: 22px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 900;
+}
+
+.quick-guide-collapse {
+  padding: 10px 12px;
+  border: 1px solid var(--ux-border);
+  border-radius: 13px;
+  background: rgba(90, 160, 215, .045);
+  margin: 10px 0 16px;
+}
+.quick-guide-collapse summary {
+  display: list-item;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text);
+  font-weight: 850;
+  line-height: 1.75;
+}
+.quick-guide-collapse p {
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.9;
+}
+.quick-guide-collapse:not([open]) p { display: none; }
+
+#gamesList.stack-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 345px), 1fr));
+  gap: 13px;
+  align-items: stretch;
+}
+#gamesList.stack-list > .game-hero-v2 { margin: 0; min-width: 0; }
+.game-hero-v2 {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background:
+    radial-gradient(110% 105% at 100% -20%, rgba(78, 174, 213, .11), transparent 65%),
+    var(--ux-raised);
+  border: 1px solid var(--ux-border);
+  border-radius: 18px;
+  padding: clamp(14px, 1.7vw, 19px);
+  overflow: hidden;
+}
+.game-hero-v2 .game-hero-top { align-items: flex-start; gap: 12px; }
+.game-identity { min-width: 0; display: grid; gap: 1px; }
+.game-identity-overline { color: var(--muted); font-size: 12px; font-weight: 700; }
+.game-identity h3 { margin: 0; font-size: 22px; font-weight: 950; letter-spacing: -.35px; }
+.game-hero-v2 .game-state { padding: 6px 11px; font-size: 12px; white-space: nowrap; }
+.rule-chip-v2 {
+  display: grid;
+  gap: 3px;
+  padding: 11px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(81, 173, 226, .25);
+  background: rgba(54, 145, 211, .075);
+}
+.rule-chip-v2 strong { font-weight: 900; font-size: 14px; }
+.rule-chip-v2 span { font-size: 12px; color: var(--muted); line-height: 1.8; }
+.rule-chip-full_card { border-color: rgba(215, 163, 83, .33); background: rgba(215, 163, 83, .075); }
+.rule-chip-legacy { border-color: var(--ux-border); background: rgba(145, 160, 175, .05); }
+.game-hero-v2 .game-kpis { margin-top: 1px; gap: 7px; }
+.game-hero-v2 .kpi {
+  min-width: 0;
+  background: rgba(255, 255, 255, .035);
+  border-color: var(--ux-border);
+  padding: 11px 9px;
+  border-radius: 12px;
+}
+.game-hero-v2 .kpi .label { font-size: 11px; line-height: 1.7; }
+.game-hero-v2 .kpi .value {
+  margin-top: 5px;
+  font-size: clamp(12px, 1.4vw, 15px);
+  font-weight: 900;
+  overflow-wrap: anywhere;
+  line-height: 1.7;
+}
+.game-hero-details { display: flex; gap: 6px; flex-wrap: wrap; }
+.game-hero-details > span {
+  border: 1px solid var(--ux-border);
+  border-radius: 100px;
+  padding: 4px 9px;
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.8;
+}
+.game-hero-details strong { color: var(--text); font-variant-numeric: tabular-nums; }
+.game-hero-actions {
+  margin-top: auto;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+.game-hero-actions:has(.game-open-my-cards) {
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+}
+.game-hero-actions .small-btn {
+  min-height: 44px;
+  font-weight: 850;
+  padding: 8px 10px;
+}
+.game-hero-actions .cta-big { margin-top: 0; }
+.game-empty-v2 { display: grid; gap: 10px; justify-items: start; padding: 22px; }
+.game-empty-v2 strong { font-size: 16px; }
+.game-empty-v2 span { color: var(--muted); line-height: 1.8; }
+
+.card-progress-v2 { gap: 3px; }
+.card-progress-v2 > span { color: var(--text); font-weight: 800; }
+.card-progress-v2 .card-progress-rule {
+  font-size: 11px;
+  line-height: 1.75;
+  color: var(--muted);
+}
+.card-progress-v2 .card-progress-bar { margin-top: 6px; }
+
+html[data-theme="light"] #gamesOverview,
+html[data-theme="light"] .game-hero-v2 {
+  background: rgba(255, 255, 255, .96);
+}
+html[data-theme="light"] .game-hero-v2 .kpi,
+html[data-theme="light"] .games-overview-stats > div {
+  background: rgba(229, 237, 250, .46);
+}
+
+@media (max-width: 620px) {
+  .games-overview-head { align-items: flex-start; }
+  .games-overview-stats { gap: 5px; }
+  .games-overview-stats > div { padding: 9px; }
+  .games-overview-stats strong { font-size: 19px; }
+  .games-overview-stats span { font-size: 10px; }
+  .game-hero-v2 { gap: 10px; }
+  .game-hero-v2 .game-kpis { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .game-hero-v2 .kpi:nth-child(2) { grid-column: span 1; }
+  .game-hero-v2 .kpi:nth-child(3) { grid-column: 1 / -1; }
+  .game-hero-v2 .kpi .value { font-size: 14px; }
+}
+
+@media (max-width: 350px) {
+  .games-overview-stats { grid-template-columns: 1fr 1fr; }
+  .games-overview-stats > div:last-child { grid-column: 1 / -1; }
+  .game-hero-actions:has(.game-open-my-cards) { grid-template-columns: 1fr; }
+}
