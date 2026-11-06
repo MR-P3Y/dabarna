@@ -1991,8 +1991,32 @@ function drawGames(items) {
     });
   });
   root.querySelectorAll(".game-open-my-cards").forEach((btn) => {
-    btn.addEventListener("click", () => switchToView("cards"));
+    btn.addEventListener("click", () => {
+      const gid = Number(btn.getAttribute("data-game-id") || "0");
+      if (!gid || btn.disabled) return;
+      btn.disabled = true;
+      openMyCardsForGame(gid)
+        .catch((err) => showToast(localizeApiError(err?.message || err), "error"))
+        .finally(() => { btn.disabled = false; });
+    });
   });
+}
+
+async function openMyCardsForGame(gameId) {
+  const gid = Number(gameId || 0);
+  if (!gid) return;
+  switchToView("cards");
+  await refreshCards({ silent: true });
+  const root = getEl("cardsActiveList");
+  const block = [...(root?.querySelectorAll(".active-game-block") || [])]
+    .find((item) => Number(item.getAttribute("data-game-id") || "0") === gid);
+  if (!block) {
+    showToast("کارت فعالی برای این بازی پیدا نشد. تاریخچه کارت‌ها را بررسی کن.", "error");
+    return;
+  }
+  block.scrollIntoView({ behavior: "smooth", block: "start" });
+  block.classList.add("focused-game-v2");
+  setTimeout(() => block.classList.remove("focused-game-v2"), 2100);
 }
 
 function liveBarGameInfo(game) {
@@ -3316,7 +3340,7 @@ function renderCardsActive(activeGames) {
       const calledTail = (g.calledNumbers || []).slice(-20);
       const calledTailText = calledTail.length ? calledTail.join("، ") : "هنوز عددی اعلام نشده";
       return `
-        <div class="active-game-block game-emphasis-block active-game-block-ux21">
+        <div class="active-game-block game-emphasis-block active-game-block-ux21" data-game-id="${g.gameId}">
           <div class="active-game-head">
             <h4>بازی #${g.gameId}</h4>
             <div class="active-game-meta">
