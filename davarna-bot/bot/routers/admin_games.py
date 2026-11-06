@@ -861,6 +861,7 @@ async def _render_winners_archive(cq: CallbackQuery, api: ApiClient, *, offset: 
                 "col_count": 0 if col_absorbed_into_row else len(col_cards),
                 "row_count": len(row_cards),
                 "card_price": int(game.get("card_price") or 0),
+                "game_rule": str(game.get("game_rule") or "LEGACY").upper(),
             }
         )
 
