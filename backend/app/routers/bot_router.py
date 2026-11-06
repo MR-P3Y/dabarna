@@ -1988,6 +1988,8 @@ def get_deposit_destination(
     db: Session = Depends(get_db),
 ):
     require_not_restricted(db, int(user.tg_user_id), "DEPOSIT")
+    if not _bank_deposit_enabled(db):
+        raise HTTPException(status_code=503, detail="bank deposit disabled")
     pool = _deposit_destination_pool(db, include_inactive=False)
     if not pool:
         raise HTTPException(status_code=503, detail="deposit destination is not configured")
