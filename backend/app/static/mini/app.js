@@ -5009,8 +5009,13 @@ async function refreshWallet() {
   const txs = txsSettled.status === "fulfilled" ? txsSettled.value : state.walletCache.txs;
   const deposits = depositsSettled.status === "fulfilled" ? depositsSettled.value : state.walletCache.deposits;
   const withdraws = withdrawsSettled.status === "fulfilled" ? withdrawsSettled.value : state.walletCache.withdraws;
-  const destinations = destinationsSettled.status === "fulfilled" ? destinationsSettled.value : state.walletCache.destinations;
-  const cryptoOptions = cryptoOptionsSettled.status === "fulfilled" ? cryptoOptionsSettled.value : state.walletCache.cryptoOptions;
+  // Payment method visibility is security-sensitive UX: never reuse stale availability.
+  const destinations = destinationsSettled.status === "fulfilled"
+    ? destinationsSettled.value
+    : { items: [], instructions: "دریافت وضعیت کارت‌به‌کارت ناموفق بود؛ دوباره تلاش کنید." };
+  const cryptoOptions = cryptoOptionsSettled.status === "fulfilled"
+    ? cryptoOptionsSettled.value
+    : { enabled: false, options: [] };
   const cryptoDeposits = cryptoDepositsSettled.status === "fulfilled" ? cryptoDepositsSettled.value : state.walletCache.cryptoDeposits;
 
   if (balanceSettled.status === "fulfilled") state.walletCache.balance = balanceSettled.value;
