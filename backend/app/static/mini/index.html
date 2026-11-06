@@ -179,9 +179,11 @@
                 </div>
 
                 <div class="deposit-mode-switch" role="tablist" aria-label="روش واریز">
-                  <button class="deposit-mode-btn active" data-deposit-mode="bank" role="tab" aria-selected="true" type="button">کارت بانکی</button>
+                  <button id="bankDepositModeBtn" class="deposit-mode-btn active" data-deposit-mode="bank" role="tab" aria-selected="true" type="button">کارت بانکی</button>
                   <button id="cryptoDepositModeBtn" class="deposit-mode-btn" data-deposit-mode="crypto" role="tab" aria-selected="false" type="button">ارز دیجیتال</button>
                 </div>
+
+                <div id="depositUnavailableNote" class="step-hint hidden" role="status">روش واریز فعالی وجود ندارد. تاریخچه و درخواست‌های قبلی همچنان قابل پیگیری هستند.</div>
 
                 <div id="bankDepositPanel" class="deposit-mode-panel">
                   <div class="crypto-guide-card crypto-guide-card-main bank-deposit-guide" aria-label="راهنمای واریز کارت بانکی">
