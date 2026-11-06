@@ -847,9 +847,9 @@ async def admin_finance_sales_range_submit(
         f"<b>{_fmt_toman(crypto_tron_total)}</b>\n"
         f"🔵 TON: <b>{_fmt_count(crypto_ton_count)}</b> مورد | "
         f"<b>{_fmt_toman(crypto_ton_total)}</b>\n\n"
-        f"🏁 برندگان تمام: <b>{_fmt_count(row_users)}</b> کاربر | "
+        f"🏁 برندگان نهایی (تمام/خطی/پرکردنی): <b>{_fmt_count(row_users)}</b> کاربر | "
         f"<b>{_fmt_count(row_cards)}</b> کارت | <b>{_fmt_count(row_events)}</b> رویداد\n"
-        f"🏆 برندگان تورنا: <b>{_fmt_count(col_users)}</b> کاربر | "
+        f"🏆 برندگان میانی (تورنا): <b>{_fmt_count(col_users)}</b> کاربر | "
         f"<b>{_fmt_count(col_cards)}</b> کارت | <b>{_fmt_count(col_events)}</b> رویداد"
     )
     await m.answer(
