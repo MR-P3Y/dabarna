@@ -852,7 +852,7 @@ def mini_admin_autopilot_config(
     ]
     return {
         "items": items,
-        "can_edit_commission": True,
+        "can_edit_commission": bool(ident.is_super_admin),
     }
 
 
@@ -871,7 +871,7 @@ def mini_admin_update_autopilot_config(
         level=level,
         values=values,
         updated_by=int(ident.user_id),
-        allow_commission_change=True,
+        allow_commission_change=bool(ident.is_super_admin),
     )
     changed = {
         key: {"before": before.get(key), "after": after.get(key)}
