@@ -926,8 +926,6 @@ function adminCreateTopicTitle(topic) {
 
 const WALLET_REASON_LABELS = {
   BUY_CARDS: "خرید کارت",
-  PRIZE_COL: "برد ستونی(تورنا)",
-  PRIZE_ROW: "برد سطری(تمام)",
   DEPOSIT_APPROVED: "تایید واریز",
   DEPOSIT_CRYPTO: "واریز تاییدشده رمزارز",
   WITHDRAW_APPROVED: "تایید برداشت",
@@ -936,9 +934,9 @@ const WALLET_REASON_LABELS = {
   REFUND_GAME_CANCELLED: "برگشت وجه لغو بازی",
 };
 
-function walletReasonLabel(reason) {
+function walletReasonLabel(reason, gameRule = "LEGACY") {
   const key = String(reason || "").toUpperCase();
-  if (key === "PRIZE_ROW") return "جایزه نهایی بازی";
+  if (key === "PRIZE_ROW" || key === "PRIZE_COL") return winnerKindLabelByReason(key, gameRule);
   if (WALLET_REASON_LABELS[key]) return WALLET_REASON_LABELS[key];
   if (!key) return "-";
   return key.replaceAll("_", " ");
@@ -3783,7 +3781,7 @@ function drawWallet(balancePayload, txPayload) {
       const credit = direction === "CREDIT";
       const klass = credit ? "tx-chip credit" : "tx-chip debit";
       const sign = credit ? "+" : "-";
-      const reason = walletReasonLabel(tx.reason);
+      const reason = walletReasonLabel(tx.reason, tx.game_rule || "LEGACY");
       return `
         <div class="${klass}">
           <div>
@@ -4834,7 +4832,7 @@ function drawWinTimeline() {
 
   root.innerHTML = filtered
     .map((w) => {
-      const kind = winnerKindLabelByReason(String(w.reason || ""));
+      const kind = winnerKindLabelByReason(String(w.reason || ""), w.game_rule || "LEGACY");
       const gid = Number(w.ref_id || 0);
       return `
         <div class="history-item clickable" data-game-id="${gid}" data-tx-id="${Number(w.id || 0)}">
