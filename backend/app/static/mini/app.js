@@ -8745,6 +8745,7 @@ async function superAdminGrant() {
   const tgUserId = parseIntegerStrict(getVal("superAdminTgUserInput")) || 0;
   const role = String(getVal("superAdminRoleSelect") || "ADMIN").toUpperCase();
   if (!tgUserId) throw new Error("شناسه تلگرام معتبر وارد کنید.");
+  if (!window.confirm(`نقش «${adminRoleLabel(role)}» به ادمین/کاربر ${tgUserId} داده شود؟`)) return;
   await apiFetch("/mini-api/admin/super/admins/grant", {
     method: "POST",
     body: { tg_user_id: tgUserId, role },
@@ -8757,6 +8758,7 @@ async function superAdminRevoke() {
   const tgUserId = parseIntegerStrict(getVal("superAdminTgUserInput")) || 0;
   const role = String(getVal("superAdminRoleSelect") || "ADMIN").toUpperCase();
   if (!tgUserId) throw new Error("شناسه تلگرام معتبر وارد کنید.");
+  if (!window.confirm(`نقش «${adminRoleLabel(role)}» از ادمین/کاربر ${tgUserId} گرفته شود؟`)) return;
   await apiFetch("/mini-api/admin/super/admins/revoke", {
     method: "POST",
     body: { tg_user_id: tgUserId, role },
