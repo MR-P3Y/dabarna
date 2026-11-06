@@ -25,7 +25,7 @@ if os.environ.get("DAVARNA_AUTOPILOT_E2E_DB") != TEST_DB:
     raise unittest.SkipTest("explicit isolated Autopilot test database opt-in required")
 
 from dotenv import dotenv_values
-from sqlalchemy import create_engine, func, select, text
+from sqlalchemy import and_, create_engine, func, or_, select, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
 
@@ -111,6 +111,36 @@ class MySQLAutopilotEndToEndTests(unittest.TestCase):
         row.draw_interval_seconds = 8
         row.cooldown_seconds = 30
         row.repeat_interval_seconds = 120
+        # The persistent *test* schema can contain stale active LOW games from
+        # earlier test sessions. GameService.create_game intentionally enforces
+        # one active game per level globally (not just per Telegram group).
+        # Temporarily mask these rows inside this test's OUTER transaction.
+        # No schema changes, deletions, wallet operations, or committed writes.
+        preexisting_low = self.db.execute(
+            select(Game).where(
+                or_(
+                    Game.game_level == "LOW",
+                    and_(
+                        Game.game_level.is_(None),
+                        Game.tg_topic_id == 6,
+                    ),
+                ),
+                Game.status.in_(("LOBBY", "RUNNING")),
+            ).with_for_update()
+        ).scalars().all()
+        if len(preexisting_low) > 20:
+            raise RuntimeError(
+                "SAFETY STOP: too many preexisting active LOW games in isolated test DB"
+            )
+        for previous in preexisting_low:
+            previous.status = "ENDED"
+            previous.ended_at = datetime.now(timezone.utc).replace(tzinfo=None)
+        if preexisting_low:
+            print(
+                f"Isolated test DB: temporarily masking {len(preexisting_low)}"
+                " preexisting LOW games (outer transaction rolls back all changes)"
+            )
+
         # Other lanes may already have test settings; disable them inside
         # the same outer test transaction.
         for name in ("MEDIUM", "HIGH"):
