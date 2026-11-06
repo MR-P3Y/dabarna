@@ -44,6 +44,8 @@ if test_url.database != TEST_DB or test_url.host != "davarna-mysql":
 os.environ["DATABASE_URL"] = test_url.render_as_string(hide_password=False)
 os.environ["REDIS_URL"] = "redis://127.0.0.1:6379/0"
 os.environ["GAME_AUTOPILOT_RUNTIME_ENABLED"] = "false"
+# The test container is read-only; receipts must go to its writable tmpfs.
+os.environ["RECEIPTS_DIR"] = "/tmp/receipts"
 
 from app.core import config as cfg
 from app.models.game import Game, GameAutoDraw, GameCalledNumber
