@@ -3017,6 +3017,9 @@ async def create_deposit_with_receipt(
     create deposit request and upload receipt in the same multipart request.
     This avoids creating AWAITING_RECEIPT rows when the second upload request fails.
     """
+    require_user_id_not_restricted(db, int(user_id), "DEPOSIT")
+    if not _bank_deposit_enabled(db):
+        raise HTTPException(status_code=503, detail="واریز کارت بانکی توسط مدیریت غیرفعال شده است.")
     form = await request.form()
 
     amount_raw = str(form.get("amount") or "").strip()
