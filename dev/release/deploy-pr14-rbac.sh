@@ -10,6 +10,7 @@ BASE=$PROD/docker-compose.yml
 INACTIVE=$ROOT/deploy/tambola-v2-inactive.compose.yml
 MANUAL=/root/davarna-v2-release-backups/tambola-v2-manual.compose.yml
 UX5_OVERRIDE=$ROOT/dev/release/ux5-candidate.compose.yml
+PR13_UPGRADE=/root/davarna-v2-release-backups/pr13-d9434cb10d71-20261106T183004Z/upgrade.yml
 OLD_BACKEND=davarna-backend:pr13-d9434cb10d71
 OLD_BOT=davarna-bot:pr13-d9434cb10d71
 NEW_BACKEND=davarna-backend:rbac-pr14-e087c40bd471
@@ -32,6 +33,7 @@ load_live_compose_chain(){
   (( ${#files[@]} >= 2 )) || fail "$container Compose chain too short"
   [[ "${files[0]}" == "$BASE" && "${files[1]}" == "$INACTIVE" ]] || fail "$container base/inactive Compose order changed"
   local seen_manual=0
+  local seen_pr13=0
   local -A seen=()
   local file
   for file in "${files[@]}"; do
@@ -41,9 +43,23 @@ load_live_compose_chain(){
     case "$file" in
       "$BASE"|"$INACTIVE"|"$UX5_OVERRIDE") ;;
       "$MANUAL") ((seen_manual+=1));;
+      "$PR13_UPGRADE")
+        # PR13 appended this exact image-only overlay to both live services.
+        # Validate bytes, not only the path: never trust changed private files.
+        printf '%s\n' \
+          'services:' \
+          '  backend:' \
+          '    image: davarna-backend:pr13-d9434cb10d71' \
+          '  bot:' \
+          '    image: davarna-bot:pr13-d9434cb10d71' \
+          | cmp -s - "$file" || fail "PR13 Compose overlay content mismatch"
+        ((seen_pr13+=1))
+        ;;
       *) fail "$container has unapproved Compose overlay: $file";;
     esac
   done
+  (( seen_pr13 == 1 )) || fail "$container PR13 deployed overlay missing or duplicated"
+  [[ "${files[${#files[@]}-1]}" == "$PR13_UPGRADE" ]] || fail "$container PR13 overlay is not the final existing Compose layer"
   if [[ "$container" == davarna-backend ]]; then
     (( seen_manual == 1 )) || fail "backend manual V2 configuration missing"
   else
