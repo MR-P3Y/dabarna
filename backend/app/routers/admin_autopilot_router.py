@@ -70,7 +70,7 @@ def get_autopilot_config(
     items = [GameAutopilotConfigService.serialize(row) for row in GameAutopilotConfigService.list(db)]
     return {
         "items": items,
-        "can_edit_commission": True,
+        "can_edit_commission": ident.scope == AdminScope.SUPER_ADMIN,
     }
 
 
@@ -90,7 +90,7 @@ def update_autopilot_config(
         level=level,
         values=values,
         updated_by=ident.user_id,
-        allow_commission_change=True,
+        allow_commission_change=ident.scope == AdminScope.SUPER_ADMIN,
     )
     changed = {
         key: {"before": before.get(key), "after": after.get(key)}
