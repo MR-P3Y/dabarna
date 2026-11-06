@@ -82,3 +82,35 @@
 - بررسی سناریوی هم‌زمانی درخواست‌های مدیریت و دابل‌کلیک عملیات حساس، و طراحی تأیید برای عملیات پرریسک.
 - ممیزی و هماهنگی اعلان‌های Bot/گروه/مینی‌اپ برای بازی LINE و FULL_CARD.
 - اجرای تست‌های Backend و Bot و بررسی تفاوت عرض موبایل، تم روشن/تیره و پنل‌های بازشده.
+
+## گزارش موج ۴ — اعلان‌ها و عنوان جوایز
+
+**هدف:** نمایش قانون هر بازی و عنوان صحیح جایزه، بدون تغییر شماره‌خوانی، پرداخت، صف اعلان یا دیتابیس.
+
+- **اعلان‌های عمومی گروه:** متن ساخت، شروع و پایان بازی از `game_rule` ذخیره‌شده همان بازی توضیح قانون مناسب را می‌سازد:
+  - `LEGACY`: تورنا ستون چهارعددی، تمام ردیف پنج‌عددی
+  - `LINE`: تورنا سه عدد از یک ردیف، خطی پنج عدد همان ردیف
+  - `FULL_CARD`: پرکردنی با پانزده عدد و بدون تورنا
+- **کیف پول ربات:** `GET /bot/wallet` فیلد اختیاری `game_rule` را تنها برای تراکنش‌های جایزه دارای مرجع `GAME` با یک کوئری دسته‌ای برمی‌گرداند. ساختار مالی و مانده تغییری نمی‌کند؛ سابقه فاقد فیلد جدید به عنوان `LEGACY` تفسیر می‌شود.
+- **مینی‌اپ — لیست رویداد زنده:** اگر event قدیمی فاقد `payload.game_rule` باشد، عنوان جایزه از قانون ذخیره‌شده بازی انتخاب‌شده در snapshot گرفته می‌شود؛ در صورت وجود قانون در payload، همان مقدم است.
+- **گزارش‌های تجمیعی روزانه و مالی:** چون نتیجه جمع چند نوع بازی است، عنوان‌های انحصاری «برندگان تمام» به «برد نهایی (تمام/خطی/پرکردنی)» و «برد میانی (تورنا)» تغییر کرده است. کد و ستون‌های گزارش مالی تغییر نکرده‌اند.
+- **راهنمای ربات و متن راهنمای تاپیک برندگان:** اصطلاحات بازی‌های جدید افزوده شد. **هشدار:** پیام‌های از قبل پین‌شده با تغییر سورس جایگزین نمی‌شوند. مکانیزم `ensure_topic_rules` marker نسخه فعلی دارد؛ تغییر آن بدون برنامه می‌تواند پست تکراری بسازد.
+- **تست‌ها:** `davarna-bot/tests/test_notification_rule_consistency.py`, `backend/tests/test_bot_wallet_rule_metadata.py`, `backend/tests/js/test_notification_rule_labels.mjs`.
+
+### دروازه تست موج ۴
+
+```bash
+# ریشه /opt/davarna-v2
+docker run --rm --network none -v "$PWD/backend:/app:ro" -w /app --entrypoint node node:22-alpine --check app/static/mini/app.js
+
+docker run --rm --network none -v "$PWD/backend:/app:ro" -w /app --entrypoint node node:22-alpine tests/js/test_notification_rule_labels.mjs
+
+docker run --rm --network none -v "$PWD/backend:/app:ro" -w /app davarna-backend:v2-937ef711a9db python -m unittest discover -s tests -p 'test_bot_wallet_rule_metadata.py' -v
+
+docker run --rm --network none -e TELEGRAM_BOT_TOKEN=123456789:TEST_ONLY \
+ -v "$PWD/davarna-bot/bot:/app/bot:ro" -v "$PWD/davarna-bot/tests:/app/tests:ro" \
+ -w /app davarna-bot:v2-937ef711a9db \
+ python -m unittest discover -s tests -p 'test_notification_rule_consistency.py' -v
+```
+
+**باقیمانده:** مرور دستی متن خروجی در تلگرام با داده آزمایشی و چند برنده هم‌زمان، بررسی ارسال تکراری/Retry و نحوه به‌روزرسانی قواعد پین‌شده، پیش از انتشار.
