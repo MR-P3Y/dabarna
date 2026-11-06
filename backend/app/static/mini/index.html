@@ -792,6 +792,7 @@
                     </div>
                     <div id="adminUsersHint" class="step-hint"></div>
                   </div>
+                  <div id="adminUsersRecent" class="admin-quick-history hidden mt-12" aria-label="کاربران اخیر"></div>
                   <div id="adminUsersSearchResults" class="cards-history-scroll mt-12"></div>
                   <div id="adminUsersProfileBox" class="cards-history-scroll mt-12"></div>
                 </div>
@@ -856,6 +857,11 @@
                     </div>
                     <div id="superAdminHint" class="step-hint"></div>
                   </div>
+                  <div class="admin-list-filter mt-12">
+                    <input id="superAdminFilterInput" type="search" autocomplete="off" aria-label="فیلتر ادمین‌ها" placeholder="جستجوی سریع نام، شناسه یا نقش ادمین" />
+                    <button id="superAdminListRefreshBtn" class="small-btn" type="button">تازه‌سازی فهرست</button>
+                  </div>
+                  <div id="superAdminListSummary" class="step-hint" aria-live="polite"></div>
                   <div id="superAdminList" class="cards-history-scroll mt-12"></div>
                 </div>
               </details>
