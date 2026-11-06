@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>مینی‌اپ دبرنای طوفان</title>
     <link rel="stylesheet" href="./styles.css?v=tambola-card-v2-20261105-1" />
+    <link rel="stylesheet" href="./ux-v2.css?v=20261106-wave1" />
   </head>
   <body>
     <div id="appSplash" class="app-splash" aria-label="در حال آماده‌سازی مینی‌اپ">
@@ -852,17 +853,17 @@
         </section>
       </main>
 
-      <nav class="bottom-nav glass">
-        <button class="nav-btn active" data-view="games" type="button">
+      <nav class="bottom-nav glass" aria-label="ناوبری اصلی">
+        <button class="nav-btn active" data-view="games" type="button" aria-current="page" aria-label="بازی‌ها">
           <span class="nav-icon">🎲</span><span id="navGamesText">بازی</span>
         </button>
-        <button class="nav-btn" data-view="cards" type="button">
+        <button class="nav-btn" data-view="cards" type="button" aria-label="کارت‌های من">
           <span class="nav-icon">🎫</span><span id="navCardsText">کارت‌های من</span>
         </button>
-        <button class="nav-btn" data-view="wallet" type="button">
+        <button class="nav-btn" data-view="wallet" type="button" aria-label="کیف پول">
           <span class="nav-icon">💰</span><span id="navWalletText">کیف پول</span>
         </button>
-        <button id="adminNavBtn" class="nav-btn hidden" data-view="admin" type="button">
+        <button id="adminNavBtn" class="nav-btn hidden" data-view="admin" type="button" aria-label="مدیریت">
           <span class="nav-icon">⚙️</span><span id="navAdminText">مدیریت</span>
         </button>
       </nav>
@@ -1039,6 +1040,6 @@
     <div id="miniToast" class="mini-toast hidden" role="status" aria-live="polite"></div>
 
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="./app.js?v=tambola-rule-labels-20261105-1" type="module"></script>
+    <script src="./app.js?v=ux-v2-wave1-20261106" type="module"></script>
   </body>
 </html>
