@@ -1,0 +1,243 @@
+/* Dabarna V2 UX refresh — wave 1.
+   Safe additive visual layer. Core layout, logic and historical cards stay intact. */
+
+:root {
+  --ux-border: rgba(149, 184, 235, .23);
+  --ux-card: rgba(14, 27, 55, .70);
+  --ux-raised: rgba(23, 40, 75, .82);
+  --ux-ring: rgba(104, 203, 255, .55);
+  --ux-shadow: 0 14px 42px rgba(2, 9, 24, .25);
+}
+html[data-theme="light"] {
+  --ux-border: rgba(30, 61, 114, .17);
+  --ux-card: rgba(255, 255, 255, .95);
+  --ux-raised: rgba(248, 251, 255, .98);
+  --ux-ring: rgba(20, 92, 191, .48);
+  --ux-shadow: 0 12px 35px rgba(19, 48, 91, .10);
+}
+
+.app-shell {
+  width: min(100%, 960px);
+  margin-inline: auto;
+  padding-inline: clamp(12px, 2.4vw, 26px);
+}
+
+.topbar {
+  border-radius: 20px;
+  border-color: var(--ux-border);
+  padding: clamp(12px, 1.6vw, 18px);
+  box-shadow: var(--ux-shadow);
+}
+
+.topbar .brand-logo {
+  width: 42px;
+  height: 42px;
+  border-radius: 13px;
+}
+
+.topbar .brand h1 {
+  font-size: clamp(17px, 2.1vw, 21px);
+  font-weight: 900;
+  letter-spacing: -.2px;
+}
+
+.content { margin-top: 18px; }
+
+.panel {
+  border: 1px solid var(--ux-border);
+  background: var(--ux-card);
+  border-radius: 20px;
+  box-shadow: var(--ux-shadow);
+  padding: clamp(14px, 2vw, 22px);
+  margin-bottom: 16px;
+}
+
+.panel-head {
+  gap: 12px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.panel-head h2 {
+  font-size: clamp(16px, 1.7vw, 20px);
+  line-height: 1.65;
+  font-weight: 900;
+}
+
+.hint, .quick-guide p {
+  font-size: 13px;
+  line-height: 1.9;
+}
+
+.quick-guide {
+  border-radius: 14px;
+  border-color: var(--ux-border);
+}
+
+.small-btn,
+.theme-toggle-btn,
+.amount-preset,
+.price-chip {
+  min-height: 40px;
+  border-radius: 12px;
+  transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease, background .15s ease;
+}
+
+button:not(:disabled):active { transform: scale(.985); }
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible,
+summary:focus-visible {
+  outline: 3px solid var(--ux-ring);
+  outline-offset: 3px;
+}
+
+.small-btn.primary {
+  font-weight: 850;
+  box-shadow: 0 5px 16px rgba(49, 148, 207, .16);
+}
+
+.wallet-balance-wrap {
+  background: var(--ux-raised);
+  border-color: var(--ux-border);
+  padding: 16px;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.wallet-balance-wrap strong { font-size: clamp(22px, 3vw, 28px); }
+
+.cards-box {
+  border-color: var(--ux-border);
+  padding: clamp(12px, 1.8vw, 18px);
+  border-radius: 17px;
+}
+
+.cards-box-head h3 { font-size: 15px; font-weight: 850; }
+
+.active-game-block {
+  border-color: var(--ux-border);
+  border-radius: 17px;
+  padding: clamp(12px, 1.6vw, 18px);
+}
+
+.active-game-head { flex-wrap: wrap; }
+.active-game-head h4 { font-size: 16px; }
+.active-game-meta { flex-wrap: wrap; line-height: 1.6; }
+
+.cards-active-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  gap: 14px;
+  align-items: start;
+}
+
+/* A single card must be centered on desktop instead of sticking to the right. */
+.cards-active-grid:has(> .card-pro:only-child) {
+  display: flex;
+  justify-content: center;
+}
+.cards-active-grid > .card-pro:only-child {
+  width: min(100%, 540px);
+  margin-inline: auto;
+}
+
+.card-pro {
+  border: 1px solid var(--ux-border);
+  background: var(--ux-raised);
+  border-radius: 17px;
+  padding: clamp(12px, 1.5vw, 18px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .09);
+}
+.card-pro-head strong { font-size: 14px; }
+.card-pro-head span { font-size: 12px; }
+.card-progress { font-size: 13px; margin-bottom: 10px; }
+.card-progress-bar { height: 9px; }
+
+/* Use legible numbers in 3x9 Tambola cards, keeping legacy 4x5 untouched. */
+.mini-card-grid.v2 {
+  gap: clamp(3px, .55vw, 6px);
+}
+.mini-card-grid.v2 .num-chip {
+  min-height: clamp(29px, 3.4vw, 39px);
+  font-size: clamp(11px, 1.45vw, 14px);
+  border-radius: 8px;
+  font-weight: 900;
+}
+.mini-card-grid.v2 .num-chip.empty-cell {
+  border-radius: 8px;
+  border-style: dashed;
+  opacity: .58;
+}
+html[data-theme="light"] .mini-card-grid.v2 .num-chip.called {
+  color: #08294c;
+  background: rgba(30, 138, 204, .18);
+  border-color: rgba(20, 106, 179, .48);
+}
+
+.bottom-nav {
+  width: min(860px, calc(100% - 20px));
+  padding: 8px;
+  border: 1px solid var(--ux-border);
+  border-radius: 19px;
+  z-index: 35;
+  box-shadow: 0 12px 32px rgba(2, 9, 24, .35);
+}
+.nav-btn {
+  min-height: 56px;
+  border-radius: 14px;
+  font-size: 12px;
+  line-height: 1.5;
+  gap: 4px;
+}
+.nav-btn.active {
+  border-color: rgba(101, 194, 247, .40);
+  background: linear-gradient(145deg, rgba(57, 150, 207, .21), rgba(51, 185, 150, .12));
+  box-shadow: inset 0 0 0 1px rgba(125, 197, 231, .10);
+}
+.nav-btn[aria-current="page"] .nav-icon { transform: translateY(-1px); }
+.nav-icon { font-size: 21px; }
+
+.empty, .empty-rich {
+  line-height: 1.9;
+  font-size: 13px;
+}
+
+@media (max-width: 520px) {
+  body { padding-bottom: calc(95px + env(safe-area-inset-bottom)); }
+  .app-shell { padding-inline: 10px; }
+  .topbar { border-radius: 15px; padding: 10px; }
+  .topbar .brand-logo { width: 36px; height: 36px; }
+  .panel { padding: 13px; border-radius: 16px; margin-bottom: 12px; }
+  .cards-box { padding: 10px; }
+  .card-pro { padding: 10px; }
+  .cards-active-grid { grid-template-columns: 1fr; gap: 10px; }
+  .mini-card-grid.v2 { gap: 2px; }
+  .mini-card-grid.v2 .num-chip {
+    min-height: 27px;
+    font-size: 11px;
+    border-radius: 5px;
+  }
+  .bottom-nav {
+    bottom: calc(6px + env(safe-area-inset-bottom));
+    width: calc(100% - 12px);
+    gap: 3px;
+    padding: 5px;
+    border-radius: 16px;
+  }
+  .nav-btn { min-height: 54px; padding-inline: 3px; font-size: 11px; }
+  .nav-icon { font-size: 20px; }
+}
+
+@media (max-width: 365px) {
+  .nav-btn { font-size: 10px; }
+  .mini-card-grid.v2 .num-chip { min-height: 25px; font-size: 10px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .small-btn, .theme-toggle-btn, .nav-btn { transition: none; }
+  .view { animation: none; }
+  .num-chip.fresh { animation: none; }
+}
