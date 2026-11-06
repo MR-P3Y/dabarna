@@ -5426,8 +5426,58 @@ function syncAdminCreateFormFromGame(gameId) {
   setVal("adminCreateCommissionInput", String(Number.isFinite(ratePercent) ? ratePercent : 10));
 }
 
+const ADMIN_QUICK_TARGETS_V2 = {
+  adminOpsDashboard: null,
+  adminGamesList: "MANUAL",
+  adminDrawModeShell: "MANUAL",
+  adminAutopilotList: "AUTO",
+  adminDepositsList: null,
+  adminWithdrawsList: null,
+};
+
+function jumpToAdminSectionV2(id) {
+  if (!state.admin.enabled) return;
+  if (!Object.prototype.hasOwnProperty.call(ADMIN_QUICK_TARGETS_V2, id)) return;
+  const mode = ADMIN_QUICK_TARGETS_V2[id];
+  if (mode) setAdminGameMode(mode);
+  const target = getEl(id);
+  if (!target) {
+    showToast("این بخش در نسخه فعلی در دسترس نیست.", "error");
+    return;
+  }
+  const details = target.closest("details");
+  if (details) details.open = true;
+  const surface = details || target.closest(".cards-box") || target;
+  surface.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function wireAdminQuickNavigationV2() {
+  document.querySelectorAll("[data-admin-jump]").forEach((button) => {
+    button.addEventListener("click", () => {
+      jumpToAdminSectionV2(button.getAttribute("data-admin-jump") || "");
+    });
+  });
+}
+
+function syncAdminSelectedGameListV2() {
+  const selected = Number(state.admin?.selectedGameId || 0);
+  const root = getEl("adminGamesList");
+  if (!root) return;
+  root.querySelectorAll(".admin-game-list-item-v2").forEach((item) => {
+    const gid = Number(item.getAttribute("data-game-id") || 0);
+    const active = gid > 0 && gid === selected;
+    item.classList.toggle("is-selected", active);
+    const button = item.querySelector(".admin-select-game-btn");
+    if (button) {
+      button.textContent = active ? "انتخاب‌شده" : "انتخاب بازی";
+      button.setAttribute("aria-pressed", String(active));
+    }
+  });
+}
+
 function setAdminSelectedGame(gameId, statusText = "") {
   state.admin.selectedGameId = Number(gameId || 0);
+  syncAdminSelectedGameListV2();
   const meta = getEl("adminSelectedGameMeta");
   if (!meta) return;
   if (!state.admin.selectedGameId) {
@@ -5448,13 +5498,24 @@ function updateAdminActionButtons() {
   const gid = Number(state.admin?.selectedGameId || 0);
   const g = gid ? getAdminGameById(gid) : null;
   const status = String(g?.status || "").toUpperCase();
+  const canManage = g?.can_manage !== false;
+  const gatedActions = new Set([
+    "adminStartBtn", "adminCloseLobbyBtn", "adminCallBtn", "adminUndoBtn",
+    "adminDrawModeManualBtn", "adminDrawModeAutoBtn",
+    "adminAutoDrawPauseBtn", "adminAutoDrawResumeBtn",
+    "adminSendLiveBtn", "adminClearLiveBtn", "adminSetLiveBtn",
+  ]);
 
   const setBtn = (id, enabled, title) => {
     const btn = getEl(id);
     if (!btn) return;
-    btn.disabled = !enabled;
-    btn.classList.toggle("is-disabled", !enabled);
-    if (title) btn.setAttribute("title", title);
+    const allowed = Boolean(enabled) && (canManage || !gatedActions.has(id));
+    btn.disabled = !allowed;
+    btn.classList.toggle("is-disabled", !allowed);
+    const hint = !canManage && gatedActions.has(id)
+      ? "شما مجوز مدیریت این بازی را ندارید."
+      : title;
+    if (hint) btn.setAttribute("title", hint);
     else btn.removeAttribute("title");
   };
 
@@ -5482,6 +5543,7 @@ function updateAdminActionButtons() {
   if (intervalEl) intervalEl.disabled = !(hasGame && isLobby && !drawLocked);
   setBtn("adminSendLiveBtn", hasGame && hasLiveLink, hasLiveLink ? "ارسال لینک لایو به خریداران کارت همین بازی." : "ابتدا لینک لایو را ثبت کنید.");
   setBtn("adminClearLiveBtn", hasGame && hasLiveLink, hasLiveLink ? "حذف لینک لایو ثبت‌شده برای این بازی." : "لینک لایو ثبت نشده است.");
+  setBtn("adminSetLiveBtn", hasGame, hasGame ? "ثبت یا ویرایش لینک پخش زنده همین بازی." : "ابتدا بازی را انتخاب کنید.");
 }
 
 function requireAdminGameStatus(allowedStatuses, actionLabel) {
@@ -8855,6 +8917,7 @@ async function boot() {
   if (headerUserName) headerUserName.textContent = inferDisplayName();
   updateHeaderStatus();
   wireNavigation();
+  wireAdminQuickNavigationV2();
   wireTheme();
   wireWalletDynamic();
   wireWalletUxHelpers();
