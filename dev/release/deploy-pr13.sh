@@ -8,6 +8,7 @@ SOURCE=d9434cb10d714648b4399d1615b916d8e144a156
 BASE=$PROD/docker-compose.yml
 INACTIVE=$ROOT/deploy/tambola-v2-inactive.compose.yml
 MANUAL=/root/davarna-v2-release-backups/tambola-v2-manual.compose.yml
+UX5_OVERRIDE=$ROOT/dev/release/ux5-candidate.compose.yml
 OLD_BACKEND=davarna-backend:ux5-f3c649e22593
 OLD_BOT=davarna-bot:ux5-f3c649e22593
 NEW_BACKEND=davarna-backend:pr13-d9434cb10d71
@@ -17,13 +18,53 @@ TMP=
 STARTED=0
 BOT_STARTED=0
 fail(){ echo "BLOCKER: $*" >&2; exit 2; }
+# Preserve the Compose layers recorded on the live containers; no unknown layers.
+declare -a BACKEND_FILES=()
+declare -a BOT_FILES=()
+load_live_compose_chain(){
+  local container="$1" array_name="$2"
+  local csv
+  csv="$(docker inspect -f '{{index .Config.Labels "com.docker.compose.project.config_files"}}' "$container")" || fail "cannot inspect $container Compose chain"
+  [[ -n "$csv" && "$csv" != "<no value>" ]] || fail "$container Compose chain unavailable"
+  local -a files=()
+  IFS=',' read -r -a files <<< "$csv"
+  (( ${#files[@]} >= 2 )) || fail "$container Compose chain too short"
+  [[ "${files[0]}" == "$BASE" && "${files[1]}" == "$INACTIVE" ]] || fail "$container base/inactive Compose order changed"
+  local seen_manual=0
+  local -A seen=()
+  local file
+  for file in "${files[@]}"; do
+    [[ "$file" == /* && -f "$file" ]] || fail "$container missing Compose file: $file"
+    [[ -z "${seen[$file]+set}" ]] || fail "$container duplicate Compose file: $file"
+    seen[$file]=1
+    case "$file" in
+      "$BASE"|"$INACTIVE"|"$UX5_OVERRIDE") ;;
+      "$MANUAL") ((seen_manual+=1));;
+      *) fail "$container has unapproved Compose overlay: $file";;
+    esac
+  done
+  if [[ "$container" == davarna-backend ]]; then
+    (( seen_manual == 1 )) || fail "backend manual V2 configuration missing"
+  else
+    (( seen_manual == 0 )) || fail "bot unexpectedly includes backend manual configuration"
+  fi
+  local -n result="$array_name"
+  result=("${files[@]}")
+  echo "PASS: $container recognized ${#files[@]} existing Compose layers (order preserved)"
+}
 backend_compose(){
   local override="$1"; shift
-  (cd "$PROD"; docker compose -p davarna --env-file "$PROD/.env.prod" -f "$BASE" -f "$INACTIVE" -f "$MANUAL" -f "$override" "$@")
+  local -a flags=()
+  local file
+  for file in "${BACKEND_FILES[@]}"; do flags+=(-f "$file"); done
+  (cd "$PROD"; docker compose -p davarna --env-file "$PROD/.env.prod" "${flags[@]}" -f "$override" "$@")
 }
 bot_compose(){
   local override="$1"; shift
-  (cd "$PROD"; docker compose -p davarna --env-file "$PROD/.env.prod" -f "$BASE" -f "$INACTIVE" -f "$override" "$@")
+  local -a flags=()
+  local file
+  for file in "${BOT_FILES[@]}"; do flags+=(-f "$file"); done
+  (cd "$PROD"; docker compose -p davarna --env-file "$PROD/.env.prod" "${flags[@]}" -f "$override" "$@")
 }
 finish(){
   local rc=$?
@@ -56,8 +97,8 @@ for c in davarna-backend davarna-bot davarna-mysql davarna-redis; do
 done
 [[ "$(docker inspect -f '{{.Config.Image}}' davarna-backend)" == "$OLD_BACKEND" ]] || fail "backend baseline changed"
 [[ "$(docker inspect -f '{{.Config.Image}}' davarna-bot)" == "$OLD_BOT" ]] || fail "bot baseline changed"
-[[ "$(docker inspect -f '{{index .Config.Labels "com.docker.compose.project.config_files"}}' davarna-backend)" == "$BASE,$INACTIVE,$MANUAL" ]] || fail "backend compose chain changed"
-[[ "$(docker inspect -f '{{index .Config.Labels "com.docker.compose.project.config_files"}}' davarna-bot)" == "$BASE,$INACTIVE" ]] || fail "bot compose chain changed"
+load_live_compose_chain davarna-backend BACKEND_FILES
+load_live_compose_chain davarna-bot BOT_FILES
 [[ "$(curl -fsS --max-time 8 http://127.0.0.1:18080/health/db)" == '{"ok":true}' ]] || fail "backend DB health check failed"
 for image in "$NEW_BACKEND" "$NEW_BOT"; do
   ! docker image inspect "$image" >/dev/null 2>&1 || fail "candidate tag already exists: $image"
@@ -117,6 +158,8 @@ docker run --rm --network none --entrypoint python "$NEW_BOT" -m compileall -q \
   /app/bot/keyboards/admin_users.py /app/bot/keyboards/super_admin.py
 export TAMBOLA_V2_BACKEND_IMAGE="$OLD_BACKEND"
 export TAMBOLA_V2_BOT_IMAGE="$OLD_BOT"
+export DAVARNA_UX5_BACKEND_IMAGE="$OLD_BACKEND"
+export DAVARNA_UX5_BOT_IMAGE="$OLD_BOT"
 echo "===== CHECK EFFECTIVE COMPOSE (PRIVATE) ====="
 backend_compose "$BACKUP/upgrade.yml" config --format json > "$TMP/backend.json"
 bot_compose "$BACKUP/upgrade.yml" config --format json > "$TMP/bot.json"
