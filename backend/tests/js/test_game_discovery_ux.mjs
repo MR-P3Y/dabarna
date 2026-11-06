@@ -13,9 +13,10 @@ function extractFunction(name, nextName) {
   return source.slice(begin, end);
 }
 
-const context = { toFaDigits: String };
+const context = {};
 vm.runInNewContext(
-  extractFunction("gameRuleUiMeta", "drawGamesOverview") +
+  extractFunction("toFaDigits", "setDepositMode") +
+  "\n" + extractFunction("gameRuleUiMeta", "drawGamesOverview") +
   "\n" + extractFunction("cardProgressInfo", "renderCardsActive") +
   "\n" + extractFunction("winnerKindLabelByReason", "winnerKindLabelByFlags") +
   "\n" + extractFunction("walletReasonLabel", "loadNotificationReadIds") +
@@ -24,6 +25,8 @@ vm.runInNewContext(
   "\nthis.getWalletReasonLabel = walletReasonLabel;",
   context,
 );
+
+assert.equal(vm.runInNewContext("toFaDigits(12345)", context), "۱۲۳۴۵");
 
 const full = context.getGameRuleUiMeta({ game_rule: "FULL_CARD", game_level: "HIGH" });
 assert.equal(full.label, "پرکردنی");
