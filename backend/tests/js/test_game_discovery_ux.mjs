@@ -17,8 +17,11 @@ const context = { toFaDigits: String };
 vm.runInNewContext(
   extractFunction("gameRuleUiMeta", "drawGamesOverview") +
   "\n" + extractFunction("cardProgressInfo", "renderCardsActive") +
+  "\n" + extractFunction("winnerKindLabelByReason", "winnerKindLabelByFlags") +
+  "\n" + extractFunction("walletReasonLabel", "loadNotificationReadIds") +
   "\nthis.getGameRuleUiMeta = gameRuleUiMeta;" +
-  "\nthis.getCardProgressInfo = cardProgressInfo;",
+  "\nthis.getCardProgressInfo = cardProgressInfo;" +
+  "\nthis.getWalletReasonLabel = walletReasonLabel;",
   context,
 );
 
@@ -65,4 +68,9 @@ assert.ok(source.includes('data-action="${isLobby ? "buy" : "live"}"'));
 assert.ok(!source.includes("روند شکل‌گیری جایزه"));
 assert.ok(!source.includes("soldCards / maxSold"));
 
-console.log("PASS: rules, row progress, full-card progress, and game dashboard.");
+assert.match(context.getWalletReasonLabel("PRIZE_ROW", "FULL_CARD"), /پرکردنی/);
+assert.match(context.getWalletReasonLabel("PRIZE_ROW", "LINE"), /خطی/);
+assert.match(context.getWalletReasonLabel("PRIZE_COL", "LINE"), /تورنا/);
+assert.match(context.getWalletReasonLabel("PRIZE_ROW", "LEGACY"), /سطری/);
+
+console.log("PASS: rules, game dashboard, card progress, and wallet prize labels.");
