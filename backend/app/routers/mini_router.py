@@ -2284,6 +2284,22 @@ def my_wallet_txs(
         .scalars()
         .all()
     )
+    prize_game_ids = {
+        int(tx.ref_id)
+        for tx in rows
+        if str(tx.ref_type or "").upper() == "GAME"
+        and str(tx.reason or "").upper() in {"PRIZE_COL", "PRIZE_ROW"}
+        and tx.ref_id is not None
+    }
+    game_rules: dict[int, str] = {}
+    if prize_game_ids:
+        game_rules = {
+            int(game_id): str(rule or "LEGACY").upper()
+            for game_id, rule in db.execute(
+                select(Game.id, Game.game_rule).where(Game.id.in_(prize_game_ids))
+            ).all()
+        }
+
     return [
         MiniWalletTxOut(
             id=int(tx.id),
@@ -2292,6 +2308,7 @@ def my_wallet_txs(
             reason=str(tx.reason),
             ref_type=str(tx.ref_type) if tx.ref_type else None,
             ref_id=int(tx.ref_id) if tx.ref_id is not None else None,
+            game_rule=game_rules.get(int(tx.ref_id)) if tx.ref_id is not None else None,
             created_at=str(tx.created_at),
         )
         for tx in rows
