@@ -5646,7 +5646,13 @@ function renderAdminGames(payload) {
       const status = String(btn.getAttribute("data-status") || "");
       if (!gid) return;
       setAdminSelectedGame(gid, status);
-      setAdminLocalHint("adminCallActionHint", `بازی #${gid} انتخاب شد.`, "success");
+      const selectedGame = state.admin.gamesById.get(gid);
+      if (selectedGame?.can_manage === false) {
+        showToast("این بازی فقط قابل مشاهده است؛ مجوز اجرای عملیات مدیریتی نداری.", "error");
+      } else {
+        setAdminLocalHint("adminCallActionHint", `بازی #${gid} برای کنترل انتخاب شد.`, "success");
+        jumpToAdminSectionV2("adminDrawModeShell");
+      }
     });
   });
 
