@@ -1,0 +1,5 @@
+# Image-only bot messaging overlay; staged context contains only audited changed files.
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+COPY davarna-bot/bot/ /app/bot/
+LABEL org.opencontainers.image.title="Davarna UX Wave 5 Bot Candidate"
