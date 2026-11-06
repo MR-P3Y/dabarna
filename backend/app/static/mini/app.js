@@ -907,10 +907,10 @@ function cryptoStatusLabel(value) {
   return CRYPTO_STATUS_LABELS[key] || statusLabel(value);
 }
 
-function eventKindLabel(value, payload = {}) {
+function eventKindLabel(value, payload = {}, fallbackRule = "LEGACY") {
   const key = String(value || "").toUpperCase();
   if (key === "PRIZE_COL" || key === "PRIZE_ROW") {
-    return winnerKindLabelByReason(key, payload?.game_rule || "LEGACY");
+    return winnerKindLabelByReason(key, payload?.game_rule || fallbackRule);
   }
   return EVENT_KIND_LABELS[key] || String(value || "رویداد");
 }
@@ -2587,7 +2587,7 @@ function updateBuyActionState({ statusKey, myCardsCount }) {
   }
 }
 
-function renderLiveEvents(events, { notifyFresh = false, notifyAfterId = 0 } = {}) {
+function renderLiveEvents(events, { notifyFresh = false, notifyAfterId = 0, gameRule = "LEGACY" } = {}) {
   const evRoot = getEl("liveEvents");
   if (!evRoot) return;
   const list = Array.isArray(events) ? events.slice(-LIVE_EVENTS_LIMIT) : [];
@@ -2601,7 +2601,7 @@ function renderLiveEvents(events, { notifyFresh = false, notifyAfterId = 0 } = {
             : "";
           return `
           <div class="${chipClass}">
-            <strong>${safeText(eventKindLabel(e.kind, e.payload || {}))}</strong>
+            <strong>${safeText(eventKindLabel(e.kind, e.payload || {}, gameRule))}</strong>
             <div>${safeText(formatFaDateTime(e.created_at))}</div>
             ${winnerText}
           </div>`;
@@ -2679,6 +2679,7 @@ function renderLive(snapshot, options = {}) {
   renderLiveEvents(snapshot.recent_events || [], {
     notifyFresh: Boolean(options.notifyFresh),
     notifyAfterId: Number(options.notifyAfterId || 0),
+    gameRule: st.game_rule || game.game_rule || "LEGACY",
   });
   renderLiveGameBar(state.gamesCache);
 }
@@ -2748,7 +2749,7 @@ function appendEvents(events) {
       const winnerText = mine ? '<div class="winner-note">تبریک! این برد برای شما ثبت شد.</div>' : "";
       return `
       <div class="${chipClass}">
-        <strong>${safeText(eventKindLabel(e.kind, e.payload || {}))}</strong>
+        <strong>${safeText(eventKindLabel(e.kind, e.payload || {}, state.gameSnapshots.get(Number(e.game_id || state.selectedGameId || 0))?.state?.game_rule || state.gameSnapshots.get(Number(e.game_id || state.selectedGameId || 0))?.game?.game_rule || "LEGACY"))}</strong>
         <div>${safeText(formatFaDateTime(e.created_at))}</div>
         ${winnerText}
       </div>`;
