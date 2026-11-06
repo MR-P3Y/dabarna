@@ -1,0 +1,5 @@
+# Image-only UI/UX overlay; staged context contains only audited changed files.
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+COPY backend/app/ /app/app/
+LABEL org.opencontainers.image.title="Davarna UX Wave 5 Backend Candidate"
