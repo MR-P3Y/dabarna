@@ -141,6 +141,8 @@ async def _deposit_method_visibility(api: ApiClient, tg_user_id: int, tg_usernam
 
 @router.callback_query(F.data == "menu:wallet")
 async def wallet(cq: CallbackQuery, api: ApiClient, tg_user_id: int, tg_username: str | None = None):
+    # Start availability calls while wallet history loads to keep the menu responsive.
+    availability_task = asyncio.create_task(_deposit_method_visibility(api, tg_user_id, tg_username))
     try:
         w = await api.bot_get_wallet(
             tg_user_id=tg_user_id,
@@ -196,7 +198,10 @@ async def wallet(cq: CallbackQuery, api: ApiClient, tg_user_id: int, tg_username
     except ApiError as e:
         text = panel("خطا", f"دریافت اطلاعات کیف پول ناموفق بود.\n<code>{e.status}</code>\n<code>{escape(e.detail)}</code>")
 
-    bank_enabled, crypto_enabled = await _deposit_method_visibility(api, tg_user_id, tg_username)
+    try:
+        bank_enabled, crypto_enabled = await availability_task
+    except Exception:
+        bank_enabled, crypto_enabled = False, False
     if not bank_enabled and not crypto_enabled:
         text += "\n\nℹ️ روش واریز جدید فعلاً در دسترس نیست؛ تاریخچه کیف پول همچنان قابل مشاهده است."
     await safe_edit_or_send(
