@@ -693,6 +693,7 @@ class WalletTxOut(BaseModel):
     ref_type: str | None = None
     ref_id: int | None = None
     idempotency_key: str | None = None
+    game_rule: str | None = None  # Read-only game-specific prize label metadata
     created_at: str
 
     class Config:
@@ -1123,6 +1124,22 @@ def get_wallet(
         .offset(offset)
     ).scalars().all()
 
+    # Resolve game rules in one read-only batch, never one query per transaction.
+    prize_game_ids = {
+        int(tx.ref_id) for tx in txs
+        if str(tx.reason or "").upper() in {"PRIZE_COL", "PRIZE_ROW"}
+        and str(tx.ref_type or "").upper() == "GAME"
+        and tx.ref_id is not None
+    }
+    game_rules = {}
+    if prize_game_ids:
+        game_rules = {
+            int(game_id): str(rule or "LEGACY").upper()
+            for game_id, rule in db.execute(
+                select(Game.id, Game.game_rule).where(Game.id.in_(prize_game_ids))
+            ).all()
+        }
+
     # Convert transactions to schema
     transactions = [
         WalletTxOut(
@@ -1133,6 +1150,7 @@ def get_wallet(
             ref_type=str(tx.ref_type) if tx.ref_type else None,
             ref_id=int(tx.ref_id) if tx.ref_id is not None else None,
             idempotency_key=str(tx.idempotency_key) if tx.idempotency_key else None,
+            game_rule=game_rules.get(int(tx.ref_id)) if tx.ref_id is not None else None,
             created_at=str(tx.created_at) if tx.created_at else "",
         )
         for tx in txs
