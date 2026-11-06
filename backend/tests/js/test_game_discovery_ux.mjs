@@ -64,6 +64,9 @@ assert.equal(afterAll.percent, 100);
 
 assert.ok(html.includes('id="gamesOverview"'));
 assert.ok(html.includes("quick-guide-collapse"));
+assert.ok(source.includes("async function openMyCardsForGame(gameId)"));
+assert.ok(source.includes('data-game-id="${g.gameId}"'));
+assert.ok(source.includes('item.getAttribute("data-game-id")'));
 assert.ok(source.includes('data-action="${isLobby ? "buy" : "live"}"'));
 assert.ok(!source.includes("روند شکل‌گیری جایزه"));
 assert.ok(!source.includes("soldCards / maxSold"));
