@@ -85,6 +85,7 @@ const state = {
     roles: [],
     cryptoSettings: null,
     bankDepositSettings: null,
+    superAdminsCache: [],
     selectedGameId: 0,
     gamesById: new Map(),
     liveLinksByGame: new Map(),
@@ -95,6 +96,7 @@ const state = {
       lastQuery: "",
       reportMode: "none",
       profile: null,
+      recentIds: [],
     },
     notify: {
       ready: false,
@@ -5626,6 +5628,9 @@ async function refreshAdminBootstrap() {
     state.admin.users.selectedTgUserId = 0;
     state.admin.users.lastQuery = "";
     state.admin.users.reportMode = "none";
+    state.admin.users.recentIds = [];
+    state.admin.superAdminsCache = [];
+    renderAdminUsersRecent();
     state.admin.users.profile = null;
     resetAdminCreateState();
     renderAdminCreateTopics();
@@ -6314,6 +6319,24 @@ function renderAdminUsersSearchResults(payload) {
   });
 }
 
+function renderAdminUsersRecent() {
+  const root = getEl("adminUsersRecent");
+  if (!root) return;
+  const ids = Array.isArray(state.admin?.users?.recentIds) ? state.admin.users.recentIds : [];
+  root.classList.toggle("hidden", !ids.length);
+  root.innerHTML = ids.length
+    ? `<strong>کاربران اخیراً مشاهده‌شده</strong><div class="admin-item-actions">${ids.map((id) =>
+        `<button class="small-btn admin-recent-user-btn" data-tg-id="${safeText(id)}" type="button">👤 ${safeText(toFaDigits(id))}</button>`
+      ).join("")}</div>`
+    : "";
+  root.querySelectorAll(".admin-recent-user-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const id = Number(btn.getAttribute("data-tg-id") || 0);
+      if (id) adminUsersOpenProfile(id).catch((e) => setLocalError("adminUsersHint", e));
+    });
+  });
+}
+
 function renderAdminUsersProfile(payload) {
   const root = getEl("adminUsersProfileBox");
   if (!root) return;
@@ -6398,8 +6421,8 @@ function renderAdminUsersProfile(payload) {
       <div class="admin-action-block mt-12">
         <div class="admin-action-block-title">عملیات کنترلی</div>
         <div class="admin-item-actions">
-          <button class="small-btn danger admin-user-restrict-btn" data-tg-id="${tgid}" type="button">محدودسازی</button>
-          <button class="small-btn admin-user-unrestrict-btn" data-tg-id="${tgid}" type="button">رفع محدودیت</button>
+          ${isRestricted ? "" : `<button class="small-btn danger admin-user-restrict-btn" data-tg-id="${tgid}" type="button">محدودسازی</button>`}
+          ${isRestricted ? `<button class="small-btn admin-user-unrestrict-btn" data-tg-id="${tgid}" type="button">رفع محدودیت</button>` : ""}
           <button class="small-btn admin-user-adjust-btn" data-tg-id="${tgid}" type="button">اصلاح کیف پول</button>
         </div>
       </div>
@@ -6486,6 +6509,11 @@ async function adminUsersOpenProfile(tgUserId, options = {}) {
   const out = await apiFetch(`/mini-api/admin/users/${tgid}/profile`);
   state.admin.users.selectedTgUserId = tgid;
   state.admin.users.profile = out;
+  state.admin.users.recentIds = [
+    tgid,
+    ...(state.admin.users.recentIds || []).filter((id) => id !== tgid),
+  ].slice(0, 6);
+  renderAdminUsersRecent();
   renderAdminUsersProfile(out);
   adminUsersRefreshReportModeUi();
   const listRoot = getEl("adminUsersSearchResults");
@@ -6680,6 +6708,7 @@ async function adminUsersAdjustWallet(tgUserId) {
   if (!Number.isFinite(amount) || amount === 0) throw new Error("مبلغ اصلاح نامعتبر است.");
   const reason = String(prompt("علت اصلاح کیف پول:", "اصلاح کیف پول توسط ادمین") || "").trim();
   if (reason.length < 3) throw new Error("علت اصلاح کیف پول نامعتبر است.");
+  if (!window.confirm(`اصلاح کیف پول کاربر ${tgid} به مبلغ ${toman(Math.trunc(amount))} انجام شود؟\nعلت: ${reason}`)) return;
   await apiFetch(`/mini-api/admin/users/${tgid}/wallet-adjust`, {
     method: "POST",
     body: { amount: Math.trunc(amount), reason, notify_user: true },
@@ -6752,22 +6781,56 @@ async function refreshAdminUsersPanel(options = {}) {
 function renderSuperAdminList(payload) {
   const root = getEl("superAdminList");
   if (!root) return;
-  const items = Array.isArray(payload?.items) ? payload.items : [];
+  const all = Array.isArray(payload?.items) ? payload.items : [];
+  state.admin.superAdminsCache = all;
+  const query = toEnglishDigits(String(getVal("superAdminFilterInput") || "").trim().toLowerCase());
+  const items = all.filter((a) => {
+    const searchable = [a.first_name, a.username, a.tg_user_id, a.user_id, ...(a.roles || []), ...(a.roles || []).map(adminRoleLabel)]
+      .map((value) => toEnglishDigits(String(value || "")).toLowerCase()).join(" ");
+    return !query || searchable.includes(query);
+  }).sort((a, b) => String(a.first_name || a.username || "").localeCompare(String(b.first_name || b.username || ""), "fa"));
+  const summary = getEl("superAdminListSummary");
+  if (summary) summary.textContent = `نمایش ${toFaDigits(items.length)} ادمین از ${toFaDigits(all.length)} مورد`;
   if (!items.length) {
-    root.innerHTML = '<div class="empty">ادمینی تعریف نشده است.</div>';
+    root.innerHTML = '<div class="empty">ادمینی مطابق جستجو یافت نشد.</div>';
     return;
   }
-  root.innerHTML = items
-    .map((a) => `
+  root.innerHTML = items.map((a) => {
+    const tgid = Number(a.tg_user_id || 0);
+    if (!tgid) return "";
+    return `
       <div class="history-item">
-        <strong>${safeText(a.first_name || a.username || a.tg_user_id || a.user_id)}</strong>
+        <strong>${safeText(a.first_name || a.username || tgid)}</strong>
         <div class="history-meta">
-          tg_user_id: ${safeText(a.tg_user_id)}<br />
-          نقش‌ها: ${safeText((a.roles || []).map(adminRoleLabel).join(" | "))}
+          شناسه تلگرام: ${safeText(String(tgid))} ${a.username ? `| @${safeText(a.username)}` : ""}
         </div>
-      </div>
-    `)
-    .join("");
+        <div class="admin-inline-chips">${(a.roles || []).map((role) => `<span class="admin-mini-pill">${safeText(adminRoleLabel(role))}</span>`).join("")}</div>
+        <div class="admin-item-actions">
+          <button type="button" class="small-btn primary super-admin-select" data-tg-id="${tgid}">انتخاب برای مدیریت نقش</button>
+          <button type="button" class="small-btn super-admin-profile" data-tg-id="${tgid}">پروفایل کاربر</button>
+        </div>
+      </div>`;
+  }).join("");
+  root.querySelectorAll(".super-admin-select").forEach((btn) => btn.addEventListener("click", () => {
+    const tgid = Number(btn.getAttribute("data-tg-id") || 0);
+    if (!tgid) return;
+    const input = getEl("superAdminTgUserInput");
+    if (input) {
+      input.value = String(tgid);
+      input.scrollIntoView({ behavior: "smooth", block: "center" });
+      input.focus();
+    }
+    setHint("superAdminHint", `ادمین ${tgid} انتخاب شد. نقش و عملیات را بررسی و سپس تأیید کنید.`, "success");
+  }));
+  root.querySelectorAll(".super-admin-profile").forEach((btn) => btn.addEventListener("click", () => {
+    const tgid = Number(btn.getAttribute("data-tg-id") || 0);
+    if (!tgid) return;
+    const section = getEl("adminUsersProfileBox")?.closest("details");
+    if (section) section.open = true;
+    adminUsersOpenProfile(tgid)
+      .then(() => getEl("adminUsersProfileBox")?.scrollIntoView({ behavior: "smooth", block: "start" }))
+      .catch((e) => setLocalError("adminUsersHint", e));
+  }));
 }
 
 function renderSuperCryptoSettings(payload) {
@@ -9047,6 +9110,10 @@ async function boot() {
   bind("adminSetLiveBtn", "click", () => adminSetLiveLink().catch((e) => setAdminLocalError("adminLiveActionHint", e)));
   bind("adminSendLiveBtn", "click", () => adminSendLiveLink().catch((e) => setAdminLocalError("adminLiveActionHint", e)));
   bind("adminClearLiveBtn", "click", () => adminClearLiveLink().catch((e) => setAdminLocalError("adminLiveActionHint", e)));
+  bind("superAdminFilterInput", "input", () => renderSuperAdminList({ items: state.admin.superAdminsCache || [] }));
+  bind("superAdminListRefreshBtn", "click", () =>
+    runManualRefresh("superAdminListRefreshBtn", () => refreshSuperAdminList()).catch((e) => setLocalError("superAdminHint", e))
+  );
   bind("superAdminGrantBtn", "click", () => superAdminGrant().catch((e) => setLocalError("superAdminHint", e)));
   bind("superAdminRevokeBtn", "click", () => superAdminRevoke().catch((e) => setLocalError("superAdminHint", e)));
   bind("superCryptoToggleBtn", "click", () => toggleSuperCryptoSettings().catch((e) => setLocalError("superCryptoHint", e)));
