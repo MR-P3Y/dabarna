@@ -672,8 +672,8 @@ function openAdminAccordionFor(listId, itemId, attrName = "") {
 
 async function openAdminRoute(route) {
   if (!state.admin.enabled) {
-    switchToView("wallet");
-    showToast("این اعلان مدیریتی است و با نقش فعلی قابل مشاهده نیست.", "error");
+    switchToView("games");
+    showToast("این اعلان فقط برای مدیران قابل مشاهده است. به صفحه بازی‌ها منتقل شدید.", "error");
     return;
   }
 
@@ -8502,11 +8502,17 @@ function switchToView(target) {
   const normalized = desired === "admin" && !state.admin.enabled ? "games" : desired;
 
   document.querySelectorAll(".nav-btn").forEach((btn) => {
-    btn.classList.toggle("active", btn.getAttribute("data-view") === normalized);
+    const isActive = btn.getAttribute("data-view") === normalized;
+    btn.classList.toggle("active", isActive);
+    if (isActive) btn.setAttribute("aria-current", "page");
+    else btn.removeAttribute("aria-current");
   });
 
   Object.entries(views).forEach(([k, el]) => {
-    if (el) el.classList.toggle("active", k === normalized);
+    if (!el) return;
+    const isActive = k === normalized;
+    el.classList.toggle("active", isActive);
+    el.setAttribute("aria-hidden", String(!isActive));
   });
 
   if (normalized === "cards") {
@@ -8525,7 +8531,11 @@ function wireNavigation() {
   document.querySelectorAll(".nav-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
       const target = btn.getAttribute("data-view") || "games";
+      const previous = document.querySelector(".nav-btn.active")?.getAttribute("data-view") || "games";
       switchToView(target);
+      if (target !== previous) {
+        try { window.scrollTo({ top: 0, behavior: "auto" }); } catch (_) {}
+      }
     });
   });
 }
