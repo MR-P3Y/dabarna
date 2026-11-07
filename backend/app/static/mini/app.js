@@ -7149,7 +7149,7 @@ async function toggleSuperBankDepositSettings() {
   }
   const button = getEl("superBankDepositToggleBtn");
   const enabled = String(button?.dataset?.nextEnabled || "false") === "true";
-  if (!window.confirm((enabled ? "فعال‌سازی " : "غیرفعال‌سازی ") + "واریز کارت‌به‌کارت" + " برای کاربران؟\\nاین تغییر مستقیماً روی امکان ثبت واریز جدید تأثیر می‌گذارد.")) return;
+  if (!window.confirm((enabled ? "فعال‌سازی " : "غیرفعال‌سازی ") + "واریز کارت‌به‌کارت" + " برای کاربران؟\nاین تغییر مستقیماً روی امکان ثبت واریز جدید تأثیر می‌گذارد.")) return;
   if (button) button.disabled = true;
   setHint(
     "superBankDepositHint",
@@ -7184,7 +7184,7 @@ async function toggleSuperCryptoSettings() {
   }
   const button = getEl("superCryptoToggleBtn");
   const enabled = String(button?.dataset?.nextEnabled || "false") === "true";
-  if (!window.confirm((enabled ? "فعال‌سازی " : "غیرفعال‌سازی ") + "واریز رمزارزی" + " برای کاربران؟\\nاین تغییر مستقیماً روی امکان ثبت واریز جدید تأثیر می‌گذارد.")) return;
+  if (!window.confirm((enabled ? "فعال‌سازی " : "غیرفعال‌سازی ") + "واریز رمزارزی" + " برای کاربران؟\nاین تغییر مستقیماً روی امکان ثبت واریز جدید تأثیر می‌گذارد.")) return;
   if (button) button.disabled = true;
   setHint(
     "superCryptoHint",
