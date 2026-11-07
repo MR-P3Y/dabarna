@@ -4,7 +4,7 @@ import unittest
 os.environ.setdefault("RECEIPTS_DIR", "/tmp/receipts")
 
 from fastapi import HTTPException
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 from app.services import deposit_destination_admin as cards
 from app.routers import mini_router as mini
 
@@ -134,6 +134,38 @@ class BankDestinationRulesTests(unittest.TestCase):
 
     def test_me_has_explicit_owner_capability(self):
         self.assertIn("can_manage_super_settings", mini.MiniAdminMeOut.model_fields)
+
+
+    def test_pending_request_blocks_editing_its_bank_destination(self):
+        db = MagicMock()
+        snapshots = MagicMock()
+        snapshots.all.return_value = [
+            ("deposit_request_destination:321", {"destination_id": "env_1"}),
+        ]
+        pending = MagicMock()
+        pending.scalars.return_value.all.return_value = [321]
+        db.execute.side_effect = [snapshots, pending]
+        self.assertTrue(mini._mini_bank_destination_pending(db, "env_1"))
+
+    def test_pending_request_to_another_snapshotted_destination_does_not_block(self):
+        db = MagicMock()
+        snapshots = MagicMock()
+        snapshots.all.return_value = [
+            ("deposit_request_destination:321", {"destination_id": "other"}),
+        ]
+        pending = MagicMock()
+        pending.scalars.return_value.all.return_value = [321]
+        db.execute.side_effect = [snapshots, pending]
+        self.assertFalse(mini._mini_bank_destination_pending(db, "env_1"))
+
+    def test_legacy_pending_without_snapshot_blocks_edit(self):
+        db = MagicMock()
+        snapshots = MagicMock()
+        snapshots.all.return_value = []
+        pending = MagicMock()
+        pending.scalars.return_value.all.return_value = [321]
+        db.execute.side_effect = [snapshots, pending]
+        self.assertTrue(mini._mini_bank_destination_pending(db, "env_1"))
 
 
 if __name__ == "__main__":
