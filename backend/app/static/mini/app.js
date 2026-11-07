@@ -6896,6 +6896,7 @@ function renderSuperCryptoSettings(payload) {
   const runtimeEnabled = Boolean(settings.runtime_enabled);
   const configured = Boolean(settings.configured);
   const effectiveEnabled = Boolean(settings.enabled);
+  renderSuperCryptoAddresses(settings);
   const networks = Array.isArray(settings.networks)
     ? settings.networks.map((item) => `${item.asset || ""} / ${item.network || ""}`).filter(Boolean)
     : [];
@@ -6928,6 +6929,164 @@ async function refreshSuperCryptoSettings() {
   if (!state.admin.enabled || !state.admin.isSuper) return;
   const out = await apiFetch("/mini-api/admin/super/crypto-settings");
   renderSuperCryptoSettings(out);
+}
+
+
+function renderSuperCryptoAddresses(payload) {
+  const root = getEl("superCryptoAddressesList");
+  if (!root) return;
+  root.replaceChildren();
+  const networks = Array.isArray(payload?.networks) ? payload.networks : [];
+  if (!networks.length) {
+    root.textContent = "هیچ آدرس معتبر TRON یا TON در سرور یافت نشد.";
+    return;
+  }
+  networks.forEach((network) => {
+    const card = document.createElement("div");
+    card.className = "history-item";
+    const title = document.createElement("strong");
+    title.textContent = String(network.asset || "-") + " / " + String(network.network || "-");
+    const address = document.createElement("code");
+    address.className = "admin-crypto-address";
+    address.textContent = String(network.address || "تنظیم نشده");
+    const hint = document.createElement("div");
+    hint.className = "history-meta";
+    hint.textContent = "خوانده‌شده از تنظیمات سرور؛ تغییر از این صفحه فعلاً غیرفعال است تا فاکتورها و اسکنر بلاک‌چین ناسازگار نشوند.";
+    card.append(title, address, hint);
+    root.append(card);
+  });
+}
+
+function renderSuperBankDestinations() {
+  const root = getEl("superBankCardsList");
+  if (!root) return;
+  root.replaceChildren();
+  const cards = Array.isArray(state.admin.bankDestinations) ? state.admin.bankDestinations : [];
+  if (!cards.length) {
+    root.textContent = "کارت مقصدی وجود ندارد. گزینه «افزودن کارت» را انتخاب کنید.";
+    return;
+  }
+  cards.forEach((card) => {
+    const box = document.createElement("div");
+    box.className = "history-item";
+    const title = document.createElement("strong");
+    title.textContent = String(card.title || card.bank_name || "کارت مقصد");
+    const meta = document.createElement("div");
+    meta.className = "history-meta";
+    meta.textContent = String(card.bank_name || "بانک نامشخص") + " | "
+      + maskCard(card.card_number) + " | "
+      + (card.is_active ? "فعال برای واریز" : "غیرفعال");
+    const btn = document.createElement("button");
+    btn.className = "small-btn";
+    btn.type = "button";
+    btn.textContent = "ویرایش / وضعیت کارت";
+    btn.addEventListener("click", () => openSuperBankCardEditor(card));
+    box.append(title, meta, btn);
+    root.append(box);
+  });
+}
+
+function openSuperBankCardEditor(item = null) {
+  if (!state.admin.isSuper) return;
+  const editor = getEl("superBankCardsEditor");
+  if (!editor) return;
+  state.admin.bankDestinationEditingId = String(item?.id || "");
+  getEl("superBankCardsSection").open = true;
+  editor.classList.remove("hidden");
+  const title = getEl("superBankCardsEditorTitle");
+  if (title) title.textContent = item ? "ویرایش کارت مقصد" : "افزودن کارت غیرفعال";
+  setVal("superBankCardTitle", String(item?.title || ""));
+  setVal("superBankCardNumber", String(item?.card_number || ""));
+  setVal("superBankCardBankName", String(item?.bank_name || ""));
+  setVal("superBankCardAccountName", String(item?.account_name || ""));
+  setVal("superBankCardIban", String(item?.iban || ""));
+  setVal("superBankCardAccountNumber", String(item?.account_number || ""));
+  const active = getEl("superBankCardActive");
+  if (active) {
+    active.checked = Boolean(item?.is_active);
+    active.disabled = !item;
+  }
+  getEl("superBankCardDeleteBtn")?.classList.toggle("hidden", !item || Boolean(item?.is_active));
+  setHint("superBankCardsHint", item ? "هر تغییر نیازمند تأیید نهایی است." : "کارت جدید ابتدا غیرفعال ثبت می‌شود.");
+}
+
+function closeSuperBankCardEditor() {
+  state.admin.bankDestinationEditingId = "";
+  getEl("superBankCardsEditor")?.classList.add("hidden");
+}
+
+function bankCardEditPayload() {
+  return {
+    expected_revision: String(state.admin.bankDestinationsRevision || ""),
+    title: String(getVal("superBankCardTitle") || "").trim(),
+    bank_name: String(getVal("superBankCardBankName") || "").trim(),
+    account_name: String(getVal("superBankCardAccountName") || "").trim(),
+    card_number: toEnglishDigits(String(getVal("superBankCardNumber") || "")).replace(/[\s-]+/g, ""),
+    iban: toEnglishDigits(String(getVal("superBankCardIban") || "")).trim(),
+    account_number: toEnglishDigits(String(getVal("superBankCardAccountNumber") || "")).trim(),
+    is_active: Boolean(getEl("superBankCardActive")?.checked),
+  };
+}
+
+async function refreshSuperBankDestinations() {
+  if (!state.admin.enabled || !state.admin.isSuper) return;
+  const out = await apiFetch("/mini-api/admin/super/deposit-destinations");
+  state.admin.bankDestinations = Array.isArray(out?.items) ? out.items : [];
+  state.admin.bankDestinationsRevision = String(out?.revision || "");
+  renderSuperBankDestinations();
+}
+
+async function saveSuperBankDestination() {
+  if (!state.admin.isSuper) throw new Error("این عملیات فقط برای سوپرادمین است.");
+  const id = String(state.admin.bankDestinationEditingId || "");
+  const form = bankCardEditPayload();
+  if (!/^[0-9]{16,19}$/.test(form.card_number)) {
+    throw new Error("شماره کارت باید ۱۶ تا ۱۹ رقم باشد.");
+  }
+  if (!form.expected_revision) throw new Error("ابتدا فهرست کارت‌ها را بارگذاری کنید.");
+  if (id && !state.admin.bankDestinations.some((x) => String(x.id) === id)) {
+    throw new Error("کارت انتخاب‌شده پیدا نشد؛ فهرست را تازه‌سازی کنید.");
+  }
+  const operation = id ? "ویرایش کارت" : "افزودن کارت غیرفعال";
+  const risk = id ? (form.is_active ? "این کارت پس از ذخیره برای واریز کاربران فعال خواهد بود." : "این کارت غیرفعال خواهد شد.")
+    : "کارت جدید ابتدا غیرفعال خواهد بود.";
+  if (!window.confirm(operation + " " + maskCard(form.card_number) + "؟\n" + risk)) return;
+  const button = getEl("superBankCardSaveBtn");
+  if (button) button.disabled = true;
+  try {
+    const endpoint = "/mini-api/admin/super/deposit-destinations";
+    await apiFetch(id ? endpoint + "/" + encodeURIComponent(id) : endpoint, {
+      method: id ? "PUT" : "POST", body: form,
+    });
+    closeSuperBankCardEditor();
+    await Promise.allSettled([
+      refreshSuperBankDestinations(), refreshSuperBankDepositSettings(), refreshWallet()
+    ]);
+    setHint("superBankCardsHint", "اطلاعات کارت ذخیره شد و فهرست تازه‌سازی شد.", "success");
+  } finally {
+    if (button) button.disabled = false;
+  }
+}
+
+async function deleteSuperBankDestination() {
+  const id = String(state.admin.bankDestinationEditingId || "");
+  const card = state.admin.bankDestinations.find((x) => String(x.id) === id);
+  if (!card || card.is_active) throw new Error("ابتدا کارت را غیرفعال کنید.");
+  if (!window.confirm("حذف کارت غیرفعال " + maskCard(card.card_number) + "؟")) return;
+  const button = getEl("superBankCardDeleteBtn");
+  if (button) button.disabled = true;
+  try {
+    await apiFetch("/mini-api/admin/super/deposit-destinations/" + encodeURIComponent(id), {
+      method: "DELETE", body: { expected_revision: state.admin.bankDestinationsRevision },
+    });
+    closeSuperBankCardEditor();
+    await Promise.allSettled([
+      refreshSuperBankDestinations(), refreshSuperBankDepositSettings(), refreshWallet()
+    ]);
+    setHint("superBankCardsHint", "کارت غیرفعال حذف شد.", "success");
+  } finally {
+    if (button) button.disabled = false;
+  }
 }
 
 function renderSuperBankDepositSettings(payload) {
@@ -7573,6 +7732,7 @@ async function refreshAdminPanel(options = {}) {
     refreshSuperAdminList(),
     refreshSuperCryptoSettings(),
     refreshSuperBankDepositSettings(),
+    refreshSuperBankDestinations(),
   ]);
 }
 
@@ -9192,6 +9352,12 @@ async function boot() {
   );
   bind("superAdminGrantBtn", "click", () => superAdminGrant().catch((e) => setLocalError("superAdminHint", e)));
   bind("superAdminRevokeBtn", "click", () => superAdminRevoke().catch((e) => setLocalError("superAdminHint", e)));
+  bind("superBankCardsRefreshBtn", "click", () => refreshSuperBankDestinations().catch((e) => setLocalError("superBankCardsHint", e)));
+  bind("superBankCardsNewBtn", "click", () => openSuperBankCardEditor());
+  bind("superBankCardCancelBtn", "click", closeSuperBankCardEditor);
+  bind("superBankCardSaveBtn", "click", () => saveSuperBankDestination().catch((e) => setLocalError("superBankCardsHint", e)));
+  bind("superBankCardDeleteBtn", "click", () => deleteSuperBankDestination().catch((e) => setLocalError("superBankCardsHint", e)));
+  bind("superCryptoAddressesRefreshBtn", "click", () => refreshSuperCryptoSettings().catch((e) => setLocalError("superCryptoHint", e)));
   bind("superCryptoToggleBtn", "click", () => toggleSuperCryptoSettings().catch((e) => setLocalError("superCryptoHint", e)));
   bind("superBankDepositToggleBtn", "click", () => toggleSuperBankDepositSettings().catch((e) => setLocalError("superBankDepositHint", e)));
   bind("superCryptoHealthBtn", "click", () => checkSuperCryptoHealth().catch((e) => setLocalError("superCryptoHint", e)));
