@@ -82,6 +82,7 @@ const state = {
   admin: {
     enabled: false,
     isSuper: false,
+    canManageSuperSettings: false,
     roles: [],
     cryptoSettings: null,
     bankDepositSettings: null,
@@ -5643,6 +5644,7 @@ async function refreshAdminBootstrap() {
     const me = await apiFetch("/mini-api/admin/me");
     state.admin.enabled = Boolean(me?.is_admin);
     state.admin.isSuper = Boolean(me?.is_super_admin);
+    state.admin.canManageSuperSettings = Boolean(me?.can_manage_super_settings);
     state.admin.roles = Array.isArray(me?.roles) ? me.roles : [];
     state.admin.ownTgUserId = Number(me?.tg_user_id || 0);
     updateHeaderRoleBadge();
@@ -5650,7 +5652,7 @@ async function refreshAdminBootstrap() {
     const roleEl = getEl("adminRoleText");
     if (roleEl) roleEl.textContent = adminRoleBadgeText();
     const superSection = getEl("superAdminSection");
-    if (superSection) superSection.classList.toggle("hidden", !state.admin.isSuper);
+    if (superSection) superSection.classList.toggle("hidden", !state.admin.canManageSuperSettings);
     updateAdminCreateGroupVisibility();
     if (state.admin.enabled) {
       await Promise.allSettled([refreshAdminCreateOptions(), refreshAdminPanel()]);
@@ -5659,6 +5661,7 @@ async function refreshAdminBootstrap() {
   } catch (err) {
     state.admin.enabled = false;
     state.admin.isSuper = false;
+    state.admin.canManageSuperSettings = false;
     state.admin.roles = [];
     state.admin.ownTgUserId = 0;
     updateHeaderRoleBadge();
@@ -6926,7 +6929,7 @@ function renderSuperCryptoSettings(payload) {
 }
 
 async function refreshSuperCryptoSettings() {
-  if (!state.admin.enabled || !state.admin.isSuper) return;
+  if (!state.admin.enabled || !state.admin.canManageSuperSettings) return;
   const out = await apiFetch("/mini-api/admin/super/crypto-settings");
   renderSuperCryptoSettings(out);
 }
@@ -6987,7 +6990,7 @@ function renderSuperBankDestinations() {
 }
 
 function openSuperBankCardEditor(item = null) {
-  if (!state.admin.isSuper) return;
+  if (!state.admin.canManageSuperSettings) return;
   const editor = getEl("superBankCardsEditor");
   if (!editor) return;
   state.admin.bankDestinationEditingId = String(item?.id || "");
@@ -7029,7 +7032,7 @@ function bankCardEditPayload() {
 }
 
 async function refreshSuperBankDestinations() {
-  if (!state.admin.enabled || !state.admin.isSuper) return;
+  if (!state.admin.enabled || !state.admin.canManageSuperSettings) return;
   const out = await apiFetch("/mini-api/admin/super/deposit-destinations");
   state.admin.bankDestinations = Array.isArray(out?.items) ? out.items : [];
   state.admin.bankDestinationsRevision = String(out?.revision || "");
@@ -7037,7 +7040,7 @@ async function refreshSuperBankDestinations() {
 }
 
 async function saveSuperBankDestination() {
-  if (!state.admin.isSuper) throw new Error("این عملیات فقط برای سوپرادمین است.");
+  if (!state.admin.canManageSuperSettings) throw new Error("این عملیات فقط برای سوپرادمین است.");
   const id = String(state.admin.bankDestinationEditingId || "");
   const form = bankCardEditPayload();
   if (!/^[0-9]{16,19}$/.test(form.card_number)) {
@@ -7116,7 +7119,7 @@ function renderSuperBankDepositSettings(payload) {
 }
 
 async function refreshSuperBankDepositSettings() {
-  if (!state.admin.enabled || !state.admin.isSuper) return;
+  if (!state.admin.enabled || !state.admin.canManageSuperSettings) return;
   try {
     const out = await apiFetch("/mini-api/admin/super/bank-deposit-settings");
     renderSuperBankDepositSettings(out);
@@ -7141,7 +7144,7 @@ async function refreshSuperBankDepositSettings() {
 }
 
 async function toggleSuperBankDepositSettings() {
-  if (!state.admin.enabled || !state.admin.isSuper) {
+  if (!state.admin.enabled || !state.admin.canManageSuperSettings) {
     throw new Error("این عملیات فقط برای سوپرادمین مجاز است.");
   }
   const button = getEl("superBankDepositToggleBtn");
@@ -7175,7 +7178,7 @@ async function toggleSuperBankDepositSettings() {
 }
 
 async function toggleSuperCryptoSettings() {
-  if (!state.admin.enabled || !state.admin.isSuper) {
+  if (!state.admin.enabled || !state.admin.canManageSuperSettings) {
     throw new Error("این عملیات فقط برای سوپرادمین مجاز است.");
   }
   const button = getEl("superCryptoToggleBtn");
@@ -7259,7 +7262,7 @@ async function checkSuperCryptoReconciliation() {
 }
 
 async function refreshSuperAdminList() {
-  if (!state.admin.enabled || !state.admin.isSuper) return;
+  if (!state.admin.enabled || !state.admin.canManageSuperSettings) return;
   const out = await apiFetch("/mini-api/admin/super/admins");
   renderSuperAdminList(out);
 }
@@ -8966,7 +8969,7 @@ async function superAdminGrant() {
 }
 
 async function superAdminRevokeRole(tgUserId, role) {
-  if (!state.admin.enabled || !state.admin.isSuper) throw new Error("فقط سوپرادمین می‌تواند نقش‌ها را تغییر دهد.");
+  if (!state.admin.enabled || !state.admin.canManageSuperSettings) throw new Error("فقط سوپرادمین می‌تواند نقش‌ها را تغییر دهد.");
   const tgid = Number(tgUserId || 0);
   const selectedRole = String(role || "").toUpperCase();
   if (!tgid || !Object.prototype.hasOwnProperty.call(ADMIN_ROLE_LABELS, selectedRole)) {
