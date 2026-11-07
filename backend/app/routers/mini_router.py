@@ -712,7 +712,9 @@ class MiniSuperBankDestinationIn(BaseModel):
     iban: str = Field(default="", max_length=40)
     card_number: str = Field(min_length=16, max_length=32)
     account_number: str = Field(default="", max_length=40)
-    is_active: bool = False
+    # None is accepted only for creation (which always stays inactive).
+    # Updates must explicitly specify their target state.
+    is_active: bool | None = None
 
 
 class MiniSuperBankDestinationDeleteIn(BaseModel):
