@@ -8,6 +8,7 @@ No wallet/game writes. Do NOT retry blindly if delivery is uncertain.
 """
 from __future__ import annotations
 
+import argparse
 import json
 import sys
 from datetime import datetime, timezone
@@ -113,6 +114,9 @@ def send_private_message(tg_id: int, token: str) -> int:
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--check-only", action="store_true")
+    args = parser.parse_args()
     token = str(cfg.TELEGRAM_BOT_TOKEN or "").strip()
     ensure(token and ":" in token, "Telegram token missing from backend")
     ensure(not bool(cfg.GAME_AUTO_DRAW_ENABLED)
@@ -122,6 +126,10 @@ def main():
         ensure(db.get(AppSetting, MARKER) is None,
                "refund notification marker already exists; do not resend")
         uid, tg_id = checked_recipient(db)
+        if args.check_only:
+            db.rollback()
+            print("CHECK_ONLY PASS: buyer #4, ledger #338/#339, 36,000 refunded, no notice marker")
+            return 0
         db.add(AppSetting(k=MARKER, v_json={
             "sent": True,
             "status": "CLAIMED_UNCONFIRMED",
