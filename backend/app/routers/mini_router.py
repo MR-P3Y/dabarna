@@ -575,6 +575,7 @@ class MiniAdminMeOut(BaseModel):
     roles: list[str]
     is_admin: bool
     is_super_admin: bool
+    can_manage_super_settings: bool = False
 
 
 class MiniAdminActionIn(BaseModel):
@@ -3361,6 +3362,10 @@ def mini_admin_me(
         roles=list(ident.roles),
         is_admin=bool(ident.is_admin),
         is_super_admin=bool(ident.is_super_admin),
+        can_manage_super_settings=bool(
+            ident.is_super_admin
+            and (RBAC_OWNER_USER_ID is None or int(ident.user_id) == int(RBAC_OWNER_USER_ID))
+        ),
     )
 
 
