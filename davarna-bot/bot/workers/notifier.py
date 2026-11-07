@@ -29,6 +29,7 @@ from bot.services.user_topics import (
     game_topic_title as user_game_topic_title,
     send_to_topic as send_to_user_topic,
 )
+from bot.services.user_forum_navigation import navigation_keyboard
 from bot.services.notify_store import (
     get_event_marker,
     get_last_seen_count,
@@ -524,68 +525,59 @@ async def _send_user_game_started_notice(bot: Bot, *, game_id: int, report: dict
     if not _is_user_forum_game(report):
         return
     game = report.get("game") or {}
-    purchases = report.get("purchases") or {}
-    game_topic_id = _to_int(game.get("tg_topic_id"), 0)
-    topic_label = user_game_topic_title(game_topic_id if game_topic_id > 0 else None)
-
-    text = panel(
-        "اطلاعیه شروع بازی",
-        "#اطلاعیه #شروع_بازی\n"
-        f"🎮 بازی: <b>#{game_id}</b>\n"
-        f"{(_game_start_draw_line(event) + chr(10)) if _game_start_draw_line(event) else ''}"
-        f"🧵 دسته بازی: <b>{topic_label}</b>\n"
+    topic_id = _to_int(game.get("tg_topic_id"), 0)
+    mode_line = _game_start_draw_line(event)
+    text = (
+        f"▶️ <b>بازی #{game_id} شروع شد</b>\n"
+        f"🎮 {user_game_topic_title(topic_id or None)}\n"
         f"{_game_rule_notice_line(game)}"
-        f"💳 قیمت هر کارت: <b>{_fmt_amount(_to_int(game.get('card_price'), 0))}</b>\n"
-        f"🃏 کارت‌های فروخته‌شده: <b>{_fmt_amount(_to_int(purchases.get('cards_sold'), 0))}</b>\n"
-        f"🎁 جایزه کل فعلی: <b>{_fmt_amount(_to_int(game.get('prize_pool'), 0))}</b>\n"
-        "🔔 بازی شروع شد؛ اعداد زنده در تاپیک «اعداد اعلام‌شده (زنده)» اعلام می‌شود.",
+        f"{mode_line + chr(10) if mode_line else ''}"
+        "🔢 اعداد بازی را در «اعداد زنده» ببینید.\n"
+        "🃏 کارت‌های خود را در ربات دنبال کنید."
     )
-
-    await send_to_user_topic(bot, name="announce", text=text, parse_mode="HTML", disable_notification=False)
+    await send_to_user_topic(
+        bot, name="announce", text=text, parse_mode="HTML",
+        reply_markup=navigation_keyboard(game_topic_id=topic_id or None, show_live=True),
+        disable_notification=False,
+    )
 
 async def _send_user_game_created_notice(bot: Bot, *, game_id: int, report: dict, event: dict) -> None:
     if not _is_user_forum_game(report):
         return
     game = report.get("game") or {}
-    game_topic_id = _to_int(game.get("tg_topic_id"), 0)
-    topic_label = user_game_topic_title(game_topic_id if game_topic_id > 0 else None)
-
-    text = panel(
-        "بازی جدید آماده خرید",
-        "#اطلاعیه #بازی_جدید\n"
-        f"🕒 زمان ایجاد: <code>{_event_time_text(event)}</code>\n"
-        f"🎮 بازی: <b>#{game_id}</b>\n"
-        f"🧵 دسته بازی: <b>{topic_label}</b>\n"
-        f"{_game_rule_notice_line(game)}"
+    topic_id = _to_int(game.get("tg_topic_id"), 0)
+    text = (
+        f"🎮 <b>بازی #{game_id} | خرید کارت باز است</b>\n"
+        f"🎯 {user_game_topic_title(topic_id or None)}\n"
         f"💳 قیمت هر کارت: <b>{_fmt_amount(_to_int(game.get('card_price'), 0))}</b>\n"
-        "🛒 خرید کارت برای این بازی باز است.",
+        f"{_game_rule_notice_line(game)}"
+        "🛒 برای خرید، ربات را خصوصی باز کنید."
     )
-
-    await send_to_user_topic(bot, name="announce", text=text, parse_mode="HTML", disable_notification=False)
+    await send_to_user_topic(
+        bot, name="announce", text=text, parse_mode="HTML",
+        reply_markup=navigation_keyboard(game_topic_id=topic_id or None, show_rules=True),
+        disable_notification=False,
+    )
 
 async def _send_user_game_ended_notice(bot: Bot, *, game_id: int, report: dict, end_reason: str | None) -> None:
     if not _is_user_forum_game(report):
         return
     game = report.get("game") or {}
+    topic_id = _to_int(game.get("tg_topic_id"), 0)
     called = _called_numbers_from_report(report)
-    last = called[-1] if called else None
-    game_topic_id = _to_int(game.get("tg_topic_id"), 0)
-    topic_label = user_game_topic_title(game_topic_id if game_topic_id > 0 else None)
-
-    text = panel(
-        "نتیجه نهایی بازی",
-        "#نتایج #پایان_بازی\n"
-        f"🎮 بازی: <b>#{game_id}</b>\n"
-        f"🧵 دسته بازی: <b>{topic_label}</b>\n"
+    text = (
+        f"🏁 <b>بازی #{game_id} پایان یافت</b>\n"
+        f"🎮 {user_game_topic_title(topic_id or None)}\n"
+        f"📌 نتیجه: {_end_reason_fa(end_reason)}\n"
         f"{_game_rule_notice_line(game)}"
-        f"📌 دلیل پایان: <b>{_end_reason_fa(end_reason)}</b>\n"
-        f"🔢 تعداد اعداد خوانده‌شده: <b>{_fmt_amount(len(called))}</b>\n"
-        f"📍 آخرین عدد: <b>{last if last is not None else '—'}</b>\n"
-        f"💳 قیمت کارت: <b>{_fmt_amount(_to_int(game.get('card_price'), 0))}</b>\n"
-        f"🎁 جایزه کل: <b>{_fmt_amount(_to_int(game.get('prize_pool'), 0))}</b>",
+        f"🔢 اعداد اعلام‌شده: <b>{len(called)}</b>\n"
+        "🏆 جزئیات برندگان و کارت‌ها را در ربات ببینید."
     )
-
-    await send_to_user_topic(bot, name="results", text=text, parse_mode="HTML", disable_notification=False)
+    await send_to_user_topic(
+        bot, name="results", text=text, parse_mode="HTML",
+        reply_markup=navigation_keyboard(game_topic_id=topic_id or None),
+        disable_notification=False,
+    )
 
 async def _send_user_live_number_notice(
     bot: Bot,
@@ -595,17 +587,16 @@ async def _send_user_live_number_notice(
     number: int,
     called_numbers: list[int],
 ) -> None:
-    tail = _fmt_last(called_numbers, 10)
-    text = panel(
-        "اعداد اعلام‌شده (زنده)",
-        "#اعداد_زنده\n"
-        f"🎮 بازی: <b>#{game_id}</b>\n"
-        f"🧵 دسته بازی: <b>{user_game_topic_title(game_topic_id)}</b>\n"
-        f"🔢 عدد جدید: <b>{number}</b>\n"
-        f"🧾 آخرین ۱۰ عدد: {tail}",
+    # One short message per draw: no repeated guide, inline keyboard or
+    # verbose header (particularly important at five-second draw intervals).
+    text = (
+        f"🔢 <b>بازی #{game_id} | عدد {number}</b>\n"
+        f"۱۰ عدد آخر: {_fmt_last(called_numbers, 10)}"
     )
-    await send_to_user_topic(bot, name="live", text=text, parse_mode="HTML", disable_notification=True)
-
+    await send_to_user_topic(
+        bot, name="live", text=text,
+        parse_mode="HTML", disable_notification=True,
+    )
 
 async def _send_game_report_topic(
     bot: Bot,

@@ -1157,6 +1157,7 @@ def _mini_notify_admin_withdraw_pending(*, db: Session, wr: WithdrawRequest) -> 
 
 
 def _mini_send_game_created_notice(*, game: Game) -> bool:
+    """Single compact user announcement; never duplicate into the game thread."""
     group_id = int(getattr(game, "tg_group_id", 0) or 0)
     if group_id == 0:
         return False
@@ -1164,39 +1165,43 @@ def _mini_send_game_created_notice(*, game: Game) -> bool:
     game_topic_id = int(game.tg_topic_id) if getattr(game, "tg_topic_id", None) is not None else None
     game_topic_title = _mini_game_topic_title(game_topic_id)
     text = (
-        "📣 <b>بازی جدید آماده خرید</b>\n"
-        "#اطلاعیه #بازی_جدید\n"
-        f"🎮 بازی: <b>#{int(game.id)}</b>\n"
-        f"🧵 دسته بازی: <b>{game_topic_title}</b>\n"
-        f"💳 قیمت هر کارت: <b>{int(game.card_price):,}</b> تومان\n"
-        "🛒 خرید کارت برای این بازی باز است."
+        f"🎮 <b>بازی #{int(game.id)} | خرید کارت باز است</b>\n"
+        f"🎯 {html_escape(game_topic_title)}\n"
+        f"💳 قیمت هر کارت: <b>{int(game.card_price):,} تومان</b>\n"
+        "🛒 برای خرید، ربات را خصوصی باز کنید."
+    )
+    # Announcements have exactly one owner. Fall back to its actual game
+    # topic only when the announcement thread has not been configured.
+    announce_id = _mini_parse_optional_topic_id(os.getenv("USER_TOPIC_ANNOUNCE_ID"))
+    destination_id = announce_id if announce_id is not None else game_topic_id
+
+    # A topic deep link can be built only for normal private supergroups.
+    topic_url = None
+    group_raw = str(group_id)
+    if (
+        game_topic_id is not None
+        and game_topic_id > 0
+        and group_raw.startswith("-100")
+        and group_raw[4:].isdigit()
+    ):
+        topic_url = f"https://t.me/c/{group_raw[4:]}/{game_topic_id}"
+    markup = (
+        {"inline_keyboard": [[{"text": "🎮 رفتن به تاپیک بازی", "url": topic_url}]]}
+        if topic_url else None
     )
 
-    sent_any = False
-    sent_keys: set[tuple[int, int | None]] = set()
-    targets: list[tuple[int, int | None]] = []
-    targets.append((group_id, game_topic_id))
-
-    announce_topic_id = _mini_parse_optional_topic_id(os.getenv("USER_TOPIC_ANNOUNCE_ID"))
-    if announce_topic_id is not None:
-        targets.append((group_id, announce_topic_id))
-
-    for chat_id, topic_id in targets:
-        key = (int(chat_id), int(topic_id) if topic_id is not None else None)
-        if key in sent_keys:
-            continue
-        sent_keys.add(key)
-        if _mini_send_topic_message(chat_id=int(chat_id), topic_id=topic_id, text=text):
-            sent_any = True
-
-    if not sent_any:
+    sent = _mini_send_topic_message(
+        chat_id=group_id,
+        topic_id=destination_id,
+        text=text,
+        reply_markup=markup,
+    )
+    if not sent:
         log.warning(
-            "mini game created announcement not sent (game_id=%s, group_id=%s, topic_id=%s)",
-            int(game.id),
-            group_id,
-            game_topic_id,
+            "mini game created announcement failed: game_id=%s group_id=%s topic_id=%s",
+            int(game.id), group_id, destination_id,
         )
-    return bool(sent_any)
+    return bool(sent)
 
 
 def _mini_latest_lobby_closed_payload(db: Session, *, game_id: int) -> dict[str, Any]:

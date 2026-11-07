@@ -8,6 +8,7 @@ from aiogram.types import CallbackQuery
 from bot.keyboards.help import help_menu_kb, help_topic_kb
 from bot.services.telegram_safe import safe_edit_or_send
 from bot.services.ui import panel
+from bot.services.user_forum_navigation import group_guide_text
 
 router = Router()
 
@@ -21,6 +22,12 @@ class HelpTopic:
 
 
 BASE_TOPICS: list[HelpTopic] = [
+    HelpTopic(
+        key="group",
+        button="🧭 نقشه تاپیک‌های گروه",
+        title="کدام تاپیک برای چیست؟",
+        body=group_guide_text(),
+    ),
     HelpTopic(
         key="quick",
         button="🚀 شروع سریع",
