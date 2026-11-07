@@ -5,7 +5,7 @@ set -Eeuo pipefail
 umask 077
 cd /opt/davarna-v2
 [[ "$(id -u)" == 0 ]] || { echo "BLOCKER: root required"; exit 2; }
-REF=dc7713f06460ea9cafade3156ba9c47011224b50
+REF=4bf5b15b88d29643452db153a55487f732f1102d
 SOURCE=dev/ops/notify-game84-refund-once.py
 [[ "$(docker inspect -f '{{.State.Health.Status}}' davarna-backend)" == healthy ]] || { echo "BLOCKER: backend unhealthy"; exit 2; }
 [[ "$(docker inspect -f '{{.State.Health.Status}}' davarna-bot)" == healthy ]] || { echo "BLOCKER: bot unhealthy"; exit 2; }
@@ -33,6 +33,8 @@ trap 'rm -f -- "$FILE"' EXIT
 git show "$REF:$SOURCE" > "$FILE"
 python3 -m py_compile "$FILE"
 
+echo "===== READ-ONLY REFUND NOTICE CHECK ====="
+docker exec -i davarna-backend python - --check-only < "$FILE"
 echo "===== GAME 84 PRIVATE REFUND NOTICE (ONE ATTEMPT) ====="
 docker exec -i davarna-backend python - < "$FILE"
 echo "===== GAME 84 NOTICE COMPLETE ====="
