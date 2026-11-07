@@ -328,5 +328,69 @@ class MySQLFinanceSmokeTests(unittest.TestCase):
         self.assertEqual(report.game.commission_rate, 0.1)
 
 
+    def test_same_player_two_purchases_six_cards_refunded_exactly_once(self):
+        """Game 84 shape: one buyer, two purchases, six cards, 36,000 total."""
+        self.game.card_price = 6000
+        self.db.commit()
+
+        for number in (1, 2):
+            purchase, cards, prize_pool = GameService.buy_cards(
+                self.db,
+                game_id=int(self.game.id),
+                user_id=int(self.alice.id),
+                qty=3,
+                idempotency_key=f"smoke-game84-buy-{number}",
+            )
+            self.db.commit()
+            self.assertEqual(int(purchase.total_price), 18000)
+            self.assertEqual(len(cards), 3)
+        self.assertEqual(self._balance(self.alice), 64000)
+        self.assertEqual(self.game.sold_amount, 36000)
+        self.assertEqual(self.game.commission_amount, 3600)
+        self.assertEqual(self.game.prize_pool, 32400)
+        self.assertEqual(
+            self._count(GamePurchase, GamePurchase.game_id == self.game.id), 2
+        )
+        self.assertEqual(self._count(GameCard, GameCard.game_id == self.game.id), 6)
+
+        GameService.close_lobby_game(
+            self.db,
+            game_id=int(self.game.id),
+            admin_user_id=int(self.alice.id),
+            idempotency_key="smoke-game84-cancel",
+            cancel_reason="isolated MySQL rehearsal",
+            can_manage_any=False,
+        )
+        self.db.commit()
+        self.assertEqual(str(self.game.status), "ENDED")
+        self.assertEqual(self._balance(self.alice), 100000)
+        self.assertEqual(int(self.game.sold_amount), 0)
+        self.assertEqual(int(self.game.commission_amount), 0)
+        self.assertEqual(int(self.game.prize_pool), 0)
+        self.assertEqual(self._count(WalletTx, WalletTx.reason == "ADJUST",
+                                     WalletTx.ref_id == self.game.id), 2)
+        refunded = self.db.execute(
+            select(func.coalesce(func.sum(WalletTx.amount), 0))
+            .where(WalletTx.ref_type == "GAME",
+                   WalletTx.ref_id == int(self.game.id),
+                   WalletTx.direction == "CREDIT",
+                   WalletTx.reason == "ADJUST")
+        ).scalar_one()
+        self.assertEqual(int(refunded), 36000)
+
+        # Repeating close must leave the same wallet balance and ledger.
+        GameService.close_lobby_game(
+            self.db,
+            game_id=int(self.game.id),
+            admin_user_id=int(self.alice.id),
+            idempotency_key="smoke-game84-cancel-repeat",
+            can_manage_any=False,
+        )
+        self.db.commit()
+        self.assertEqual(self._balance(self.alice), 100000)
+        self.assertEqual(self._count(WalletTx, WalletTx.reason == "ADJUST",
+                                     WalletTx.ref_id == self.game.id), 2)
+
+
 if __name__ == "__main__":
     unittest.main()
