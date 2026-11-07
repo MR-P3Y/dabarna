@@ -5622,33 +5622,26 @@ def _mini_bank_destination_pending(db: Session, dest_id: str) -> bool:
     # Each deposit is snapshotted under a stable app_settings key.
     # Safeguard in-flight requests before altering/removing a destination.
     entries = db.execute(
-        select(AppSetting.v_json)
+        select(AppSetting.k, AppSetting.v_json)
         .where(AppSetting.k.like("deposit_request_destination:%"))
-    ).scalars().all()
-    referenced = []
-    for value in entries:
-        if not isinstance(value, dict):
+    ).all()
+    referenced_ids = set()
+    for key, value in entries:
+        if not isinstance(value, dict) or str(value.get("destination_id") or "") != dest_id:
             continue
-        if str(value.get("destination_id") or "") != dest_id:
-            continue
-        # Bank destination snapshots reference the numeric deposit request ID.
-        # Match against authoritative pending request statuses below.
-        referenced.append(value)
-    if not referenced:
+        request_id = str(key).removeprefix(DEPOSIT_REQUEST_DESTINATION_KEY_PREFIX)
+        if not request_id.isdigit():
+            raise HTTPException(status_code=409, detail="ساختار ارجاع واریز نامعتبر است؛ بازبینی دستی لازم است.")
+        referenced_ids.add(int(request_id))
+    if not referenced_ids:
         return False
-    pending_ids = db.execute(
+    pending = db.execute(
         select(DepositRequest.id).where(
-            DepositRequest.status.in_(("AWAITING_RECEIPT", "PENDING_REVIEW"))
+            DepositRequest.id.in_(sorted(referenced_ids)),
+            DepositRequest.status.in_(("AWAITING_RECEIPT", "PENDING_REVIEW")),
         )
-    ).scalars().all()
-    pending = {int(x) for x in pending_ids}
-    for value in referenced:
-        request_id = value.get("request_id")
-        if request_id is not None and str(request_id).isdigit() and int(request_id) in pending:
-            return True
-    # Older snapshots may omit request_id: conservatively block mutation until
-    # the operator checks historical pending deposits.
-    return bool(pending)
+    ).first()
+    return pending is not None
 
 
 def _mini_bank_destination_commit(
