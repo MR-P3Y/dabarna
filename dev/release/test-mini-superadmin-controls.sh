@@ -32,6 +32,8 @@ docker run --rm --network none --read-only --memory 384m --cpus 1 \
   -v "$WORK/backend:/app:ro" \
   -e PYTHONDONTWRITEBYTECODE=1 \
   -e RECEIPTS_DIR=/tmp/receipts \
+  -e DATABASE_URL='sqlite+pysqlite:///:memory:' \
+  -e REDIS_URL='redis://127.0.0.1:6379/0' \
   --entrypoint python -w /app "$IMAGE" \
   -m unittest discover -s tests -p test_mini_superadmin_*.py -v
 
