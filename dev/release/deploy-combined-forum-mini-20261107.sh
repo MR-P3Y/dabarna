@@ -165,6 +165,19 @@ with SessionLocal() as db:
     ).scalar_one()
     if str(migration)!="20261104_0011":
         raise SystemExit("BLOCKER: unexpected Alembic revision")
+    # Previously completed Game 84 settlement must remain exactly reconciled.
+    game84=db.get(Game,84)
+    if game84 is None or str(game84.status)!="ENDED":
+        raise SystemExit("BLOCKER: previously refunded Game 84 not ENDED")
+    refunds=db.execute(select(WalletTx).where(WalletTx.id.in_([338,339]))).scalars().all()
+    if len(refunds)!=2 or sum(int(x.amount) for x in refunds)!=36000:
+        raise SystemExit("BLOCKER: Game 84 refund ledger mismatch")
+    if any(
+        str(x.direction)!="CREDIT" or str(x.reason)!="ADJUST"
+        or str(x.ref_type)!="GAME" or int(x.ref_id or 0)!=84
+        for x in refunds
+    ):
+        raise SystemExit("BLOCKER: Game 84 refund ledger identity mismatch")
     keys=["bank_deposit_enabled","crypto_payments_runtime_enabled","deposit_destinations"]
     values={}
     for key in keys:
