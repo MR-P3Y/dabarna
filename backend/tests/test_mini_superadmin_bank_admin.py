@@ -4,7 +4,9 @@ import unittest
 os.environ.setdefault("RECEIPTS_DIR", "/tmp/receipts")
 
 from fastapi import HTTPException
+from unittest.mock import patch
 from app.services import deposit_destination_admin as cards
+from app.routers import mini_router as mini
 
 
 def sample(card="6037991234567890", active=True):
@@ -100,6 +102,35 @@ class BankDestinationRulesTests(unittest.TestCase):
         self.assertTrue(updated[1]["is_active"])
         self.assertEqual(updated[0]["card_number"], old[0]["card_number"])
         self.assertEqual(len(updated), 2)
+
+
+    def test_super_admin_route_permissions_are_server_side(self):
+        routes = [
+            r for r in mini.router.routes
+            if str(getattr(r, "path", "")).startswith("/mini-api/admin/super/deposit-destinations")
+        ]
+        self.assertEqual(len(routes), 4)
+        for route in routes:
+            dependencies = [x.call for x in route.dependant.dependencies]
+            self.assertIn(mini.get_mini_super_admin_identity, dependencies)
+
+    def test_normal_admin_is_not_super_admin(self):
+        admin = mini.MiniAdminIdentity(
+            user_id=100, tg_user_id=100, roles=["ADMIN"],
+        )
+        with patch.object(mini, "RBAC_OWNER_USER_ID", None):
+            with self.assertRaises(HTTPException) as ctx:
+                mini.get_mini_super_admin_identity(ident=admin)
+        self.assertEqual(ctx.exception.status_code, 403)
+
+    def test_non_owner_super_admin_is_denied_when_owner_is_pinned(self):
+        other = mini.MiniAdminIdentity(
+            user_id=101, tg_user_id=101, roles=["SUPER_ADMIN"],
+        )
+        with patch.object(mini, "RBAC_OWNER_USER_ID", 100):
+            with self.assertRaises(HTTPException) as ctx:
+                mini.get_mini_super_admin_identity(ident=other)
+        self.assertEqual(ctx.exception.status_code, 403)
 
 
 if __name__ == "__main__":
