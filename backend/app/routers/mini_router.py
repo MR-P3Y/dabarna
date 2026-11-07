@@ -111,6 +111,7 @@ from app.services.game_auto_draw_service import AUTO_DRAW_INTERVALS, GameAutoDra
 from app.services.game_draw_mode_service import GameDrawModeService
 from app.services.game_autopilot_config_service import GameAutopilotConfigService
 from app.services.wallet_service import WalletService
+from app.services import deposit_destination_admin as bankdest_admin
 from app.services.admin_audit_service import AdminAuditService
 from app.services.crypto_deposit_service import (
     CRYPTO_RUNTIME_SETTING_KEY,
@@ -574,6 +575,7 @@ class MiniAdminMeOut(BaseModel):
     roles: list[str]
     is_admin: bool
     is_super_admin: bool
+    can_manage_super_settings: bool = False
 
 
 class MiniAdminActionIn(BaseModel):
@@ -701,6 +703,22 @@ class MiniSuperCryptoUpdateIn(BaseModel):
 
 class MiniSuperBankDepositUpdateIn(BaseModel):
     enabled: bool
+
+class MiniSuperBankDestinationIn(BaseModel):
+    expected_revision: str = Field(min_length=64, max_length=64)
+    title: str = Field(default="", max_length=100)
+    account_name: str = Field(default="", max_length=100)
+    bank_name: str = Field(default="", max_length=100)
+    iban: str = Field(default="", max_length=40)
+    card_number: str = Field(min_length=16, max_length=32)
+    account_number: str = Field(default="", max_length=40)
+    # None is accepted only for creation (which always stays inactive).
+    # Updates must explicitly specify their target state.
+    is_active: bool | None = None
+
+
+class MiniSuperBankDestinationDeleteIn(BaseModel):
+    expected_revision: str = Field(min_length=64, max_length=64)
 
 
 def _normalize_live_url(raw: str) -> str:
@@ -3351,6 +3369,10 @@ def mini_admin_me(
         roles=list(ident.roles),
         is_admin=bool(ident.is_admin),
         is_super_admin=bool(ident.is_super_admin),
+        can_manage_super_settings=bool(
+            ident.is_super_admin
+            and (RBAC_OWNER_USER_ID is None or int(ident.user_id) == int(RBAC_OWNER_USER_ID))
+        ),
     )
 
 
@@ -5483,6 +5505,9 @@ def _mini_super_crypto_status(db: Session) -> dict[str, Any]:
             {
                 "network": str(item.get("network") or ""),
                 "asset": str(item.get("asset") or ""),
+                "address": str(item.get("address") or ""),
+                "address_source": "server_environment",
+                "address_editable": False,
             }
             for item in options
         ],
@@ -5587,6 +5612,177 @@ def mini_super_update_bank_deposit_settings(
     )
     db.commit()
     return _mini_super_bank_deposit_status(db)
+
+
+
+def _mini_bank_destination_snapshot(db: Session, *, lock: bool = False):
+    stmt = select(AppSetting).where(AppSetting.k == DEPOSIT_DESTINATIONS_SETTING_KEY)
+    row = db.execute(stmt.with_for_update() if lock else stmt).scalar_one_or_none()
+    items = _deposit_destination_pool(db, include_inactive=True)
+    if row is not None:
+        raw = row.v_json
+        # Never overwrite partly corrupt persisted data via permissive filtering.
+        if not isinstance(raw, list) or len(raw) != len(items):
+            raise HTTPException(status_code=409, detail="فهرست فعلی کارت‌ها نیازمند بازبینی دستی است.")
+        ids = [str(it.get("id")) for it in items]
+        if len(set(ids)) != len(ids):
+            raise HTTPException(status_code=409, detail="شناسه کارت‌های مقصد تکراری است.")
+    return row, items, bankdest_admin.revision(items)
+
+
+def _mini_bank_destination_pending(db: Session, dest_id: str) -> bool:
+    # Each deposit is snapshotted under a stable app_settings key.
+    # Safeguard in-flight requests before altering/removing a destination.
+    entries = db.execute(
+        select(AppSetting.k, AppSetting.v_json)
+        .where(AppSetting.k.like("deposit_request_destination:%"))
+    ).all()
+    referenced_ids = set()
+    snapshotted_ids = set()
+    for key, value in entries:
+        request_id = str(key).removeprefix(DEPOSIT_REQUEST_DESTINATION_KEY_PREFIX)
+        if not request_id.isdigit() or not isinstance(value, dict):
+            raise HTTPException(status_code=409, detail="ساختار ارجاع واریز نامعتبر است؛ بازبینی دستی لازم است.")
+        snapshotted_ids.add(int(request_id))
+        if str(value.get("destination_id") or "") == dest_id:
+            referenced_ids.add(int(request_id))
+    pending_ids = {
+        int(x) for x in db.execute(
+            select(DepositRequest.id).where(
+                DepositRequest.status.in_(("AWAITING_RECEIPT", "PENDING_REVIEW")),
+            )
+        ).scalars().all()
+    }
+    # Legacy pending deposits without a destination snapshot are ambiguous.
+    # Block edits/deletes until those requests are reviewed.
+    if pending_ids.difference(snapshotted_ids):
+        return True
+    return bool(pending_ids.intersection(referenced_ids))
+
+
+def _mini_bank_destination_commit(
+    db: Session, *,
+    ident: MiniAdminIdentity,
+    request: Request,
+    expected_revision: str,
+    action: str,
+    item_id: str | None = None,
+    data: dict[str, object] | None = None,
+) -> dict[str, object]:
+    row, items, current_revision = _mini_bank_destination_snapshot(db, lock=True)
+    if expected_revision != current_revision:
+        raise HTTPException(status_code=409, detail="فهرست کارت‌ها تغییر کرده؛ دوباره بارگذاری کنید.")
+    # Create immutable settings key on first use; unique key fails closed if
+    # another writer seeds it simultaneously. No money-related writes here.
+    if row is None:
+        row = AppSetting(k=DEPOSIT_DESTINATIONS_SETTING_KEY, v_json=list(items))
+        db.add(row)
+        db.flush()
+
+    if action == "create":
+        updated = bankdest_admin.add_destination(items, data or {})
+        affected = updated[-1]
+    elif action == "update":
+        if not item_id:
+            raise HTTPException(status_code=422, detail="شناسه کارت لازم است.")
+        before = next((x for x in items if str(x.get("id")) == item_id), None)
+        if before is None:
+            raise HTTPException(status_code=404, detail="کارت پیدا نشد.")
+        if _mini_bank_destination_pending(db, item_id):
+            raise HTTPException(status_code=409, detail="این کارت درخواست واریز باز دارد؛ ابتدا درخواست‌ها را تعیین تکلیف کنید.")
+        updated = bankdest_admin.update_destination(
+            items, item_id, data or {}, bank_enabled=_bank_deposit_enabled(db)
+        )
+        affected = next(x for x in updated if str(x.get("id")) == item_id)
+    elif action == "delete":
+        if not item_id:
+            raise HTTPException(status_code=422, detail="شناسه کارت لازم است.")
+        if _mini_bank_destination_pending(db, item_id):
+            raise HTTPException(status_code=409, detail="این کارت درخواست واریز باز دارد؛ حذف مجاز نیست.")
+        before = next((x for x in items if str(x.get("id")) == item_id), None)
+        updated = bankdest_admin.remove_destination(items, item_id)
+        affected = before
+    else:
+        raise HTTPException(status_code=400, detail="عملیات نامعتبر است.")
+
+    row.v_json = list(updated)
+    db.add(row)
+    AdminAuditService.record(
+        db,
+        admin=_mini_to_admin_identity(ident),
+        action="settings.update",
+        target_type="app_setting",
+        target_id=None,
+        request=request,
+        details={
+            "key": DEPOSIT_DESTINATIONS_SETTING_KEY,
+            "operation": action,
+            "destination_id": str(affected.get("id") or ""),
+            "card_last4": str(affected.get("card_number") or "")[-4:],
+            "active": bool(affected.get("is_active", False)),
+            "total_destinations": len(updated),
+        },
+    )
+    db.commit()
+    return {
+        "items": updated,
+        "total": len(updated),
+        "revision": bankdest_admin.revision(updated),
+    }
+
+
+@router.get("/admin/super/deposit-destinations")
+def mini_super_deposit_destination_list(
+    ident: MiniAdminIdentity = Depends(get_mini_super_admin_identity),
+    db: Session = Depends(get_db),
+):
+    _, items, revision = _mini_bank_destination_snapshot(db)
+    return {"items": items, "total": len(items), "revision": revision}
+
+
+@router.post("/admin/super/deposit-destinations")
+def mini_super_deposit_destination_add(
+    payload: MiniSuperBankDestinationIn,
+    request: Request,
+    ident: MiniAdminIdentity = Depends(get_mini_super_admin_identity),
+    db: Session = Depends(get_db),
+):
+    return _mini_bank_destination_commit(
+        db, ident=ident, request=request,
+        expected_revision=payload.expected_revision,
+        action="create", data=payload.model_dump(exclude={"expected_revision"}),
+    )
+
+
+@router.put("/admin/super/deposit-destinations/{destination_id}")
+def mini_super_deposit_destination_update(
+    destination_id: str,
+    payload: MiniSuperBankDestinationIn,
+    request: Request,
+    ident: MiniAdminIdentity = Depends(get_mini_super_admin_identity),
+    db: Session = Depends(get_db),
+):
+    return _mini_bank_destination_commit(
+        db, ident=ident, request=request,
+        expected_revision=payload.expected_revision,
+        action="update", item_id=destination_id,
+        data=payload.model_dump(exclude={"expected_revision"}),
+    )
+
+
+@router.delete("/admin/super/deposit-destinations/{destination_id}")
+def mini_super_deposit_destination_delete(
+    destination_id: str,
+    payload: MiniSuperBankDestinationDeleteIn,
+    request: Request,
+    ident: MiniAdminIdentity = Depends(get_mini_super_admin_identity),
+    db: Session = Depends(get_db),
+):
+    return _mini_bank_destination_commit(
+        db, ident=ident, request=request,
+        expected_revision=payload.expected_revision,
+        action="delete", item_id=destination_id,
+    )
 
 
 @router.get("/admin/super/crypto-health")
