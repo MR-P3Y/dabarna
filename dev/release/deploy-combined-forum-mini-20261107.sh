@@ -24,6 +24,7 @@ PR14=/root/davarna-v2-release-backups/rbac-pr14-e087c40bd471-20261106T193945Z/up
 BACKUP=/root/davarna-v2-release-backups/forum-mini-e7517922-$(date -u +%Y%m%dT%H%M%SZ)
 TMP=""
 STARTED=0
+BOT_STARTED=0
 
 fail() { echo "BLOCKER: $*" >&2; exit 2; }
 [[ "${DAVARNA_PROD_DEPLOY_APPROVAL:-}" == "APPROVE_PR18_PR19_PRODUCTION" ]] \
@@ -52,7 +53,9 @@ finish() {
   if (( rc != 0 && STARTED == 1 )); then
     echo "===== RELEASE FAILED: AUTO-ROLLBACK OF CODE IMAGES =====" >&2
     set +e
-    compose_for bot "$BACKUP/rollback.yml" up -d --no-deps --no-build --force-recreate bot
+    if (( BOT_STARTED == 1 )); then
+      compose_for bot "$BACKUP/rollback.yml" up -d --no-deps --no-build --force-recreate bot
+    fi
     compose_for backend "$BACKUP/rollback.yml" up -d --no-deps --no-build --force-recreate backend
     echo "ROLLBACK ATTEMPTED. VERIFY BOTH SERVICE HEALTH STATES MANUALLY." >&2
     echo "NEVER blindly restore database.sql.gz over live wallet/payment data." >&2
@@ -288,10 +291,11 @@ done
 docker exec davarna-backend grep -q 'superadmin-controls-stage-20261107' /app/app/static/mini/index.html \
   || fail "new Mini App assets not loaded"
 curl -fsS --max-time 10 http://127.0.0.1:18080/mini/index.html \
-  | grep -Fq 'superadmin-controls-stage-20261107' \
+  | grep -F 'superadmin-controls-stage-20261107' >/dev/null \
   || fail "Mini App web endpoint not updated"
 
 echo "===== DEPLOY APPROVED BOT IMAGE ====="
+BOT_STARTED=1
 compose_for bot "$BACKUP/upgrade.yml" up -d --no-deps --no-build --force-recreate bot
 ready=0
 for _ in $(seq 1 40); do
