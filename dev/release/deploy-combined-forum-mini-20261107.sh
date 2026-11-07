@@ -109,6 +109,22 @@ printf '%s\n' services: '  backend:' '    image: davarna-backend:rbac-pr14-e087c
   '  bot:' '    image: davarna-bot:pr13-d9434cb10d71' | cmp -s - "$PR14" \
   || fail "PR14 compose overlay changed"
 
+# An aborted release can leave a rollback override in live Compose labels.
+# Accept only this release family's existing, byte-verified code-only rollback.
+# Running container images/health are checked independently above.
+is_known_rollback_layer() {
+  local file="$1"
+  [[ "$file" =~ ^/root/davarna-v2-release-backups/forum-mini-e7517922-[0-9]{8}T[0-9]{6}Z/rollback[.]yml$ ]] || return 1
+  [[ -f "$file" && ! -L "$file" ]] || return 1
+  [[ "$(readlink -f -- "$file")" == "$file" ]] || return 1
+  printf '%s\n' \
+    'services:' \
+    '  backend:' \
+    '    image: davarna-backend:rbac-pr14-e087c40bd471' \
+    '  bot:' \
+    '    image: davarna-bot:pr13-d9434cb10d71' \
+    | cmp -s - "$file"
+}
 load_chain() {
   local container="$1" arrayname="$2" csv f
   csv="$(docker inspect -f '{{index .Config.Labels "com.docker.compose.project.config_files"}}' "$container")" \
@@ -119,7 +135,7 @@ load_chain() {
   (( ${#files[@]} >= 2 )) || fail "Compose chain too short"
   [[ "${files[0]}" == "$BASE" && "${files[1]}" == "$INACTIVE" ]] \
     || fail "Compose base layers differ"
-  local found13=0 found14=0 foundmanual=0
+  local found13=0 found14=0 foundmanual=0 foundrollback=0
   local -A seen=()
   for f in "${files[@]}"; do
     [[ "$f" == /* && -f "$f" ]] || fail "Compose layer unavailable: $f"
@@ -130,20 +146,38 @@ load_chain() {
       "$MANUAL") foundmanual=$((foundmanual+1));;
       "$PR13") found13=$((found13+1));;
       "$PR14") found14=$((found14+1));;
-      *) fail "unexpected Compose layer: $f";;
+      *)
+        if is_known_rollback_layer "$f"; then
+          foundrollback=$((foundrollback+1))
+          echo "PASS: verified prior code-only rollback Compose overlay"
+        else
+          fail "unexpected Compose layer: $f"
+        fi
+        ;;
     esac
   done
   (( found13==1 )) || fail "PR13 layer missing"
+  (( foundrollback<=3 )) || fail "excessive previous rollback overlays; manual review needed"
   if [[ "$container" == davarna-backend ]]; then
     (( foundmanual==1 && found14==1 )) || fail "backend manual/PR14 layers missing"
-    [[ "${files[$((${#files[@]}-1))]}" == "$PR14" ]] || fail "backend final layer changed"
+    if (( foundrollback == 0 )); then
+      [[ "${files[$((${#files[@]}-1))]}" == "$PR14" ]] || fail "backend final layer changed"
+    else
+      is_known_rollback_layer "${files[$((${#files[@]}-1))]}" \
+        || fail "backend last layer not known rollback"
+    fi
   else
     (( foundmanual==0 && found14==0 )) || fail "bot unexpectedly uses backend-only layers"
-    [[ "${files[$((${#files[@]}-1))]}" == "$PR13" ]] || fail "bot final layer changed"
+    if (( foundrollback == 0 )); then
+      [[ "${files[$((${#files[@]}-1))]}" == "$PR13" ]] || fail "bot final layer changed"
+    else
+      is_known_rollback_layer "${files[$((${#files[@]}-1))]}" \
+        || fail "bot last layer not known rollback"
+    fi
   fi
   local -n out="$arrayname"
   out=("${files[@]}")
-  echo "PASS: $container Compose chain"
+  echo "PASS: $container Compose chain ($foundrollback verified rollback overlays)"
 }
 load_chain davarna-backend BACKEND_FILES
 load_chain davarna-bot BOT_FILES
