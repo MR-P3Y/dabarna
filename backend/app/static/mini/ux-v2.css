@@ -591,3 +591,59 @@ html[data-theme="light"] .games-overview-stats > div {
   .admin-list-filter { grid-template-columns: 1fr; }
   .admin-list-filter .small-btn { min-height: 44px; }
 }
+
+
+/* Superadmin Wave: clear admin role chip, compact private financial editors. */
+#headerRoleBadge {
+  background: rgba(123, 91, 229, .15);
+  border: 1px solid rgba(154, 133, 246, .34);
+  color: var(--text);
+  font-weight: 800;
+  white-space: nowrap;
+}
+.super-finance-editor {
+  border: 1px solid var(--border, rgba(128, 137, 164, .25));
+  border-radius: 12px;
+  padding: 12px;
+  margin-top: 12px;
+}
+.super-finance-editor > summary {
+  cursor: pointer;
+  font-weight: 800;
+  padding: 5px 0;
+}
+.super-finance-editor .action-form {
+  border-top: 1px solid var(--border, rgba(128, 137, 164, .25));
+  padding-top: 12px;
+}
+.super-bank-active-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.admin-crypto-address {
+  display: block;
+  direction: ltr;
+  unicode-bidi: isolate;
+  overflow-wrap: anywhere;
+  user-select: text;
+  padding: 8px 0;
+  font-size: 12px;
+}
+.super-admin-revoke-inline {
+  border: 0;
+  border-radius: 50%;
+  background: rgba(221, 83, 83, .13);
+  color: var(--text);
+  font-weight: 900;
+  margin-inline-start: 8px;
+  padding: 3px 7px;
+  cursor: pointer;
+}
+.super-admin-revoke-inline:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+.history-item.is-selected {
+  border-inline-start: 3px solid rgba(133, 155, 255, .85);
+}
