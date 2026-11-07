@@ -530,6 +530,7 @@ async def _send_user_game_started_notice(bot: Bot, *, game_id: int, report: dict
     text = (
         f"▶️ <b>بازی #{game_id} شروع شد</b>\n"
         f"🎮 {user_game_topic_title(topic_id or None)}\n"
+        f"{_game_rule_notice_line(game)}"
         f"{mode_line + chr(10) if mode_line else ''}"
         "🔢 اعداد بازی را در «اعداد زنده» ببینید.\n"
         "🃏 کارت‌های خود را در ربات دنبال کنید."
@@ -568,6 +569,7 @@ async def _send_user_game_ended_notice(bot: Bot, *, game_id: int, report: dict, 
         f"🏁 <b>بازی #{game_id} پایان یافت</b>\n"
         f"🎮 {user_game_topic_title(topic_id or None)}\n"
         f"📌 نتیجه: {_end_reason_fa(end_reason)}\n"
+        f"{_game_rule_notice_line(game)}"
         f"🔢 اعداد اعلام‌شده: <b>{len(called)}</b>\n"
         "🏆 جزئیات برندگان و کارت‌ها را در ربات ببینید."
     )
