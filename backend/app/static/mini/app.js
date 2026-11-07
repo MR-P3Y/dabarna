@@ -6831,7 +6831,7 @@ function renderSuperAdminList(payload) {
   const items = all.filter((a) => {
     const searchable = [a.first_name, a.username, a.tg_user_id, a.user_id, ...(a.roles || []), ...(a.roles || []).map(adminRoleLabel)]
       .map((value) => toEnglishDigits(String(value || "")).toLowerCase()).join(" ");
-    return !query || searchable.includes(query);
+    return !query || searchable.includes(query) || Number(a.tg_user_id || 0) === state.admin.selectedAdminTgId;
   }).sort((a, b) => String(a.first_name || a.username || "").localeCompare(String(b.first_name || b.username || ""), "fa"));
   const summary = getEl("superAdminListSummary");
   if (summary) summary.textContent = `نمایش ${toFaDigits(items.length)} ادمین از ${toFaDigits(all.length)} مورد`;
