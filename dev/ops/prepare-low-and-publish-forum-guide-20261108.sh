@@ -14,6 +14,8 @@ BOT_ID=sha256:dccabe74e0d5eaad8d2a2f7df8fc5d5b53a84cfe1d6f172475aaed8b93ca04e2
 KEY=davarna:userforum:guide:v1:20261107
 
 fail() { echo "BLOCKER: $*" >&2; exit 2; }
+[[ "${DAVARNA_USER_GUIDE_APPROVAL:-}" == "PUBLISH_USER_FORUM_GUIDE_ONCE" ]] \
+  || fail "explicit user guide publication approval env flag missing"
 [[ "$(id -u)" == 0 ]] || fail "root required"
 exec 9>/run/davarna-user-forum-guide.lock
 flock -n 9 || fail "guide publication lock already held"
