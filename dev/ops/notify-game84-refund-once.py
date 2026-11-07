@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from app.core import config as cfg
 from app.core.db import SessionLocal
 from app.models.game import Game, GamePurchase, GameCalledNumber
@@ -46,6 +46,7 @@ def checked_recipient(db):
     users = {int(x.user_id) for x in purchases}
     ensure(len(users) == 1, "more than one refund recipient")
     uid = next(iter(users))
+    ensure(uid == 4, "buyer ID differs from the verified Game 84 refund recipient")
     u = db.get(User, uid)
     ensure(u is not None and int(u.tg_user_id or 0) > 0, "buyer Telegram user id missing")
     w = db.execute(select(Wallet).where(Wallet.user_id == uid)).scalar_one_or_none()
@@ -58,6 +59,8 @@ def checked_recipient(db):
     credits = [t for t in txs if str(t.direction) == "CREDIT" and str(t.reason) == "ADJUST"]
     ensure(len(credits) == 2 and sum(int(t.amount) for t in credits) == AMOUNT,
            "refunds not exactly 36,000 in two credits")
+    ensure({int(t.id) for t in credits} == {338, 339},
+           "refund ledger IDs differ from confirmed settlement")
     for p in purchases:
         debit = by_id.get(int(p.wallet_tx_id))
         expected_key = f"LOBBY_REFUND:game:84:purchase:{int(p.id)}"
@@ -76,7 +79,7 @@ def checked_recipient(db):
     ensure(len(events) == 1 and isinstance(events[0].payload_json, dict)
            and int(events[0].payload_json.get("refund_total") or 0) == AMOUNT,
            "game cancellation audit missing or incorrect")
-    ensure(int(db.execute(select(__import__("sqlalchemy").func.count()).select_from(
+    ensure(int(db.execute(select(func.count()).select_from(
         GameCalledNumber).where(GameCalledNumber.game_id == GID)).scalar_one()) == 0,
         "unexpected game draw history")
     return uid, int(u.tg_user_id)
