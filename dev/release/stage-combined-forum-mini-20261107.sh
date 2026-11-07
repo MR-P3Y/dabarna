@@ -40,11 +40,16 @@ done
 # A prior attempt left an older candidate tag on this host. Deliberately
 # use new isolated stage2 tags; never delete, retag or trust the old ones.
 # This check is still fail-closed if a stage2 tag already exists.
-for image in "$NEW_BACKEND" "$NEW_BOT"; do
-  if docker image inspect "$image" >/dev/null 2>&1; then
-    fail "candidate tag already exists; do not overwrite: $image"
-  fi
-done
+# Candidate images may already exist from an interrupted earlier stage.
+# Never overwrite either image. Reuse only when both exist and their base
+# RootFS and every reviewed source file are byte-for-byte verified below.
+candidate_backend_exists=0
+candidate_bot_exists=0
+docker image inspect "$NEW_BACKEND" >/dev/null 2>&1 && candidate_backend_exists=1
+docker image inspect "$NEW_BOT" >/dev/null 2>&1 && candidate_bot_exists=1
+if (( candidate_backend_exists != candidate_bot_exists )); then
+  fail "partial candidate set: inspect missing image manually; do not overwrite"
+fi
 for file in "$COMPOSE_BASE" "$INACTIVE" "$MANUAL" "$PR13" "$PR14" "$PROD/.env.prod" "$PROD/davarna-bot/.env.prod"; do
   [[ -f "$file" ]] || fail "missing critical Compose or environment file: $file"
 done
@@ -168,26 +173,86 @@ COPY davarna-bot/bot/services/user_forum_navigation.py /app/bot/services/user_fo
 COPY davarna-bot/bot/services/user_topics.py /app/bot/services/user_topics.py
 COPY davarna-bot/bot/workers/notifier.py /app/bot/workers/notifier.py
 EOF
-docker build --network none --pull=false -f "$TMP/backend.Dockerfile" --build-arg "BASE_IMAGE=$OLD_BACKEND" -t "$NEW_BACKEND" "$TMP"
-docker build --network none --pull=false -f "$TMP/bot.Dockerfile" --build-arg "BASE_IMAGE=$OLD_BOT" -t "$NEW_BOT" "$TMP"
+if (( candidate_backend_exists == 0 )); then
+  echo "===== BUILD NEW CANDIDATE IMAGES, NO NETWORK ====="
+  docker build --network none --pull=false -f "$TMP/backend.Dockerfile" --build-arg "BASE_IMAGE=$OLD_BACKEND" -t "$NEW_BACKEND" "$TMP"
+  docker build --network none --pull=false -f "$TMP/bot.Dockerfile" --build-arg "BASE_IMAGE=$OLD_BOT" -t "$NEW_BOT" "$TMP"
+else
+  echo "===== BOTH CANDIDATE IMAGES EXIST; VERIFY BEFORE REUSE ====="
+fi
+
+echo "===== VERIFY BASE IMAGE LINEAGE + CONTENT OF ALL 12 REVIEWED FILES ====="
+python3 - "$TMP" "$OLD_BACKEND" "$OLD_BOT" "$NEW_BACKEND" "$NEW_BOT" <<'PY'
+import hashlib
+import json
+from pathlib import Path
+import subprocess
+import sys
+
+root = Path(sys.argv[1])
+old_backend, old_bot, new_backend, new_bot = sys.argv[2:]
+backend_paths = [
+    "app/routers/mini_router.py",
+    "app/services/deposit_destination_admin.py",
+    "app/static/mini/app.js",
+    "app/static/mini/index.html",
+    "app/static/mini/ux-v2.css",
+]
+bot_paths = [
+    "bot/main.py",
+    "bot/routers/help.py",
+    "bot/routers/menu.py",
+    "bot/routers/start.py",
+    "bot/services/user_forum_navigation.py",
+    "bot/services/user_topics.py",
+    "bot/workers/notifier.py",
+]
+def inspect(tag):
+    return json.loads(subprocess.check_output(
+        ["docker", "image", "inspect", tag], text=True))[0]
+def verify(old_tag, new_tag, paths, src_root, dest_root):
+    baseline = inspect(old_tag).get("RootFS", {}).get("Layers", [])
+    candidate = inspect(new_tag).get("RootFS", {}).get("Layers", [])
+    if not baseline or candidate[:len(baseline)] != baseline or len(candidate) <= len(baseline):
+        raise SystemExit("BLOCKER: candidate image base layers mismatch: " + new_tag)
+    script = (
+        "import hashlib,json,pathlib,sys;"
+        "print(json.dumps({p:hashlib.sha256(pathlib.Path(p).read_bytes()).hexdigest() "
+        "for p in sys.argv[1:]}))"
+    )
+    expected_paths = [dest_root + "/" + p for p in paths]
+    actual = json.loads(subprocess.check_output([
+        "docker", "run", "--rm", "--network", "none", "--read-only",
+        "--security-opt", "no-new-privileges", "--entrypoint", "python",
+        new_tag, "-c", script, *expected_paths,
+    ], text=True))
+    for p, dest in zip(paths, expected_paths):
+        src = root / src_root / p
+        expected = hashlib.sha256(src.read_bytes()).hexdigest()
+        if actual.get(dest) != expected:
+            raise SystemExit("BLOCKER: candidate file differs from merged code: " + dest)
+    print("PASS:", new_tag, "verified base layers and", len(paths), "files")
+verify(old_backend, new_backend, backend_paths, "backend", "/app")
+verify(old_bot, new_bot, bot_paths, "davarna-bot", "/app")
+PY
 
 echo "===== TEST BUILT BOT IMAGE, NO NETWORK ====="
 docker run --rm --network none --read-only --memory 512m --cpus 1 \
   --security-opt no-new-privileges --tmpfs /tmp:rw,nosuid,nodev \
-  -v "$TMP/davarna-bot/tests:/offline-tests:ro" \
+  -v "$TMP/davarna-bot/tests:/app/tests:ro" \
   -e TELEGRAM_BOT_TOKEN='123456789:TEST_ONLY' -e PYTHONDONTWRITEBYTECODE=1 \
   --entrypoint python -w /app "$NEW_BOT" \
-  -m unittest discover -s /offline-tests -p 'test_*.py' -v
+  -m unittest discover -s /app/tests -p 'test_*.py' -v
 
 echo "===== TEST BUILT BACKEND IMAGE, NO NETWORK ====="
 for pattern in 'test_mini_superadmin_*.py' test_user_forum_created_notice.py; do
   docker run --rm --network none --read-only --memory 512m --cpus 1 \
     --security-opt no-new-privileges --tmpfs /tmp:rw,nosuid,nodev \
-    -v "$TMP/backend/tests:/offline-tests:ro" \
+    -v "$TMP/backend/tests:/app/tests:ro" \
     -e DATABASE_URL='sqlite+pysqlite:///:memory:' -e REDIS_URL='redis://127.0.0.1:6379/0' \
     -e RECEIPTS_DIR=/tmp/receipts -e PYTHONDONTWRITEBYTECODE=1 \
     --entrypoint python -w /app "$NEW_BACKEND" \
-    -m unittest discover -s /offline-tests -p "$pattern" -v
+    -m unittest discover -s /app/tests -p "$pattern" -v
 done
 
 echo "===== PRIVATE TEST DB CREDENTIALS ====="
@@ -204,11 +269,11 @@ PY
 echo "===== TEST BUILT BACKEND MYSQL E2E, ISOLATED DB ONLY ====="
 docker run --rm --network davarna_default --read-only --memory 512m --cpus 1 \
   --security-opt no-new-privileges --tmpfs /tmp:rw,nosuid,nodev \
-  -v "$TMP/backend/tests:/offline-tests:ro" -v "$TMP/test-env:/run/secrets/davarna_env:ro" \
+  -v "$TMP/backend/tests:/app/tests:ro" -v "$TMP/test-env:/run/secrets/davarna_env:ro" \
   -e DAVARNA_SUPER_BANK_TEST_DB='davarna_tambola_v2_test_20261104' \
   -e RECEIPTS_DIR=/tmp/receipts -e PYTHONDONTWRITEBYTECODE=1 \
   --entrypoint python -w /app "$NEW_BACKEND" \
-  -m unittest discover -s /offline-tests -p mysql_super_bank_admin_e2e.py -v
+  -m unittest discover -s /app/tests -p mysql_super_bank_admin_e2e.py -v
 
 echo "===== RENDER CANDIDATE COMPOSE (READ-ONLY) ====="
 cat > "$TMP/candidate.yml" <<'EOF'
