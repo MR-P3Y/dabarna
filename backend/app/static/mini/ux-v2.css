@@ -647,3 +647,27 @@ html[data-theme="light"] .games-overview-stats > div {
 .history-item.is-selected {
   border-inline-start: 3px solid rgba(133, 155, 255, .85);
 }
+
+
+/* Extra role chip must wrap cleanly alongside sound and notifications. */
+.smart-head-secondary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+}
+.smart-head-secondary #headerRoleBadge {
+  flex: 0 0 auto;
+  max-width: 100%;
+}
+@media (max-width: 380px) {
+  .smart-head-secondary {
+    gap: 4px;
+  }
+  .smart-head-secondary #headerRoleBadge,
+  .smart-head-secondary #headerUserStatus {
+    font-size: 10px;
+    padding-inline: 6px;
+  }
+}
