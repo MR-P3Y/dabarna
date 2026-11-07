@@ -10,8 +10,8 @@ BASE_SOURCE=e087c40bd4714dbc703e48d7bc1f24bd9c35d9aa
 SOURCE=e7517922f08685be99a8f55564da1ad22abeddac
 OLD_BACKEND=davarna-backend:rbac-pr14-e087c40bd471
 OLD_BOT=davarna-bot:pr13-d9434cb10d71
-NEW_BACKEND=davarna-backend:forum-mini-e7517922
-NEW_BOT=davarna-bot:forum-mini-e7517922
+NEW_BACKEND=davarna-backend:forum-mini-e7517922-stage2
+NEW_BOT=davarna-bot:forum-mini-e7517922-stage2
 COMPOSE_BASE=$PROD/docker-compose.yml
 INACTIVE=$ROOT/deploy/tambola-v2-inactive.compose.yml
 MANUAL=/root/davarna-v2-release-backups/tambola-v2-manual.compose.yml
@@ -37,6 +37,9 @@ git merge-base --is-ancestor "$BASE_SOURCE" "$SOURCE" || fail "PR14 baseline is 
 for image in "$OLD_BACKEND" "$OLD_BOT"; do
   docker image inspect "$image" >/dev/null || fail "missing base image $image"
 done
+# A prior attempt left an older candidate tag on this host. Deliberately
+# use new isolated stage2 tags; never delete, retag or trust the old ones.
+# This check is still fail-closed if a stage2 tag already exists.
 for image in "$NEW_BACKEND" "$NEW_BOT"; do
   if docker image inspect "$image" >/dev/null 2>&1; then
     fail "candidate tag already exists; do not overwrite: $image"
@@ -211,9 +214,9 @@ echo "===== RENDER CANDIDATE COMPOSE (READ-ONLY) ====="
 cat > "$TMP/candidate.yml" <<'EOF'
 services:
   backend:
-    image: davarna-backend:forum-mini-e7517922
+    image: davarna-backend:forum-mini-e7517922-stage2
   bot:
-    image: davarna-bot:forum-mini-e7517922
+    image: davarna-bot:forum-mini-e7517922-stage2
 EOF
 declare -a backend_args=() bot_args=()
 for f in "${BACK_FILES[@]}"; do backend_args+=(-f "$f"); done
