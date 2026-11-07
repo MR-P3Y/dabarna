@@ -86,6 +86,11 @@ const state = {
     cryptoSettings: null,
     bankDepositSettings: null,
     superAdminsCache: [],
+    ownTgUserId: 0,
+    selectedAdminTgId: 0,
+    bankDestinations: [],
+    bankDestinationsRevision: "",
+    bankDestinationEditingId: "",
     selectedGameId: 0,
     gamesById: new Map(),
     liveLinksByGame: new Map(),
@@ -177,6 +182,7 @@ const liveGameMeta = document.getElementById("liveGameMeta");
 const headerUserName = document.getElementById("headerUserName");
 const headerWalletBalance = document.getElementById("headerWalletBalance");
 const headerUserStatus = document.getElementById("headerUserStatus");
+const headerRoleBadge = document.getElementById("headerRoleBadge");
 
 const STATUS_LABELS = {
   LOBBY: "در انتظار شروع",
@@ -889,7 +895,27 @@ function updateHeaderStatus() {
     return;
   }
   headerUserStatus.classList.add("normal");
-  headerUserStatus.textContent = "عادی";
+  headerUserStatus.textContent = "بدون بازی";
+}
+
+function updateHeaderRoleBadge() {
+  if (!headerRoleBadge) return;
+  headerRoleBadge.classList.toggle("hidden", !state.admin.enabled);
+  if (!state.admin.enabled) {
+    headerRoleBadge.textContent = "";
+    return;
+  }
+  const roles = new Set((state.admin.roles || []).map((role) => String(role).toUpperCase()));
+  if (state.admin.isSuper || roles.has("SUPER_ADMIN")) {
+    headerRoleBadge.textContent = "👑 سوپرادمین";
+  } else if (roles.has("FINANCE_ADMIN")) {
+    headerRoleBadge.textContent = "ادمین مالی";
+  } else if (roles.has("GAME_OPERATOR")) {
+    headerRoleBadge.textContent = "اپراتور بازی";
+  } else {
+    headerRoleBadge.textContent = "ادمین";
+  }
+  headerRoleBadge.setAttribute("title", "نقش مدیریتی حساب؛ نشان دیگر وضعیت حضور در بازی است.");
 }
 
 function safeText(v) {
@@ -1649,7 +1675,13 @@ async function apiFetch(path, { method = "GET", body = null, headers = {} } = {}
     resp = await fetchWithRetry(requestPath, options, 1);
   } catch (err) {
     if (isNetworkFetchError(err)) {
-      throw new Error("واریزی ثبت شد. اگر رسید پیوست نشده باشد، ادمین با موجودی همراه‌بانک بررسی می‌کند.");
+      if (requestPath.startsWith("/mini-api/deposits")) {
+        throw new Error("ارتباط با سرور قطع شد. وضعیت واریز را در تاریخچه بررسی کنید و درخواست را بی‌جهت تکرار نکنید.");
+      }
+      if (String(method || "GET").toUpperCase() === "GET") {
+        throw new Error("دریافت اطلاعات ناموفق بود. اتصال را بررسی و دوباره تازه‌سازی کنید.");
+      }
+      throw new Error("اتصال در زمان ثبت عملیات قطع شد. وضعیت نهایی نامشخص است؛ ابتدا اطلاعات را تازه‌سازی کنید و سپس تصمیم بگیرید.");
     }
     throw err;
   }
@@ -5612,6 +5644,8 @@ async function refreshAdminBootstrap() {
     state.admin.enabled = Boolean(me?.is_admin);
     state.admin.isSuper = Boolean(me?.is_super_admin);
     state.admin.roles = Array.isArray(me?.roles) ? me.roles : [];
+    state.admin.ownTgUserId = Number(me?.tg_user_id || 0);
+    updateHeaderRoleBadge();
     setAdminNavVisible(state.admin.enabled);
     const roleEl = getEl("adminRoleText");
     if (roleEl) roleEl.textContent = adminRoleBadgeText();
@@ -5626,6 +5660,8 @@ async function refreshAdminBootstrap() {
     state.admin.enabled = false;
     state.admin.isSuper = false;
     state.admin.roles = [];
+    state.admin.ownTgUserId = 0;
+    updateHeaderRoleBadge();
     state.admin.cryptoSettings = null;
     state.admin.selectedGameId = 0;
     state.admin.gamesById = new Map();
