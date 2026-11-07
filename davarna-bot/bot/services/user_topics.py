@@ -54,11 +54,11 @@ def game_topic_name_for_id(topic_id_value: int | None) -> TopicName | None:
 def game_topic_title(topic_id_value: int | None) -> str:
     name = game_topic_name_for_id(topic_id_value)
     if name == "game_low":
-        return "بازی ۱ (مبلغ پایین)"
+        return "بازی ۱ | خطی"
     if name == "game_medium":
-        return "بازی ۲ (مبلغ متوسط)"
+        return "بازی ۲ | خطی"
     if name == "game_high":
-        return "بازی ۳ (مبلغ بالا)"
+        return "بازی ۳ | پرکردنی"
     if topic_id_value is None:
         return "بازی"
     return f"تاپیک {int(topic_id_value)}"
