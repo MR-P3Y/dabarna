@@ -57,7 +57,21 @@ finish() {
       compose_for bot "$BACKUP/rollback.yml" up -d --no-deps --no-build --force-recreate bot
     fi
     compose_for backend "$BACKUP/rollback.yml" up -d --no-deps --no-build --force-recreate backend
-    echo "ROLLBACK ATTEMPTED. VERIFY BOTH SERVICE HEALTH STATES MANUALLY." >&2
+    echo "===== CHECK ROLLBACK HEALTH AND OLD IMAGE IDS =====" >&2
+    for attempt in $(seq 1 20); do
+      backend_health="$(docker inspect -f '{{.State.Health.Status}}' davarna-backend 2>/dev/null || true)"
+      bot_health="$(docker inspect -f '{{.State.Health.Status}}' davarna-bot 2>/dev/null || true)"
+      [[ "$backend_health" == healthy && "$bot_health" == healthy ]] && break
+      sleep 2
+    done
+    if [[ "$(docker inspect -f '{{.State.Health.Status}}' davarna-backend 2>/dev/null || true)" == healthy ]] \
+      && [[ "$(docker inspect -f '{{.State.Health.Status}}' davarna-bot 2>/dev/null || true)" == healthy ]] \
+      && [[ "$(docker inspect -f '{{.Image}}' davarna-backend 2>/dev/null || true)" == "$(docker image inspect -f '{{.Id}}' "$OLD_BACKEND" 2>/dev/null || true)" ]] \
+      && [[ "$(docker inspect -f '{{.Image}}' davarna-bot 2>/dev/null || true)" == "$(docker image inspect -f '{{.Id}}' "$OLD_BOT" 2>/dev/null || true)" ]]; then
+      echo "ROLLBACK VERIFIED: healthy Backend and Bot on old pinned images" >&2
+    else
+      echo "CRITICAL: rollback NOT VERIFIED; inspect production immediately" >&2
+    fi
     echo "NEVER blindly restore database.sql.gz over live wallet/payment data." >&2
   fi
   if [[ -n "$TMP" && -d "$TMP" ]]; then rm -rf -- "$TMP"; fi
@@ -321,8 +335,8 @@ done
 [[ "$(docker inspect -f '{{.Image}}' davarna-bot)" == "$NEW_BOT_ID" ]] \
   || fail "running Bot not pinned candidate"
 docker exec davarna-bot python -c \
-  'from bot.services.user_forum_navigation import group_guide_text; assert "تاپیک" in group_guide_text()' \
-  || fail "Bot forum navigation module invalid"
+  'from bot.services.user_forum_navigation import group_guide_text; t=group_guide_text(); assert all(word in t for word in ("راهنمای گروه","اعلان‌ها","اعداد زنده","نتایج","قوانین","گفت‌وگو","کیف پول")); print("PASS: user forum guide contains all essential destinations")' \
+  || fail "Bot forum navigation module or guide invalid"
 
 echo "===== VERIFY RUNTIME FINANCIAL SETTINGS UNCHANGED ====="
 AFTER="$(runtime_snapshot)"
