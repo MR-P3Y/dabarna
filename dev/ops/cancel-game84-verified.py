@@ -334,6 +334,7 @@ def main() -> int:
                     before_balance=snap["balance_before"],
                 )
                 ensure(len(credits) == 2, "wrong refund count")
+                refund_ids = [int(t.id) for t in credits]
                 db.commit()
             except Exception:
                 db.rollback()
@@ -342,7 +343,7 @@ def main() -> int:
         print("Buyer internal ID:", snap["buyer_user_id"])
         print("Wallet balance before:", snap["balance_before"])
         print("Wallet balance after:", snap["balance_before"] + EXPECTED_SALES)
-        print("Refund ledger IDs:", [int(t.id) for t in credits])
+        print("Refund ledger IDs:", refund_ids)
         print("NOTIFICATION: not sent (must follow committed refund)")
         return 0
 
@@ -375,6 +376,6 @@ if __name__ == "__main__":
     try:
         sys.exit(main())
     except Exception as exc:
-        print("STOPPED; no new commit if execution failed before COMMIT:")
+        print("STOPPED: inspect --phase verify before any retry (commit may already have occurred):")
         print(type(exc).__name__ + ": " + str(exc))
         sys.exit(2)
