@@ -6840,12 +6840,16 @@ function renderSuperAdminList(payload) {
     const tgid = Number(a.tg_user_id || 0);
     if (!tgid) return "";
     return `
-      <div class="history-item">
+      <div class="history-item ${state.admin.selectedAdminTgId === tgid ? "is-selected" : ""}">
         <strong>${safeText(a.first_name || a.username || tgid)}</strong>
         <div class="history-meta">
           شناسه تلگرام: ${safeText(String(tgid))} ${a.username ? `| @${safeText(a.username)}` : ""}
         </div>
-        <div class="admin-inline-chips">${(a.roles || []).map((role) => `<span class="admin-mini-pill">${safeText(adminRoleLabel(role))}</span>`).join("")}</div>
+        <div class="admin-inline-chips">${(a.roles || []).map((role) => `
+          <span class="admin-mini-pill">
+            ${safeText(adminRoleLabel(role))}
+            <button type="button" class="super-admin-revoke-inline" data-tg-id="${tgid}" data-role="${safeText(role)}" aria-label="حذف نقش ${safeText(adminRoleLabel(role))}">×</button>
+          </span>`).join("")}</div>
         <div class="admin-item-actions">
           <button type="button" class="small-btn primary super-admin-select" data-tg-id="${tgid}">انتخاب برای مدیریت نقش</button>
           <button type="button" class="small-btn super-admin-profile" data-tg-id="${tgid}">پروفایل کاربر</button>
@@ -6855,6 +6859,11 @@ function renderSuperAdminList(payload) {
   root.querySelectorAll(".super-admin-select").forEach((btn) => btn.addEventListener("click", () => {
     const tgid = Number(btn.getAttribute("data-tg-id") || 0);
     if (!tgid) return;
+    state.admin.selectedAdminTgId = tgid;
+    const found = (state.admin.superAdminsCache || []).find((item) => Number(item.tg_user_id) === tgid);
+    const roleSelect = getEl("superAdminRoleSelect");
+    if (roleSelect && found?.roles?.length) roleSelect.value = String(found.roles[0]);
+    renderSuperAdminList({ items: state.admin.superAdminsCache || [] });
     const input = getEl("superAdminTgUserInput");
     if (input) {
       input.value = String(tgid);
@@ -6871,6 +6880,12 @@ function renderSuperAdminList(payload) {
     adminUsersOpenProfile(tgid)
       .then(() => getEl("adminUsersProfileBox")?.scrollIntoView({ behavior: "smooth", block: "start" }))
       .catch((e) => setLocalError("adminUsersHint", e));
+  }));
+  root.querySelectorAll(".super-admin-revoke-inline").forEach((btn) => btn.addEventListener("click", () => {
+    const tgid = Number(btn.dataset.tgId || 0);
+    const role = String(btn.dataset.role || "");
+    if (!tgid || !Object.prototype.hasOwnProperty.call(ADMIN_ROLE_LABELS, role)) return;
+    superAdminRevokeRole(tgid, role).catch((e) => setLocalError("superAdminHint", e));
   }));
 }
 
@@ -8790,17 +8805,35 @@ async function superAdminGrant() {
   await refreshSuperAdminList();
 }
 
+async function superAdminRevokeRole(tgUserId, role) {
+  if (!state.admin.enabled || !state.admin.isSuper) throw new Error("فقط سوپرادمین می‌تواند نقش‌ها را تغییر دهد.");
+  const tgid = Number(tgUserId || 0);
+  const selectedRole = String(role || "").toUpperCase();
+  if (!tgid || !Object.prototype.hasOwnProperty.call(ADMIN_ROLE_LABELS, selectedRole)) {
+    throw new Error("شناسه یا نقش نامعتبر است.");
+  }
+  if (tgid === state.admin.ownTgUserId) {
+    throw new Error("برای جلوگیری از قطع دسترسی، نقش خودتان را از این بخش حذف نکنید.");
+  }
+  if (!window.confirm(`نقش «${adminRoleLabel(selectedRole)}» از کاربر ${tgid} حذف شود؟`)) return;
+  const result = await apiFetch("/mini-api/admin/super/admins/revoke", {
+    method: "POST",
+    body: { tg_user_id: tgid, role: selectedRole },
+  });
+  state.admin.selectedAdminTgId = tgid;
+  setVal("superAdminTgUserInput", String(tgid));
+  setHint("superAdminHint",
+    result?.removed ? `نقش ${adminRoleLabel(selectedRole)} حذف شد. برای حذف نقش بعدی از دکمه کنار همان نقش استفاده کن.`
+      : "این نقش پیش از عملیات حذف شده بود؛ فهرست تازه شد.",
+    "success");
+  await refreshSuperAdminList();
+}
+
 async function superAdminRevoke() {
   const tgUserId = parseIntegerStrict(getVal("superAdminTgUserInput")) || 0;
   const role = String(getVal("superAdminRoleSelect") || "ADMIN").toUpperCase();
   if (!tgUserId) throw new Error("شناسه تلگرام معتبر وارد کنید.");
-  if (!window.confirm(`نقش «${adminRoleLabel(role)}» از ادمین/کاربر ${tgUserId} گرفته شود؟`)) return;
-  await apiFetch("/mini-api/admin/super/admins/revoke", {
-    method: "POST",
-    body: { tg_user_id: tgUserId, role },
-  });
-  setHint("superAdminHint", `نقش ${adminRoleLabel(role)} از ${tgUserId} حذف شد.`, "success");
-  await refreshSuperAdminList();
+  await superAdminRevokeRole(tgUserId, role);
 }
 
 function isCardsViewActive() {
