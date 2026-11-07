@@ -5631,22 +5631,26 @@ def _mini_bank_destination_pending(db: Session, dest_id: str) -> bool:
         .where(AppSetting.k.like("deposit_request_destination:%"))
     ).all()
     referenced_ids = set()
+    snapshotted_ids = set()
     for key, value in entries:
-        if not isinstance(value, dict) or str(value.get("destination_id") or "") != dest_id:
-            continue
         request_id = str(key).removeprefix(DEPOSIT_REQUEST_DESTINATION_KEY_PREFIX)
-        if not request_id.isdigit():
+        if not request_id.isdigit() or not isinstance(value, dict):
             raise HTTPException(status_code=409, detail="ساختار ارجاع واریز نامعتبر است؛ بازبینی دستی لازم است.")
-        referenced_ids.add(int(request_id))
-    if not referenced_ids:
-        return False
-    pending = db.execute(
-        select(DepositRequest.id).where(
-            DepositRequest.id.in_(sorted(referenced_ids)),
-            DepositRequest.status.in_(("AWAITING_RECEIPT", "PENDING_REVIEW")),
-        )
-    ).first()
-    return pending is not None
+        snapshotted_ids.add(int(request_id))
+        if str(value.get("destination_id") or "") == dest_id:
+            referenced_ids.add(int(request_id))
+    pending_ids = {
+        int(x) for x in db.execute(
+            select(DepositRequest.id).where(
+                DepositRequest.status.in_(("AWAITING_RECEIPT", "PENDING_REVIEW")),
+            )
+        ).scalars().all()
+    }
+    # Legacy pending deposits without a destination snapshot are ambiguous.
+    # Block edits/deletes until those requests are reviewed.
+    if pending_ids.difference(snapshotted_ids):
+        return True
+    return bool(pending_ids.intersection(referenced_ids))
 
 
 def _mini_bank_destination_commit(
