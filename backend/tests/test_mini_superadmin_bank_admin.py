@@ -132,6 +132,9 @@ class BankDestinationRulesTests(unittest.TestCase):
                 mini.get_mini_super_admin_identity(ident=other)
         self.assertEqual(ctx.exception.status_code, 403)
 
+    def test_me_has_explicit_owner_capability(self):
+        self.assertIn("can_manage_super_settings", mini.MiniAdminMeOut.model_fields)
+
 
 if __name__ == "__main__":
     unittest.main()
