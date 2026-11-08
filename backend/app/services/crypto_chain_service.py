@@ -39,13 +39,45 @@ class CryptoChainService:
         network: str,
         since: datetime,
         include_pending: bool = True,
+        destination_address: str | None = None,
     ) -> list[ChainTransfer]:
         normalized = str(network or "").strip().upper()
+        # Default is exactly the original server-configured address.
+        # Explicit destinations allow old invoices to remain monitorable.
         if normalized == "TRON":
-            return cls._list_tron_usdt(since=since, include_pending=include_pending)
+            return cls._list_tron_usdt(since=since, include_pending=include_pending, destination_address=destination_address)
         if normalized == "TON":
-            return cls._list_ton(since=since, include_pending=include_pending)
+            return cls._list_ton(since=since, include_pending=include_pending, destination_address=destination_address)
         raise CryptoChainUnavailable(f"unsupported crypto network: {normalized}")
+
+    @classmethod
+    def list_incoming_for_addresses(
+        cls, *, network: str, addresses: list[str], since: datetime,
+        include_pending: bool = True,
+    ) -> list[ChainTransfer]:
+        """Scan all intended destinations or fail the entire scan.
+
+        The caller must provide BOTH active and still-creditable invoice destinations.
+        No partial successes are returned if any remote scan fails.
+        """
+        from app.services.crypto_address_rotation_validation import validate_deposit_address
+
+        normalized = str(network or "").strip().upper()
+        unique = sorted({validate_deposit_address(normalized, addr) for addr in addresses})
+        if not unique:
+            return []
+        out: list[ChainTransfer] = []
+        seen: set[tuple[str, str, str]] = set()
+        for addr in unique:
+            for tx in cls.list_incoming(
+                network=normalized, since=since, include_pending=include_pending,
+                destination_address=addr,
+            ):
+                identity = (tx.network, tx.tx_hash, tx.destination_address)
+                if identity not in seen:
+                    seen.add(identity)
+                    out.append(tx)
+        return out
 
     @staticmethod
     def _client() -> httpx.Client:
@@ -61,8 +93,10 @@ class CryptoChainService:
         *,
         since: datetime,
         include_pending: bool = True,
+        destination_address: str | None = None,
     ) -> list[ChainTransfer]:
-        if not cfg.CRYPTO_TRON_USDT_ADDRESS:
+        target = destination_address if destination_address is not None else cfg.CRYPTO_TRON_USDT_ADDRESS
+        if not target:
             return []
         headers: dict[str, str] = {}
         if cfg.TRONGRID_API_KEY:
@@ -76,7 +110,7 @@ class CryptoChainService:
         }
         url = (
             f"{cfg.CRYPTO_TRONGRID_BASE_URL}/v1/accounts/"
-            f"{cfg.CRYPTO_TRON_USDT_ADDRESS}/transactions/trc20"
+            f"{target}/transactions/trc20"
         )
         with cls._client() as client:
             params = dict(base_params, only_confirmed="false" if include_pending else "true")
@@ -108,7 +142,7 @@ class CryptoChainService:
             token_info = row.get("token_info") if isinstance(row.get("token_info"), dict) else {}
             if str(token_info.get("address") or "") != cfg.CRYPTO_TRON_USDT_CONTRACT:
                 continue
-            if str(row.get("to") or "") != cfg.CRYPTO_TRON_USDT_ADDRESS:
+            if str(row.get("to") or "") != target:
                 continue
             try:
                 decimals = int(token_info.get("decimals") or 6)
@@ -130,7 +164,7 @@ class CryptoChainService:
                     tx_hash=tx_hash,
                     amount=amount,
                     sender_address=str(row.get("from") or "").strip() or None,
-                    destination_address=cfg.CRYPTO_TRON_USDT_ADDRESS,
+                    destination_address=target,
                     occurred_at=occurred_at,
                     confirmed=confirmed,
                     confirmations=1 if confirmed else 0,
@@ -144,14 +178,16 @@ class CryptoChainService:
         *,
         since: datetime,
         include_pending: bool = True,
+        destination_address: str | None = None,
     ) -> list[ChainTransfer]:
-        if not cfg.CRYPTO_TON_ADDRESS:
+        target = destination_address if destination_address is not None else cfg.CRYPTO_TON_ADDRESS
+        if not target:
             return []
         headers: dict[str, str] = {}
         if cfg.TONCENTER_API_KEY:
             headers["X-API-Key"] = cfg.TONCENTER_API_KEY
         params: dict[str, object] = {
-            "account": cfg.CRYPTO_TON_ADDRESS,
+            "account": target,
             "start_utime": int(since.timestamp()),
             "limit": 100,
             "sort": "desc",
@@ -195,7 +231,7 @@ class CryptoChainService:
                     tx_hash=tx_hash,
                     amount=amount,
                     sender_address=str(in_msg.get("source") or "").strip() or None,
-                    destination_address=cfg.CRYPTO_TON_ADDRESS,
+                    destination_address=target,
                     occurred_at=occurred_at,
                     memo=cls._ton_comment(in_msg),
                     confirmed=confirmed,
