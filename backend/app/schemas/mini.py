@@ -127,6 +127,7 @@ class MiniDepositOut(BaseModel):
     amount: int
     status: str
     receipt_uploaded: bool
+    rejection_reason: str | None = None
     destination_id: str | None = None
     destination_title: str | None = None
     created_at: str | None = None
