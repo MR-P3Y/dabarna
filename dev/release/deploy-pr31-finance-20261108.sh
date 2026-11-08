@@ -14,7 +14,7 @@ RELEASE=/root/davarna-v2-release-backups/pr31-finance-$(date -u +%Y%m%dT%H%M%SZ)
 started=0
 fail(){ echo "BLOCKER: $*" >&2; exit 2; }
 [[ "$(id -u)" == 0 ]] || fail "root required"
-[[ "$DAVARNA_PR31_DEPLOY_APPROVAL" == APPROVE_PR31_MIGRATION_PRODUCTION ]] || fail "missing explicit approval"
+[[ "${DAVARNA_PR31_DEPLOY_APPROVAL:-}" == APPROVE_PR31_MIGRATION_PRODUCTION ]] || fail "missing explicit approval"
 exec 9>/run/davarna-pr31-deploy.lock
 flock -n 9 || fail "deploy lock held"
 cd "$ROOT"
@@ -33,7 +33,7 @@ done
 docker exec davarna-mysql sh -ec '
  export MYSQL_PWD="$MYSQL_ROOT_PASSWORD"
  [ "$(mysql -uroot -N -B "$MYSQL_DATABASE" -e "SELECT version_num FROM alembic_version")" = 20261104_0011 ] || exit 2
- [ "$(mysql -uroot -N -B "$MYSQL_DATABASE" -e "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='''deposit_requests''' AND column_name='''rejection_reason'''")" = 0 ] || exit 2
+ [ "$(mysql -uroot -N -B "$MYSQL_DATABASE" -e "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name=0x6465706f7369745f7265717565737473 AND column_name=0x72656a656374696f6e5f726561736f6e")" = 0 ] || exit 2
 ' || fail "unexpected production migration baseline"
 echo "PASS: Production preflight healthy; previous revision correct"
 label=$(docker inspect -f '{{index .Config.Labels "com.docker.compose.project.config_files"}}' davarna-backend)
