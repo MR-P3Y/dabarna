@@ -19,6 +19,10 @@ BOT_TAG=davarna-bot:forum-mini-e7517922-stage2
 BOT_ID=sha256:dccabe74e0d5eaad8d2a2f7df8fc5d5b53a84cfe1d6f172475aaed8b93ca04e2
 BACKUP=/root/davarna-v2-release-backups/low-close-85-$(date -u +%Y%m%dT%H%M%SZ)
 
+# Compose JSON may embed production secrets. Always remove ephemeral config.
+cleanup() { if [[ -n "${BACKUP:-}" && -d "$BACKUP" ]]; then rm -f -- "$BACKUP/hold-config.json"; fi; }
+trap cleanup EXIT
+
 die() { echo "BLOCKER: $*" >&2; exit 2; }
 [[ "${DAVARNA_LOW_CLOSE_APPROVAL:-}" == "CLOSE_SETTLED_LOW_GAME_85" ]] ||
   die "explicit closeout approval gate missing"
