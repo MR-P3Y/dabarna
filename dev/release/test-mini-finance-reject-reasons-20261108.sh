@@ -4,7 +4,7 @@
 set -Eeuo pipefail
 umask 077
 ROOT=/opt/davarna-v2
-BRANCH=fix/mini-finance-rejection-reasons-20261108
+BRANCH=fix/finance-reject-test-cleanup-order-20261108
 TEST_DB=davarna_finance_reject_test_20261108
 IMAGE=davarna-backend:forum-mini-e7517922-stage2
 IMAGE_ID=sha256:b6d2709c3f78ce946a90aeb1b2bd6774acfa6b72a88cd604c370842cc3824850
