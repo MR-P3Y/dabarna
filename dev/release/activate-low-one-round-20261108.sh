@@ -60,12 +60,10 @@ for f in "${BASE_FILES[@]}"; do
   [[ -z "${SEEN[$f]+set}" ]] || die "duplicate Compose layer: $f"
   SEEN[$f]=1
   case "$f" in
-    "$BASE"|"$INACTIVE"|
-    "$ROOT/dev/release/ux5-candidate.compose.yml"|
-    /root/davarna-v2-release-backups/tambola-v2-manual.compose.yml|
-    /root/davarna-v2-release-backups/pr13-d9434cb10d71-20261106T183004Z/upgrade.yml|
-    /root/davarna-v2-release-backups/rbac-pr14-e087c40bd471-20261106T193945Z/upgrade.yml
-    ) ;;
+    "$BASE"|"$INACTIVE"|"$ROOT/dev/release/ux5-candidate.compose.yml"| \
+    /root/davarna-v2-release-backups/tambola-v2-manual.compose.yml| \
+    /root/davarna-v2-release-backups/pr13-d9434cb10d71-20261106T183004Z/upgrade.yml| \
+    /root/davarna-v2-release-backups/rbac-pr14-e087c40bd471-20261106T193945Z/upgrade.yml) ;;
     /root/davarna-v2-release-backups/forum-mini-e7517922-*/rollback.yml)
       printf '%s\n' services: '  backend:' "    image: davarna-backend:rbac-pr14-e087c40bd471" \
         '  bot:' '    image: davarna-bot:pr13-d9434cb10d71' | cmp -s - "$f" ||
@@ -174,6 +172,7 @@ echo "===== CONFIRM SAFE LIVE GAME AND FINANCE BASELINE ====="
 BEFORE="$(audit_state)" || die "launch preflight failed; zero writes"
 printf '%s\n' "$BEFORE"
 
+[[ ! -e "$BACKUP" ]] || die "backup folder already exists: $BACKUP"
 mkdir -p -m 0700 "$BACKUP"
 echo "===== BACKUP PRODUCTION DB BEFORE GAME CREATION ====="
 docker exec davarna-mysql sh -ec '
@@ -252,7 +251,7 @@ echo "===== START AUTO DRAW WORKER, KEEP AUTOPILOT RUNTIME OFF ====="
 PHASE=1
 compose_backend "$BACKUP/draw-only.yml" up -d --no-deps --no-build --force-recreate backend
 backend_health || die "Backend not healthy after enabling draw worker"
-docker exec davarna-backend python - <<'PY'
+docker exec -i davarna-backend python - <<'PY'
 from app.core import config as c
 assert c.GAME_TAMBOLA_V2_ENABLED and c.GAME_AUTO_DRAW_ENABLED
 assert not c.GAME_AUTOPILOT_RUNTIME_ENABLED
@@ -374,5 +373,19 @@ echo "===== PRODUCTION SINGLE LOW GAME IS READY ====="
 echo "Live LOW game $GAME_ID, Telegram game topic 6, announce topic 3, live numbers 12, results 14."
 echo "Start only after 2 DIFFERENT paying players; 30s countdown; random numbers every 8s."
 echo "No next game automatically (scheduler_mode=MANUAL), MEDIUM/HIGH disabled."
+echo "===== FINANCIAL ACTIVITY CHECK (READ ONLY) ====="
+docker exec -i davarna-backend python - <<'PY'
+from sqlalchemy import func,select
+from app.core.db import SessionLocal
+from app.models.wallet import Wallet,WalletTx
+from app.models.game import GamePurchase
+with SessionLocal() as db:
+    row=db.execute(select(func.count(),func.coalesce(func.sum(Wallet.balance),0))).one()
+    print("AFTER_WALLETS_COUNT="+str(int(row[0])))
+    print("AFTER_WALLETS_SUM="+str(int(row[1])))
+    print("AFTER_LEDGER_COUNT="+str(int(db.execute(select(func.count()).select_from(WalletTx)).scalar_one())))
+    print("AFTER_PURCHASE_COUNT="+str(int(db.execute(select(func.count()).select_from(GamePurchase)).scalar_one())))
+PY
+echo "Compare BEFORE/AFTER finance counts; later user purchases can legitimately change balances."
 echo "BACKUP_AND_HOLD_OVERLAY=$BACKUP"
 echo "Do not rerun this launch command: a production game has been created."
