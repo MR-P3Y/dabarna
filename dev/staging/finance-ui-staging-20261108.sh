@@ -68,6 +68,7 @@ COMMON=(--network "$NET" --read-only --cap-drop ALL \
   --security-opt no-new-privileges --memory 384m --cpus 0.75 --pids-limit 128 \
   --tmpfs /tmp:rw,nosuid,nodev --tmpfs /run:rw,nosuid,nodev \
   -v "$DIR/backend:/app:ro" -v "$DIR/data:/data:rw" \
+  -e 'PYTHONPATH=/app' \
   -e 'DATABASE_URL=sqlite:////data/staging.sqlite' \
   -e "REDIS_URL=redis://$CACHE:6379/0" \
   -e 'TELEGRAM_BOT_TOKEN=000000000:STAGING_ONLY' \
