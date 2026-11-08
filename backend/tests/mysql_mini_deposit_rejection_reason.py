@@ -1,7 +1,7 @@
 """MySQL-only finance rejection integration; all writes rollback under an outer transaction.
 
 REQUIRED:
-  DAVARNA_FINANCE_REJECT_TEST_DB=davarna_finance_reject_test_20261108
+  DAVARNA_FINANCE_REJECT_TEST_DB=davarna_finance_reject_test_20261108_v2
   DATABASE_URL pointing to the same isolated DB, NEVER Production.
 """
 from __future__ import annotations
@@ -17,7 +17,7 @@ from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session
 from starlette.requests import Request
 
-TEST_DB = "davarna_finance_reject_test_20261108"
+TEST_DB = "davarna_finance_reject_test_20261108_v2"
 if os.environ.get("DAVARNA_FINANCE_REJECT_TEST_DB") != TEST_DB:
     raise unittest.SkipTest("explicit isolated MySQL opt-in required")
 
