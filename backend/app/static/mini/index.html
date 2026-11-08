@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>مینی‌اپ دبرنای طوفان</title>
-    <link rel="stylesheet" href="./styles.css?v=tambola-card-v2-20261105-1" />
+    <link rel="stylesheet" href="./styles.css?v=finance-reject-reasons-20261108" />
     <link rel="stylesheet" href="./ux-v2.css?v=20261107-superadmin-stage1" />
   </head>
   <body>
@@ -1066,7 +1066,7 @@
         <div id="withdrawRejectSummary" class="withdraw-reject-summary"></div>
 
         <div class="withdraw-reject-section">
-          <strong>دلیل پرتکرار</strong>
+          <strong id="withdrawRejectPresetsTitle">دلایل پرتکرار</strong>
           <p>یک گزینه را انتخاب کنید؛ متن کامل داخل کادر قرار می‌گیرد و قابل ویرایش است.</p>
           <div id="withdrawRejectPresets" class="withdraw-reject-presets">
             <button class="withdraw-reject-preset" type="button" data-reason="در حال حاضر امکان انجام پرداخت این برداشت وجود ندارد. لطفاً کمی بعد دوباره درخواست ثبت کنید.">💰 عدم امکان پرداخت</button>
@@ -1078,26 +1078,24 @@
         </div>
 
         <div class="withdraw-reject-section">
-          <label for="withdrawRejectReasonInput">دلیل نهایی رد</label>
+          <label id="withdrawRejectReasonLabel" for="withdrawRejectReasonInput">دلیل نهایی رد برداشت</label>
           <textarea id="withdrawRejectReasonInput" rows="5" minlength="3" maxlength="500" placeholder="دلیل رد برداشت را بنویسید..."></textarea>
           <div class="withdraw-reject-counter"><span id="withdrawRejectReasonCount">۰</span> / ۵۰۰</div>
         </div>
 
-        <div class="withdraw-reject-warning">
-          ⚠️ پس از تأیید، برداشت رد می‌شود و همین دلیل برای کاربر ارسال خواهد شد.
-        </div>
+        <div id="withdrawRejectWarningText" class="withdraw-reject-warning">⚠️ پس از تأیید، دلیل رد برای کاربر ارسال خواهد شد.</div>
 
         <div class="withdraw-reject-actions">
           <button id="withdrawRejectCancelBtn" class="small-btn" type="button">انصراف</button>
           <button id="withdrawRejectSubmitBtn" class="small-btn danger" type="button" disabled>تأیید رد برداشت</button>
         </div>
-        <div id="withdrawRejectHint" class="step-hint"></div>
+        <div id="withdrawRejectHint" class="step-hint" role="status" aria-live="polite"></div>
       </div>
     </div>
 
     <div id="miniToast" class="mini-toast hidden" role="status" aria-live="polite"></div>
 
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="./app.js?v=superadmin-controls-stage-20261107" type="module"></script>
+    <script src="./app.js?v=finance-reject-reasons-20261108" type="module"></script>
   </body>
 </html>

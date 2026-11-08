@@ -669,7 +669,7 @@ class MiniAdminWithdrawApproveIn(BaseModel):
 
 
 class MiniAdminDepositRejectIn(BaseModel):
-    reason: str | None = Field(default=None, max_length=200)
+    reason: str = Field(min_length=3, max_length=500)
 
 
 class MiniAdminWithdrawPaidIn(BaseModel):
@@ -2986,6 +2986,7 @@ def create_deposit(
         id=int(dr.id),
         amount=int(dr.amount),
         status=str(dr.status),
+        rejection_reason=str(dr.rejection_reason or "") or None,
         receipt_uploaded=bool(dr.receipt_path),
         destination_id=destination_id,
         destination_title=destination_title,
@@ -3018,6 +3019,7 @@ def list_my_deposits(
             id=int(dr.id),
             amount=int(dr.amount),
             status=str(dr.status),
+            rejection_reason=str(dr.rejection_reason or "") or None,
             receipt_uploaded=bool(dr.receipt_path),
             destination_id=_read_request_destination(db, request_id=int(dr.id))[0],
             destination_title=_read_request_destination(db, request_id=int(dr.id))[1],
@@ -3154,6 +3156,7 @@ async def create_deposit_with_receipt(
         id=int(dr.id),
         amount=int(dr.amount),
         status=str(dr.status),
+        rejection_reason=str(dr.rejection_reason or "") or None,
         receipt_uploaded=True,
         destination_id=destination_id_out or destination_id,
         destination_title=destination_title,
@@ -3288,6 +3291,7 @@ async def upload_deposit_receipt(
         id=int(dr.id),
         amount=int(dr.amount),
         status=str(dr.status),
+        rejection_reason=str(dr.rejection_reason or "") or None,
         receipt_uploaded=True,
         destination_id=destination_id,
         destination_title=destination_title,
@@ -4804,6 +4808,7 @@ def mini_admin_list_deposits(
                 "tg_username": str(user.username) if user and user.username else None,
                 "amount": int(dr.amount),
                 "status": str(dr.status),
+                "rejection_reason": str(dr.rejection_reason or "") or None,
                 "receipt_uploaded": bool(dr.receipt_path or dr.receipt_file_id),
                 "receipt_url": f"/mini-api/admin/deposits/{int(dr.id)}/receipt",
                 "destination_id": destination_id,
@@ -4871,27 +4876,58 @@ def mini_admin_approve_deposit(
 @router.post("/admin/deposits/{deposit_id}/reject")
 def mini_admin_reject_deposit(
     deposit_id: int,
-    payload: MiniAdminDepositRejectIn | None = None,
+    payload: MiniAdminDepositRejectIn,
+    request: Request,
     ident: MiniAdminIdentity = Depends(get_mini_admin_identity),
     db: Session = Depends(get_db),
 ):
     _mini_require_finance_role(ident)
-    reason = str((payload.reason if payload else "") or "").strip() or "رد توسط ادمین"
+    reason = str(payload.reason or "").strip()
+    if len(reason) < 3 or len(reason) > 500:
+        raise HTTPException(status_code=400, detail="دلیل رد واریز باید بین ۳ تا ۵۰۰ کاراکتر باشد.")
+
+    # Lock and reject only a pending request. The reason and audit must be
+    # committed atomically with the status; no wallet transaction is created.
     dr = FinanceService.reject_deposit(
         db=db,
         deposit_id=int(deposit_id),
         admin_user_id=int(ident.user_id),
     )
+    dr.rejection_reason = reason
+    dr.reviewed_at = datetime.utcnow()
+    AdminAuditService.record(
+        db,
+        admin=_mini_to_admin_identity(ident),
+        action="deposit.reject",
+        target_type="deposit_request",
+        target_id=int(dr.id),
+        request=request,
+        details={
+            "deposit_id": int(dr.id),
+            "user_id": int(dr.user_id),
+            "amount": int(dr.amount),
+            "status": str(dr.status),
+            "reason": reason,
+        },
+    )
     deposit_id_int = int(dr.id)
     db.commit()
+
+    # Telegram failure never retries the financial operation. The reason is
+    # available durably in deposit_requests and the admin audit history.
     notify_result = _mini_notify_deposit_final_to_user(
         db,
         deposit_id=deposit_id_int,
         approved=False,
         reason=reason,
     )
-    return {"ok": True, "deposit_id": deposit_id_int, "status": "REJECTED", "user_notify": notify_result}
-
+    return {
+        "ok": True,
+        "deposit_id": deposit_id_int,
+        "status": "REJECTED",
+        "rejection_reason": reason,
+        "user_notify": notify_result,
+    }
 
 @router.get("/admin/withdraws")
 def mini_admin_list_withdraws(

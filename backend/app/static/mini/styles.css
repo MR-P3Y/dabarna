@@ -7087,6 +7087,20 @@ html[data-theme="light"] #adminSendLiveBtn:not(:disabled) {
   box-shadow: 0 10px 22px rgba(31, 63, 138, 0.24);
 }
 
+/* Finance rejection reason dialog (both deposit and withdrawal). */
+#withdrawRejectModal {
+  z-index: 13020;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+#withdrawRejectModal .withdraw-reject-modal-card {
+  max-height: min(calc(100dvh - 36px - env(safe-area-inset-top) - env(safe-area-inset-bottom)), 780px);
+  overscroll-behavior: contain;
+}
+@media (prefers-reduced-motion: reduce) {
+  #withdrawRejectModal.open { animation: none; }
+}
+
 /* MINI_WITHDRAW_REJECT_REASON_20261009 */
 #withdrawRejectModal {
   align-items: flex-start;
