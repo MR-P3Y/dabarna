@@ -40,8 +40,9 @@ def test_mini_reject_modal_and_cache_tokens_exist() -> None:
     assert 'id="withdrawRejectModal"' in index
     assert 'id="withdrawRejectReasonInput"' in index
     assert 'id="withdrawRejectSubmitBtn"' in index
-    assert "./app.js?v=mini-withdraw-reject-20261009-1" in index
-    assert "./styles.css?v=mini-withdraw-reject-20261009-1" in index
+    # Cache-busting tokens track the current combined deposit/withdraw modal.
+    assert "./app.js?v=finance-reject-reasons-20261108" in index
+    assert "./styles.css?v=finance-reject-reasons-20261108" in index
 
     assert "openWithdrawRejectModal(id, item)" in app
     assert "body: { reason: cleanReason }" in app
