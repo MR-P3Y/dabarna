@@ -55,8 +55,9 @@ class MiniDepositRejectTests(unittest.TestCase):
                 index.name = f"{table.name}_{index.name}"
         metadata.create_all(self.engine)
         self.db = sessionmaker(bind=self.engine, expire_on_commit=False)()
-        self.addCleanup(self.db.close)
+        # unittest cleanups run in LIFO order: close Session before disposing Engine.
         self.addCleanup(self.engine.dispose)
+        self.addCleanup(self.db.close)
 
         self.admin = User(tg_user_id=99090001, first_name="admin")
         self.customer = User(tg_user_id=99090002, first_name="customer")
