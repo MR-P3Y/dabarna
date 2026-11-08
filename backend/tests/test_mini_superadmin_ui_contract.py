@@ -69,7 +69,7 @@ class MiniAdminUIContractTests(unittest.TestCase):
         self.assertNotIn("/mini-api/admin/super/crypto-address-update", self.js)
 
     def test_no_stale_assets_and_no_misleading_all_operations_deposited(self):
-        self.assertIn("superadmin-controls-stage-20261107", self.html)
+        self.assertIn("finance-reject-reasons-20261108", self.html)
         self.assertIn("وضعیت نهایی نامشخص است", self.js)
         self.assertNotIn("واریزی ثبت شد. اگر رسید پیوست نشده باشد", self.js)
 
