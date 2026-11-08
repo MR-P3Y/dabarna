@@ -19,7 +19,7 @@ def tron_address(body: bytes) -> str:
     while value:
         value, mod = divmod(value, 58)
         chars = alphabet[mod] + chars
-    return "1" * (len(full) - len(full.lstrip(b"\\x00"))) + chars
+    return "1" * (len(full) - len(full.lstrip(b"\x00"))) + chars
 
 
 def ton_address(*, tag: int = 0x11, workchain: int = 0, account: bytes = bytes(32)) -> str:
@@ -29,16 +29,16 @@ def ton_address(*, tag: int = 0x11, workchain: int = 0, account: bytes = bytes(3
 
 class RotationAddressValidationTests(unittest.TestCase):
     def test_tron_accepts_base58check_mainnet(self):
-        address = tron_address(b"\\x41" + bytes(range(20)))
+        address = tron_address(b"\x41" + bytes(range(20)))
         self.assertEqual(validate_deposit_address("TRON", address), address)
 
     def test_tron_rejects_bad_checksum(self):
-        addr = tron_address(b"\\x41" + bytes(range(20)))
+        addr = tron_address(b"\x41" + bytes(range(20)))
         with self.assertRaises(InvalidDepositAddress):
             validate_deposit_address("TRON", addr[:-1] + ("2" if addr[-1] != "2" else "3"))
 
     def test_tron_rejects_wrong_prefix(self):
-        address = tron_address(b"\\xa0" + bytes(range(20)))
+        address = tron_address(b"\xa0" + bytes(range(20)))
         with self.assertRaises(InvalidDepositAddress):
             validate_deposit_address("TRON", address)
 
