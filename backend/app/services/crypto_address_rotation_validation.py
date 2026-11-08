@@ -6,6 +6,7 @@ A valid address does NOT imply the operator controls its private key.
 from __future__ import annotations
 
 import base64
+import binascii
 import hashlib
 import re
 
@@ -55,7 +56,7 @@ def _normalize_ton(address: str) -> str:
             raise InvalidDepositAddress("TON address must be 48-character friendly or WC:64-hex raw")
         try:
             decoded = base64.b64decode(address.replace("-", "+").replace("_", "/"), validate=True)
-        except ValueError as exc:
+        except (ValueError, binascii.Error) as exc:
             raise InvalidDepositAddress("Invalid TON base64 address") from exc
         if len(decoded) != 36 or decoded[-2:] != _crc16_xmodem(decoded[:-2]):
             raise InvalidDepositAddress("TON CRC16 checksum invalid")
