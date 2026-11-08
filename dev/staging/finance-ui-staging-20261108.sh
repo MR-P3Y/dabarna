@@ -36,13 +36,25 @@ from app.core.db import Base, engine, SessionLocal
 import app.models
 from app.models.user import User
 from app.models.rbac import Role, UserRole
+from app.models.wallet import Wallet
+from app.models.finance import DepositRequest, WithdrawRequest
 from app.core.mini_security import issue_session_token
 Base.metadata.create_all(engine)
 with SessionLocal.begin() as db:
-    db.add(User(id=91001,tg_user_id=990000000001,username="finance_preview",first_name="Staging Admin"))
-    db.add(Role(id=91001,name="SUPER_ADMIN"))
+    db.add_all([
+        User(id=91001,tg_user_id=990000000001,username="finance_preview",first_name="Staging Admin"),
+        User(id=91002,tg_user_id=990000000002,username="preview_customer",first_name="Synthetic Customer"),
+        Role(id=91001,name="SUPER_ADMIN"),
+    ])
     db.flush()
-    db.add(UserRole(id=91001,user_id=91001,role_id=91001))
+    db.add_all([
+        UserRole(id=91001,user_id=91001,role_id=91001),
+        Wallet(id=91002,user_id=91002,balance=85000),
+        DepositRequest(id=91001,user_id=91002,amount=12000,status="PENDING_REVIEW"),
+        WithdrawRequest(id=91001,user_id=91002,amount=5000,
+            full_name="Synthetic Customer",iban="IR000000000000000000000000",
+            card_number="0000000000000000",account_number="000000",status="PENDING"),
+    ])
 token, expiry=issue_session_token(91001,ttl_sec=3600)
 Path("/data/preview-session.json").write_text(json.dumps({"token":token,"tokenExp":expiry,"userId":91001}))
 print("PASS: synthetic SuperAdmin seeded")
