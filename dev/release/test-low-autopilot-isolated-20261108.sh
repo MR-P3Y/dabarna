@@ -152,7 +152,6 @@ chmod 0644 "$WORK/tests/"*.py
 
 python3 - "$WORK/test-db.env" <<'PY'
 import json,os,subprocess,sys
-from urllib.parse import urlsplit
 obj=json.loads(subprocess.check_output(["docker","inspect","davarna-backend"],text=True))[0]
 env=dict(item.split("=",1) for item in obj["Config"]["Env"] if "=" in item)
 url=env.get("DATABASE_URL","")
@@ -164,7 +163,7 @@ with open(sys.argv[1],"w",encoding="utf-8") as fp:
 os.chmod(sys.argv[1],0o600)
 PY
 
-echo "===== 36? OFFLINE UNIT TESTS (NETWORK NONE, BUILT BACKEND) ====="
+echo "===== OFFLINE UNIT TESTS (NETWORK NONE, RELEASED BACKEND IMAGE) ====="
 for pattern in \
   test_autopilot_lifecycle_guards.py \
   test_autopilot_commission_rbac.py \
