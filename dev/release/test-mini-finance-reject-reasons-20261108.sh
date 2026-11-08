@@ -236,6 +236,7 @@ echo "===== MYSQL E2E: ONLY FINANCE REJECTION TEST SCHEMA ====="
 docker run --rm --network davarna_default --read-only --memory 512m --cpus 1 \
   --security-opt no-new-privileges --cap-drop ALL --pids-limit 128 \
   --tmpfs /tmp:rw,nosuid,nodev \
+  -e PYTHONPATH=/app \
   -e DAVARNA_FINANCE_REJECT_TEST_DB="$TEST_DB" \
   -e RECEIPTS_DIR=/tmp/receipts -e PYTHONDONTWRITEBYTECODE=1 \
   -v "$WORK/backend:/app:ro" \
