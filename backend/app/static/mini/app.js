@@ -3889,6 +3889,7 @@ function drawDepositRequests(payload) {
         <h3>واریزی #${d.id}</h3>
         <p>وضعیت: ${safeText(depositStatusLabel(d.status))} | مبلغ: ${toman(d.amount || 0)}</p>
         <div class="meta">کارت مقصد: ${safeText(String(d.destination_title || "-"))}</div>
+        ${String(d.status || "").toUpperCase() === "REJECTED" && d.rejection_reason ? `<div class="withdraw-user-rejection-reason"><strong>دلیل رد:</strong> ${safeText(d.rejection_reason)}</div>` : ""}
         <div class="meta">زمان ثبت: ${safeText(formatFaDateTime(d.created_at))}</div>
         <div class="admin-item-actions">
           <button class="small-btn receipt-open-btn" data-kind="bank_deposit" data-id="${safeText(d.id)}" type="button">رسید واریز</button>
@@ -5899,6 +5900,7 @@ function renderAdminDeposits(payload) {
           مبلغ: ${safeText(toman(d.amount || 0))}<br />
           مقصد: ${safeText(d.destination_title || "-")}<br />
           زمان: ${safeText(formatFaDateTime(d.created_at))}
+          ${d.rejection_reason ? `<br />دلیل رد: ${safeText(d.rejection_reason)}` : ""}
         </div>
         <div class="admin-item-actions">
           <button class="small-btn primary admin-dep-approve-btn" data-id="${safeText(d.id)}" type="button">تایید</button>
