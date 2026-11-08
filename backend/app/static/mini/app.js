@@ -5826,7 +5826,13 @@ function renderDepositReceiptActions(depositId, item) {
     approveBtn.addEventListener("click", () => adminApproveDeposit(depositId, { closeReceipt: true }).catch((e) => setAdminLocalError("adminActionHint", e)));
   }
   if (rejectBtn) {
-    rejectBtn.addEventListener("click", () => openDepositRejectModal(depositId, item, { fromReceipt: true }));
+    rejectBtn.addEventListener("click", () => {
+      try {
+        openDepositRejectModal(depositId, item, { fromReceipt: true });
+      } catch (error) {
+        setAdminLocalError("adminActionHint", error);
+      }
+    });
   }
   if (dismissBtn) {
     dismissBtn.addEventListener("click", closeDepositReceiptModal);
@@ -5922,7 +5928,11 @@ function renderAdminDeposits(payload) {
     btn.addEventListener("click", () => {
       const id = Number(btn.getAttribute("data-id") || "0");
       if (!id) return;
-      openDepositRejectModal(id, state.admin.depositsById?.get(id) || null);
+      try {
+        openDepositRejectModal(id, state.admin.depositsById?.get(id) || null);
+      } catch (error) {
+        setAdminLocalError("adminActionHint", error);
+      }
     });
   });
   root.querySelectorAll(".admin-dep-receipt-btn").forEach((btn) => {
@@ -8681,7 +8691,7 @@ function bindWithdrawRejectModalOnce() {
   if (submitBtn) {
     submitBtn.addEventListener("click", () => {
       submitWithdrawRejectModal().catch((e) => {
-        setWithdrawRejectHint(e?.message || "رد برداشت ناموفق بود.", "error");
+        setWithdrawRejectHint(e?.message || "ثبت دلیل رد ناموفق بود.", "error");
       });
     });
   }
