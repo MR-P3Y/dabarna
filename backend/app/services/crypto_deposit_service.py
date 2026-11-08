@@ -508,6 +508,25 @@ class CryptoDepositService:
         return invoice
 
     @staticmethod
+    def _transfer_matches_invoice_destination(
+        invoice: CryptoDepositRequest, transfer: ChainTransfer,
+    ) -> bool:
+        """Prevent cross-address crediting, including equivalent TON address formats."""
+        from app.services.crypto_address_rotation_validation import (
+            InvalidDepositAddress, validate_deposit_address,
+        )
+
+        try:
+            network = str(invoice.network)
+            return (
+                network == str(transfer.network)
+                and validate_deposit_address(network, str(invoice.destination_address))
+                == validate_deposit_address(network, str(transfer.destination_address))
+            )
+        except InvalidDepositAddress:
+            return False
+
+    @staticmethod
     def _match_invoice(db: Session, transfer: ChainTransfer) -> CryptoDepositRequest | None:
         claimed = db.execute(
             select(CryptoDepositRequest).where(
@@ -518,6 +537,8 @@ class CryptoDepositService:
             )
         ).scalar_one_or_none()
         if claimed:
+            if not CryptoDepositService._transfer_matches_invoice_destination(claimed, transfer):
+                return None
             if not CryptoDepositService._transfer_is_in_window(claimed, transfer):
                 return None
             if claimed.memo and claimed.memo != transfer.memo:
@@ -538,6 +559,7 @@ class CryptoDepositService:
                 invoice
                 for invoice in memo_candidates
                 if CryptoDepositService._transfer_is_in_window(invoice, transfer)
+                and CryptoDepositService._transfer_matches_invoice_destination(invoice, transfer)
             ]
             if len(valid_memo_matches) == 1:
                 return valid_memo_matches[0]
@@ -554,6 +576,8 @@ class CryptoDepositService:
         ).scalars().all()
         valid: list[CryptoDepositRequest] = []
         for invoice in candidates:
+            if not CryptoDepositService._transfer_matches_invoice_destination(invoice, transfer):
+                continue
             if not CryptoDepositService._transfer_is_in_window(invoice, transfer):
                 continue
             if invoice.memo and transfer.memo and invoice.memo != transfer.memo:
