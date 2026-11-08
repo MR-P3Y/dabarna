@@ -18,8 +18,23 @@ cd "$ROOT"
 [[ "$(docker image inspect -f '{{.Id}}' "$IMAGE")" == "$IMAGE_ID" ]] || die "pinned image mismatch"
 docker network inspect "$NET" >/dev/null || die "isolated staging network missing"
 [[ "$(docker network inspect -f '{{.Internal}}' "$NET")" == "true" ]] || die "staging network not internal"
-[[ "$(docker inspect -f '{{.State.Running}}' "$CACHE")" == "true" ]] || die "isolated Redis not running"
+echo "===== REPAIR FAILED STAGING REDIS ONLY ====="
 [[ "$(docker inspect -f '{{.HostConfig.NetworkMode}}' "$CACHE")" == "$NET" ]] || die "isolated Redis on unexpected network"
+[[ "$(docker inspect -f '{{.Config.Image}}' "$CACHE")" == 'redis:7-alpine' ]] || die "unexpected staging Redis image"
+if [[ "$(docker inspect -f '{{.State.Status}}' "$CACHE")" == "exited" ]]; then
+  [[ "$(docker inspect -f '{{.State.ExitCode}}' "$CACHE")" == "1" ]] || die "unexpected Redis exit code"
+  docker logs "$CACHE" 2>&1 | grep -Fq 'chown: .: Operation not permitted' || die "Redis failed for another reason"
+  docker rm "$CACHE" >/dev/null
+  docker run -d --name "$CACHE" --network "$NET" --restart no \
+    --memory 64m --cpus 0.25 --pids-limit 64 --read-only --cap-drop ALL \
+    --security-opt no-new-privileges --user 999:999 \
+    --tmpfs /tmp:rw,nosuid,nodev,mode=1777 \
+    --entrypoint redis-server redis:7-alpine \
+    --save '' --appendonly no --dir /tmp >/dev/null
+fi
+[[ "$(docker inspect -f '{{.State.Running}}' "$CACHE")" == "true" ]] || die "isolated Redis not running"
+[[ "$(docker inspect -f '{{.HostConfig.NetworkMode}}' "$CACHE")" == "$NET" ]] || die "isolated Redis network changed"
+
 ! docker container inspect "$API" >/dev/null 2>&1 || die "staging API container already exists; investigate"
 ! ss -lnt | grep -qE '127[.]0[.]0[.]1:18083[[:space:]]' || die "port 18083 occupied"
 for c in davarna-backend davarna-bot davarna-mysql davarna-redis; do
