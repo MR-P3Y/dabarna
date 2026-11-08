@@ -12,9 +12,9 @@ WORK=""
 
 die() { echo "BLOCKER: $*" >&2; exit 2; }
 [[ "$(id -u)" == 0 ]] || die "root required"
-[[ "\${DAVARNA_FINANCE_REJECT_TEST_APPROVAL:-}" == "ISOLATED_TESTS_ONLY" ]] ||
+[[ "${DAVARNA_FINANCE_REJECT_TEST_APPROVAL:-}" == "ISOLATED_TESTS_ONLY" ]] ||
   die "test-only approval env missing"
-SOURCE="\${DAVARNA_FINANCE_REJECT_SOURCE_SHA:-}"
+SOURCE="${DAVARNA_FINANCE_REJECT_SOURCE_SHA:-}"
 [[ "$SOURCE" =~ ^[0-9a-f]{40}$ ]] || die "pinned branch SHA required"
 exec 9>/run/davarna-finance-reject-tests.lock
 flock -n 9 || die "finance rejection test already running"
