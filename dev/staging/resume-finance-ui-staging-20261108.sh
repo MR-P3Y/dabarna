@@ -40,12 +40,36 @@ fi
 for c in davarna-backend davarna-bot davarna-mysql davarna-redis; do
  [[ "$(docker inspect -f '{{.State.Health.Status}}' "$c")" == healthy ]] || die "Production dependency unhealthy: $c"
 done
+echo "===== PREPARE SQLITE-SAFE SYNTHETIC SEED ====="
+# SQLite index names are global; MySQL permits the same index name on different tables.
+# Keep the application models unchanged; rename only colliding staging indexes at DDL time.
+python3 - "$DIR/seed.py" <<'PY'
+from pathlib import Path
+import sys
+p=Path(sys.argv[1])
+s=p.read_text(encoding="utf-8")
+needle="Base.metadata.create_all(engine)"
+replacement="""# SQLite-only DDL workaround for repeated MySQL index names.
+seen=set()
+for table in Base.metadata.sorted_tables:
+    for idx in sorted(table.indexes, key=lambda i: (str(i.name), table.name)):
+        if idx.name in seen:
+            idx.name = f"staging_{table.name}_{idx.name}"
+        seen.add(idx.name)
+Base.metadata.create_all(engine)"""
+if s.count(needle)!=1:
+    raise SystemExit("BLOCKER: unexpected synthetic seed code")
+p.write_text(s.replace(needle,replacement),encoding="utf-8")
+PY
+# The failed first attempt may have partially created staging.sqlite. Never alter it.
+# Use a dedicated fresh SQLite filename for the corrected DDL.
+[[ ! -e "$DIR/data/staging-v2.sqlite" ]] || die "corrected staging DB already exists; inspect before retry"
 COMMON=(--network "$NET" --read-only --cap-drop ALL \
   --security-opt no-new-privileges --memory 384m --cpus 0.75 --pids-limit 128 \
   --tmpfs /tmp:rw,nosuid,nodev --tmpfs /run:rw,nosuid,nodev \
   -v "$DIR/backend:/app:ro" -v "$DIR/data:/data:rw" \
   -e PYTHONPATH=/app \
-  -e DATABASE_URL=sqlite:////data/staging.sqlite \
+  -e DATABASE_URL=sqlite:////data/staging-v2.sqlite \
   -e "REDIS_URL=redis://$CACHE:6379/0" \
   -e TELEGRAM_BOT_TOKEN=000000000:STAGING_ONLY \
   -e MINI_SESSION_SECRET=LOCAL_STAGING_ONLY_NOT_FOR_PRODUCTION_20261108 \
