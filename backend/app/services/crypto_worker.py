@@ -54,7 +54,10 @@ class CryptoDepositWorker:
                 continue
             since = CryptoDepositWorker._network_scan_since(network)
             try:
-                transfers = CryptoChainService.list_incoming(network=network, since=since)
+                addresses = CryptoDepositWorker._network_invoice_destinations(network)
+                transfers = CryptoChainService.list_incoming_for_addresses(
+                    network=network, addresses=addresses, since=since,
+                )
             except Exception as exc:
                 log.warning("crypto chain scan failed: network=%s error=%s", network, exc)
                 continue
@@ -89,6 +92,19 @@ class CryptoDepositWorker:
                 db.rollback()
                 log.exception("crypto invoice expiration failed")
         return stats
+
+    @staticmethod
+    def _network_invoice_destinations(network: str) -> list[str]:
+        """Every address carried by an open invoice, not just the current .env address."""
+        with SessionLocal() as db:
+            rows = db.execute(
+                select(CryptoDepositRequest.destination_address).where(
+                    CryptoDepositRequest.network == network,
+                    CryptoDepositRequest.status.in_(OPEN_STATUSES),
+                ).distinct()
+            ).scalars().all()
+        # Fail closed on invalid historical addresses: do not silently skip a payable invoice.
+        return sorted({str(value) for value in rows})
 
     @staticmethod
     def _network_has_open_invoices(network: str) -> bool:
