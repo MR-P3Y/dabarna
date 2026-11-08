@@ -33,7 +33,7 @@ done
 docker exec davarna-mysql sh -ec '
  export MYSQL_PWD="$MYSQL_ROOT_PASSWORD"
  [ "$(mysql -uroot -N -B "$MYSQL_DATABASE" -e "SELECT version_num FROM alembic_version")" = 20261104_0011 ] || exit 2
- [ "$(mysql -uroot -N -B -e "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE()" 2>/dev/null || true)" != BLOCKER ] || exit 2
+ [ "$(mysql -uroot -N -B "$MYSQL_DATABASE" -e "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='''deposit_requests''' AND column_name='''rejection_reason'''")" = 0 ] || exit 2
 ' || fail "unexpected production migration baseline"
 echo "PASS: Production preflight healthy; previous revision correct"
 label=$(docker inspect -f '{{index .Config.Labels "com.docker.compose.project.config_files"}}' davarna-backend)
@@ -119,7 +119,8 @@ docker exec davarna-mysql sh -ec '
  export MYSQL_PWD="$MYSQL_ROOT_PASSWORD"
  [ "$(mysql -uroot -N -B "$MYSQL_DATABASE" -e "SELECT version_num FROM alembic_version")" = 20261108_0012 ]
 ' || fail "migration mismatch"
-curl -fsS --max-time 8 http://127.0.0.1:18080/mini/index.html | grep -Fq 'finance-reject-reasons-20261108' || fail "Mini App still old"
+curl -fsS --max-time 8 -o "$RELEASE/live-index.html" http://127.0.0.1:18080/mini/index.html || fail "Mini HTML request failed"
+grep -Fq 'finance-reject-reasons-20261108' "$RELEASE/live-index.html" || fail "Mini App still old"
 for c in davarna-bot davarna-mysql davarna-redis; do
  [[ "$(docker inspect -f '{{.State.Health.Status}}' "$c")" == healthy ]] || fail "dependency health changed"
 done
