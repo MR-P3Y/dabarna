@@ -28,7 +28,10 @@ def _tron_payload(address: str) -> bytes:
             value = value * 58 + _TRON_DIGITS[char]
         except KeyError as exc:
             raise InvalidDepositAddress("TRON address has invalid Base58 characters") from exc
-    raw = value.to_bytes(25, "big")
+    try:
+        raw = value.to_bytes(25, "big")
+    except OverflowError as exc:
+        raise InvalidDepositAddress("TRON Base58 address exceeds expected payload size") from exc
     body, checksum = raw[:-4], raw[-4:]
     expected = hashlib.sha256(hashlib.sha256(body).digest()).digest()[:4]
     if body[0] != 0x41 or checksum != expected:
