@@ -18,6 +18,7 @@ class DepositRequest(Base):
     receipt_path: Mapped[str | None] = mapped_column(String(255), nullable=True)
     reviewed_by: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("users.id"), nullable=True)
     reviewed_at: Mapped[str | None] = mapped_column(TIMESTAMP, nullable=True)
+    rejection_reason: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
     wallet_tx_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("wallet_txs.id"), nullable=True)
 
