@@ -4,8 +4,8 @@
 set -Eeuo pipefail
 umask 077
 ROOT=/opt/davarna-v2
-BRANCH=fix/finance-reject-test-cleanup-order-20261108
-TEST_DB=davarna_finance_reject_test_20261108
+BRANCH=fix/finance-reject-mysql-isolated-schema-20261108
+TEST_DB=davarna_finance_reject_test_20261108_v2
 IMAGE=davarna-backend:forum-mini-e7517922-stage2
 IMAGE_ID=sha256:b6d2709c3f78ce946a90aeb1b2bd6774acfa6b72a88cd604c370842cc3824850
 WORK=""
@@ -130,7 +130,7 @@ docker exec davarna-mysql sh -ec '
   test -n "$MYSQL_ROOT_PASSWORD"
   export MYSQL_PWD="$MYSQL_ROOT_PASSWORD"
   mysql -uroot --batch --skip-column-names -e "
-    CREATE DATABASE IF NOT EXISTS davarna_finance_reject_test_20261108
+    CREATE DATABASE IF NOT EXISTS davarna_finance_reject_test_20261108_v2
     CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
   "
 ' || die "unable to create isolated test schema"
@@ -165,7 +165,7 @@ from sqlalchemy.engine import make_url
 from alembic.config import Config
 from alembic import command
 
-TEST="davarna_finance_reject_test_20261108"
+TEST="davarna_finance_reject_test_20261108_v2"
 if os.environ.get("DAVARNA_FINANCE_REJECT_TEST_DB")!=TEST:
     raise SystemExit("BLOCKER: opt-in test database flag missing")
 dburl=dotenv_values("/run/secrets/mysql-finance.env").get("DATABASE_URL","")
@@ -179,23 +179,49 @@ os.environ["REDIS_URL"]="redis://127.0.0.1:6379/0"
 os.environ["GAME_AUTOPILOT_RUNTIME_ENABLED"]="false"
 os.environ["GAME_AUTO_DRAW_ENABLED"]="false"
 
+# The original 0001 migration uses *current* model metadata, so replaying all
+# historical migrations on a blank database repeats columns (e.g. draw_mode).
+# Exercise the latest additive migration against an isolated pre-upgrade schema.
+from app.core.db import Base
+from app import models  # noqa: F401 -- register all model tables
+from sqlalchemy import inspect
+
 engine=create_engine(u,pool_pre_ping=True)
 with engine.connect() as conn:
-    name=conn.execute(text("SELECT DATABASE()")).scalar_one()
-    if name!=TEST:raise SystemExit("BLOCKER: actual connected DB differs")
-    existing=int(conn.execute(text(
-        "SELECT COUNT(*) FROM information_schema.tables "
-        "WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='alembic_version'"
+    if conn.execute(text("SELECT DATABASE()")).scalar_one()!=TEST:
+        raise SystemExit("BLOCKER: actual connected DB differs")
+    existing_tables=int(conn.execute(text(
+        "SELECT COUNT(*) FROM information_schema.tables WHERE TABLE_SCHEMA=DATABASE()"
     )).scalar_one())
-    revision=conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one() if existing else "EMPTY"
-    if revision not in ("EMPTY","20261108_0012"):
-        raise SystemExit("BLOCKER: unexpected test DB migration head "+str(revision))
+    revision=None
+    if existing_tables:
+        if not inspect(conn).has_table("alembic_version"):
+            raise SystemExit("BLOCKER: nonempty test DB without migration marker")
+        revision=conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one_or_none()
+        if revision!="20261108_0012":
+            raise SystemExit("BLOCKER: test DB is partial or at unexpected revision: "+str(revision))
 engine.dispose()
-if revision=="EMPTY":
-    command.upgrade(Config("/app/alembic.ini"),"head")
-    print("PASS: full Alembic migration applied to ISOLATED MySQL test database")
+if not existing_tables:
+    # This is a fresh, named disposable schema, NEVER Production.
+    Base.metadata.create_all(engine)
+    with engine.begin() as conn:
+        cols={col["name"] for col in inspect(conn).get_columns("deposit_requests")}
+        if "rejection_reason" not in cols:
+            raise SystemExit("BLOCKER: expected current model column missing")
+        conn.execute(text("ALTER TABLE deposit_requests DROP COLUMN rejection_reason"))
+    command.stamp(Config("/app/alembic.ini"),"20261104_0011")
+    command.upgrade(Config("/app/alembic.ini"),"20261108_0012")
+    print("PASS: incremental finance migration applied to fresh isolated MySQL schema")
 else:
-    print("PASS: test DB already at expected isolated migration head")
+    print("PASS: isolated test DB already at required migration head")
+with engine.connect() as conn:
+    rev=conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
+    columns={x["name"]:x for x in inspect(conn).get_columns("deposit_requests")}
+    if rev!="20261108_0012" or "rejection_reason" not in columns:
+        raise SystemExit("BLOCKER: finance migration missing after upgrade")
+    if not columns["rejection_reason"]["nullable"]:
+        raise SystemExit("BLOCKER: rejection_reason must remain nullable")
+engine.dispose()
 
 loader=unittest.TestLoader()
 suite=loader.discover("/app/tests",pattern="mysql_mini_deposit_rejection_reason.py")
