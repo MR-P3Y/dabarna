@@ -126,6 +126,7 @@ trap finish EXIT
 # No Production writes before this preflight succeeds.
 audit_state() {
   docker exec -i davarna-backend python - <<'PY'
+import json,hashlib
 from sqlalchemy import func,select
 from app.core import config as cfg
 from app.core.db import SessionLocal
@@ -133,6 +134,7 @@ from app.models.game import Game
 from app.models.game_autopilot import GameAutopilotConfig
 from app.models.wallet import Wallet,WalletTx
 from app.models.game import GamePurchase
+from app.models.settings import AppSetting
 from app.models.user import User
 from app.services.game_autopilot_config_service import GameAutopilotConfigService
 
@@ -161,6 +163,15 @@ with SessionLocal() as db:
     active=db.execute(select(func.count()).select_from(Game).where(Game.status.in_(["LOBBY","RUNNING"]))).scalar_one()
     if active: raise SystemExit("BLOCKER: active game exists in Production")
     wallets=db.execute(select(func.count(),func.coalesce(func.sum(Wallet.balance),0))).one()
+    protected={}
+    for key in ("deposit_destinations","bank_deposit_enabled","crypto_payments_runtime_enabled"):
+        row=db.get(AppSetting,key)
+        protected[key]=row.v_json if row is not None else None
+    protected.update(tron=cfg.CRYPTO_TRON_USDT_ADDRESS,ton=cfg.CRYPTO_TON_ADDRESS,
+                     crypto_enabled=bool(cfg.CRYPTO_PAYMENTS_ENABLED))
+    payment_sha=hashlib.sha256(json.dumps(protected,sort_keys=True,
+                  ensure_ascii=False,default=str).encode()).hexdigest()
+    print("PAYMENTS_SHA="+payment_sha)
     print("PASS: LOW disabled/manual, no active games, MEDIUM/HIGH off")
     print("BEFORE_WALLETS_COUNT="+str(int(wallets[0])))
     print("BEFORE_WALLETS_SUM="+str(int(wallets[1])))
@@ -171,6 +182,8 @@ PY
 echo "===== CONFIRM SAFE LIVE GAME AND FINANCE BASELINE ====="
 BEFORE="$(audit_state)" || die "launch preflight failed; zero writes"
 printf '%s\n' "$BEFORE"
+PAYMENTS_BEFORE_SHA="$(printf '%s\n' "$BEFORE" | sed -n 's/^PAYMENTS_SHA=//p')"
+[[ "$PAYMENTS_BEFORE_SHA" =~ ^[0-9a-f]{64}$ ]] || die "payment configuration fingerprint missing"
 
 [[ ! -e "$BACKUP" ]] || die "backup folder already exists: $BACKUP"
 mkdir -p -m 0700 "$BACKUP"
@@ -374,9 +387,12 @@ echo "Live LOW game $GAME_ID, Telegram game topic 6, announce topic 3, live numb
 echo "Start only after 2 DIFFERENT paying players; 30s countdown; random numbers every 8s."
 echo "No next game automatically (scheduler_mode=MANUAL), MEDIUM/HIGH disabled."
 echo "===== FINANCIAL ACTIVITY CHECK (READ ONLY) ====="
-docker exec -i davarna-backend python - <<'PY'
+AFTER_FINANCE="$(docker exec -i davarna-backend python - <<'PY'
+import hashlib,json
 from sqlalchemy import func,select
+from app.core import config as cfg
 from app.core.db import SessionLocal
+from app.models.settings import AppSetting
 from app.models.wallet import Wallet,WalletTx
 from app.models.game import GamePurchase
 with SessionLocal() as db:
@@ -385,7 +401,20 @@ with SessionLocal() as db:
     print("AFTER_WALLETS_SUM="+str(int(row[1])))
     print("AFTER_LEDGER_COUNT="+str(int(db.execute(select(func.count()).select_from(WalletTx)).scalar_one())))
     print("AFTER_PURCHASE_COUNT="+str(int(db.execute(select(func.count()).select_from(GamePurchase)).scalar_one())))
+    protected={}
+    for key in ("deposit_destinations","bank_deposit_enabled","crypto_payments_runtime_enabled"):
+        item=db.get(AppSetting,key)
+        protected[key]=item.v_json if item is not None else None
+    protected.update(tron=cfg.CRYPTO_TRON_USDT_ADDRESS,ton=cfg.CRYPTO_TON_ADDRESS,
+                     crypto_enabled=bool(cfg.CRYPTO_PAYMENTS_ENABLED))
+    print("AFTER_PAYMENTS_SHA="+hashlib.sha256(json.dumps(protected,
+          sort_keys=True,ensure_ascii=False,default=str).encode()).hexdigest())
 PY
+)" || die "post-launch financial check unavailable"
+printf '%s\n' "$AFTER_FINANCE"
+PAYMENTS_AFTER_SHA="$(printf '%s\n' "$AFTER_FINANCE" | sed -n 's/^AFTER_PAYMENTS_SHA=//p')"
+[[ "$PAYMENTS_AFTER_SHA" == "$PAYMENTS_BEFORE_SHA" ]] || die "critical: payment settings drifted during LOW activation"
+echo "PASS: bank/crypto payment settings unchanged"
 echo "Compare BEFORE/AFTER finance counts; later user purchases can legitimately change balances."
 echo "BACKUP_AND_HOLD_OVERLAY=$BACKUP"
 echo "Do not rerun this launch command: a production game has been created."
