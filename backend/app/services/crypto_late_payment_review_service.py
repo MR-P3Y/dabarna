@@ -26,6 +26,7 @@ from app.services.crypto_chain_service import ChainTransfer, CryptoChainService,
 
 HISTORICAL_STATUSES = ("EXPIRED", "CANCELLED", "REJECTED")
 MAX_HISTORICAL_INVOICES = 1000
+MAX_DESTINATIONS_PER_NETWORK = 25
 MAX_REVIEW_TRANSFERS = 1000
 MAX_WINDOW = timedelta(days=7)
 
@@ -80,15 +81,25 @@ class CryptoLatePaymentReviewService:
             group = addresses.setdefault(network, [])
             if not any(_same_address(network, target, existing) for existing in group):
                 group.append(target)
+                if len(group) > MAX_DESTINATIONS_PER_NETWORK:
+                    raise HTTPException(
+                        status_code=409,
+                        detail="تعداد آدرس‌های تاریخی برای اسکن خودکار بیش از حد مجاز است.",
+                    )
 
         # Gather the complete provider result BEFORE deciding which transfers
         # might belong to expired invoices. A failed address invalidates the report.
         found: dict[tuple[str, str], ChainTransfer] = {}
         for network, destinations in sorted(addresses.items()):
-            transfers = CryptoChainService.list_incoming_for_addresses(
-                network=network, addresses=destinations, since=start_at,
-                include_pending=True,
-            )
+            try:
+                transfers = CryptoChainService.list_incoming_for_addresses(
+                    network=network, addresses=destinations, since=start_at,
+                    include_pending=True,
+                )
+            except Exception as exc:
+                raise CryptoChainUnavailable(
+                    "Historical provider scan unavailable or incomplete"
+                ) from exc
             for tx in transfers:
                 if (
                     tx.occurred_at < start_at or tx.occurred_at > end_at
