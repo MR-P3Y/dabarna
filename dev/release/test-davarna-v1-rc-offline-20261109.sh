@@ -28,7 +28,7 @@ echo "===== v1 FORUM RULE + TOPIC CONTRACTS ====="
 python3 -m unittest discover \
   -s "$WORK/backend/tests" -p 'test_game_forum_lifecycle_contract.py' -v
 
-echo "===== v1 BACKEND/MINI RULE LABELS (NO NETWORK) ====="
+echo "===== v1 BACKEND/MINI RULE LABELS (NO NETWORK; FAKE SQLITE/REDIS) ====="
 IMAGE="$(printenv DAVARNA_V1_TEST_IMAGE || true)"
 if [[ -z "$IMAGE" ]]; then IMAGE="davarna-backend:finance-pr31-90f6670"; fi
 docker image inspect "$IMAGE" >/dev/null 2>&1 || {
@@ -41,6 +41,8 @@ docker run --rm --network none --read-only \
   --workdir /work/backend \
   --env PYTHONPATH=/work/backend \
   --env PYTHONDONTWRITEBYTECODE=1 \
+  --env DATABASE_URL=sqlite+pysqlite:///:memory: \
+  --env REDIS_URL=redis://127.0.0.1:6379/15 \
   "$IMAGE" python -m unittest discover \
   -s /work/backend/tests -p 'test_mini_game_rule_labels.py' -v
 
