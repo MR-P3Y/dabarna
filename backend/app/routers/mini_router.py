@@ -124,6 +124,7 @@ from app.services.crypto_health_service import CryptoHealthService
 from app.services.crypto_preflight_service import CryptoPreflightService
 from app.services.crypto_reconciliation_service import CryptoReconciliationService
 from app.services.crypto_late_payment_review_service import CryptoLatePaymentReviewService
+from app.services.crypto_late_payment_queue_service import CryptoLatePaymentQueueService
 from app.services.crypto_chain_service import CryptoChainUnavailable
 from app.services.user_restriction_service import require_not_restricted, require_user_id_not_restricted
 from app.routers import admin_users_router
@@ -6045,6 +6046,49 @@ def mini_super_crypto_late_payment_review(
             status_code=503,
             detail="بررسی کامل شبکه ممکن نشد؛ نتیجه ناقص نمایش داده نمی‌شود.",
         )
+
+
+@router.get("/admin/super/crypto-late-payment-cases")
+def mini_super_crypto_late_payment_cases(
+    limit: int = Query(default=50, ge=1, le=100),
+    ident: MiniAdminIdentity = Depends(get_mini_super_admin_identity),
+    db: Session = Depends(get_db),
+):
+    _ = ident
+    return {
+        "items": CryptoLatePaymentQueueService.list_cases(db, limit=limit),
+        "can_auto_credit": False,
+    }
+
+
+@router.post("/admin/super/crypto-late-payment-cases/capture")
+def mini_super_crypto_late_payment_capture(
+    request: Request,
+    hours: int = Query(default=24, ge=1, le=168),
+    ident: MiniAdminIdentity = Depends(get_mini_super_admin_identity),
+    db: Session = Depends(get_db),
+):
+    enforce_write_rate_limit(int(ident.user_id))
+    end_at = datetime.now(timezone.utc).replace(tzinfo=None)
+    start_at = end_at - timedelta(hours=int(hours))
+    try:
+        result = CryptoLatePaymentQueueService.capture(
+            db, start_at=start_at, end_at=end_at,
+            admin=_mini_to_admin_identity(ident), request=request,
+        )
+        # Audit and case rows commit together; no payment/account writes.
+        db.commit()
+        return result
+    except CryptoChainUnavailable as exc:
+        db.rollback()
+        log.warning("Historical crypto queue capture refused: incomplete scan", exc_info=True)
+        raise HTTPException(
+            status_code=503,
+            detail="اسکن کامل شبکه انجام نشد؛ هیچ مورد جدیدی ثبت نشد.",
+        ) from exc
+    except Exception:
+        db.rollback()
+        raise
 
 
 @router.get("/admin/super/crypto-reconciliation")
