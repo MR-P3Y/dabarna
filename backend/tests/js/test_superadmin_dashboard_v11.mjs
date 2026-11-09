@@ -21,6 +21,7 @@ assert.match(html, /ux-v2\.css\?v=20261109-superadmin-dashboard-v11/);
 assert.match(source, /id === "superAdminSection" && !state\.admin\.canManageSuperSettings/);
 assert.match(source, /document\.visibilityState === "hidden"/);
 assert.match(source, /ADMIN_OPS_POLL_INTERVAL_MS = 45_000/);
+assert.match(source, /\.\.\.\(!silent \? \[refreshAdminOpsDashboard\(\)\] : \[\]\)/, "global silent polling must not duplicate dashboard requests");
 assert.match(source, /if \(adminOpsInFlight\) return adminOpsInFlight/);
 assert.match(source, /stopAdminOpsAutoRefresh\(\)/);
 assert.match(css, /prefers-reduced-motion: reduce/);
@@ -67,6 +68,12 @@ assert.match(dashboard.innerHTML, /بازی فعال/);
 assert.match(dashboard.innerHTML, /برداشت در صف/);
 assert.match(dashboard.innerHTML, /&lt;img src=x onerror=alert\(1\)&gt;/);
 assert.doesNotMatch(dashboard.innerHTML, /<img src=x onerror/);
+context.renderAdminOpsDashboard({
+  counts: {}, active_games: [],
+  system: { services: [{ title: "Telegram Bot", ok: null, status: "MONITORED" }] },
+});
+assert.match(dashboard.innerHTML, /در پایش سرور/, "MONITORED bot is not reported healthy");
+await vm.runInContext("refreshAdminOpsDashboard()", context);
 const snapshot = dashboard.innerHTML;
 context.apiFetch = async () => { throw new Error("network offline"); };
 await assert.rejects(vm.runInContext("refreshAdminOpsDashboard()", context), /network offline/);
