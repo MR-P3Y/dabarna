@@ -3449,9 +3449,13 @@ def mini_admin_ops_dashboard(
     ident: MiniAdminIdentity = Depends(get_mini_admin_identity),
     db: Session = Depends(get_db),
 ):
-    game_query = select(Game).where(Game.status.in_(["LOBBY", "RUNNING"])).order_by(Game.id.desc()).limit(6)
+    active_games_filter = [Game.status.in_(["LOBBY", "RUNNING"])]
     if not ident.is_super_admin:
-        game_query = game_query.where(Game.admin_user_id == int(ident.user_id))
+        active_games_filter.append(Game.admin_user_id == int(ident.user_id))
+    active_games_total = int(
+        db.execute(select(func.count(Game.id)).where(*active_games_filter)).scalar_one() or 0
+    )
+    game_query = select(Game).where(*active_games_filter).order_by(Game.id.desc()).limit(6)
     games = db.execute(game_query).scalars().all()
 
     active_games: list[dict[str, Any]] = []
@@ -3522,6 +3526,7 @@ def mini_admin_ops_dashboard(
         })
     return {
         "active_games": active_games,
+        "active_games_total": active_games_total,
         "counts": counts,
         "finance_visible": can_view_finance,
         "system": _mini_system_health(db),
