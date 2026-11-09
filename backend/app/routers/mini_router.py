@@ -119,6 +119,7 @@ from app.services.crypto_deposit_service import (
 )
 from app.services.crypto_address_change import proposal_key, validate_crypto_destination
 from app.services.crypto_rotation_readiness import assess_rotation
+from app.services.crypto_destination_state import rotation_enabled, rotate_locked, lock_destination_state
 from app.services.crypto_qr_service import CryptoQrService
 from app.services.crypto_health_service import CryptoHealthService
 from app.services.crypto_preflight_service import CryptoPreflightService
@@ -708,6 +709,14 @@ class MiniSuperCryptoAddressProposalIn(BaseModel):
     address: str = Field(min_length=1, max_length=128)
     expected_current_address: str = Field(min_length=1, max_length=128)
     confirmation: Literal["REQUEST_ADDRESS_CHANGE"]
+
+
+class MiniSuperCryptoAddressActivateIn(BaseModel):
+    network: Literal["TRON", "TON"]
+    expected_version: int = Field(ge=1)
+    expected_current_address: str = Field(min_length=1, max_length=128)
+    proposed_address: str = Field(min_length=1, max_length=128)
+    confirmation: Literal["ACTIVATE_CRYPTO_ADDRESS_DISPOSABLE_ONLY"]
 
 
 class MiniSuperBankDepositUpdateIn(BaseModel):
@@ -5718,6 +5727,80 @@ def mini_super_propose_crypto_address(
         "activation_supported": False,
         "message": "درخواست ذخیره شد؛ آدرس فعال و اسکنر تغییر نکردند.",
     }
+
+
+@router.post("/admin/super/crypto-address-activate-experimental")
+def mini_super_crypto_address_activate_experimental(
+    payload: MiniSuperCryptoAddressActivateIn,
+    request: Request,
+    ident: MiniAdminIdentity = Depends(get_mini_super_admin_identity),
+    db: Session = Depends(get_db),
+):
+    """An atomic activation rehearsal; physically impossible on production DB.
+
+    No production enablement flag is provided by this endpoint. It can only
+    run in the disposable MySQL test environment enforced by rotation_enabled.
+    """
+    if not rotation_enabled():
+        raise HTTPException(status_code=409, detail="فعال‌سازی فقط در پایگاه داده آزمایشی مستقل امکان‌پذیر است.")
+    enforce_write_rate_limit(int(ident.user_id))
+    network = payload.network
+    pending_key = proposal_key(network)
+    proposal_row = db.execute(
+        select(AppSetting).where(AppSetting.k == pending_key).with_for_update()
+    ).scalar_one_or_none()
+    if (proposal_row is None or not isinstance(proposal_row.v_json, dict)
+            or proposal_row.v_json.get("status") != "PENDING_REVIEW"):
+        raise HTTPException(status_code=409, detail="درخواست در انتظار تأیید وجود ندارد.")
+    proposal = dict(proposal_row.v_json)
+    proposed = validate_crypto_destination(network, payload.proposed_address)
+    if proposed != str(proposal.get("address") or ""):
+        raise HTTPException(status_code=409, detail="آدرس پیشنهادی با درخواست ثبت‌شده یکسان نیست.")
+    current = lock_destination_state(db, network)
+    if (current["address"] != payload.expected_current_address
+            or current["version"] != payload.expected_version):
+        raise HTTPException(status_code=409, detail="نسخه آدرس تغییر کرده است؛ دوباره بررسی کنید.")
+    if hashlib.sha256(current["address"].encode()).hexdigest() != proposal.get("previous_address_sha256"):
+        raise HTTPException(status_code=409, detail="درخواست به نسخه قبلی آدرس تعلق دارد.")
+    readiness = assess_rotation(
+        db, network=network, current_address=str(current["address"]),
+        proposed_address=proposed,
+    )
+    if (readiness["open_invoices"] or readiness["recent_closed_invoices"]
+            or readiness["needs_manual_review"]):
+        raise HTTPException(status_code=409, detail="فاکتور یا مورد بررسی حل‌نشده وجود دارد.")
+    # A historical invoice may still receive a late transfer. Until the
+    # historical-address scanner/review queue ships, require ZERO historical
+    # invoices referencing the former address (not merely zero open ones).
+    historical_count = int(db.execute(select(func.count(CryptoDepositRequest.id)).where(
+        CryptoDepositRequest.network == network,
+        CryptoDepositRequest.destination_address == str(current["address"]),
+    )).scalar_one() or 0)
+    if historical_count:
+        raise HTTPException(status_code=409, detail="برای آدرس قبلی سابقه فاکتور وجود دارد؛ اسکن قدیمی هنوز آماده نیست.")
+    updated = rotate_locked(
+        db, network=network, expected_version=int(payload.expected_version),
+        expected_address=str(current["address"]), new_address=proposed,
+    )
+    proposal_row.v_json = {**proposal, "status": "ACTIVATED_TEST_ONLY",
+                           "activated_by": int(ident.user_id),
+                           "activated_at": datetime.utcnow().isoformat(timespec="seconds"),
+                           "activated_version": updated["version"]}
+    db.add(proposal_row)
+    AdminAuditService.record(
+        db, admin=_mini_to_admin_identity(ident),
+        action="settings.update", target_type="app_setting", target_id=None,
+        request=request,
+        details={"operation": "experimental_crypto_address_rotation",
+                 "network": network, "old_version": current["version"],
+                 "new_version": updated["version"],
+                 "old_hash": hashlib.sha256(str(current["address"]).encode()).hexdigest(),
+                 "new_hash": hashlib.sha256(proposed.encode()).hexdigest(),
+                 "production_activation": False},
+    )
+    db.commit()
+    return {"ok": True, "network": network, "version": updated["version"],
+            "address": updated["address"], "production_activation": False}
 
 
 @router.put("/admin/super/crypto-settings")
