@@ -55,7 +55,7 @@ def _already_confirmed(db: Session, draft_id: int) -> bool:
     return db.execute(select(CryptoDestinationChallenge.id).where(
         CryptoDestinationChallenge.draft_id == int(draft_id),
         CryptoDestinationChallenge.consumed_at.is_not(None),
-    ).limit(1)).scalar_one_or_none() is not None
+    ).limit(1).with_for_update()).scalar_one_or_none() is not None
 
 
 class CryptoDestinationConfirmationService:
@@ -71,7 +71,7 @@ class CryptoDestinationConfirmationService:
             CryptoDestinationChallenge.draft_id == int(draft.id),
             CryptoDestinationChallenge.consumed_at.is_(None),
             CryptoDestinationChallenge.expires_at > now,
-        ).limit(1)).scalar_one_or_none()
+        ).limit(1).with_for_update()).scalar_one_or_none()
         if pending is not None:
             raise HTTPException(status_code=409, detail="چالش قبلی هنوز معتبر است؛ تا پایان مهلت آن صبر کنید.")
 
