@@ -98,8 +98,15 @@ class _AtomicWalletMySQLConcurrency(unittest.TestCase):
             release.set()
             a.result(timeout=12)
             b.result(timeout=12)
-        self.assertEqual(events[-1], ("invoice_read", 2))
-        self.assertEqual(events[1], ("rotation_committed", 2))
+        # Both commits and reads are proven by their observed values, not by
+        # post-commit Python list append order: once db.commit() returns, the
+        # waiting reader may acquire the lock before the writer appends its log.
+        self.assertEqual(len(events), 3, events)
+        self.assertEqual(events[0], ("rotated_uncommitted", 2))
+        self.assertCountEqual(
+            events[1:],
+            [("rotation_committed", 2), ("invoice_read", 2)],
+        )
 
     def test_concurrent_invoice_snapshot_is_consistent_and_rollback_restores_old_destination(self):
         """Persistent invoice snapshots are serialized against rotation commit."""
