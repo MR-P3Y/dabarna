@@ -469,7 +469,13 @@ class CryptoDepositService:
         rows = db.execute(
             select(CryptoDepositRequest)
             .where(
-                CryptoDepositRequest.status.in_(OPEN_STATUSES),
+                # Only unpaid, unclaimed invoices may expire automatically.
+                # A detected/confirming on-chain transfer must be reconciled,
+                # even after the payment-window closes.
+                CryptoDepositRequest.status == "WAITING_PAYMENT",
+                CryptoDepositRequest.tx_hash.is_(None),
+                CryptoDepositRequest.detected_at.is_(None),
+                CryptoDepositRequest.payment_requested_at.is_(None),
                 CryptoDepositRequest.expires_at < cutoff,
             )
             .with_for_update()
@@ -513,15 +519,13 @@ class CryptoDepositService:
     ) -> bool:
         """Prevent cross-address crediting, including equivalent TON address formats."""
         from app.services.crypto_address_rotation_validation import (
-            InvalidDepositAddress, validate_deposit_address,
+            InvalidDepositAddress, same_deposit_destination,
         )
 
         try:
             network = str(invoice.network)
-            return (
-                network == str(transfer.network)
-                and validate_deposit_address(network, str(invoice.destination_address))
-                == validate_deposit_address(network, str(transfer.destination_address))
+            return network == str(transfer.network) and same_deposit_destination(
+                network, str(invoice.destination_address), str(transfer.destination_address),
             )
         except InvalidDepositAddress:
             return False
