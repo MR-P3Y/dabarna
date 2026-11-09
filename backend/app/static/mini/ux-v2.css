@@ -850,3 +850,65 @@ html[data-theme="light"] .admin-ops-dashboard-v11 {
 @media (prefers-reduced-motion: reduce) {
   .admin-ops-skeleton-v11 > span { animation: none; }
 }
+
+/* V1.2: actionable command center, touch-friendly and keyboard accessible. */
+.admin-ops-route-card,
+.admin-ops-service-detail {
+  appearance: none;
+  -webkit-appearance: none;
+  color: var(--text);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  transition: transform .17s ease, border-color .17s ease, box-shadow .17s ease;
+}
+.admin-ops-route-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  width: 100%;
+  border: 1px solid var(--ux-border);
+}
+.admin-ops-route-card .admin-ops-route-icon {
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  width: 32px;
+  height: 32px;
+  background: rgba(87, 188, 238, .14);
+  font-size: 16px;
+  font-weight: 900;
+}
+.admin-ops-route-card > small { margin-top: auto; }
+.admin-ops-route-card:hover,
+.admin-ops-service-detail:hover {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px rgba(0,0,0,.10);
+}
+.admin-ops-route-card:focus-visible,
+.admin-ops-service-detail:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+.admin-ops-service-detail {
+  padding: 12px;
+  justify-content: space-between;
+  border: 1px solid var(--ux-border);
+}
+.admin-ops-service-detail small { color: var(--muted); font-size: 10px; }
+.admin-ops-service-inspector:not([hidden]) {
+  margin-top: 12px;
+  padding: 14px;
+  border: 1px solid var(--ux-border);
+  border-radius: 14px;
+  background: var(--ux-raised);
+  line-height: 1.8;
+}
+.admin-ops-service-inspector p { margin: 4px 0; }
+.admin-ops-service-inspector small { color: var(--muted); }
+@media (prefers-reduced-motion: reduce) {
+  .admin-ops-route-card, .admin-ops-service-detail { transition: none; }
+  .admin-ops-route-card:hover, .admin-ops-service-detail:hover { transform: none; }
+}
