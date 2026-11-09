@@ -518,6 +518,8 @@ class CryptoDepositService:
             )
         ).scalar_one_or_none()
         if claimed:
+            if str(claimed.destination_address) != str(transfer.destination_address):
+                return None
             if not CryptoDepositService._transfer_is_in_window(claimed, transfer):
                 return None
             if claimed.memo and claimed.memo != transfer.memo:
@@ -537,7 +539,8 @@ class CryptoDepositService:
             valid_memo_matches = [
                 invoice
                 for invoice in memo_candidates
-                if CryptoDepositService._transfer_is_in_window(invoice, transfer)
+                if str(invoice.destination_address) == str(transfer.destination_address)
+                and CryptoDepositService._transfer_is_in_window(invoice, transfer)
             ]
             if len(valid_memo_matches) == 1:
                 return valid_memo_matches[0]
@@ -554,6 +557,8 @@ class CryptoDepositService:
         ).scalars().all()
         valid: list[CryptoDepositRequest] = []
         for invoice in candidates:
+            if str(invoice.destination_address) != str(transfer.destination_address):
+                continue
             if not CryptoDepositService._transfer_is_in_window(invoice, transfer):
                 continue
             if invoice.memo and transfer.memo and invoice.memo != transfer.memo:
