@@ -15,14 +15,18 @@ def _load() -> dict[str, Any]:
     try:
         data = json.loads(_STORE_PATH.read_text(encoding="utf-8"))
         if not isinstance(data, dict):
-            return {"subs": {}, "last": {}, "events": {}, "meta": {}}
+            raise ValueError("notification state must be a JSON object")
         data.setdefault("subs", {})
         data.setdefault("last", {})
         data.setdefault("events", {})
         data.setdefault("meta", {})
         return data
-    except Exception:
-        return {"subs": {}, "last": {}, "events": {}, "meta": {}}
+    except (OSError, UnicodeError, ValueError, TypeError) as exc:
+        # Never silently reset persistent delivery ACKs when storage is
+        # unreadable or corrupted: that can cause widespread duplicate sends.
+        raise RuntimeError(
+            f"notification state unreadable or corrupt: {_STORE_PATH}"
+        ) from exc
 
 
 def _save(data: dict[str, Any]) -> None:
