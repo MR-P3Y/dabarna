@@ -41,14 +41,9 @@ def _normalize(network: str, address: str) -> str:
 
 
 def _same_destination(network: str, old: str, new: str) -> bool:
-    # TON bounceable and non-bounceable forms identify the same account.
-    if network == "TON":
-        from app.services.crypto_address_rotation_validation import _normalize_ton
-        import base64
-        a = base64.urlsafe_b64decode(_normalize_ton(old) + "==")
-        b = base64.urlsafe_b64decode(_normalize_ton(new) + "==")
-        return a[1:34] == b[1:34]
-    return old == new
+    from app.services.crypto_address_rotation_validation import same_deposit_destination
+
+    return same_deposit_destination(network, old, new)
 
 
 def _latest(db: Session, *, network: str, asset: str, lock: bool = False):
