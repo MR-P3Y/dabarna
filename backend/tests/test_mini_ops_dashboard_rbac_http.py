@@ -66,6 +66,7 @@ class OpsDashboardHttpRBAC(unittest.TestCase):
                 self._as_role(role)
                 response = self.client.get("/mini-api/admin/ops-dashboard")
                 self.assertEqual(response.status_code, 200, response.text)
+                self.assertFalse(response.json()["finance_visible"])
                 counts = response.json()["counts"]
                 for key in ("pending_deposits", "pending_withdraws", "approved_withdraws",
                             "crypto_needs_review", "risk_events_24h"):
@@ -83,6 +84,7 @@ class OpsDashboardHttpRBAC(unittest.TestCase):
                 self._as_role(role)
                 response = self.client.get("/mini-api/admin/ops-dashboard")
                 self.assertEqual(response.status_code, 200, response.text)
+                self.assertTrue(response.json()["finance_visible"])
                 counts = response.json()["counts"]
                 for key in ("pending_deposits", "pending_withdraws", "approved_withdraws",
                             "crypto_needs_review", "risk_events_24h", "game_errors"):
