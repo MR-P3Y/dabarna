@@ -136,11 +136,6 @@ for i in $(seq 1 45); do
 done
 [[ "$healthy" == 1 ]] || die "backend never became healthy"
 [[ "$(docker inspect -f '{{.Config.Image}}' davarna-backend)" == "$IMAGE" ]] || die "backend image mismatch"
-docker exec davarna-backend python - <<'PY'
-from app.core import config as cfg
-assert cfg.GAME_AUTO_DRAW_ENABLED and not cfg.GAME_AUTOPILOT_RUNTIME_ENABLED
-print("PASS: auto number worker enabled, autopilot scheduler remains off")
-PY
 docker exec davarna-backend python -c 'from app.core import config as cfg;assert cfg.GAME_AUTO_DRAW_ENABLED and not cfg.GAME_AUTOPILOT_RUNTIME_ENABLED;print("PASS: worker flags unchanged")'
 curl -fsS --max-time 10 http://127.0.0.1:18080/health/db >/dev/null || die "DB health failed"
 for path in index.html app.js ux-v2.css; do
