@@ -556,6 +556,14 @@ class GameService:
             raise HTTPException(status_code=400, detail="draw mode must be selected before game start")
 
         if draw_mode == "AUTO":
+            # Do not enter RUNNING when the lifespan never launches the draw worker.
+            # Without this guard the database trigger arms a permanent due job
+            # but no backend worker exists to call the numbers.
+            if not cfg.GAME_AUTO_DRAW_ENABLED:
+                raise HTTPException(
+                    status_code=503,
+                    detail="automatic number draw is disabled on this server; enable the worker before starting AUTO games",
+                )
             interval = int(game.draw_interval_seconds or 0)
             sequence = auto_control.sequence_json if auto_control is not None and isinstance(auto_control.sequence_json, list) else []
             if interval not in {5, 8, 10, 15}:
