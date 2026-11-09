@@ -12,8 +12,8 @@ WORK=""
 CREATED_USER=0
 die(){ echo "BLOCKER: $*" >&2; exit 2; }
 [[ "$(id -u)" == 0 ]] || die "root required"
-[[ "\${DAVARNA_CRYPTO_MYSQL_TEST_APPROVAL:-}" == ISOLATED_SCHEMA_ONLY ]] || die "test-only approval flag missing"
-SOURCE="\${DAVARNA_CRYPTO_MYSQL_TEST_SOURCE_SHA:-}"
+[[ "${DAVARNA_CRYPTO_MYSQL_TEST_APPROVAL:-}" == ISOLATED_SCHEMA_ONLY ]] || die "test-only approval flag missing"
+SOURCE="${DAVARNA_CRYPTO_MYSQL_TEST_SOURCE_SHA:-}"
 [[ "$SOURCE" =~ ^[0-9a-f]{40}$ ]] || die "pinned source SHA required"
 exec 9>/run/davarna-crypto-migration-test.lock
 flock -n 9 || die "another test running"
