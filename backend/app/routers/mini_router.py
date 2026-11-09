@@ -117,6 +117,7 @@ from app.services.crypto_deposit_service import (
     CRYPTO_RUNTIME_SETTING_KEY,
     CryptoDepositService,
 )
+from app.services.crypto_address_change import proposal_key, validate_crypto_destination
 from app.services.crypto_qr_service import CryptoQrService
 from app.services.crypto_health_service import CryptoHealthService
 from app.services.crypto_preflight_service import CryptoPreflightService
@@ -699,6 +700,13 @@ class MiniSuperRevokeIn(BaseModel):
 
 class MiniSuperCryptoUpdateIn(BaseModel):
     enabled: bool
+
+
+class MiniSuperCryptoAddressProposalIn(BaseModel):
+    network: Literal["TRON", "TON"]
+    address: str = Field(min_length=1, max_length=128)
+    expected_current_address: str = Field(min_length=1, max_length=128)
+    confirmation: Literal["REQUEST_ADDRESS_CHANGE"]
 
 
 class MiniSuperBankDepositUpdateIn(BaseModel):
@@ -5599,6 +5607,90 @@ def mini_super_crypto_settings(
 ):
     _ = ident
     return _mini_super_crypto_status(db)
+
+
+@router.get("/admin/super/crypto-address-proposals")
+def mini_super_crypto_address_proposals(
+    ident: MiniAdminIdentity = Depends(get_mini_super_admin_identity),
+    db: Session = Depends(get_db),
+):
+    _ = ident
+    items = []
+    for network in ("TRON", "TON"):
+        raw = _setting_get_json(db, proposal_key(network))
+        if isinstance(raw, dict) and raw.get("status") == "PENDING_REVIEW":
+            items.append({
+                "network": network,
+                "address": str(raw.get("address") or ""),
+                "status": "PENDING_REVIEW",
+                "created_at": str(raw.get("created_at") or ""),
+            })
+    return {"items": items, "activation_supported": False}
+
+
+@router.post("/admin/super/crypto-address-proposals", status_code=201)
+def mini_super_propose_crypto_address(
+    payload: MiniSuperCryptoAddressProposalIn,
+    request: Request,
+    ident: MiniAdminIdentity = Depends(get_mini_super_admin_identity),
+    db: Session = Depends(get_db),
+):
+    """Record an audited proposal only; invoice generation and chain scanners remain unchanged."""
+    network = payload.network
+    current = next(
+        (str(x["address"]) for x in CryptoDepositService.configured_options()
+         if x["network"] == network),
+        None,
+    )
+    if not current or current != payload.expected_current_address:
+        raise HTTPException(status_code=409, detail="آدرس فعلی تغییر کرده یا شبکه تنظیم نیست؛ دوباره بارگذاری کنید.")
+    try:
+        normalized = validate_crypto_destination(network, payload.address)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="آدرس شبکه نامعتبر است.") from None
+    if normalized == current:
+        raise HTTPException(status_code=409, detail="آدرس پیشنهادی با آدرس فعلی یکسان است.")
+
+    key = proposal_key(network)
+    row = db.execute(select(AppSetting).where(AppSetting.k == key).with_for_update()).scalar_one_or_none()
+    if row is not None and isinstance(row.v_json, dict) and row.v_json.get("status") == "PENDING_REVIEW":
+        raise HTTPException(status_code=409, detail="برای این شبکه یک درخواست باز وجود دارد؛ ابتدا آن را تعیین تکلیف کنید.")
+    proposal = {
+        "network": network,
+        "address": normalized,
+        "previous_address_sha256": hashlib.sha256(current.encode()).hexdigest(),
+        "status": "PENDING_REVIEW",
+        "created_at": datetime.utcnow().isoformat(timespec="seconds"),
+        "requested_by": int(ident.user_id),
+    }
+    if row is None:
+        db.add(AppSetting(k=key, v_json=proposal))
+        db.flush()
+    else:
+        row.v_json = proposal
+        db.add(row)
+    AdminAuditService.record(
+        db,
+        admin=_mini_to_admin_identity(ident),
+        action="settings.update",
+        target_type="app_setting",
+        target_id=None,
+        request=request,
+        details={
+            "key": key,
+            "operation": "propose_only",
+            "network": network,
+            "destination_sha256": hashlib.sha256(normalized.encode()).hexdigest(),
+            "activation": False,
+        },
+    )
+    db.commit()
+    return {
+        "network": network,
+        "status": "PENDING_REVIEW",
+        "activation_supported": False,
+        "message": "درخواست ذخیره شد؛ آدرس فعال و اسکنر تغییر نکردند.",
+    }
 
 
 @router.put("/admin/super/crypto-settings")
