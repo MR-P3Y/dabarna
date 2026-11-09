@@ -118,9 +118,14 @@ from app.services.crypto_deposit_service import (
     CryptoDepositService,
 )
 from app.services.crypto_qr_service import CryptoQrService
+from app.services.crypto_destination_draft_service import CryptoDestinationDraftService
+from app.services.crypto_destination_confirmation_service import CryptoDestinationConfirmationService
 from app.services.crypto_health_service import CryptoHealthService
 from app.services.crypto_preflight_service import CryptoPreflightService
 from app.services.crypto_reconciliation_service import CryptoReconciliationService
+from app.services.crypto_late_payment_review_service import CryptoLatePaymentReviewService
+from app.services.crypto_late_payment_queue_service import CryptoLatePaymentQueueService
+from app.services.crypto_chain_service import CryptoChainUnavailable
 from app.services.user_restriction_service import require_not_restricted, require_user_id_not_restricted
 from app.routers import admin_users_router
 
@@ -699,6 +704,23 @@ class MiniSuperRevokeIn(BaseModel):
 
 class MiniSuperCryptoUpdateIn(BaseModel):
     enabled: bool
+
+
+class MiniCryptoDestinationPreviewIn(BaseModel):
+    network: Literal["TRON", "TON"]
+    address: str = Field(min_length=34, max_length=128)
+    expected_version: int = Field(ge=0)
+
+
+class MiniCryptoDestinationDraftIn(MiniCryptoDestinationPreviewIn):
+    reason: str = Field(min_length=10, max_length=500)
+    operation_id: str = Field(min_length=12, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
+
+
+class MiniCryptoDestinationConfirmIn(BaseModel):
+    challenge_id: str = Field(min_length=32, max_length=32, pattern=r"^[a-f0-9]{32}$")
+    token: str = Field(min_length=32, max_length=96)
+    confirmed_address: str = Field(min_length=34, max_length=128)
 
 
 class MiniSuperBankDepositUpdateIn(BaseModel):
@@ -5559,6 +5581,180 @@ def mini_super_crypto_settings(
     return _mini_super_crypto_status(db)
 
 
+@router.get("/admin/super/crypto-destinations/versions")
+def mini_super_crypto_destination_versions(
+    network: Literal["TRON", "TON"],
+    ident: MiniAdminIdentity = Depends(get_mini_super_admin_identity),
+    db: Session = Depends(get_db),
+):
+    _ = ident
+    return {"items": CryptoDestinationDraftService.versions(db, network=network)}
+
+
+@router.post("/admin/super/crypto-destinations/preview")
+def mini_super_crypto_destination_preview(
+    payload: MiniCryptoDestinationPreviewIn,
+    ident: MiniAdminIdentity = Depends(get_mini_super_admin_identity),
+    db: Session = Depends(get_db),
+):
+    _ = ident
+    # Read-only: never changes the active deposit address or database.
+    return CryptoDestinationDraftService.preview(
+        db, network=payload.network, address=payload.address,
+        expected_version=payload.expected_version,
+    )
+
+
+@router.post("/admin/super/crypto-destinations/drafts")
+def mini_super_crypto_destination_create_draft(
+    payload: MiniCryptoDestinationDraftIn,
+    request: Request,
+    ident: MiniAdminIdentity = Depends(get_mini_super_admin_identity),
+    db: Session = Depends(get_db),
+):
+    enforce_write_rate_limit(int(ident.user_id))
+    reason = payload.reason.strip()
+    if len(reason) < 10:
+        raise HTTPException(status_code=400, detail="دلیل تغییر آدرس باید حداقل ۱۰ کاراکتر باشد.")
+    draft, replayed, preview = CryptoDestinationDraftService.create_draft(
+        db,
+        network=payload.network,
+        address=payload.address,
+        reason=reason,
+        expected_version=payload.expected_version,
+        operation_id=payload.operation_id,
+        actor_id=ident.user_id,
+    )
+    if not replayed:
+        AdminAuditService.record(
+            db,
+            admin=_mini_to_admin_identity(ident),
+            action="crypto.destination.draft",
+            target_type="crypto_destination_version",
+            target_id=int(draft.id),
+            request=request,
+            details={
+                "network": draft.network,
+                "asset": draft.asset,
+                "version": int(draft.version),
+                "state": "DRAFT",
+                "old_address_masked": preview["current_masked"],
+                "new_address_masked": preview["new_masked"],
+                "open_invoice_count": preview["open_invoice_count"],
+                "operation_id": payload.operation_id,
+                "reason": reason,
+            },
+        )
+        db.commit()
+    return {
+        "ok": True, "draft_id": int(draft.id), "state": str(draft.state),
+        "version": int(draft.version), "replayed": replayed,
+        "can_activate": False,
+    }
+
+
+@router.post("/admin/super/crypto-destinations/drafts/{draft_id}/prepare-confirmation")
+def mini_super_crypto_destination_prepare_confirmation(
+    draft_id: int,
+    request: Request,
+    response: Response,
+    ident: MiniAdminIdentity = Depends(get_mini_super_admin_identity),
+    db: Session = Depends(get_db),
+):
+    enforce_write_rate_limit(int(ident.user_id))
+    challenge, token, draft = CryptoDestinationConfirmationService.prepare(
+        db, draft_id=int(draft_id), actor_id=int(ident.user_id),
+    )
+    AdminAuditService.record(
+        db, admin=_mini_to_admin_identity(ident),
+        action="crypto.destination.confirmation.prepare",
+        target_type="crypto_destination_version",
+        target_id=int(draft.id),
+        request=request,
+        details={
+            "network": draft.network, "version": int(draft.version),
+            "operation_id": draft.operation_id, "challenge_id": challenge.id,
+        },
+    )
+    db.commit()
+    response.headers["Cache-Control"] = "no-store"
+    return {
+        "ok": True, "draft_id": int(draft.id), "challenge_id": challenge.id,
+        "token": token, "expires_at": str(challenge.expires_at),
+        "network": str(draft.network),
+        "previous_address": str(draft.previous_address),
+        "proposed_address": str(draft.address),
+        "can_activate": False,
+        "warning": "این مرحله فقط تأیید انسانی است و آدرس واقعی را تغییر نمی‌دهد.",
+    }
+
+
+@router.post("/admin/super/crypto-destinations/drafts/{draft_id}/confirm")
+def mini_super_crypto_destination_confirm(
+    draft_id: int,
+    payload: MiniCryptoDestinationConfirmIn,
+    request: Request,
+    response: Response,
+    ident: MiniAdminIdentity = Depends(get_mini_super_admin_identity),
+    db: Session = Depends(get_db),
+):
+    enforce_write_rate_limit(int(ident.user_id))
+    challenge, draft = CryptoDestinationConfirmationService.confirm(
+        db, draft_id=int(draft_id),
+        challenge_id=payload.challenge_id, token=payload.token,
+        confirmed_address=payload.confirmed_address, actor_id=int(ident.user_id),
+    )
+    AdminAuditService.record(
+        db, admin=_mini_to_admin_identity(ident),
+        action="crypto.destination.confirmation.reviewed",
+        target_type="crypto_destination_version",
+        target_id=int(draft.id), request=request,
+        details={
+            "network": str(draft.network), "version": int(draft.version),
+            "operation_id": str(draft.operation_id),
+            "challenge_id": challenge.id,
+            "previous_address_masked": str(draft.previous_address)[:6] + "…" + str(draft.previous_address)[-6:],
+            "proposed_address_masked": str(draft.address)[:6] + "…" + str(draft.address)[-6:],
+            "activated": False,
+        },
+    )
+    db.commit()
+    response.headers["Cache-Control"] = "no-store"
+    return {
+        "ok": True, "draft_id": int(draft.id),
+        "confirmed_for_review": True, "can_activate": False,
+        "active_address_unchanged": True,
+    }
+
+
+@router.post("/admin/super/crypto-destinations/drafts/{draft_id}/cancel")
+def mini_super_crypto_destination_cancel_draft(
+    draft_id: int,
+    request: Request,
+    ident: MiniAdminIdentity = Depends(get_mini_super_admin_identity),
+    db: Session = Depends(get_db),
+):
+    enforce_write_rate_limit(int(ident.user_id))
+    draft, replayed = CryptoDestinationDraftService.cancel_draft(db, draft_id=draft_id)
+    if not replayed:
+        AdminAuditService.record(
+            db,
+            admin=_mini_to_admin_identity(ident),
+            action="crypto.destination.cancel",
+            target_type="crypto_destination_version",
+            target_id=int(draft.id),
+            request=request,
+            details={
+                "network": draft.network, "asset": draft.asset,
+                "version": int(draft.version),
+                "operation_id": draft.operation_id,
+                "new_address_masked": str(draft.address)[:6] + "…" + str(draft.address)[-6:],
+            },
+        )
+        db.commit()
+    return {"ok": True, "draft_id": int(draft.id), "state": "CANCELLED", "replayed": replayed}
+
+
 @router.put("/admin/super/crypto-settings")
 def mini_super_update_crypto_settings(
     payload: MiniSuperCryptoUpdateIn,
@@ -5827,6 +6023,72 @@ def mini_super_crypto_health(
 ):
     _ = ident
     return CryptoHealthService.check()
+
+
+@router.get("/admin/super/crypto-late-payment-review")
+def mini_super_crypto_late_payment_review(
+    hours: int = Query(default=24, ge=1, le=168),
+    ident: MiniAdminIdentity = Depends(get_mini_super_admin_identity),
+    db: Session = Depends(get_db),
+):
+    enforce_write_rate_limit(int(ident.user_id))
+    end_at = datetime.now(timezone.utc).replace(tzinfo=None)
+    start_at = end_at - timedelta(hours=int(hours))
+    try:
+        # Read-only. No wallet credit, status mutation or new claim endpoint.
+        report = CryptoLatePaymentReviewService.scan(
+            db, start_at=start_at, end_at=end_at,
+        )
+        return report
+    except CryptoChainUnavailable:
+        log.warning("Historical crypto scan incomplete; review refused", exc_info=True)
+        raise HTTPException(
+            status_code=503,
+            detail="بررسی کامل شبکه ممکن نشد؛ نتیجه ناقص نمایش داده نمی‌شود.",
+        )
+
+
+@router.get("/admin/super/crypto-late-payment-cases")
+def mini_super_crypto_late_payment_cases(
+    limit: int = Query(default=50, ge=1, le=100),
+    ident: MiniAdminIdentity = Depends(get_mini_super_admin_identity),
+    db: Session = Depends(get_db),
+):
+    _ = ident
+    return {
+        "items": CryptoLatePaymentQueueService.list_cases(db, limit=limit),
+        "can_auto_credit": False,
+    }
+
+
+@router.post("/admin/super/crypto-late-payment-cases/capture")
+def mini_super_crypto_late_payment_capture(
+    request: Request,
+    hours: int = Query(default=24, ge=1, le=168),
+    ident: MiniAdminIdentity = Depends(get_mini_super_admin_identity),
+    db: Session = Depends(get_db),
+):
+    enforce_write_rate_limit(int(ident.user_id))
+    end_at = datetime.now(timezone.utc).replace(tzinfo=None)
+    start_at = end_at - timedelta(hours=int(hours))
+    try:
+        result = CryptoLatePaymentQueueService.capture(
+            db, start_at=start_at, end_at=end_at,
+            admin=_mini_to_admin_identity(ident), request=request,
+        )
+        # Audit and case rows commit together; no payment/account writes.
+        db.commit()
+        return result
+    except CryptoChainUnavailable as exc:
+        db.rollback()
+        log.warning("Historical crypto queue capture refused: incomplete scan", exc_info=True)
+        raise HTTPException(
+            status_code=503,
+            detail="اسکن کامل شبکه انجام نشد؛ هیچ مورد جدیدی ثبت نشد.",
+        ) from exc
+    except Exception:
+        db.rollback()
+        raise
 
 
 @router.get("/admin/super/crypto-reconciliation")

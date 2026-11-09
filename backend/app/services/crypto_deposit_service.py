@@ -469,7 +469,13 @@ class CryptoDepositService:
         rows = db.execute(
             select(CryptoDepositRequest)
             .where(
-                CryptoDepositRequest.status.in_(OPEN_STATUSES),
+                # Only unpaid, unclaimed invoices may expire automatically.
+                # A detected/confirming on-chain transfer must be reconciled,
+                # even after the payment-window closes.
+                CryptoDepositRequest.status == "WAITING_PAYMENT",
+                CryptoDepositRequest.tx_hash.is_(None),
+                CryptoDepositRequest.detected_at.is_(None),
+                CryptoDepositRequest.payment_requested_at.is_(None),
                 CryptoDepositRequest.expires_at < cutoff,
             )
             .with_for_update()
@@ -508,6 +514,23 @@ class CryptoDepositService:
         return invoice
 
     @staticmethod
+    def _transfer_matches_invoice_destination(
+        invoice: CryptoDepositRequest, transfer: ChainTransfer,
+    ) -> bool:
+        """Prevent cross-address crediting, including equivalent TON address formats."""
+        from app.services.crypto_address_rotation_validation import (
+            InvalidDepositAddress, same_deposit_destination,
+        )
+
+        try:
+            network = str(invoice.network)
+            return network == str(transfer.network) and same_deposit_destination(
+                network, str(invoice.destination_address), str(transfer.destination_address),
+            )
+        except InvalidDepositAddress:
+            return False
+
+    @staticmethod
     def _match_invoice(db: Session, transfer: ChainTransfer) -> CryptoDepositRequest | None:
         claimed = db.execute(
             select(CryptoDepositRequest).where(
@@ -518,6 +541,8 @@ class CryptoDepositService:
             )
         ).scalar_one_or_none()
         if claimed:
+            if not CryptoDepositService._transfer_matches_invoice_destination(claimed, transfer):
+                return None
             if not CryptoDepositService._transfer_is_in_window(claimed, transfer):
                 return None
             if claimed.memo and claimed.memo != transfer.memo:
@@ -538,6 +563,7 @@ class CryptoDepositService:
                 invoice
                 for invoice in memo_candidates
                 if CryptoDepositService._transfer_is_in_window(invoice, transfer)
+                and CryptoDepositService._transfer_matches_invoice_destination(invoice, transfer)
             ]
             if len(valid_memo_matches) == 1:
                 return valid_memo_matches[0]
@@ -554,6 +580,8 @@ class CryptoDepositService:
         ).scalars().all()
         valid: list[CryptoDepositRequest] = []
         for invoice in candidates:
+            if not CryptoDepositService._transfer_matches_invoice_destination(invoice, transfer):
+                continue
             if not CryptoDepositService._transfer_is_in_window(invoice, transfer):
                 continue
             if invoice.memo and transfer.memo and invoice.memo != transfer.memo:
