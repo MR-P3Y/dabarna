@@ -12,6 +12,11 @@ from app.core import config as cfg
 
 log = logging.getLogger(__name__)
 
+# Bounded scans fail closed rather than silently discarding older transfers.
+TRON_PAGE_LIMIT = 200
+TON_PAGE_LIMIT = 100
+MAX_CHAIN_SCAN_PAGES = 25
+
 
 class CryptoChainUnavailable(RuntimeError):
     pass
@@ -88,6 +93,82 @@ class CryptoChainService:
         )
 
     @classmethod
+    def _tron_history_pages(
+        cls, *, url: str, base_params: dict[str, object],
+        headers: dict[str, str], only_confirmed: bool,
+    ) -> list[dict[str, Any]]:
+        """Collect TronGrid fingerprint pages or raise on an incomplete scan."""
+        params = dict(
+            base_params,
+            only_confirmed="true" if only_confirmed else "false",
+        )
+        collected: list[dict[str, Any]] = []
+        seen_fingerprints: set[str] = set()
+        with cls._client() as client:
+            for _ in range(MAX_CHAIN_SCAN_PAGES):
+                response = client.get(url, params=params, headers=headers)
+                response.raise_for_status()
+                payload = response.json()
+                if (
+                    not isinstance(payload, dict)
+                    or payload.get("success") is False
+                    or not isinstance(payload.get("data"), list)
+                ):
+                    raise CryptoChainUnavailable("TronGrid returned an invalid page")
+                page = payload["data"]
+                if any(not isinstance(item, dict) for item in page):
+                    raise CryptoChainUnavailable("TronGrid returned malformed transfers")
+                collected.extend(page)
+                meta = payload.get("meta") or {}
+                if not isinstance(meta, dict):
+                    raise CryptoChainUnavailable("TronGrid pagination metadata malformed")
+                fingerprint = meta.get("fingerprint")
+                if not fingerprint:
+                    # A full page without cursor might hide additional results.
+                    if len(page) >= TRON_PAGE_LIMIT:
+                        raise CryptoChainUnavailable("TronGrid truncated a full page without a cursor")
+                    return collected
+                if (
+                    not isinstance(fingerprint, str)
+                    or fingerprint in seen_fingerprints
+                ):
+                    raise CryptoChainUnavailable("TronGrid repeated or invalid pagination cursor")
+                seen_fingerprints.add(fingerprint)
+                params = dict(params, fingerprint=fingerprint)
+        raise CryptoChainUnavailable("TronGrid pagination page budget exceeded")
+
+    @classmethod
+    def _ton_history_pages(
+        cls, *, url: str, params: dict[str, object],
+        headers: dict[str, str],
+    ) -> list[dict[str, Any]]:
+        """Collect TON Center offset pages; reject truncated or repeated pages."""
+        collected: list[dict[str, Any]] = []
+        seen_hashes: set[str] = set()
+        with cls._client() as client:
+            for page_no in range(MAX_CHAIN_SCAN_PAGES):
+                response = client.get(
+                    url, params=dict(params, offset=page_no * TON_PAGE_LIMIT),
+                    headers=headers,
+                )
+                response.raise_for_status()
+                payload = response.json()
+                if not isinstance(payload, dict) or not isinstance(payload.get("transactions"), list):
+                    raise CryptoChainUnavailable("TON Center returned an invalid page")
+                rows = payload["transactions"]
+                if any(not isinstance(item, dict) for item in rows):
+                    raise CryptoChainUnavailable("TON Center returned malformed transactions")
+                for item in rows:
+                    tx_hash = str(item.get("hash") or "").strip()
+                    if not tx_hash or tx_hash in seen_hashes:
+                        raise CryptoChainUnavailable("TON Center returned missing/repeated transaction hash")
+                    seen_hashes.add(tx_hash)
+                collected.extend(rows)
+                if len(rows) < TON_PAGE_LIMIT:
+                    return collected
+        raise CryptoChainUnavailable("TON Center pagination page budget exceeded")
+
+    @classmethod
     def _list_tron_usdt(
         cls,
         *,
@@ -103,7 +184,7 @@ class CryptoChainService:
             headers["TRON-PRO-API-KEY"] = cfg.TRONGRID_API_KEY
         base_params: dict[str, object] = {
             "only_to": "true",
-            "limit": 200,
+            "limit": TRON_PAGE_LIMIT,
             "contract_address": cfg.CRYPTO_TRON_USDT_CONTRACT,
             "min_timestamp": int(since.timestamp() * 1000),
             "order_by": "block_timestamp,desc",
@@ -112,31 +193,23 @@ class CryptoChainService:
             f"{cfg.CRYPTO_TRONGRID_BASE_URL}/v1/accounts/"
             f"{target}/transactions/trc20"
         )
-        with cls._client() as client:
-            params = dict(base_params, only_confirmed="false" if include_pending else "true")
-            response = client.get(url, params=params, headers=headers)
-            response.raise_for_status()
-            data = response.json()
-            confirmed_hashes: set[str] = set()
-            if include_pending:
-                confirmed_response = client.get(
-                    url,
-                    params=dict(base_params, only_confirmed="true"),
-                    headers=headers,
-                )
-                confirmed_response.raise_for_status()
-                confirmed_data = confirmed_response.json()
-                if isinstance(confirmed_data, dict):
-                    confirmed_hashes = {
-                        str(item.get("transaction_id") or "").strip()
-                        for item in (confirmed_data.get("data") or [])
-                        if isinstance(item, dict)
-                    }
-        if not isinstance(data, dict) or data.get("success") is False:
-            raise CryptoChainUnavailable("TronGrid returned an invalid response")
+        history = cls._tron_history_pages(
+            url=url, base_params=base_params, headers=headers,
+            only_confirmed=not include_pending,
+        )
+        confirmed_hashes: set[str] = set()
+        if include_pending:
+            confirmed = cls._tron_history_pages(
+                url=url, base_params=base_params, headers=headers,
+                only_confirmed=True,
+            )
+            confirmed_hashes = {
+                str(item.get("transaction_id") or "").strip()
+                for item in confirmed
+            }
 
         out: list[ChainTransfer] = []
-        for row in data.get("data") or []:
+        for row in history:
             if not isinstance(row, dict):
                 continue
             token_info = row.get("token_info") if isinstance(row.get("token_info"), dict) else {}
@@ -189,18 +262,16 @@ class CryptoChainService:
         params: dict[str, object] = {
             "account": target,
             "start_utime": int(since.timestamp()),
-            "limit": 100,
+            "limit": TON_PAGE_LIMIT,
             "sort": "desc",
         }
-        with cls._client() as client:
-            response = client.get(f"{cfg.CRYPTO_TONCENTER_BASE_URL}/api/v3/transactions", params=params, headers=headers)
-            response.raise_for_status()
-            data = response.json()
-        if not isinstance(data, dict):
-            raise CryptoChainUnavailable("TON Center returned an invalid response")
+        history = cls._ton_history_pages(
+            url=f"{cfg.CRYPTO_TONCENTER_BASE_URL}/api/v3/transactions",
+            params=params, headers=headers,
+        )
 
         out: list[ChainTransfer] = []
-        for row in data.get("transactions") or []:
+        for row in history:
             if not isinstance(row, dict):
                 continue
             finality = str(row.get("finality") or "").lower()
