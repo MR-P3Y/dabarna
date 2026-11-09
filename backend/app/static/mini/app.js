@@ -5782,7 +5782,7 @@ function renderAutopilotReadiness(payload) {
     const blocked = item.blocked_by_manual_game ? " • بازی دستی این سطح را اشغال کرده است" : "";
     return '<div class="system-clock-card">' +
       '<strong>' + safeText(autopilotLevelLabel(item.level)) + '</strong>' +
-      '<div class="meta">' + (item.ready_to_generate ? 'آماده ساخت بازی' : 'نیازمند تنظیم') +
+      '<div class="meta">' + (item.existing_system_game ? 'بازی سیستمی فعال؛ ساخت بازی بعدی پس از پایان این دور' : item.ready_to_generate ? 'آماده ساخت بازی' : 'نیازمند تنظیم یا منتظر آزادشدن سطح') +
       active + blocked + '</div>' +
       '<div class="meta">' + (missing.length ? 'موارد باقی‌مانده: ' + safeText(missing.join('، ')) : 'تمام کنترل‌های پایه تأیید شدند') +
       '</div></div>';
