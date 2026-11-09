@@ -13,6 +13,10 @@ from app.core.redis_client import RedisLock
 from app.models.crypto import CryptoDepositRequest
 from app.services.crypto_chain_service import CryptoChainService
 from app.services.crypto_deposit_service import CryptoDepositService, OPEN_STATUSES
+from app.services.crypto_destination_state import rotation_enabled
+from app.services.crypto_late_transfer_review import (
+    HISTORICAL_STATUSES, record_unmatched_historical_transfer,
+)
 
 log = logging.getLogger(__name__)
 
@@ -24,7 +28,7 @@ def _utcnow() -> datetime:
 class CryptoDepositWorker:
     @staticmethod
     def run_once() -> dict[str, int]:
-        stats = {"transfers": 0, "matched": 0, "credited": 0, "review": 0, "expired": 0}
+        stats = {"transfers": 0, "matched": 0, "credited": 0, "review": 0, "expired": 0, "late_review": 0}
         lock = RedisLock(
             "davarna:crypto-deposit-worker",
             ttl_ms=max(30_000, int(cfg.CRYPTO_CONFIRM_INTERVAL_SEC) * 3_000),
@@ -72,7 +76,11 @@ class CryptoDepositWorker:
                         try:
                             invoice = CryptoDepositService.process_transfer(db, transfer)
                             if invoice is None:
-                                db.rollback()
+                                if record_unmatched_historical_transfer(db, transfer):
+                                    db.commit()
+                                    stats["late_review"] += 1
+                                else:
+                                    db.rollback()
                                 continue
                             db.commit()
                             stats["matched"] += 1
@@ -102,10 +110,13 @@ class CryptoDepositWorker:
     def _network_open_destinations(network: str) -> list[str]:
         """All distinct destinations with unsettled invoices for the network."""
         with SessionLocal() as db:
+            watched_statuses = tuple(OPEN_STATUSES) + (
+                HISTORICAL_STATUSES if rotation_enabled() else ()
+            )
             rows = db.execute(
                 select(CryptoDepositRequest.destination_address).where(
                     CryptoDepositRequest.network == network,
-                    CryptoDepositRequest.status.in_(OPEN_STATUSES),
+                    CryptoDepositRequest.status.in_(watched_statuses),
                 ).distinct()
             ).scalars().all()
         return sorted({str(value).strip() for value in rows if str(value or "").strip()})
@@ -125,10 +136,13 @@ class CryptoDepositWorker:
     def _network_scan_since(network: str, *, destination_address: str | None = None) -> datetime:
         floor = _utcnow() - timedelta(hours=int(cfg.CRYPTO_SCAN_LOOKBACK_HOURS))
         with SessionLocal() as db:
+            watched_statuses = tuple(OPEN_STATUSES) + (
+                HISTORICAL_STATUSES if rotation_enabled() else ()
+            )
             earliest = db.execute(
                 select(func.min(CryptoDepositRequest.created_at)).where(
                     CryptoDepositRequest.network == network,
-                    CryptoDepositRequest.status.in_(OPEN_STATUSES),
+                    CryptoDepositRequest.status.in_(watched_statuses),
                     *([CryptoDepositRequest.destination_address == destination_address]
                       if destination_address is not None else []),
                 )
