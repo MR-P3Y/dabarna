@@ -5543,6 +5543,20 @@ function wireAdminQuickNavigationV2() {
       jumpToAdminSectionV2(button.getAttribute("data-admin-jump") || "");
     });
   });
+  document.querySelectorAll("[data-super-target]").forEach((button) => {
+    button.addEventListener("click", () => {
+      if (!state.admin.canManageSuperSettings) return;
+      const id = button.getAttribute("data-super-target") || "";
+      if (!["superCryptoWalletSection", "superBankCardsSection", "superAdminFilterInput"].includes(id)) return;
+      const target = getEl(id);
+      if (!target) return;
+      if (target.matches("details")) target.open = true;
+      const parent = target.closest("details");
+      if (parent) parent.open = true;
+      target.scrollIntoView({ behavior: "smooth", block: "start" });
+      if (id === "superAdminFilterInput") target.focus();
+    });
+  });
 }
 
 function syncAdminSelectedGameListV2() {
