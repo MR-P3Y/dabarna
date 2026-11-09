@@ -28,3 +28,20 @@ To enable true in-app active wallet edits, first implement and test:
 
 ## Release restriction
 Do NOT merge/deploy to Production until tests above pass and the user explicitly approves wallet-related Production deployment. A staged proposal is not an active destination change.
+
+## 2026-11-10 rotation preflight stage (draft, not deployed)
+
+- TronGrid mocked contract: requests for old and new destination separately, filters unrelated recipient and verifies confirmed transfer.
+- TON Center mocked contract: account parameter, network destination and memo for old/new addresses.
+- Provider outage is fail-closed; never interpret HTTP 503 as an empty successful scan.
+- Read-only `GET /mini-api/admin/super/crypto-address-readiness?network=TRON|TON` (owner-only) reports open invoices, recently expired/cancelled invoices within grace, manual review count. UI provides a "بررسی آمادگی تغییر آدرس" action.
+- Expired or cancelled invoices are **not auto-credited** by this stage. Late/unmatched transfers require an explicit audited reconciliation/manual-review workflow.
+- `active_change_allowed` is always false. This is a deliberate hard gate, not a bug.
+
+### Remaining requirements for atomic activation
+1. Seed and lock a persistent destination-version row during **every** invoice issuance and activation transaction; without a shared DB lock, activation can race invoice creation.
+2. Use the versioned destination for option rendering, invoice creation, preflight and worker scans; preserve immutable destination per invoice. Keep scanning retired destinations through their outstanding/grace windows.
+3. Reconciliation must include historical destination addresses as well as current address, and surface unmatched late transfers without automatically crediting expired invoices.
+4. Provider scans must handle pagination and lookback gaps, independently verify new destination before activation, and fail closed on any degraded network.
+5. Explicit owner confirmation, separate operator authorization where required, immutable audit record and rollback transaction; never enable with unresolved review cases.
+6. Run realistic isolated MySQL payment/idempotency tests, concurrency tests, and restart/rollback tests prior to any production finance rollout.
