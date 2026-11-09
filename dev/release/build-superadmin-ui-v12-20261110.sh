@@ -3,7 +3,7 @@
 set -Eeuo pipefail
 umask 077
 ROOT=/opt/davarna-v2
-SOURCE="\${DAVARNA_V12_UI_REF:?Set exact verified commit SHA}"
+SOURCE="${DAVARNA_V12_UI_REF:?Set exact verified commit SHA}"
 BASE="davarna-backend:superadmin-v11-rbac-7101e5c"
 BASE_ID="sha256:42a77764a254d33f058fb1b606b4a274704975feadce717aa47bb336a3cb9d45"
 [[ "$SOURCE" =~ ^[a-f0-9]{40}$ ]] || { echo "BLOCKER: invalid SHA"; exit 2; }
@@ -33,10 +33,10 @@ docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-
   -v "$WORK/backend:/app:ro" -w /app --entrypoint python "$BASE" \
   -m unittest discover -s tests -p 'test_mini_ops_dashboard_rbac_http.py' -v
 echo "===== BUILD CANDIDATE FROM TESTED V1.1 IMAGE ====="
-TAG="davarna-backend:superadmin-ui-v12-\${SOURCE:0:7}"
+TAG="davarna-backend:superadmin-ui-v12-${SOURCE:0:7}"
 cat > "$WORK/Dockerfile" <<'DOCKERFILE'
 ARG BASE_IMAGE=davarna-backend:superadmin-v11-rbac-7101e5c
-FROM \${BASE_IMAGE}
+FROM ${BASE_IMAGE}
 COPY backend/app/routers/mini_router.py /app/app/routers/mini_router.py
 COPY backend/app/static/mini/index.html /app/app/static/mini/index.html
 COPY backend/app/static/mini/app.js /app/app/static/mini/app.js
