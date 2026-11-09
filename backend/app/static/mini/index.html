@@ -827,9 +827,42 @@
                   <div id="superCryptoOpsResult" class="super-crypto-ops-result hidden"></div>
                   <details id="superCryptoWalletSection" class="super-finance-editor mt-12">
                     <summary>💎 آدرس کیف پول‌های رمزارز</summary>
-                    <p class="hint">این آدرس‌ها از تنظیمات امن سرور خوانده می‌شوند. تغییر مستقیم از مینی‌اپ فعلاً غیرفعال است تا فاکتورهای باز و اسکنر شبکه دچار مغایرت نشوند.</p>
-                    <button id="superCryptoAddressesRefreshBtn" class="small-btn" type="button">بازخوانی آدرس‌ها</button>
+                    <p class="hint">اینجا می‌توان آدرس جدید را اعتبارسنجی، پیش‌نویس و برای بررسی انسانی تأیید کرد. <strong>هیچ آدرسی در این مرحله فعال نمی‌شود.</strong> آدرس مقصد فاکتورهای قبلی بدون تغییر می‌ماند.</p>
+                    <div class="admin-action-row">
+                      <button id="superCryptoAddressesRefreshBtn" class="small-btn" type="button">بازخوانی آدرس‌های فعلی</button>
+                      <button id="superCryptoVersionsRefreshBtn" class="small-btn" type="button">تاریخچه نسخه‌ها</button>
+                    </div>
                     <div id="superCryptoAddressesList" class="cards-history-scroll mt-12"></div>
+                    <div class="action-form mt-12" aria-label="پیش‌نویس تغییر آدرس رمزارز">
+                      <label for="superCryptoNetworkInput">شبکه مقصد</label>
+                      <select id="superCryptoNetworkInput">
+                        <option value="TRON">USDT / TRC20</option>
+                        <option value="TON">TON</option>
+                      </select>
+                      <div id="superCryptoVersionHint" class="step-hint" role="status"></div>
+                      <label for="superCryptoProposedInput">آدرس پیشنهادی جدید</label>
+                      <input id="superCryptoProposedInput" type="text" dir="ltr" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="128" placeholder="آدرس کیف پول" />
+                      <label for="superCryptoReasonInput">علت تغییر (حداقل ۱۰ کاراکتر)</label>
+                      <textarea id="superCryptoReasonInput" rows="2" maxlength="500" autocomplete="off" placeholder="علت دقیق درخواست"></textarea>
+                      <div class="admin-action-row">
+                        <button id="superCryptoPreviewBtn" class="small-btn" type="button">۱. بررسی آدرس</button>
+                        <button id="superCryptoDraftBtn" class="small-btn primary" type="button" disabled>۲. ثبت پیش‌نویس</button>
+                      </div>
+                      <div id="superCryptoRotationHint" class="step-hint" role="status"></div>
+                      <div id="superCryptoRotationPreview" class="history-item hidden" aria-live="polite"></div>
+                    </div>
+                    <div id="superCryptoDraftReview" class="action-form hidden mt-12">
+                      <strong id="superCryptoDraftReviewTitle">تأیید پیش‌نویس</strong>
+                      <p class="hint">تأیید فقط برای بررسی مدیریتی است؛ پرداخت و آدرس فعال سرور تغییر نمی‌کنند.</p>
+                      <button id="superCryptoPrepareBtn" class="small-btn" type="button">۳. دریافت تأیید یک‌بارمصرف</button>
+                      <label for="superCryptoRetypeInput">آدرس پیشنهادی را کامل دوباره وارد کنید</label>
+                      <input id="superCryptoRetypeInput" type="text" dir="ltr" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="128" />
+                      <div class="admin-action-row">
+                        <button id="superCryptoConfirmBtn" class="small-btn primary" type="button" disabled>۴. تأیید برای بررسی</button>
+                        <button id="superCryptoCancelDraftBtn" class="small-btn danger" type="button">لغو پیش‌نویس</button>
+                      </div>
+                    </div>
+                    <div id="superCryptoVersionsList" class="cards-history-scroll mt-12" aria-live="polite"></div>
                   </details>
 
                   <div class="super-crypto-control super-bank-control">
@@ -1096,6 +1129,6 @@
     <div id="miniToast" class="mini-toast hidden" role="status" aria-live="polite"></div>
 
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="./app.js?v=finance-reject-reasons-20261108" type="module"></script>
+    <script src="./app.js?v=crypto-preview-draft-20261109" type="module"></script>
   </body>
 </html>
