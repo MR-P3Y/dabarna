@@ -33,7 +33,7 @@ def _crc16_xmodem(data: bytes) -> int:
 
 
 def _ton_address_valid(address: str) -> bool:
-    if re.fullmatch(r"-?\d+:[0-9a-fA-F]{64}", address):
+    if re.fullmatch(r"(?:0|-1):[0-9a-fA-F]{64}", address):
         return True
     if not re.fullmatch(r"[A-Za-z0-9_-]{48}", address):
         return False
