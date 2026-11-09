@@ -154,9 +154,32 @@ class ChainPaginationTests(unittest.TestCase):
                 since=self.since, destination_address=target,
             )
         self.assertEqual(len(result), TON_PAGE_LIMIT + 1)
-        self.assertEqual([p["offset"] for p in client.calls], [0, TON_PAGE_LIMIT])
+        self.assertEqual([p["offset"] for p in client.calls], [0, TON_PAGE_LIMIT, 0])
         self.assertEqual({t.destination_address for t in result}, {target})
         self.assertTrue(all(t.confirmed for t in result))
+
+    def test_ton_head_shift_during_offset_scan_fails_closed(self):
+        first_page = [ton_tx(i) for i in range(TON_PAGE_LIMIT)]
+        reads = {"head": 0}
+
+        def page(params):
+            if int(params["offset"]) == TON_PAGE_LIMIT:
+                return {"transactions": [ton_tx(TON_PAGE_LIMIT + 7)]}
+            reads["head"] += 1
+            if reads["head"] == 1:
+                return {"transactions": first_page}
+            # A new transaction appeared while requesting the later page.
+            # The latest page no longer matches the snapshot we started with.
+            return {"transactions": [ton_tx(9999)] + first_page[:-1]}
+
+        client = Client(page)
+        with patch.object(CryptoChainService, "_client", return_value=client):
+            with self.assertRaises(CryptoChainUnavailable):
+                CryptoChainService._list_ton(
+                    since=self.since, destination_address="test-ton",
+                )
+        self.assertEqual(reads["head"], 2)
+        self.assertEqual(len(client.calls), 3)
 
     def test_ton_repeated_page_cannot_be_reported_complete(self):
         client = Client(lambda params: {
