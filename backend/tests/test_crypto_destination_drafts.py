@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 from app.models.user import User
 from app.models.crypto import CryptoDepositRequest
 from app.models.crypto_destination_version import CryptoDestinationVersion
+from app.models.crypto_destination_challenge import CryptoDestinationChallenge
 from app.services.crypto_address_rotation_validation import _crc16_xmodem
 from app.services.crypto_destination_draft_service import CryptoDestinationDraftService
 
@@ -37,6 +38,7 @@ class CryptoDestinationDraftTests(unittest.TestCase):
         User.__table__.create(self.engine)
         CryptoDepositRequest.__table__.create(self.engine)
         CryptoDestinationVersion.__table__.create(self.engine)
+        CryptoDestinationChallenge.__table__.create(self.engine)
         self.db = Session(self.engine)
         self.db.add(User(id=91001, tg_user_id=91001))
         self.db.commit()
