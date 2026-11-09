@@ -7451,7 +7451,7 @@ function renderAdminOpsDashboard(payload) {
   const games = Array.isArray(payload?.active_games) ? payload.active_games : [];
   const pendingWithdraws = Number(counts.pending_withdraws || 0) + Number(counts.approved_withdraws || 0);
   const countCards = [
-    ["بازی فعال", games.length, "مشاهده و کنترل بازی‌ها", "adminGamesList", "🎲"],
+    ["بازی فعال", Number(payload?.active_games_total ?? games.length), "مشاهده و کنترل بازی‌ها", "adminGamesList", "🎲"],
     ...(payload?.finance_visible === false ? [] : [
       ["واریز در انتظار", Number(counts.pending_deposits || 0), "بازکردن صف رسیدها", "adminDepositsList", "↓"],
       ["برداشت در صف", pendingWithdraws, "مشاهده درخواست‌ها", "adminWithdrawsList", "↑"],
