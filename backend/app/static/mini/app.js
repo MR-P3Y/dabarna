@@ -6991,7 +6991,34 @@ async function refreshSuperCryptoProposals() {
     const detail = document.createElement("p");
     detail.className = "hint";
     detail.textContent = "صرفاً درخواست ثبت شده است؛ آدرس کاربران و اسکنر بدون تغییر هستند.";
-    box.append(heading, address, detail);
+    const inspect = document.createElement("button");
+    inspect.type = "button";
+    inspect.className = "small-btn";
+    inspect.textContent = "بررسی آمادگی تغییر آدرس";
+    inspect.addEventListener("click", async () => {
+      inspect.disabled = true;
+      try {
+        const report = await apiFetch(
+          "/mini-api/admin/super/crypto-address-readiness?network=" +
+          encodeURIComponent(String(item.network || ""))
+        );
+        const summary = document.createElement("p");
+        summary.className = "hint";
+        summary.textContent = "فاکتور باز: " + toFaDigits(report.open_invoices || 0) +
+          " | منقضی/لغوشده اخیر: " + toFaDigits(report.recent_closed_invoices || 0) +
+          " | بررسی دستی: " + toFaDigits(report.needs_manual_review || 0) +
+          " | فعال‌سازی: غیرفعال تا تکمیل تست‌ها";
+        const previous = box.querySelector(".crypto-rotation-readiness");
+        if (previous) previous.remove();
+        summary.classList.add("crypto-rotation-readiness");
+        box.append(summary);
+      } catch (e) {
+        setLocalError("superCryptoProposalHint", e);
+      } finally {
+        inspect.disabled = false;
+      }
+    });
+    box.append(heading, address, detail, inspect);
     root.append(box);
   });
 }
