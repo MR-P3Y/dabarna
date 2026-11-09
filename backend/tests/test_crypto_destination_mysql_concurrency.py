@@ -63,6 +63,7 @@ class _AtomicWalletMySQLConcurrency(unittest.TestCase):
             db.commit()
 
         held = threading.Event()
+        attempting = threading.Event()
         release = threading.Event()
         events = []
 
@@ -80,6 +81,7 @@ class _AtomicWalletMySQLConcurrency(unittest.TestCase):
         def invoice_read():
             if not held.wait(8):
                 raise AssertionError("rotation lock not acquired")
+            attempting.set()
             with Session(self.engine) as db:
                 version = lock_destination_state(db, "TRON")
                 events.append(("invoice_read", version["version"]))
@@ -89,7 +91,8 @@ class _AtomicWalletMySQLConcurrency(unittest.TestCase):
             a = pool.submit(rotate)
             self.assertTrue(held.wait(8))
             b = pool.submit(invoice_read)
-            time.sleep(0.2)
+            self.assertTrue(attempting.wait(8), "invoice reader never attempted lock")
+            time.sleep(0.35)
             self.assertNotIn("invoice_read", [row[0] for row in events],
                              "invoice must wait for the rotation commit")
             release.set()
