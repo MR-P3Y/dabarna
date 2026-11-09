@@ -65,7 +65,7 @@ def run() -> None:
         ))
 
     command.stamp(Config("/app/alembic.ini"), "20261108_0012")
-    command.upgrade(Config("/app/alembic.ini"), "20261109_0013")
+    command.upgrade(Config("/app/alembic.ini"), "20261109_0014")
     old = ton_address(1)
     start = Barrier(2)
 
