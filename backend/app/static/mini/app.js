@@ -5757,13 +5757,47 @@ function renderSystemGameClocks() {
   }).join("");
 }
 
+const autopilotCheckLabels = {
+  level_enabled: "فعال‌بودن سطح",
+  runtime_enabled: "فعال‌بودن زمان‌بند سیستم",
+  auto_draw_worker: "روشن‌بودن شماره‌خوان",
+  group_configured: "گروه تلگرام",
+  topic_configured: "تاپیک سطح",
+  system_user_valid: "حساب سیستمی معتبر",
+  card_price_valid: "قیمت کارت",
+  scheduler_auto: "ساخت خودکار",
+  start_auto: "شروع خودکار",
+  draw_auto: "اعلام اعداد خودکار",
+};
+
+function renderAutopilotReadiness(payload) {
+  const root = getEl("adminAutopilotReadiness");
+  if (!root) return;
+  const levels = Array.isArray(payload?.levels) ? payload.levels : [];
+  root.innerHTML = levels.map((item) => {
+    const checks = Object.entries(item.checks || {});
+    const missing = checks.filter(([, ok]) => !ok).map(([name]) => autopilotCheckLabels[name] || name);
+    const active = item.active_game_id
+      ? ' • بازی #' + safeText(toFaDigits(item.active_game_id)) + ' (' + safeText(statusLabel(item.active_game_status)) + ')' : '';
+    const blocked = item.blocked_by_manual_game ? " • بازی دستی این سطح را اشغال کرده است" : "";
+    return '<div class="system-clock-card">' +
+      '<strong>' + safeText(autopilotLevelLabel(item.level)) + '</strong>' +
+      '<div class="meta">' + (item.ready_to_generate ? 'آماده ساخت بازی' : 'نیازمند تنظیم') +
+      active + blocked + '</div>' +
+      '<div class="meta">' + (missing.length ? 'موارد باقی‌مانده: ' + safeText(missing.join('، ')) : 'تمام کنترل‌های پایه تأیید شدند') +
+      '</div></div>';
+  }).join("") || '<div class="empty">اطلاعات آمادگی زمان‌بند موجود نیست.</div>';
+}
+
 async function refreshSystemGameClocks() {
   if (!state.admin?.enabled) return;
-  const [games, runtime, settings] = await Promise.all([
+  const [games, runtime, settings, readiness] = await Promise.all([
     apiFetch("/mini-api/admin/games?status=LOBBY,RUNNING&limit=200"),
     apiFetch("/mini-api/admin/autopilot/runtime").catch(() => null),
     apiFetch("/mini-api/admin/autopilot/config").catch(() => null),
+    apiFetch("/mini-api/admin/autopilot/readiness").catch(() => null),
   ]);
+  renderAutopilotReadiness(readiness);
   const countdownByLevel = Object.fromEntries(
     (Array.isArray(settings?.items) ? settings.items : []).map((item) => [
       String(item.level || "").toUpperCase(), Number(item.countdown_seconds || 30),
