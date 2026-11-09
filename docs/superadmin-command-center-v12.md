@@ -69,3 +69,10 @@ Do NOT merge/deploy to Production until tests above pass and the user explicitly
 - These are tests, **not** implementation of real invoice issuance or historical-address reconciliation; the snapshot table is deliberately dedicated and disposable.
 - For late payments currently excluded from OPEN_STATUSES, manual-reconciliation indexing and audit workflow remain unimplemented; do not claim expired payments are safely reconciled.
 - No Production deploy / no active address activation. New tests await NODE2 execution.
+
+## 2026-11-10 actual invoice and ledger regressions (untested on NODE2)
+
+- Disposable MySQL suite now includes a `CryptoDepositService.create_invoice` integration test with real `User`, `CryptoDepositRequest`, and versioned `AppSetting` models. It creates an invoice while a rotation transaction holds the row lock, then confirms the invoice snapshots the committed new address. Returning the active address to the old one doesn't rewrite the earlier invoice, and a second user's invoice uses the returned address.
+- A separate MySQL integration test creates a real `Wallet` and `WalletTx`, credits with `WalletService.credit`, then retries in a fresh Session as a worker restart simulation; verifies one ledger transaction and unchanged balance.
+- Only the quote/preflight and service enablement are mocked; no chain provider calls and no external transfers.
+- These checks do **not** implement automatic late-payment reconciliation or activation endpoint. Actual `process_transfer` end-to-end replay and scanner retry orchestration still require separate tests; avoid treating a green result as permission to deploy financial changes.
