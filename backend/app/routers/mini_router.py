@@ -118,6 +118,7 @@ from app.services.crypto_deposit_service import (
     CryptoDepositService,
 )
 from app.services.crypto_qr_service import CryptoQrService
+from app.services.crypto_destination_draft_service import CryptoDestinationDraftService
 from app.services.crypto_health_service import CryptoHealthService
 from app.services.crypto_preflight_service import CryptoPreflightService
 from app.services.crypto_reconciliation_service import CryptoReconciliationService
@@ -699,6 +700,17 @@ class MiniSuperRevokeIn(BaseModel):
 
 class MiniSuperCryptoUpdateIn(BaseModel):
     enabled: bool
+
+
+class MiniCryptoDestinationPreviewIn(BaseModel):
+    network: Literal["TRON", "TON"]
+    address: str = Field(min_length=34, max_length=128)
+    expected_version: int = Field(ge=0)
+
+
+class MiniCryptoDestinationDraftIn(MiniCryptoDestinationPreviewIn):
+    reason: str = Field(min_length=10, max_length=500)
+    operation_id: str = Field(min_length=12, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
 
 
 class MiniSuperBankDepositUpdateIn(BaseModel):
@@ -5557,6 +5569,106 @@ def mini_super_crypto_settings(
 ):
     _ = ident
     return _mini_super_crypto_status(db)
+
+
+@router.get("/admin/super/crypto-destinations/versions")
+def mini_super_crypto_destination_versions(
+    network: Literal["TRON", "TON"],
+    ident: MiniAdminIdentity = Depends(get_mini_super_admin_identity),
+    db: Session = Depends(get_db),
+):
+    _ = ident
+    return {"items": CryptoDestinationDraftService.versions(db, network=network)}
+
+
+@router.post("/admin/super/crypto-destinations/preview")
+def mini_super_crypto_destination_preview(
+    payload: MiniCryptoDestinationPreviewIn,
+    ident: MiniAdminIdentity = Depends(get_mini_super_admin_identity),
+    db: Session = Depends(get_db),
+):
+    _ = ident
+    # Read-only: never changes the active deposit address or database.
+    return CryptoDestinationDraftService.preview(
+        db, network=payload.network, address=payload.address,
+        expected_version=payload.expected_version,
+    )
+
+
+@router.post("/admin/super/crypto-destinations/drafts")
+def mini_super_crypto_destination_create_draft(
+    payload: MiniCryptoDestinationDraftIn,
+    request: Request,
+    ident: MiniAdminIdentity = Depends(get_mini_super_admin_identity),
+    db: Session = Depends(get_db),
+):
+    enforce_write_rate_limit(int(ident.user_id))
+    reason = payload.reason.strip()
+    if len(reason) < 10:
+        raise HTTPException(status_code=400, detail="دلیل تغییر آدرس باید حداقل ۱۰ کاراکتر باشد.")
+    draft, replayed, preview = CryptoDestinationDraftService.create_draft(
+        db,
+        network=payload.network,
+        address=payload.address,
+        reason=reason,
+        expected_version=payload.expected_version,
+        operation_id=payload.operation_id,
+        actor_id=ident.user_id,
+    )
+    if not replayed:
+        AdminAuditService.record(
+            db,
+            admin=_mini_to_admin_identity(ident),
+            action="crypto.destination.draft",
+            target_type="crypto_destination_version",
+            target_id=int(draft.id),
+            request=request,
+            details={
+                "network": draft.network,
+                "asset": draft.asset,
+                "version": int(draft.version),
+                "state": "DRAFT",
+                "old_address_masked": preview["current_masked"],
+                "new_address_masked": preview["new_masked"],
+                "open_invoice_count": preview["open_invoice_count"],
+                "operation_id": payload.operation_id,
+                "reason": reason,
+            },
+        )
+        db.commit()
+    return {
+        "ok": True, "draft_id": int(draft.id), "state": str(draft.state),
+        "version": int(draft.version), "replayed": replayed,
+        "can_activate": False,
+    }
+
+
+@router.post("/admin/super/crypto-destinations/drafts/{draft_id}/cancel")
+def mini_super_crypto_destination_cancel_draft(
+    draft_id: int,
+    request: Request,
+    ident: MiniAdminIdentity = Depends(get_mini_super_admin_identity),
+    db: Session = Depends(get_db),
+):
+    enforce_write_rate_limit(int(ident.user_id))
+    draft, replayed = CryptoDestinationDraftService.cancel_draft(db, draft_id=draft_id)
+    if not replayed:
+        AdminAuditService.record(
+            db,
+            admin=_mini_to_admin_identity(ident),
+            action="crypto.destination.cancel",
+            target_type="crypto_destination_version",
+            target_id=int(draft.id),
+            request=request,
+            details={
+                "network": draft.network, "asset": draft.asset,
+                "version": int(draft.version),
+                "operation_id": draft.operation_id,
+                "new_address_masked": str(draft.address)[:6] + "…" + str(draft.address)[-6:],
+            },
+        )
+        db.commit()
+    return {"ok": True, "draft_id": int(draft.id), "state": "CANCELLED", "replayed": replayed}
 
 
 @router.put("/admin/super/crypto-settings")
