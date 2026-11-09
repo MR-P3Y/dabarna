@@ -113,6 +113,17 @@ docker run --rm --network "$NETWORK" --read-only --cap-drop ALL \
   -v "$WORK/backend:/app:ro" -w /app --entrypoint python "$BASE" \
   -m unittest discover -s tests -p 'test_crypto_destination_mysql_concurrency.py' -v
 
+echo '===== LATE-TRANSFER SAFETY TESTS (NO CREDIT) ====='
+docker run --rm --network "$NETWORK" --read-only --cap-drop ALL \
+  --security-opt no-new-privileges \
+  --tmpfs /tmp:rw,nosuid,size=128m \
+  -e DATABASE_URL="$URL" \
+  -e DAVARNA_CRYPTO_ROTATION_EXPERIMENTAL=I_ACK_DISPOSABLE_DB_ONLY \
+  -e REDIS_URL=redis://127.0.0.1:6379/15 \
+  -e RECEIPTS_DIR=/tmp/receipts \
+  -v "$WORK/backend:/app:ro" -w /app --entrypoint python "$BASE" \
+  -m unittest discover -s tests -p 'test_crypto_late_transfer_inbox_isolated.py' -v
+
 echo '===== DISPOSABLE MYSQL CONCURRENCY PASS ====='
 echo "SOURCE=$REF"
 echo 'No production database, wallet or Docker Compose change made.'
