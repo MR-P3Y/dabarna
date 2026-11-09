@@ -151,6 +151,7 @@ def super_admin_crypto_settings_kb(*, runtime_enabled: bool, can_enable: bool) -
     else:
         text = "🟢 روشن کردن پرداخت رمزارزی" if can_enable else "🟢 روشن کردن پرداخت رمزارزی (نیازمند تنظیمات)"
         kb.button(text=text, callback_data="super:crypto:settings:toggle")
+    kb.button(text="🔐 مدیریت پیش‌نویس آدرس در مینی‌اپ", url="https://t.me/toofandabarna_bot/mini")
     kb.button(text="🧾 واریزهای نیازمند بررسی", callback_data="admin:crypto:pending")
     kb.button(text="🩺 سلامت سرویس‌ها", callback_data="super:crypto:health")
     kb.button(text="🧮 تطبیق ۲۴ ساعت اخیر", callback_data="super:crypto:reconcile")
