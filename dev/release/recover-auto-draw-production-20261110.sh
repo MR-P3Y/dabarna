@@ -58,6 +58,17 @@ services:
       GAME_AUTO_DRAW_ENABLED: "true"
       GAME_AUTOPILOT_RUNTIME_ENABLED: "false"
 YAML
+# Compose's immutable-image interpolation is independent from the running
+# containers. Populate only the release image substitutions from exact live tags.
+LIVE_BACKEND_IMAGE="$(docker inspect -f '{{.Config.Image}}' davarna-backend)"
+LIVE_BOT_IMAGE="$(docker inspect -f '{{.Config.Image}}' davarna-bot)"
+[[ -n "$LIVE_BACKEND_IMAGE" && -n "$LIVE_BOT_IMAGE" ]] || die "missing deployed image tags"
+[[ "$(docker image inspect -f '{{.Id}}' "$LIVE_BACKEND_IMAGE")" == "$(docker inspect -f '{{.Image}}' davarna-backend)" ]] || die "deployed backend tag/image mismatch"
+[[ "$(docker image inspect -f '{{.Id}}' "$LIVE_BOT_IMAGE")" == "$(docker inspect -f '{{.Image}}' davarna-bot)" ]] || die "deployed bot tag/image mismatch"
+export TAMBOLA_V2_BACKEND_IMAGE="$LIVE_BACKEND_IMAGE"
+export TAMBOLA_V2_BOT_IMAGE="$LIVE_BOT_IMAGE"
+export DAVARNA_UX5_BACKEND_IMAGE="$LIVE_BACKEND_IMAGE"
+export DAVARNA_UX5_BOT_IMAGE="$LIVE_BOT_IMAGE"
 compose(){ (cd "$PROD"; docker compose -p davarna --env-file "$PROD/.env.prod" "${args[@]}" "$@"); }
 RECREATE_ATTEMPTED=0
 recover_backend_on_failure(){
