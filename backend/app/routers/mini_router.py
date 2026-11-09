@@ -6030,7 +6030,7 @@ def mini_super_crypto_late_payment_review(
     ident: MiniAdminIdentity = Depends(get_mini_super_admin_identity),
     db: Session = Depends(get_db),
 ):
-    _ = ident
+    enforce_write_rate_limit(int(ident.user_id))
     end_at = datetime.now(timezone.utc).replace(tzinfo=None)
     start_at = end_at - timedelta(hours=int(hours))
     try:
