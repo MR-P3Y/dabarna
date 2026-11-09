@@ -43,6 +43,7 @@ docker run --rm --network none --read-only \
   --env PYTHONDONTWRITEBYTECODE=1 \
   --env DATABASE_URL=sqlite+pysqlite:///:memory: \
   --env REDIS_URL=redis://127.0.0.1:6379/15 \
+  --env RECEIPTS_DIR=/tmp/davarna-v1-receipts \
   "$IMAGE" python -m unittest discover \
   -s /work/backend/tests -p 'test_mini_game_rule_labels.py' -v
 
