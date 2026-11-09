@@ -21,6 +21,7 @@ class CryptoDestinationVersion(Base):
     network: Mapped[str] = mapped_column(String(8), nullable=False)
     asset: Mapped[str] = mapped_column(String(12), nullable=False)
     address: Mapped[str] = mapped_column(String(128), nullable=False)
+    previous_address: Mapped[str | None] = mapped_column(String(128), nullable=True)
     version: Mapped[int] = mapped_column(Integer, nullable=False)
     state: Mapped[str] = mapped_column(String(16), nullable=False)
     requested_by: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id"), nullable=False)
