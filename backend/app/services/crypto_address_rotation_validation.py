@@ -91,6 +91,24 @@ def validate_deposit_address(network: str, address: str) -> str:
     raise InvalidDepositAddress("Unsupported deposit network")
 
 
+
+def same_deposit_destination(network: str, first: str, second: str) -> bool:
+    """Compare *accounts*, not TON presentation/bounceability flags.
+
+    TON raw/workchain and friendly variants (EQ/UQ) may have different
+    strings yet refer to the exact same on-chain account.
+    """
+    left = validate_deposit_address(network, first)
+    right = validate_deposit_address(network, second)
+    if network == "TON":
+        # Friendly format is always a 36-byte URL-safe base64 payload.
+        # Ignore the user-friendly tag; preserve workchain and 32-byte account.
+        left_bytes = base64.urlsafe_b64decode(left + "==")
+        right_bytes = base64.urlsafe_b64decode(right + "==")
+        return left_bytes[1:34] == right_bytes[1:34]
+    return left == right
+
+
 def masked_address(address: str) -> str:
     if len(address) < 12:
         raise InvalidDepositAddress("Address too short to display safely")
