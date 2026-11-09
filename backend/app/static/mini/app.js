@@ -7348,10 +7348,12 @@ function renderAdminOpsDashboard(payload) {
   const pendingWithdraws = Number(counts.pending_withdraws || 0) + Number(counts.approved_withdraws || 0);
   const countCards = [
     ["بازی فعال", games.length, "بازی‌های در جریان"],
-    ["واریز در انتظار", Number(counts.pending_deposits || 0), "نیازمند بررسی"],
-    ["برداشت در صف", pendingWithdraws, "در انتظار رسیدگی"],
-    ["کریپتو نیازمند بررسی", Number(counts.crypto_needs_review || 0), "وضعیت دریافت"],
-    ["هشدار ریسک ۲۴ساعت", Number(counts.risk_events_24h || 0), "رصد امنیت"],
+    ...(payload?.finance_visible === false ? [] : [
+      ["واریز در انتظار", Number(counts.pending_deposits || 0), "نیازمند بررسی"],
+      ["برداشت در صف", pendingWithdraws, "در انتظار رسیدگی"],
+      ["کریپتو نیازمند بررسی", Number(counts.crypto_needs_review || 0), "وضعیت دریافت"],
+      ["هشدار ریسک ۲۴ساعت", Number(counts.risk_events_24h || 0), "رصد امنیت"],
+    ]),
   ];
   const countHtml = countCards.map(([label, value, hint]) =>
     '<div class="admin-ops-count admin-ops-count-v11">' +

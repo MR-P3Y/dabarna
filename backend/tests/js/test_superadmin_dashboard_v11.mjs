@@ -68,6 +68,21 @@ assert.match(dashboard.innerHTML, /بازی فعال/);
 assert.match(dashboard.innerHTML, /برداشت در صف/);
 assert.match(dashboard.innerHTML, /&lt;img src=x onerror=alert\(1\)&gt;/);
 assert.doesNotMatch(dashboard.innerHTML, /<img src=x onerror/);
+
+// Regression: finance counters must disappear entirely (not become misleading zero cards)
+// for ADMIN/GAME_OPERATOR when the API marks them as hidden.
+context.renderAdminOpsDashboard({
+  ...payload,
+  finance_visible: false,
+});
+assert.match(dashboard.innerHTML, /بازی فعال/);
+for (const label of ["واریز در انتظار", "برداشت در صف", "کریپتو نیازمند بررسی", "هشدار ریسک ۲۴ساعت"]) {
+  assert.doesNotMatch(dashboard.innerHTML, new RegExp(label), "leaked restricted finance card: " + label);
+}
+context.renderAdminOpsDashboard({ ...payload, finance_visible: true });
+assert.match(dashboard.innerHTML, /واریز در انتظار/);
+assert.match(dashboard.innerHTML, /برداشت در صف/);
+
 context.renderAdminOpsDashboard({
   counts: {}, active_games: [],
   system: { services: [{ title: "Telegram Bot", ok: null, status: "MONITORED" }] },
