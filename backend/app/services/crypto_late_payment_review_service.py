@@ -14,6 +14,7 @@ from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core import config as cfg
 from app.models.crypto import CryptoDepositRequest
 from app.services.crypto_address_rotation_validation import (
     InvalidDepositAddress,
@@ -150,9 +151,7 @@ class CryptoLatePaymentReviewService:
                 status = "POSSIBLE_HISTORICAL_MATCH"
                 nominated = exact
                 expiry = exact[0].expires_at
-                grace = timedelta(minutes=int(__import__(
-                    "app.core.config", fromlist=["CRYPTO_PAYMENT_GRACE_MINUTES"]
-                ).CRYPTO_PAYMENT_GRACE_MINUTES))
+                grace = timedelta(minutes=int(cfg.CRYPTO_PAYMENT_GRACE_MINUTES))
                 timing = (
                     "WITHIN_INVOICE_WINDOW"
                     if expiry is not None and tx.occurred_at <= expiry + grace
