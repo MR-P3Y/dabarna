@@ -45,6 +45,7 @@ const payload = {
   counts: { pending_deposits: 2, pending_withdraws: 1, approved_withdraws: 3, crypto_needs_review: 0, risk_events_24h: 1 },
   system: { services: [{ key: "backend", title: "<img src=x onerror=alert(1)>", status: "OK", ok: true }] },
   active_games: [{ id: 101, status: "RUNNING", called_count: 4, players_count: 2, cards_count: 4, prize_pool: 10000 }],
+  active_games_total: 7,
 };
 const context = {
   state: { admin: { enabled: true } },
@@ -65,6 +66,7 @@ await vm.runInContext("refreshAdminOpsDashboard()", context);
 assert.equal(status.dataset.state, "fresh");
 assert.equal(dashboard.attributes["aria-busy"], "false");
 assert.match(dashboard.innerHTML, /بازی فعال/);
+assert.match(dashboard.innerHTML, /<strong>7<\/strong>/, "total active games must not be capped by preview limit");
 assert.match(dashboard.innerHTML, /برداشت در صف/);
 assert.match(dashboard.innerHTML, /data-ops-target="adminWithdrawsList"/);
 assert.match(dashboard.innerHTML, /data-ops-target="adminDepositsList"/);
@@ -106,4 +108,4 @@ context.apiFetch = async () => payload;
 await vm.runInContext("refreshAdminOpsDashboard()", context);
 assert.equal(status.dataset.state, "fresh", "retry recovers after an error");
 
-console.log("PASS: superadmin v1.1 dashboard contract, read-only render, XSS escaping, failure/retry and cache revision");
+console.log("PASS: superadmin v1.2 dashboard contract, read-only render, XSS escaping, failure/retry and cache revision");
