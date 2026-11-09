@@ -31,9 +31,9 @@ docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-
   -e GAME_AUTO_DRAW_ENABLED=false \
   -e CRYPTO_AUTO_CONFIRM_ENABLED=false \
   -v "$WORK/backend/app/routers/mini_router.py:/app/app/routers/mini_router.py:ro" \
-  -v "$WORK/backend/tests/test_mini_ops_dashboard_rbac_http.py:/app/tests/test_mini_ops_dashboard_rbac_http.py:ro" \
+  -v "$WORK/backend/tests/test_mini_ops_dashboard_rbac_http.py:/tmp/test_mini_ops_dashboard_rbac_http.py:ro" \
   -w /app --entrypoint python "$BASE" \
-  -m unittest discover -s tests -p 'test_mini_ops_dashboard_rbac_http.py' -v
+  -m unittest discover -s /tmp -p 'test_mini_ops_dashboard_rbac_http.py' -v
 echo "===== BUILD CANDIDATE FROM TESTED V1.1 IMAGE ====="
 TAG="davarna-backend:superadmin-ui-v12-${SOURCE:0:7}"
 cat > "$WORK/Dockerfile" <<'DOCKERFILE'
