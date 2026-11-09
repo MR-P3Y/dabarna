@@ -6944,6 +6944,9 @@ async function refreshSuperCryptoSettings() {
   if (!state.admin.enabled || !state.admin.canManageSuperSettings) return;
   const out = await apiFetch("/mini-api/admin/super/crypto-settings");
   renderSuperCryptoSettings(out);
+  if (!cryptoRotation.loadedFor) {
+    refreshSuperCryptoVersions().catch((e) => setLocalError("superCryptoVersionHint", e));
+  }
 }
 
 
@@ -6970,6 +6973,195 @@ function renderSuperCryptoAddresses(payload) {
     card.append(title, address, hint);
     root.append(card);
   });
+}
+
+// Issue #30: owner-only review workflow. This UI NEVER activates a wallet address.
+const cryptoRotation = {
+  network: "TRON", expectedVersion: 0, preview: null, operationId: "",
+  draftId: 0, challenge: null, loadedFor: "",
+};
+
+function clearCryptoRotationPreview() {
+  cryptoRotation.preview = null;
+  cryptoRotation.operationId = "";
+  const btn = getEl("superCryptoDraftBtn");
+  if (btn) btn.disabled = true;
+  const box = getEl("superCryptoRotationPreview");
+  if (box) { box.textContent = ""; box.classList.add("hidden"); }
+}
+
+function setCryptoRotationDraft(id) {
+  cryptoRotation.draftId = Number(id) || 0;
+  cryptoRotation.challenge = null;
+  const review = getEl("superCryptoDraftReview");
+  if (review) review.classList.toggle("hidden", !cryptoRotation.draftId);
+  const title = getEl("superCryptoDraftReviewTitle");
+  if (title) title.textContent = "پیش‌نویس شماره " + cryptoRotation.draftId + " | فقط تأیید برای بررسی";
+  const confirm = getEl("superCryptoConfirmBtn");
+  if (confirm) confirm.disabled = true;
+  setVal("superCryptoRetypeInput", "");
+}
+
+function cryptoRotationOperationId() {
+  const cryptoApi = globalThis.crypto;
+  if (cryptoApi && typeof cryptoApi.randomUUID === "function") {
+    return cryptoApi.randomUUID();
+  }
+  if (cryptoApi && typeof cryptoApi.getRandomValues === "function") {
+    const values = cryptoApi.getRandomValues(new Uint8Array(16));
+    return Array.from(values).map((n) => n.toString(16).padStart(2, "0")).join("");
+  }
+  throw new Error("مرورگر امکان ساخت شناسه امن درخواست را ندارد.");
+}
+
+async function refreshSuperCryptoVersions() {
+  if (!state.admin.enabled || !state.admin.canManageSuperSettings) return;
+  const network = String(getVal("superCryptoNetworkInput") || "TRON");
+  const out = await apiFetch("/mini-api/admin/super/crypto-destinations/versions?network=" + encodeURIComponent(network));
+  const items = Array.isArray(out.items) ? out.items : [];
+  const currentVersion = Number(items[0]?.version || 0);
+  if (cryptoRotation.network !== network || cryptoRotation.expectedVersion !== currentVersion) {
+    clearCryptoRotationPreview();
+    setCryptoRotationDraft(0);
+  }
+  cryptoRotation.network = network;
+  cryptoRotation.expectedVersion = currentVersion;
+  cryptoRotation.loadedFor = network;
+  setHint("superCryptoVersionHint", "نسخه فعلی " + network + ": " + currentVersion + " | فعال‌سازی آدرس مسدود است.");
+  const root = getEl("superCryptoVersionsList");
+  if (!root) return;
+  root.replaceChildren();
+  if (!items.length) {
+    root.textContent = "برای این شبکه هنوز سابقه پیشنهادی ثبت نشده است.";
+    return;
+  }
+  items.forEach((row) => {
+    const card = document.createElement("div");
+    card.className = "history-item";
+    const heading = document.createElement("strong");
+    heading.textContent = "نسخه " + row.version + " | " + row.state;
+    const detail = document.createElement("div");
+    detail.className = "history-meta";
+    detail.textContent = String(row.address_masked || "") + " | " + String(row.created_at || "");
+    card.append(heading, detail);
+    if (row.state === "DRAFT") {
+      const select = document.createElement("button");
+      select.type = "button";
+      select.className = "small-btn";
+      select.textContent = "انتخاب پیش‌نویس برای تأیید یا لغو";
+      select.addEventListener("click", () => setCryptoRotationDraft(row.id));
+      card.append(select);
+    }
+    root.append(card);
+  });
+}
+
+async function previewSuperCryptoAddress() {
+  if (!state.admin.canManageSuperSettings) throw new Error("دسترسی مالک سوپرادمین لازم است.");
+  clearCryptoRotationPreview();
+  const network = getVal("superCryptoNetworkInput");
+  if (network !== "TRON" && network !== "TON") throw new Error("شبکه معتبر انتخاب کنید.");
+  if (cryptoRotation.loadedFor !== network) await refreshSuperCryptoVersions();
+  const address = getVal("superCryptoProposedInput");
+  const out = await apiFetch("/mini-api/admin/super/crypto-destinations/preview", {
+    method: "POST", body: { network, address, expected_version: cryptoRotation.expectedVersion },
+  });
+  cryptoRotation.preview = out;
+  const box = getEl("superCryptoRotationPreview");
+  if (box) {
+    box.textContent = "قدیمی: " + out.current_masked +
+      " | پیشنهادی: " + out.new_masked +
+      " | فاکتور باز: " + Number(out.open_invoice_count || 0) +
+      " | نسخه بعدی: " + out.proposed_version +
+      " | فعال‌سازی: ممنوع";
+    box.classList.remove("hidden");
+  }
+  const btn = getEl("superCryptoDraftBtn");
+  if (btn) btn.disabled = false;
+  setHint("superCryptoRotationHint", "آدرس معتبر است؛ برای ثبت پیش‌نویس دلیل تغییر را وارد کنید.", "success");
+}
+
+async function draftSuperCryptoAddress() {
+  const p = cryptoRotation.preview;
+  if (!p) throw new Error("ابتدا آدرس را بررسی کنید.");
+  const network = getVal("superCryptoNetworkInput");
+  const address = getVal("superCryptoProposedInput");
+  const reason = getVal("superCryptoReasonInput");
+  if (network !== p.network || address !== p.new_address) {
+    clearCryptoRotationPreview();
+    throw new Error("آدرس تغییر کرده است؛ پیش‌نمایش را دوباره انجام دهید.");
+  }
+  if (reason.length < 10) throw new Error("علت تغییر باید حداقل ۱۰ کاراکتر باشد.");
+  if (!window.confirm("پیش‌نویس آدرس جدید را ثبت می‌کنید؟\nاین درخواست آدرس فعال سرور را تغییر نمی‌دهد.")) return;
+  if (!cryptoRotation.operationId) cryptoRotation.operationId = cryptoRotationOperationId();
+  const out = await apiFetch("/mini-api/admin/super/crypto-destinations/drafts", {
+    method: "POST",
+    body: {
+      network, address, expected_version: p.expected_version,
+      reason, operation_id: cryptoRotation.operationId,
+    },
+  });
+  clearCryptoRotationPreview();
+  await refreshSuperCryptoVersions();
+  setCryptoRotationDraft(out.draft_id);
+  setHint("superCryptoRotationHint", "پیش‌نویس ثبت شد. برای بررسی انسانی، چالش را دریافت کنید.", "success");
+}
+
+async function prepareSuperCryptoConfirmation() {
+  if (!cryptoRotation.draftId) throw new Error("ابتدا یک پیش‌نویس انتخاب کنید.");
+  const result = await apiFetch(
+    "/mini-api/admin/super/crypto-destinations/drafts/" +
+      cryptoRotation.draftId + "/prepare-confirmation",
+    { method: "POST" }
+  );
+  cryptoRotation.challenge = {
+    id: result.challenge_id, token: result.token,
+    draftId: Number(result.draft_id),
+    address: result.proposed_address,
+  };
+  const btn = getEl("superCryptoConfirmBtn");
+  if (btn) btn.disabled = false;
+  setHint("superCryptoRotationHint",
+    "آدرس جدید " + result.proposed_address +
+    " را با دقت بررسی و تمام آن را در کادر تأیید وارد کنید. چالش ۱۲۰ ثانیه معتبر است.", "success");
+}
+
+async function confirmSuperCryptoReview() {
+  const pending = cryptoRotation.challenge;
+  if (!pending || pending.draftId !== cryptoRotation.draftId) {
+    throw new Error("چالش معتبر وجود ندارد؛ آن را دوباره دریافت کنید.");
+  }
+  const typed = getVal("superCryptoRetypeInput");
+  if (typed !== pending.address) throw new Error("آدرس واردشده با آدرس پیشنهادی یکسان نیست.");
+  if (!window.confirm("تأیید می‌کنید این آدرس فقط برای بررسی ثبت شود؟\nهیچ تغییر زنده‌ای اعمال نخواهد شد.")) return;
+  const out = await apiFetch(
+    "/mini-api/admin/super/crypto-destinations/drafts/" +
+      cryptoRotation.draftId + "/confirm",
+    { method: "POST", body: {
+      challenge_id: pending.id, token: pending.token, confirmed_address: typed,
+    } }
+  );
+  cryptoRotation.challenge = null;
+  const btn = getEl("superCryptoConfirmBtn");
+  if (btn) btn.disabled = true;
+  setVal("superCryptoRetypeInput", "");
+  setHint("superCryptoRotationHint",
+    out.confirmed_for_review ? "تأیید برای بررسی ثبت شد. آدرس فعلی تغییر نکرده است." :
+      "پاسخ نامعتبر؛ وضعیت را بررسی کنید.", out.confirmed_for_review ? "success" : "error");
+  await refreshSuperCryptoVersions();
+}
+
+async function cancelSuperCryptoDraft() {
+  if (!cryptoRotation.draftId) return;
+  if (!window.confirm("پیش‌نویس شماره " + cryptoRotation.draftId + " لغو شود؟")) return;
+  await apiFetch(
+    "/mini-api/admin/super/crypto-destinations/drafts/" +
+      cryptoRotation.draftId + "/cancel",
+    { method: "POST" }
+  );
+  setCryptoRotationDraft(0);
+  await refreshSuperCryptoVersions();
+  setHint("superCryptoRotationHint", "پیش‌نویس لغو شد و آدرس فعال تغییری نکرد.", "success");
 }
 
 function renderSuperBankDestinations() {
@@ -9445,6 +9637,20 @@ async function boot() {
   bind("superBankCardSaveBtn", "click", () => saveSuperBankDestination().catch((e) => setLocalError("superBankCardsHint", e)));
   bind("superBankCardDeleteBtn", "click", () => deleteSuperBankDestination().catch((e) => setLocalError("superBankCardsHint", e)));
   bind("superCryptoAddressesRefreshBtn", "click", () => refreshSuperCryptoSettings().catch((e) => setLocalError("superCryptoHint", e)));
+  bind("superCryptoVersionsRefreshBtn", "click", () => refreshSuperCryptoVersions().catch((e) => setLocalError("superCryptoRotationHint", e)));
+  bind("superCryptoNetworkInput", "change", () => {
+    cryptoRotation.loadedFor = "";
+    clearCryptoRotationPreview();
+    setCryptoRotationDraft(0);
+    refreshSuperCryptoVersions().catch((e) => setLocalError("superCryptoRotationHint", e));
+  });
+  bind("superCryptoProposedInput", "input", clearCryptoRotationPreview);
+  bind("superCryptoPreviewBtn", "click", () => previewSuperCryptoAddress().catch((e) => setLocalError("superCryptoRotationHint", e)));
+  bind("superCryptoDraftBtn", "click", () => draftSuperCryptoAddress().catch((e) => setLocalError("superCryptoRotationHint", e)));
+  bind("superCryptoPrepareBtn", "click", () => prepareSuperCryptoConfirmation().catch((e) => setLocalError("superCryptoRotationHint", e)));
+  bind("superCryptoConfirmBtn", "click", () => confirmSuperCryptoReview().catch((e) => setLocalError("superCryptoRotationHint", e)));
+  bind("superCryptoCancelDraftBtn", "click", () => cancelSuperCryptoDraft().catch((e) => setLocalError("superCryptoRotationHint", e)));
+
   bind("superCryptoToggleBtn", "click", () => toggleSuperCryptoSettings().catch((e) => setLocalError("superCryptoHint", e)));
   bind("superBankDepositToggleBtn", "click", () => toggleSuperBankDepositSettings().catch((e) => setLocalError("superBankDepositHint", e)));
   bind("superCryptoHealthBtn", "click", () => checkSuperCryptoHealth().catch((e) => setLocalError("superCryptoHint", e)));
