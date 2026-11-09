@@ -39,12 +39,13 @@ class CryptoChainService:
         network: str,
         since: datetime,
         include_pending: bool = True,
+        destination_address: str | None = None,
     ) -> list[ChainTransfer]:
         normalized = str(network or "").strip().upper()
         if normalized == "TRON":
-            return cls._list_tron_usdt(since=since, include_pending=include_pending)
+            return cls._list_tron_usdt(since=since, include_pending=include_pending, destination_address=destination_address)
         if normalized == "TON":
-            return cls._list_ton(since=since, include_pending=include_pending)
+            return cls._list_ton(since=since, include_pending=include_pending, destination_address=destination_address)
         raise CryptoChainUnavailable(f"unsupported crypto network: {normalized}")
 
     @staticmethod
@@ -61,8 +62,10 @@ class CryptoChainService:
         *,
         since: datetime,
         include_pending: bool = True,
+        destination_address: str | None = None,
     ) -> list[ChainTransfer]:
-        if not cfg.CRYPTO_TRON_USDT_ADDRESS:
+        address = str(destination_address if destination_address is not None else cfg.CRYPTO_TRON_USDT_ADDRESS).strip()
+        if not address:
             return []
         headers: dict[str, str] = {}
         if cfg.TRONGRID_API_KEY:
@@ -76,7 +79,7 @@ class CryptoChainService:
         }
         url = (
             f"{cfg.CRYPTO_TRONGRID_BASE_URL}/v1/accounts/"
-            f"{cfg.CRYPTO_TRON_USDT_ADDRESS}/transactions/trc20"
+            f"{address}/transactions/trc20"
         )
         with cls._client() as client:
             params = dict(base_params, only_confirmed="false" if include_pending else "true")
@@ -108,7 +111,7 @@ class CryptoChainService:
             token_info = row.get("token_info") if isinstance(row.get("token_info"), dict) else {}
             if str(token_info.get("address") or "") != cfg.CRYPTO_TRON_USDT_CONTRACT:
                 continue
-            if str(row.get("to") or "") != cfg.CRYPTO_TRON_USDT_ADDRESS:
+            if str(row.get("to") or "") != address:
                 continue
             try:
                 decimals = int(token_info.get("decimals") or 6)
@@ -130,7 +133,7 @@ class CryptoChainService:
                     tx_hash=tx_hash,
                     amount=amount,
                     sender_address=str(row.get("from") or "").strip() or None,
-                    destination_address=cfg.CRYPTO_TRON_USDT_ADDRESS,
+                    destination_address=address,
                     occurred_at=occurred_at,
                     confirmed=confirmed,
                     confirmations=1 if confirmed else 0,
@@ -144,14 +147,16 @@ class CryptoChainService:
         *,
         since: datetime,
         include_pending: bool = True,
+        destination_address: str | None = None,
     ) -> list[ChainTransfer]:
-        if not cfg.CRYPTO_TON_ADDRESS:
+        address = str(destination_address if destination_address is not None else cfg.CRYPTO_TON_ADDRESS).strip()
+        if not address:
             return []
         headers: dict[str, str] = {}
         if cfg.TONCENTER_API_KEY:
             headers["X-API-Key"] = cfg.TONCENTER_API_KEY
         params: dict[str, object] = {
-            "account": cfg.CRYPTO_TON_ADDRESS,
+            "account": address,
             "start_utime": int(since.timestamp()),
             "limit": 100,
             "sort": "desc",
@@ -195,7 +200,7 @@ class CryptoChainService:
                     tx_hash=tx_hash,
                     amount=amount,
                     sender_address=str(in_msg.get("source") or "").strip() or None,
-                    destination_address=cfg.CRYPTO_TON_ADDRESS,
+                    destination_address=address,
                     occurred_at=occurred_at,
                     memo=cls._ton_comment(in_msg),
                     confirmed=confirmed,
