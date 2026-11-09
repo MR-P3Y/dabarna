@@ -146,6 +146,26 @@ class CryptoDestinationDraftTests(unittest.TestCase):
         self.assertEqual(invoice.destination_address, before)
         self.assertEqual(invoice.id, original_id)
 
+    def test_super_admin_owner_guard_rejects_other_roles(self):
+        from app.routers.mini_router import (
+            MiniAdminIdentity, get_mini_super_admin_identity,
+        )
+        with patch("app.routers.mini_router.RBAC_OWNER_USER_ID", 91001):
+            for role in ("USER", "ADMIN", "FINANCE_ADMIN", "GAME_OPERATOR"):
+                ident = MiniAdminIdentity(user_id=91001, tg_user_id=91001, roles=[role])
+                with self.assertRaises(HTTPException) as err:
+                    get_mini_super_admin_identity(ident)
+                self.assertEqual(err.exception.status_code, 403, role)
+            another_super = MiniAdminIdentity(
+                user_id=91002, tg_user_id=91002, roles=["SUPER_ADMIN"],
+            )
+            with self.assertRaises(HTTPException):
+                get_mini_super_admin_identity(another_super)
+            owner = MiniAdminIdentity(
+                user_id=91001, tg_user_id=91001, roles=["SUPER_ADMIN"],
+            )
+            self.assertIs(get_mini_super_admin_identity(owner), owner)
+
     def test_routes_require_super_admin(self):
         from app.routers.mini_router import router, get_mini_super_admin_identity
         paths = {
