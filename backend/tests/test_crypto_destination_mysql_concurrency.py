@@ -6,6 +6,7 @@ Run only after disposable database provisioning with no shared Docker volumes.
 from __future__ import annotations
 
 import os
+import hashlib
 import threading
 import time
 import unittest
@@ -195,6 +196,127 @@ class _AtomicWalletMySQLConcurrency(unittest.TestCase):
                     "SELECT address, version FROM wallet_rotation_invoice_snapshots ORDER BY id"
                 )).all()
             self.assertEqual([tuple(row) for row in saved_after], [("OLD", 1), ("NEW", 2)])
+
+    def test_real_invoice_create_with_rotation_uses_committed_address(self):
+        """Call real CryptoDepositService.create_invoice, persist actual model."""
+        from datetime import datetime, timezone
+        from decimal import Decimal
+        from types import SimpleNamespace
+        from app.core.db import Base
+        from app.models.user import User
+        from app.models.wallet import Wallet, WalletTx
+        from app.models.crypto import CryptoDepositRequest
+        from app.services import crypto_destination_state as state
+        from app.services import crypto_deposit_service as deposit
+        from app.services.crypto_deposit_service import CryptoDepositService
+
+        alphabet = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+        def tron_addr(seed):
+            payload = bytes([0x41]) + bytes([seed])*20
+            raw = payload + hashlib.sha256(hashlib.sha256(payload).digest()).digest()[:4]
+            number = int.from_bytes(raw, "big")
+            chars = ""
+            while number:
+                number, mod = divmod(number, 58)
+                chars = alphabet[mod] + chars
+            return chars
+
+        old, new = tron_addr(7), tron_addr(8)
+        Base.metadata.create_all(
+            self.engine,
+            tables=[User.__table__, Wallet.__table__, WalletTx.__table__,
+                    CryptoDepositRequest.__table__],
+            checkfirst=True,
+        )
+        with self.engine.begin() as con:
+            con.execute(text("DELETE FROM crypto_deposit_requests"))
+            con.execute(text("DELETE FROM wallet_txs"))
+            con.execute(text("DELETE FROM wallets"))
+            con.execute(text("DELETE FROM users"))
+            con.execute(text("DELETE FROM app_settings WHERE k = 'crypto_destination_v1:TRON'"))
+        with Session(self.engine) as db:
+            db.add_all([
+                User(id=501, tg_user_id=9900501),
+                User(id=502, tg_user_id=9900502),
+            ])
+            db.commit()
+
+        quote = SimpleNamespace(
+            rate_toman=Decimal("100000"),
+            provider="disposable-test",
+            is_stale=False,
+            fetched_at=datetime.now(timezone.utc).replace(tzinfo=None),
+        )
+        spec = {"network": "TRON", "asset": "USDT", "address": old, "decimals": 6}
+        preflight = {"healthy": True, "quote": quote}
+        started = threading.Event()
+        release = threading.Event()
+        invoice_attempt = threading.Event()
+        # No pricing API or chain API is called: only actual MySQL models and
+        # real create_invoice code are used in this test.
+        with (
+            patch.object(state, "rotation_enabled", return_value=True),
+            patch.object(deposit, "rotation_enabled", return_value=True),
+            patch.object(deposit.cfg, "CRYPTO_PAYMENTS_ENABLED", True),
+            patch.object(deposit.cfg, "CRYPTO_MIN_TOMAN_AMOUNT", 1),
+            patch.object(deposit.cfg, "CRYPTO_MAX_TOMAN_AMOUNT", 10000000),
+            patch.object(deposit.cfg, "CRYPTO_RATE_BUFFER_PERCENT", Decimal("0")),
+            patch.object(CryptoDepositService, "runtime_enabled", return_value=True),
+            patch.object(CryptoDepositService, "configured_options", return_value=[spec]),
+            patch.object(deposit.CryptoPreflightService, "check", return_value=preflight),
+        ):
+            with Session(self.engine) as db:
+                seed_destination_state(db, network="TRON", address=old)
+                db.commit()
+
+            def writer():
+                with Session(self.engine) as db:
+                    rotate_locked(db, network="TRON", expected_version=1,
+                                  expected_address=old, new_address=new)
+                    started.set()
+                    if not release.wait(8):
+                        raise AssertionError("rotation release timeout")
+                    db.commit()
+
+            def invoice_after_rotation():
+                if not started.wait(8):
+                    raise AssertionError("rotation did not start")
+                invoice_attempt.set()
+                with Session(self.engine) as db:
+                    invoice = CryptoDepositService.create_invoice(
+                        db, user_id=501, amount_toman=200000, network="TRON"
+                    )
+                    db.commit()
+                    return invoice.id
+
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                rotator = pool.submit(writer)
+                self.assertTrue(started.wait(8))
+                incoming = pool.submit(invoice_after_rotation)
+                self.assertTrue(invoice_attempt.wait(8))
+                time.sleep(0.35)
+                self.assertFalse(incoming.done(), "real invoice issue must wait for rotation")
+                release.set()
+                rotator.result(timeout=12)
+                issued_id = incoming.result(timeout=12)
+
+            with Session(self.engine) as db:
+                first = db.get(CryptoDepositRequest, issued_id)
+                self.assertEqual(first.destination_address, new)
+                self.assertEqual(first.status, "WAITING_PAYMENT")
+                self.assertEqual(first.user_id, 501)
+                back = rotate_locked(db, network="TRON", expected_version=2,
+                                     expected_address=new, new_address=old)
+                self.assertEqual(back["version"], 3)
+                db.commit()
+
+            with Session(self.engine) as db:
+                second = CryptoDepositService.create_invoice(
+                    db, user_id=502, amount_toman=300000, network="TRON"
+                )
+                db.commit()
+                self.assertEqual(second.destination_address, old)
+                self.assertEqual(db.get(CryptoDepositRequest, issued_id).destination_address, new)
 
     def test_stale_activation_refused_after_other_commit(self):
         from app.services import crypto_destination_state as state
