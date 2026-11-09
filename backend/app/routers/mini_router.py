@@ -119,6 +119,7 @@ from app.services.crypto_deposit_service import (
 )
 from app.services.crypto_qr_service import CryptoQrService
 from app.services.crypto_destination_draft_service import CryptoDestinationDraftService
+from app.services.crypto_destination_confirmation_service import CryptoDestinationConfirmationService
 from app.services.crypto_health_service import CryptoHealthService
 from app.services.crypto_preflight_service import CryptoPreflightService
 from app.services.crypto_reconciliation_service import CryptoReconciliationService
@@ -711,6 +712,12 @@ class MiniCryptoDestinationPreviewIn(BaseModel):
 class MiniCryptoDestinationDraftIn(MiniCryptoDestinationPreviewIn):
     reason: str = Field(min_length=10, max_length=500)
     operation_id: str = Field(min_length=12, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
+
+
+class MiniCryptoDestinationConfirmIn(BaseModel):
+    challenge_id: str = Field(min_length=32, max_length=32, pattern=r"^[a-f0-9]{32}$")
+    token: str = Field(min_length=32, max_length=96)
+    confirmed_address: str = Field(min_length=34, max_length=128)
 
 
 class MiniSuperBankDepositUpdateIn(BaseModel):
@@ -5640,6 +5647,80 @@ def mini_super_crypto_destination_create_draft(
         "ok": True, "draft_id": int(draft.id), "state": str(draft.state),
         "version": int(draft.version), "replayed": replayed,
         "can_activate": False,
+    }
+
+
+@router.post("/admin/super/crypto-destinations/drafts/{draft_id}/prepare-confirmation")
+def mini_super_crypto_destination_prepare_confirmation(
+    draft_id: int,
+    request: Request,
+    response: Response,
+    ident: MiniAdminIdentity = Depends(get_mini_super_admin_identity),
+    db: Session = Depends(get_db),
+):
+    enforce_write_rate_limit(int(ident.user_id))
+    challenge, token, draft = CryptoDestinationConfirmationService.prepare(
+        db, draft_id=int(draft_id), actor_id=int(ident.user_id),
+    )
+    AdminAuditService.record(
+        db, admin=_mini_to_admin_identity(ident),
+        action="crypto.destination.confirmation.prepare",
+        target_type="crypto_destination_version",
+        target_id=int(draft.id),
+        request=request,
+        details={
+            "network": draft.network, "version": int(draft.version),
+            "operation_id": draft.operation_id, "challenge_id": challenge.id,
+        },
+    )
+    db.commit()
+    response.headers["Cache-Control"] = "no-store"
+    return {
+        "ok": True, "draft_id": int(draft.id), "challenge_id": challenge.id,
+        "token": token, "expires_at": str(challenge.expires_at),
+        "network": str(draft.network),
+        "previous_address": str(draft.previous_address),
+        "proposed_address": str(draft.address),
+        "can_activate": False,
+        "warning": "این مرحله فقط تأیید انسانی است و آدرس واقعی را تغییر نمی‌دهد.",
+    }
+
+
+@router.post("/admin/super/crypto-destinations/drafts/{draft_id}/confirm")
+def mini_super_crypto_destination_confirm(
+    draft_id: int,
+    payload: MiniCryptoDestinationConfirmIn,
+    request: Request,
+    response: Response,
+    ident: MiniAdminIdentity = Depends(get_mini_super_admin_identity),
+    db: Session = Depends(get_db),
+):
+    enforce_write_rate_limit(int(ident.user_id))
+    challenge, draft = CryptoDestinationConfirmationService.confirm(
+        db, draft_id=int(draft_id),
+        challenge_id=payload.challenge_id, token=payload.token,
+        confirmed_address=payload.confirmed_address, actor_id=int(ident.user_id),
+    )
+    AdminAuditService.record(
+        db, admin=_mini_to_admin_identity(ident),
+        action="crypto.destination.confirmation.reviewed",
+        target_type="crypto_destination_version",
+        target_id=int(draft.id), request=request,
+        details={
+            "network": str(draft.network), "version": int(draft.version),
+            "operation_id": str(draft.operation_id),
+            "challenge_id": challenge.id,
+            "previous_address_masked": str(draft.previous_address)[:6] + "…" + str(draft.previous_address)[-6:],
+            "proposed_address_masked": str(draft.address)[:6] + "…" + str(draft.address)[-6:],
+            "activated": False,
+        },
+    )
+    db.commit()
+    response.headers["Cache-Control"] = "no-store"
+    return {
+        "ok": True, "draft_id": int(draft.id),
+        "confirmed_for_review": True, "can_activate": False,
+        "active_address_unchanged": True,
     }
 
 
