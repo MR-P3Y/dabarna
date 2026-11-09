@@ -27,6 +27,7 @@ from bot.services.admin_topics import ensure_topic_rules, forum_enabled, now_sta
 from bot.services.jalali import format_jalali_datetime
 from bot.services.user_topics import (
     game_topic_title as user_game_topic_title,
+    game_start_announcement_topic,
     send_to_topic as send_to_user_topic,
 )
 from bot.services.user_forum_navigation import navigation_keyboard
@@ -502,10 +503,10 @@ def _game_rule_notice_line(game: dict) -> str:
     """Show stored rules for each game, regardless of Telegram topic."""
     rule = str(game.get("game_rule") or "LEGACY").strip().upper()
     if rule == "FULL_CARD":
-        return "🏆 قانون برد: <b>پرکردنی؛ تکمیل ۱۵ عدد کارت، بدون تورنا</b>\n"
+        return "🏆 قانون: <b>پرکردنی ۱۵ عدد کامل؛ بدون تورنا</b>\n"
     if rule == "LINE":
-        return "🏆 قانون برد: <b>تورنا ۳ عدد یک ردیف | خطی ۵ عدد یک ردیف</b>\n"
-    return "🏆 قانون برد: <b>قدیمی؛ تورنا ستون ۴ عددی، تمام ردیف ۵ عددی</b>\n"
+        return "🃏 کارت: <b>۳ ردیف × ۹ ستون، ۵ عدد در هر ردیف</b>\n🏆 برد: <b>تورنا ۳ عدد از یک ردیف؛ خطی ۵ عدد از همان ردیف</b>\n"
+    return "🃏 کارت قدیمی: <b>۴×۵، شامل ۲۰ عدد</b>\n🏆 برد قدیمی: <b>تورنا ستون ۴ عددی؛ تکمیل ردیف ۵ عددی</b>\n"
 
 
 def _game_start_draw_line(event: dict | None) -> str:
@@ -536,7 +537,7 @@ async def _send_user_game_started_notice(bot: Bot, *, game_id: int, report: dict
         "🃏 کارت‌های خود را در ربات دنبال کنید."
     )
     await send_to_user_topic(
-        bot, name="announce", text=text, parse_mode="HTML",
+        bot, name=game_start_announcement_topic(), text=text, parse_mode="HTML",
         reply_markup=navigation_keyboard(game_topic_id=topic_id or None, show_live=True),
         disable_notification=False,
     )
@@ -549,8 +550,10 @@ async def _send_user_game_created_notice(bot: Bot, *, game_id: int, report: dict
     text = (
         f"🎮 <b>بازی #{game_id} | خرید کارت باز است</b>\n"
         f"🎯 {user_game_topic_title(topic_id or None)}\n"
-        f"💳 قیمت هر کارت: <b>{_fmt_amount(_to_int(game.get('card_price'), 0))}</b>\n"
+        f"💳 قیمت هر کارت: <b>{_fmt_amount(_to_int(game.get('card_price'), 0))} تومان</b>\n"
         f"{_game_rule_notice_line(game)}"
+        "👥 شروع بازی منوط به حضور دست‌کم ۲ بازیکن متمایز است.\n"
+        "⏳ ساعت شروع قطعی اعلام نشده است؛ پس از آغاز، پیام جداگانه ارسال می‌شود.\n"
         "🛒 برای خرید، ربات را خصوصی باز کنید."
     )
     await send_to_user_topic(
