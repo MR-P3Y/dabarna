@@ -49,6 +49,7 @@ class CryptoDepositWorker:
 
     @staticmethod
     def _process_cycle(stats: dict[str, int]) -> dict[str, int]:
+        complete_scan = True
         for network in ("TRON", "TON"):
             if not CryptoDepositWorker._network_has_open_invoices(network):
                 continue
@@ -59,6 +60,7 @@ class CryptoDepositWorker:
                     network=network, addresses=addresses, since=since,
                 )
             except Exception as exc:
+                complete_scan = False
                 log.warning("crypto chain scan failed: network=%s error=%s", network, exc)
                 continue
             stats["transfers"] += len(transfers)
@@ -77,12 +79,19 @@ class CryptoDepositWorker:
                             stats["review"] += 1
                     except Exception as exc:
                         db.rollback()
+                        complete_scan = False
                         log.exception(
                             "crypto transfer processing failed: network=%s tx_hash=%s error=%s",
                             transfer.network,
                             transfer.tx_hash,
                             exc,
                         )
+
+        # Do not expire a potentially paid invoice while chain pages or transfer
+        # processing are incomplete. Allow the next healthy scan to reconcile it.
+        if not complete_scan:
+            log.warning("crypto invoice expiry deferred due to incomplete chain scan")
+            return stats
 
         with SessionLocal() as db:
             try:
@@ -127,8 +136,11 @@ class CryptoDepositWorker:
                     CryptoDepositRequest.status.in_(OPEN_STATUSES),
                 )
             ).scalar_one_or_none()
-        if isinstance(earliest, datetime) and earliest > floor:
-            return earliest - timedelta(minutes=2)
+        if isinstance(earliest, datetime):
+            # Never discard the oldest still-open invoice after a long outage.
+            # A very deep history can exceed the bounded scanner budget and must
+            # then fail closed for manual reconciliation, not silently expire.
+            return min(floor, earliest - timedelta(minutes=2))
         return floor
 
 
