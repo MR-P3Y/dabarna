@@ -37,7 +37,7 @@ SEED = (
     "INSERT INTO game_events (id,game_id,kind) VALUES (1,1001,'ERROR'),(2,1002,'ERROR'),(3,1002,'ERROR')",
     "INSERT INTO deposit_requests (id,user_id,amount,status) VALUES (1,301,100000,'PENDING_REVIEW'),(2,302,200000,'PENDING_REVIEW')",
     "INSERT INTO withdraw_requests (id,user_id,amount,full_name,iban,card_number,account_number,status) VALUES (1,301,10000,'Test','IR000','000','000','PENDING'),(2,302,10000,'Test','IR000','000','000','APPROVED')",
-    "INSERT INTO crypto_deposit_requests (id,public_id,user_id,network,asset,amount_toman,rate_toman_per_asset,amount_crypto,rate_provider,destination_address,status,expires_at) VALUES (1,'test-crypto-1',301,'TRON','USDT',100000,100000,1,'test','T_TEST','NEEDS_REVIEW',DATE_ADD(UTC_TIMESTAMP(),INTERVAL 1 DAY))",
+    "INSERT INTO crypto_deposit_requests (id,public_id,user_id,network,asset,amount_toman,rate_toman_per_asset,amount_crypto,rate_provider,destination_address,status,confirmation_count,required_confirmations,expires_at) VALUES (1,'test-crypto-1',301,'TRON','USDT',100000,100000,1,'test','T_TEST','NEEDS_REVIEW',0,1,DATE_ADD(UTC_TIMESTAMP(),INTERVAL 1 DAY))",
     "INSERT INTO admin_audit_logs (id,actor_scope,action,target_type,created_at) VALUES (1,'SUPER_ADMIN','risk.detected','game',UTC_TIMESTAMP())",
 )
 
