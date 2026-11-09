@@ -8,6 +8,7 @@ from .game_autopilot import GameAutopilotConfig
 from .game_event import GameEvent
 from .admin_audit import AdminAuditLog
 from .crypto import CryptoDepositRequest
+from .crypto_destination_version import CryptoDestinationVersion
 
 __all__ = [
     "User",
@@ -20,4 +21,5 @@ __all__ = [
     "GameEvent",
     "AdminAuditLog",
     "CryptoDepositRequest",
+    "CryptoDestinationVersion",
 ]
