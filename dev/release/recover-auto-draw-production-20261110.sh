@@ -26,6 +26,7 @@ docker run --rm --network none --read-only --cap-drop ALL \
   --security-opt no-new-privileges --tmpfs /tmp:rw,nosuid,size=128m \
   -e DATABASE_URL=sqlite+pysqlite:///:memory: \
   -e REDIS_URL=redis://127.0.0.1:6379/15 \
+  -e RECEIPTS_DIR=/tmp/receipts \
   -e GAME_AUTO_DRAW_ENABLED=false \
   -e GAME_AUTOPILOT_RUNTIME_ENABLED=false \
   -v "$WORK/backend:/app:ro" -w /app --entrypoint python "$TEST_IMAGE" \
