@@ -3490,7 +3490,18 @@ def mini_admin_ops_dashboard(
         "pending_withdraws": 0,
         "approved_withdraws": 0,
         "crypto_needs_review": 0,
-        "game_errors": int(db.execute(select(func.count(GameEvent.id)).where(GameEvent.kind == "ERROR")).scalar_one() or 0),
+        "game_errors": int(
+            db.execute(
+                select(func.count(GameEvent.id)).where(
+                    GameEvent.kind == "ERROR",
+                    *([] if ident.is_super_admin else [
+                        GameEvent.game_id.in_(
+                            select(Game.id).where(Game.admin_user_id == int(ident.user_id))
+                        )
+                    ]),
+                )
+            ).scalar_one() or 0
+        ),
         "risk_events_24h": 0,
     }
     if can_view_finance:
@@ -3512,6 +3523,7 @@ def mini_admin_ops_dashboard(
     return {
         "active_games": active_games,
         "counts": counts,
+        "finance_visible": can_view_finance,
         "system": _mini_system_health(db),
         "server_time": datetime.utcnow().isoformat(timespec="seconds"),
     }
