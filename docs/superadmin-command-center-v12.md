@@ -61,3 +61,11 @@ Do NOT merge/deploy to Production until tests above pass and the user explicitly
 - Implement rollback-safe, audited activation endpoint and action UI only behind separate explicit Production authorization and comprehensive tests.
 - Create durable historical-address scan coverage after expiration/cancellation and handle provider pagination and unmatched late transactions.
 - Add adversarial idempotency, restart, retry, finance-ledger and failure-injection suites.
+
+## 2026-11-10: MySQL invoice snapshot + replay safety tests (draft)
+
+- Add a third **real disposable MySQL** regression: concurrently insert an invoice destination snapshot while a rotation waits for the exact row lock; verify persisted snapshots are `OLD/v1` then `NEW/v2`, and rollback to `OLD/v3` does not mutate either old invoice.
+- Add four no-network replay/expiry checks: previously credited/rejected transfer hash never recredits, expired invoice is not auto-matched, and mismatched idempotency replay is rejected.
+- These are tests, **not** implementation of real invoice issuance or historical-address reconciliation; the snapshot table is deliberately dedicated and disposable.
+- For late payments currently excluded from OPEN_STATUSES, manual-reconciliation indexing and audit workflow remain unimplemented; do not claim expired payments are safely reconciled.
+- No Production deploy / no active address activation. New tests await NODE2 execution.
