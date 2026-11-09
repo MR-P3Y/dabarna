@@ -45,3 +45,19 @@ Do NOT merge/deploy to Production until tests above pass and the user explicitly
 4. Provider scans must handle pagination and lookback gaps, independently verify new destination before activation, and fail closed on any degraded network.
 5. Explicit owner confirmation, separate operator authorization where required, immutable audit record and rollback transaction; never enable with unresolved review cases.
 6. Run realistic isolated MySQL payment/idempotency tests, concurrency tests, and restart/rollback tests prior to any production finance rollout.
+
+## 2026-11-10 experimental atomic revision prototype (UNRELEASED)
+
+- Introduced `crypto_destination_state.py` with strict experimental gate. It only enables against `mysql+pymysql://...@davarna-wallet-mysql/davarna_wallet_rotation_test` *and* `DAVARNA_CRYPTO_ROTATION_EXPERIMENTAL=I_ACK_DISPOSABLE_DB_ONLY`.
+- A destination version row must **already exist**. A missing row is not lockable; the code fails closed (503), rather than racing to create it during invoice issuance.
+- When the gate is on, invoice creation reads its destination via a `SELECT ... FOR UPDATE` lock held until the caller commits the invoice. Rotation must lock the same row and compare the previous version/address; a revert increments the version, not rewrites history.
+- Proposed rotation methods **do not expose an activation HTTP endpoint**, do not call commit themselves and do not change Production defaults.
+- Serial unit tests added, plus opt-in disposable MySQL concurrent writer/reader locking tests. These are not yet executed on NODE2. SQLite alone cannot validate row-lock concurrency.
+
+### Mandatory unfinished work before activation
+
+- Prove MySQL lock behavior with the dedicated disposable database and concurrent invoice creation + rotation; review transaction isolation and deadlock retries.
+- Version-lock all options/preview paths with their stated consistency semantics; any address shown to users must correspond to invoice destination at issuance.
+- Implement rollback-safe, audited activation endpoint and action UI only behind separate explicit Production authorization and comprehensive tests.
+- Create durable historical-address scan coverage after expiration/cancellation and handle provider pagination and unmatched late transactions.
+- Add adversarial idempotency, restart, retry, finance-ledger and failure-injection suites.
