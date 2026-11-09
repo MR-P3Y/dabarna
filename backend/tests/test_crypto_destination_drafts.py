@@ -4,7 +4,7 @@ No live crypto addresses, network calls, wallet writes or Production DB.
 """
 import base64
 import unittest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from unittest.mock import patch
 
@@ -134,7 +134,7 @@ class CryptoDestinationDraftTests(unittest.TestCase):
             rate_provider="synthetic",
             destination_address=self.old,
             status="WAITING_PAYMENT",
-            expires_at=datetime.utcnow() + timedelta(hours=1),
+            expires_at=datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=1),
         )
         self.db.add(invoice)
         self.db.commit()
