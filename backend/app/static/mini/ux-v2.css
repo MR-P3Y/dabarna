@@ -947,3 +947,23 @@ html[data-theme="light"] .admin-ops-dashboard-v11 {
   .superadmin-tools-nav { grid-template-columns: 1fr 1fr; }
   .superadmin-tools-nav button { min-height: 52px; }
 }
+
+
+/* System-only live countdown: never controls server-side game state. */
+.system-game-clock-panel{margin:14px 0 18px;padding:14px;border:1px solid rgba(255,185,60,.28);border-radius:18px;background:linear-gradient(130deg,rgba(19,32,51,.92),rgba(28,21,44,.9))}
+.system-clock-head{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:13px}
+.system-clock-head strong{font-size:1rem}
+.system-clock-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(205px,1fr));gap:11px}
+.system-clock-card{min-width:0;padding:15px;border:1px solid rgba(147,164,192,.28);border-radius:15px;background:rgba(5,15,29,.66)}
+.system-clock-card-head,.system-clock-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.system-clock-card-head strong{font-size:.91rem}
+.system-clock-status{font-size:.75rem;color:#e5b85e}
+.system-clock-digits{font-size:clamp(2rem,6vw,3.35rem);font-weight:850;letter-spacing:2px;text-align:center;font-variant-numeric:tabular-nums;direction:ltr;padding:13px 0;color:#fff}
+.system-clock-track{overflow:hidden;height:6px;border-radius:12px;background:rgba(255,255,255,.13)}
+.system-clock-fill{height:100%;background:linear-gradient(90deg,#ff9e36,#ffe0a3);border-radius:12px;transition:width .35s linear}
+.system-clock-foot{margin-top:10px;font-size:.73rem;opacity:.82}
+.system-clock-urgent .system-clock-digits{color:#ffbb5d;animation:system-clock-pulse 1s ease-in-out infinite}
+.system-clock-running .system-clock-digits{font-size:1.5rem;color:#73e4c2}
+.system-clock-pending .system-clock-status{color:#f9d6a6}
+@keyframes system-clock-pulse{50%{opacity:.68}}
+@media(prefers-reduced-motion:reduce){.system-clock-urgent .system-clock-digits{animation:none}.system-clock-fill{transition:none}}
