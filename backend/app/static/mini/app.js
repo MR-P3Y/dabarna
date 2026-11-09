@@ -5707,6 +5707,75 @@ async function refreshAdminBootstrap() {
   }
 }
 
+// System-generated game clocks use server-authored schedule values. The
+// client never starts/ends games or calls numbers when the timer reaches zero.
+let systemGameClockTicker = null;
+let systemGameClockLastSync = 0;
+let systemGameClockRows = [];
+let systemGameClockRuntimeReady = false;
+
+function systemGameClockView(game, now = Date.now()) {
+  const status = String(game.status || "").toUpperCase();
+  const scheduled = parseApiDate(game.scheduled_start_at).getTime();
+  const interval = Math.max(0, Number(game.draw_interval_seconds || 0));
+  if (status === "RUNNING") {
+    return { kind: "running", label: interval ? "در حال اعلام اعداد • هر " + toFaDigits(interval) + " ثانیه" : "بازی در حال اجرا", secs: null };
+  }
+  if (status !== "LOBBY") return { kind: "ended", label: "پایان یافته", secs: null };
+  if (!Number.isFinite(scheduled)) return { kind: "waiting", label: "در انتظار حداقل بازیکن", secs: null };
+  const remaining = Math.max(0, Math.ceil((scheduled - now) / 1000));
+  return remaining > 0
+    ? { kind: remaining <= 10 ? "urgent" : "counting", label: "زمان تا شروع", secs: remaining }
+    : { kind: "pending", label: "زمان شروع رسیده • در انتظار تأیید سرور", secs: 0 };
+}
+
+function renderSystemGameClocks() {
+  const root = getEl("adminSystemGameClocks");
+  if (!root) return;
+  if (!systemGameClockRows.length) {
+    root.innerHTML = '<div class="empty">فعلاً بازی سیستمی فعالی وجود ندارد.</div>';
+    return;
+  }
+  root.innerHTML = systemGameClockRows.map((game) => {
+    const view = systemGameClockView(game);
+    const gid = Number(game.id || 0);
+    const total = Math.max(5, Number(game.countdown_seconds || 30));
+    const frac = view.secs == null ? 0 : Math.max(0, Math.min(100, view.secs / total * 100));
+    const digits = view.secs == null ? "—:—" :
+      toFaDigits(String(Math.floor(view.secs / 60)).padStart(2, "0") + ":" + String(view.secs % 60).padStart(2, "0"));
+    return '<div class="system-clock-card system-clock-' + view.kind + '">' +
+      '<div class="system-clock-card-head"><strong>' + safeText(autopilotLevelLabel(game.game_level)) + ' • بازی #' + safeText(toFaDigits(gid)) +
+      '</strong><span class="system-clock-status">' + safeText(view.label) + '</span></div>' +
+      '<div class="system-clock-digits" role="timer" aria-label="شمارش معکوس شروع">' + safeText(digits) + '</div>' +
+      '<div class="system-clock-track"><div class="system-clock-fill" style="width:' + frac.toFixed(1) + '%"></div></div>' +
+      '<div class="system-clock-foot"><span>قیمت کارت: ' + safeText(toman(game.card_price || 0)) + '</span>' +
+      '<span>' + (systemGameClockRuntimeReady ? "زمان‌بندی فعال" : "وضعیت زمان‌بند: غیرفعال یا نامشخص") + '</span></div></div>';
+  }).join("");
+}
+
+async function refreshSystemGameClocks() {
+  if (!state.admin?.enabled) return;
+  const [games, runtime] = await Promise.all([
+    apiFetch("/mini-api/admin/games?status=LOBBY,RUNNING&limit=200"),
+    apiFetch("/mini-api/admin/autopilot/runtime").catch(() => null),
+  ]);
+  systemGameClockRows = (Array.isArray(games?.items) ? games.items : [])
+    .filter((game) => String(game.execution_source || "").toUpperCase() === "SYSTEM");
+  systemGameClockRuntimeReady = Boolean(runtime?.runtime_enabled);
+  systemGameClockLastSync = Date.now();
+  renderSystemGameClocks();
+  if (systemGameClockTicker == null) {
+    systemGameClockTicker = setInterval(() => {
+      if (document.hidden) return;
+      renderSystemGameClocks();
+      if (Date.now() - systemGameClockLastSync >= 15000) {
+        systemGameClockLastSync = Date.now();
+        refreshSystemGameClocks().catch(() => {});
+      }
+    }, 1000);
+  }
+}
+
 function renderAdminGames(payload) {
   const root = getEl("adminGamesList");
   if (!root) return;
@@ -7843,6 +7912,7 @@ async function refreshAdminPanel(options = {}) {
   await Promise.allSettled([
     ...(!silent ? [refreshAdminOpsDashboard()] : []),
     refreshAdminAutopilotConfig(),
+    refreshSystemGameClocks(),
     refreshAdminCreateOptions(),
     refreshAdminGames(),
     refreshAdminRiskAlerts(),
