@@ -169,6 +169,19 @@ class HistoricalCryptoReviewTests(unittest.TestCase):
         self.assertEqual(err.exception.status_code, 409)
         provider.assert_not_called()
 
+    def test_excess_historical_destinations_fails_before_external_call(self):
+        self.invoice("old-1", addr=self.old)
+        self.invoice("new-2", addr=self.new)
+        with patch(
+            "app.services.crypto_late_payment_review_service.MAX_DESTINATIONS_PER_NETWORK", 1,
+        ), patch.object(CryptoChainService, "list_incoming_for_addresses") as provider:
+            with self.assertRaises(HTTPException) as err:
+                CryptoLatePaymentReviewService.scan(
+                    self.db, start_at=self.start, end_at=self.end,
+                )
+        self.assertEqual(err.exception.status_code, 409)
+        provider.assert_not_called()
+
     def test_scan_window_must_be_bounded(self):
         with self.assertRaises(HTTPException) as err:
             CryptoLatePaymentReviewService.scan(
