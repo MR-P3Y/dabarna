@@ -844,9 +844,22 @@
                   <div id="superCryptoOpsResult" class="super-crypto-ops-result hidden"></div>
                   <details id="superCryptoWalletSection" class="super-finance-editor mt-12">
                     <summary>💎 آدرس کیف پول‌های رمزارز</summary>
-                    <p class="hint">این آدرس‌ها از تنظیمات امن سرور خوانده می‌شوند. تغییر مستقیم از مینی‌اپ فعلاً غیرفعال است تا فاکتورهای باز و اسکنر شبکه دچار مغایرت نشوند.</p>
+                    <p class="hint">برای هر شبکه می‌توان درخواست تغییر آدرس ثبت کرد. این درخواست فقط ذخیره و ممیزی می‌شود؛ تا بررسی فاکتورهای باز و هماهنگی اسکنر، آدرس فعال تغییر نمی‌کند.</p>
                     <button id="superCryptoAddressesRefreshBtn" class="small-btn" type="button">بازخوانی آدرس‌ها</button>
                     <div id="superCryptoAddressesList" class="cards-history-scroll mt-12"></div>
+                    <div id="superCryptoProposalEditor" class="action-form hidden mt-12">
+                      <strong>درخواست تغییر آدرس دریافت</strong>
+                      <p id="superCryptoProposalNetwork" class="hint"></p>
+                      <label for="superCryptoProposedAddress">آدرس جدید کیف پول</label>
+                      <input id="superCryptoProposedAddress" type="text" dir="ltr" maxlength="128" autocomplete="off" spellcheck="false" placeholder="آدرس معتبر شبکه" />
+                      <p class="hint">تغییر آدرس فعال فقط پس از بازبینی فاکتورهای باز و همگام‌سازی اسکنر امکان‌پذیر است. هیچ آدرسی بلافاصله جایگزین نمی‌شود.</p>
+                      <div class="admin-action-row">
+                        <button id="superCryptoProposalSubmitBtn" type="button" class="small-btn primary">ثبت درخواست برای بررسی</button>
+                        <button id="superCryptoProposalCancelBtn" type="button" class="small-btn">انصراف</button>
+                      </div>
+                    </div>
+                    <div id="superCryptoProposalsList" class="cards-history-scroll mt-12" aria-live="polite"></div>
+                    <div id="superCryptoProposalHint" class="step-hint" role="status"></div>
                   </details>
 
                   <div class="super-crypto-control super-bank-control">
