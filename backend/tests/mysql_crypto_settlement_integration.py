@@ -147,6 +147,42 @@ def run() -> None:
             db.commit()
             check(db, 91001, 100000, 2)
 
+            # A user-claimed hash with an amount discrepancy must be
+            # REVIEW-only; it cannot credit the wallet automatically.
+            underpaid = invoice(
+                db, label="synthetic-underpaid", address=new, amount="0.8",
+                created=now - timedelta(minutes=10),
+                expires=now + timedelta(minutes=5),
+            )
+            overpaid = invoice(
+                db, label="synthetic-overpaid", address=new, amount="0.9",
+                created=now - timedelta(minutes=10),
+                expires=now + timedelta(minutes=5),
+            )
+            underpaid.tx_hash = "synthetic-hash-underpaid"
+            overpaid.tx_hash = "synthetic-hash-overpaid"
+            db.commit()
+            under_result = CryptoDepositService.process_transfer(
+                db, transfer(new, "synthetic-hash-underpaid", "0.6", now, final=True),
+            )
+            assert under_result and under_result.id == underpaid.id
+            assert under_result.status == "NEEDS_REVIEW"
+            assert under_result.payment_variance == "UNDERPAID"
+            db.commit()
+            check(db, 91001, 100000, 2)
+            over_result = CryptoDepositService.process_transfer(
+                db, transfer(new, "synthetic-hash-overpaid", "1.0", now, final=True),
+            )
+            assert over_result and over_result.id == overpaid.id
+            assert over_result.status == "NEEDS_REVIEW"
+            assert over_result.payment_variance == "OVERPAID"
+            db.commit()
+            check(db, 91001, 100000, 2)
+            assert CryptoDepositService.process_transfer(
+                db, transfer(new, "synthetic-hash-underpaid", "0.6", now, final=True),
+            ) is None
+            db.rollback()
+
             # Same amount on *another* destination must never match this invoice.
             wrong = transfer(other, "synthetic-hash-wrong", "0.9", now, final=True)
             assert CryptoDepositService.process_transfer(db, wrong) is None
@@ -193,7 +229,8 @@ def run() -> None:
             assert len(rows) == 2 and all(x.reason == "DEPOSIT_CRYPTO" for x in rows)
             assert len({x.idempotency_key for x in rows}) == 2
             assert {x.ref_id for x in rows} == {old_invoice.id, new_invoice.id}
-            print("PASS: old/new pinned invoices, pending->final, replay, wrong destination, expired not auto-credited")
+            print("PASS: old/new pinned invoices, pending->final, replay, wrong destination and expired no-credit")
+            print("PASS: underpaid/overpaid verified claims require review, never auto-credit")
             print("PASS: wallet 100000; exactly 2 ledger credits; rollback leaves invoice and balance unchanged")
     engine.dispose()
 
