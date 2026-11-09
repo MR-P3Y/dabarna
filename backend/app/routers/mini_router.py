@@ -118,6 +118,7 @@ from app.services.crypto_deposit_service import (
     CryptoDepositService,
 )
 from app.services.crypto_address_change import proposal_key, validate_crypto_destination
+from app.services.crypto_rotation_readiness import assess_rotation
 from app.services.crypto_qr_service import CryptoQrService
 from app.services.crypto_health_service import CryptoHealthService
 from app.services.crypto_preflight_service import CryptoPreflightService
@@ -5631,6 +5632,26 @@ def mini_super_crypto_address_proposals(
                 "created_at": str(raw.get("created_at") or ""),
             })
     return {"items": items, "activation_supported": False}
+
+
+@router.get("/admin/super/crypto-address-readiness")
+def mini_super_crypto_address_readiness(
+    network: Literal["TRON", "TON"],
+    ident: MiniAdminIdentity = Depends(get_mini_super_admin_identity),
+    db: Session = Depends(get_db),
+):
+    _ = ident
+    options = CryptoDepositService.configured_options()
+    current = next((str(x["address"]) for x in options if x["network"] == network), None)
+    if current is None:
+        raise HTTPException(status_code=409, detail="این شبکه روی سرور پیکربندی نشده است.")
+    proposal = _setting_get_json(db, proposal_key(network))
+    if not isinstance(proposal, dict) or proposal.get("status") != "PENDING_REVIEW":
+        raise HTTPException(status_code=404, detail="درخواست تغییر آدرس باز وجود ندارد.")
+    return assess_rotation(
+        db, network=network, current_address=current,
+        proposed_address=str(proposal.get("address") or ""),
+    )
 
 
 @router.post("/admin/super/crypto-address-proposals", status_code=201)
