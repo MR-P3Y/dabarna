@@ -56,4 +56,16 @@ docker run --rm --network none --read-only --cap-drop ALL \
   -v "$WORK/backend:/app:ro" -w /app \
   --entrypoint python "$IMAGE" \
   -m unittest discover -s tests -p 'test_crypto_destination_match_isolated.py' -v
+echo "===== MULTI-ADDRESS WORKER ISOLATION ====="
+docker run --rm --network none --read-only --cap-drop ALL \
+  --security-opt no-new-privileges --tmpfs /tmp:rw,nosuid,size=128m \
+  -e DATABASE_URL=sqlite+pysqlite:///:memory: \
+  -e REDIS_URL=redis://127.0.0.1:6379/15 \
+  -e RECEIPTS_DIR=/tmp/receipts \
+  -e GAME_AUTOPILOT_RUNTIME_ENABLED=false \
+  -e GAME_AUTO_DRAW_ENABLED=false \
+  -e CRYPTO_AUTO_CONFIRM_ENABLED=false \
+  -v "$WORK/backend:/app:ro" -w /app \
+  --entrypoint python "$IMAGE" \
+  -m unittest discover -s tests -p 'test_crypto_multi_address_worker_isolated.py' -v
 echo "===== V1.2 ISOLATED TEST PASS ====="
