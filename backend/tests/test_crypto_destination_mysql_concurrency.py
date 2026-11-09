@@ -197,6 +197,55 @@ class _AtomicWalletMySQLConcurrency(unittest.TestCase):
                 )).all()
             self.assertEqual([tuple(row) for row in saved_after], [("OLD", 1), ("NEW", 2)])
 
+    def test_real_ledger_replay_does_not_double_credit_after_restart(self):
+        """Same hash, same user: two sessions must yield one wallet ledger row."""
+        from app.core.db import Base
+        from app.models.user import User
+        from app.models.wallet import Wallet, WalletTx
+        from app.services.wallet_service import WalletService
+        Base.metadata.create_all(
+            self.engine,
+            tables=[User.__table__, Wallet.__table__, WalletTx.__table__],
+            checkfirst=True,
+        )
+        with self.engine.begin() as con:
+            # MySQL test DB is guaranteed isolated by module-level allowlist.
+            # Avoid deleting users: other tests can leave their FK'd invoices.
+            con.execute(text("DELETE FROM wallet_txs"))
+            con.execute(text("DELETE FROM wallets"))
+        with Session(self.engine) as db:
+            db.add(User(tg_user_id=991223344))
+            db.flush()
+            uid = db.execute(
+                text("SELECT id FROM users WHERE tg_user_id=991223344")
+            ).scalar_one()
+            db.commit()
+        idem = "crypto:TRON:" + "a" * 64
+        with Session(self.engine) as db:
+            tx = WalletService.credit(
+                db, user_id=uid, amount=125000, reason="DEPOSIT_CRYPTO",
+                idempotency_key=idem, ref_type="CRYPTO_DEPOSIT", ref_id=724,
+            )
+            self.assertEqual(tx.amount, 125000)
+            db.commit()
+        # A new SQLAlchemy session emulates worker restart/replayed scan.
+        with Session(self.engine) as db:
+            replay = WalletService.credit(
+                db, user_id=uid, amount=125000, reason="DEPOSIT_CRYPTO",
+                idempotency_key=idem, ref_type="CRYPTO_DEPOSIT", ref_id=724,
+            )
+            db.commit()
+            self.assertEqual(replay.amount, 125000)
+        with self.engine.begin() as con:
+            balance = con.execute(text(
+                "SELECT balance FROM wallets WHERE user_id=:uid"
+            ), {"uid": uid}).scalar_one()
+            count = con.execute(text(
+                "SELECT COUNT(*) FROM wallet_txs WHERE idempotency_key=:key"
+            ), {"key": idem}).scalar_one()
+        self.assertEqual(balance, 125000)
+        self.assertEqual(count, 1)
+
     def test_real_invoice_create_with_rotation_uses_committed_address(self):
         """Call real CryptoDepositService.create_invoice, persist actual model."""
         from datetime import datetime, timezone
