@@ -5713,8 +5713,9 @@ let systemGameClockTicker = null;
 let systemGameClockLastSync = 0;
 let systemGameClockRows = [];
 let systemGameClockRuntimeReady = false;
+let systemGameClockOffsetMs = 0;
 
-function systemGameClockView(game, now = Date.now()) {
+function systemGameClockView(game, now = Date.now() + systemGameClockOffsetMs) {
   const status = String(game.status || "").toUpperCase();
   const scheduled = parseApiDate(game.scheduled_start_at).getTime();
   const interval = Math.max(0, Number(game.draw_interval_seconds || 0));
@@ -5723,6 +5724,7 @@ function systemGameClockView(game, now = Date.now()) {
   }
   if (status !== "LOBBY") return { kind: "ended", label: "پایان یافته", secs: null };
   if (!Number.isFinite(scheduled)) return { kind: "waiting", label: "در انتظار حداقل بازیکن", secs: null };
+  if (!systemGameClockRuntimeReady) return { kind: "waiting", label: "زمان‌بند خودکار غیرفعال است", secs: null };
   const remaining = Math.max(0, Math.ceil((scheduled - now) / 1000));
   return remaining > 0
     ? { kind: remaining <= 10 ? "urgent" : "counting", label: "زمان تا شروع", secs: remaining }
@@ -5759,6 +5761,8 @@ async function refreshSystemGameClocks() {
     apiFetch("/mini-api/admin/games?status=LOBBY,RUNNING&limit=200"),
     apiFetch("/mini-api/admin/autopilot/runtime").catch(() => null),
   ]);
+  const serverTime = parseApiDate(games?.server_now).getTime();
+  if (Number.isFinite(serverTime)) systemGameClockOffsetMs = serverTime - Date.now();
   systemGameClockRows = (Array.isArray(games?.items) ? games.items : [])
     .filter((game) => String(game.execution_source || "").toUpperCase() === "SYSTEM");
   systemGameClockRuntimeReady = Boolean(runtime?.runtime_enabled);
