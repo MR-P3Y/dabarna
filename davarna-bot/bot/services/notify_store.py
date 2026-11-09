@@ -16,10 +16,10 @@ def _load() -> dict[str, Any]:
         data = json.loads(_STORE_PATH.read_text(encoding="utf-8"))
         if not isinstance(data, dict):
             raise ValueError("notification state must be a JSON object")
-        data.setdefault("subs", {})
-        data.setdefault("last", {})
-        data.setdefault("events", {})
-        data.setdefault("meta", {})
+        for section in ("subs", "last", "events", "meta"):
+            existing = data.setdefault(section, {})
+            if not isinstance(existing, dict):
+                raise ValueError(f"notification state section {section} is invalid")
         return data
     except (OSError, UnicodeError, ValueError, TypeError) as exc:
         # Never silently reset persistent delivery ACKs when storage is
