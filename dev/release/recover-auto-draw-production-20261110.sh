@@ -12,6 +12,23 @@ REF="${DAVARNA_AUTO_DRAW_RECOVERY_REF:?pinned ref required}"
 [[ "$(id -u)" == 0 ]] || die "must run as root"
 cd "$ROOT"
 git cat-file -e "$REF^{commit}"
+echo "===== SYNTAX AND DISABLED-WORKER REGRESSION ====="
+git show "$REF:dev/release/close-stalled-auto-86-87-20261110.py" \
+  | python3 -c 'import ast,sys; ast.parse(sys.stdin.read()); print("PASS: close script Python syntax")'
+TEST_IMAGE=davarna-backend:superadmin-v11-rbac-7101e5c
+TEST_ID=sha256:42a77764a254d33f058fb1b606b4a274704975feadce717aa47bb336a3cb9d45
+[[ "$(docker image inspect -f '{{.Id}}' "$TEST_IMAGE")" == "$TEST_ID" ]] || die "test image has changed"
+WORK="$(mktemp -d /tmp/davarna-autodraw-hotfix.XXXXXX)"
+git archive "$REF" -- backend | tar -x -C "$WORK"
+docker run --rm --network none --read-only --cap-drop ALL \
+  --security-opt no-new-privileges --tmpfs /tmp:rw,nosuid,size=128m \
+  -e DATABASE_URL=sqlite+pysqlite:///:memory: \
+  -e REDIS_URL=redis://127.0.0.1:6379/15 \
+  -e GAME_AUTO_DRAW_ENABLED=false \
+  -e GAME_AUTOPILOT_RUNTIME_ENABLED=false \
+  -v "$WORK/backend:/app:ro" -w /app --entrypoint python "$TEST_IMAGE" \
+  -m unittest discover -s tests -p test_auto_start_worker_disabled_guard.py -v
+rm -rf -- "$WORK"
 for name in davarna-backend davarna-mysql davarna-redis davarna-bot; do
   [[ "$(docker inspect -f '{{.State.Health.Status}}' "$name")" == healthy ]] || die "$name not healthy"
 done
