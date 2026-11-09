@@ -22,23 +22,14 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session
 from app.routers import mini_router as mini
-from app.core.db import get_db
+from app.core.db import get_db, Base
+from app import models  # register all mapped tables
 
 url = make_url(os.environ["DATABASE_URL"])
 assert url.get_backend_name() == "mysql"
 assert url.host == "davarna-v11-mysql"
 assert url.database == "davarna_v11_rbac_test"
 
-SCHEMA = (
-    "CREATE TABLE games (id BIGINT PRIMARY KEY, status VARCHAR(16), admin_user_id BIGINT, card_price BIGINT, sold_amount BIGINT, prize_pool BIGINT)",
-    "CREATE TABLE game_called_numbers (id BIGINT PRIMARY KEY, game_id BIGINT, number INT)",
-    "CREATE TABLE game_cards (id BIGINT PRIMARY KEY, game_id BIGINT, user_id BIGINT)",
-    "CREATE TABLE game_events (id BIGINT PRIMARY KEY, game_id BIGINT, kind VARCHAR(32))",
-    "CREATE TABLE deposit_requests (id BIGINT PRIMARY KEY, status VARCHAR(32))",
-    "CREATE TABLE withdraw_requests (id BIGINT PRIMARY KEY, status VARCHAR(32))",
-    "CREATE TABLE crypto_deposit_requests (id BIGINT PRIMARY KEY, status VARCHAR(32))",
-    "CREATE TABLE admin_audit_logs (id BIGINT PRIMARY KEY, action VARCHAR(80), created_at DATETIME)",
-)
 SEED = (
     "INSERT INTO games VALUES (1001,'RUNNING',101,5000,15000,13500),(1002,'RUNNING',202,5000,25000,22500)",
     "INSERT INTO game_called_numbers VALUES (1,1001,17),(2,1002,28)",
@@ -56,8 +47,7 @@ class RealMySQLDashboardRBAC(unittest.TestCase):
         cls.engine = create_engine(os.environ["DATABASE_URL"], pool_pre_ping=True)
         with cls.engine.begin() as conn:
             assert conn.execute(text("SELECT DATABASE()")).scalar_one() == "davarna_v11_rbac_test"
-            for stmt in SCHEMA:
-                conn.execute(text(stmt))
+            Base.metadata.create_all(bind=conn)
             for stmt in SEED:
                 conn.execute(text(stmt))
         cls.app = FastAPI()
