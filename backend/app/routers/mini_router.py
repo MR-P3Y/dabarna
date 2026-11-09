@@ -123,6 +123,8 @@ from app.services.crypto_destination_confirmation_service import CryptoDestinati
 from app.services.crypto_health_service import CryptoHealthService
 from app.services.crypto_preflight_service import CryptoPreflightService
 from app.services.crypto_reconciliation_service import CryptoReconciliationService
+from app.services.crypto_late_payment_review_service import CryptoLatePaymentReviewService
+from app.services.crypto_chain_service import CryptoChainUnavailable
 from app.services.user_restriction_service import require_not_restricted, require_user_id_not_restricted
 from app.routers import admin_users_router
 
@@ -6020,6 +6022,29 @@ def mini_super_crypto_health(
 ):
     _ = ident
     return CryptoHealthService.check()
+
+
+@router.get("/admin/super/crypto-late-payment-review")
+def mini_super_crypto_late_payment_review(
+    hours: int = Query(default=24, ge=1, le=168),
+    ident: MiniAdminIdentity = Depends(get_mini_super_admin_identity),
+    db: Session = Depends(get_db),
+):
+    _ = ident
+    end_at = datetime.now(timezone.utc).replace(tzinfo=None)
+    start_at = end_at - timedelta(hours=int(hours))
+    try:
+        # Read-only. No wallet credit, status mutation or new claim endpoint.
+        report = CryptoLatePaymentReviewService.scan(
+            db, start_at=start_at, end_at=end_at,
+        )
+        return report
+    except CryptoChainUnavailable:
+        log.warning("Historical crypto scan incomplete; review refused", exc_info=True)
+        raise HTTPException(
+            status_code=503,
+            detail="بررسی کامل شبکه ممکن نشد؛ نتیجه ناقص نمایش داده نمی‌شود.",
+        )
 
 
 @router.get("/admin/super/crypto-reconciliation")
