@@ -896,7 +896,9 @@ def mini_admin_autopilot_readiness(
             ).scalar_one_or_none()
         levels.append({
             "level": level,
-            "ready_to_generate": all(conditions.values()),
+            "ready_to_generate": all(conditions.values()) and not bool(
+                active and str(active.execution_source or "ADMIN").upper() != "SYSTEM"
+            ),
             "checks": conditions,
             "active_game_id": int(active.id) if active else None,
             "active_game_status": str(active.status) if active else None,
