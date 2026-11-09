@@ -150,6 +150,7 @@ class CryptoDestinationDraftService:
             network=network,
             asset=preview["asset"],
             address=preview["new_address"],
+            previous_address=preview["current_address"],
             version=int(preview["proposed_version"]),
             state="DRAFT",
             requested_by=int(actor_id),
