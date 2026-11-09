@@ -86,7 +86,7 @@ class GameForumLifecycleContractTests(unittest.TestCase):
         mini_rule = _load_plain_function(MINI, "_mini_game_rule_announcement_line")
         for rule, required in (
             ("LINE", ("۳ ردیف × ۹ ستون", "۵ عدد در هر ردیف",
-                      "تورنا ۳ عدد از یک ردیف", "خطی ۵ عدد از همان ردیف")),
+                      "تورنا ۳ عدد از یک ردیف", "خطی ۵ عدد از یک ردیف")),
             ("FULL_CARD", ("۱۵ عدد کامل", "بدون تورنا")),
             ("LEGACY", ("۴×۵", "۲۰ عدد", "ستون ۴ عددی")),
         ):
@@ -98,6 +98,37 @@ class GameForumLifecycleContractTests(unittest.TestCase):
             self.assertTrue(a.endswith("\n"))
             self.assertNotIn("\\n", a, "unexpected literal backslash newline")
         self.assertEqual(bot_rule({}), mini_rule(None))
+
+    def test_forum_guide_uses_dedicated_start_thread_only_if_configured(self):
+        from html import escape
+
+        fields = {
+            "USER_FORUM_CHAT_ID": -100987654321,
+            "USER_TOPIC_ANNOUNCE_ID": 3,
+            "USER_TOPIC_GAME_LOW_ID": 6,
+            "USER_TOPIC_GAME_MEDIUM_ID": 8,
+            "USER_TOPIC_GAME_HIGH_ID": 10,
+            "USER_TOPIC_LIVE_NUMBERS_ID": 12,
+            "USER_TOPIC_RESULTS_ID": 14,
+            "USER_TOPIC_RULES_ID": 2,
+            "USER_TOPIC_CHAT_ID": 4,
+            "USER_TOPIC_GAME_START_ID": None,
+        }
+        settings = SimpleNamespace(**fields)
+        guide = _load_plain_function(
+            ROOT / "davarna-bot/bot/services/user_forum_navigation.py",
+            "group_guide_text",
+            {"settings": settings, "escape": escape,
+             "topic_link": lambda topic: f"https://test.invalid/{topic}" if topic else None},
+        )
+        self.assertIn("خبرهای مهم و شروع بازی", guide())
+        self.assertNotIn("اطلاعیه شروع بازی", guide())
+        settings.USER_TOPIC_GAME_START_ID = 18
+        self.assertIn("خبرهای مهم و بازشدن خرید کارت", guide())
+        self.assertIn("اطلاعیه شروع بازی", guide())
+        self.assertIn("https://test.invalid/18", guide())
+        settings.USER_TOPIC_GAME_START_ID = None
+        self.assertNotIn("https://test.invalid/18", guide())
 
     def test_no_unimplemented_five_minute_promise(self):
         source = NOTIFIER.read_text(encoding="utf-8")
