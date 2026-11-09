@@ -9,7 +9,7 @@ from aiogram.types import InlineKeyboardMarkup
 
 from bot.config import settings
 
-TopicName = Literal["announce", "game_low", "game_medium", "game_high", "live", "results", "rules", "chat"]
+TopicName = Literal["announce", "game_start", "game_low", "game_medium", "game_high", "live", "results", "rules", "chat"]
 
 
 def forum_enabled() -> bool:
@@ -19,6 +19,8 @@ def forum_enabled() -> bool:
 def topic_id(name: TopicName) -> int | None:
     if name == "announce":
         return settings.USER_TOPIC_ANNOUNCE_ID
+    if name == "game_start":
+        return settings.USER_TOPIC_GAME_START_ID
     if name == "game_low":
         return settings.USER_TOPIC_GAME_LOW_ID
     if name == "game_medium":
@@ -34,6 +36,16 @@ def topic_id(name: TopicName) -> int | None:
     if name == "chat":
         return settings.USER_TOPIC_CHAT_ID
     return None
+
+
+def game_start_announcement_topic() -> TopicName:
+    """GAME_STARTED uses a verified dedicated thread only when configured.
+
+    No fallback after a failed send: misrouting must be noticed, not hidden.
+    With the option unset the historical announcement topic is preserved.
+    """
+    configured = settings.USER_TOPIC_GAME_START_ID
+    return "game_start" if configured is not None and int(configured) > 0 else "announce"
 
 
 def game_topic_name_for_id(topic_id_value: int | None) -> TopicName | None:
