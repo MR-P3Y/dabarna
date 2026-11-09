@@ -5514,11 +5514,15 @@ const ADMIN_QUICK_TARGETS_V2 = {
   adminAutopilotList: "AUTO",
   adminDepositsList: null,
   adminWithdrawsList: null,
+  adminRiskAlertsList: null,
+  adminAuditLogsList: null,
+  superAdminSection: null,
 };
 
 function jumpToAdminSectionV2(id) {
   if (!state.admin.enabled) return;
   if (!Object.prototype.hasOwnProperty.call(ADMIN_QUICK_TARGETS_V2, id)) return;
+  if (id === "superAdminSection" && !state.admin.canManageSuperSettings) return;
   const mode = ADMIN_QUICK_TARGETS_V2[id];
   if (mode) setAdminGameMode(mode);
   const target = getEl(id);
@@ -5654,6 +5658,7 @@ async function refreshAdminBootstrap() {
     if (roleEl) roleEl.textContent = adminRoleBadgeText();
     const superSection = getEl("superAdminSection");
     if (superSection) superSection.classList.toggle("hidden", !state.admin.canManageSuperSettings);
+    getEl("adminOpsSuperJump")?.classList.toggle("hidden", !state.admin.canManageSuperSettings);
     updateAdminCreateGroupVisibility();
     if (state.admin.enabled) {
       await Promise.allSettled([refreshAdminCreateOptions(), refreshAdminPanel()]);
@@ -7313,56 +7318,81 @@ function adminServiceStatusLabel(service) {
   return raw ? service.status : "در حال بررسی";
 }
 
+const ADMIN_OPS_POLL_INTERVAL_MS = 45_000;
+let adminOpsPollTimer = null;
+let adminOpsInFlight = null;
+let adminOpsLastSuccessAt = 0;
+
+function setAdminOpsDashboardStatus(status, message) {
+  const label = getEl("adminOpsStatus");
+  const updated = getEl("adminOpsUpdatedAt");
+  const root = getEl("adminOpsDashboard");
+  if (label) {
+    label.textContent = message;
+    label.dataset.state = status;
+  }
+  if (root) root.setAttribute("aria-busy", String(status === "loading"));
+  if (updated) {
+    updated.textContent = adminOpsLastSuccessAt
+      ? "آخرین دریافت: " + new Date(adminOpsLastSuccessAt).toLocaleTimeString("fa-IR", {hour: "2-digit", minute: "2-digit"})
+      : "هنوز به‌روزرسانی نشده";
+  }
+}
+
 function renderAdminOpsDashboard(payload) {
   const root = getEl("adminOpsDashboard");
   if (!root) return;
   const counts = payload?.counts || {};
   const services = Array.isArray(payload?.system?.services) ? payload.system.services : [];
   const games = Array.isArray(payload?.active_games) ? payload.active_games : [];
+  const pendingWithdraws = Number(counts.pending_withdraws || 0) + Number(counts.approved_withdraws || 0);
   const countCards = [
-    ["بازی فعال", games.length],
-    ["واریز در انتظار", counts.pending_deposits || 0],
-    ["برداشت فوری", (Number(counts.pending_withdraws || 0) + Number(counts.approved_withdraws || 0))],
-    ["کریپتو نیازمند بررسی", counts.crypto_needs_review || 0],
-    ["هشدار ریسک ۲۴ساعت", counts.risk_events_24h || 0],
+    ["بازی فعال", games.length, "بازی‌های در جریان"],
+    ["واریز در انتظار", Number(counts.pending_deposits || 0), "نیازمند بررسی"],
+    ["برداشت در صف", pendingWithdraws, "در انتظار رسیدگی"],
+    ["کریپتو نیازمند بررسی", Number(counts.crypto_needs_review || 0), "وضعیت دریافت"],
+    ["هشدار ریسک ۲۴ساعت", Number(counts.risk_events_24h || 0), "رصد امنیت"],
   ];
+  const countHtml = countCards.map(([label, value, hint]) =>
+    '<div class="admin-ops-count admin-ops-count-v11">' +
+      '<span>' + safeText(label) + '</span>' +
+      '<strong>' + safeText(toFaDigits(Number.isFinite(value) ? value : 0)) + '</strong>' +
+      '<small>' + safeText(hint) + '</small>' +
+    '</div>'
+  ).join("");
+  const servicesHtml = services.length ? services.map((svc) =>
+    '<div class="admin-service-pill ' + adminServiceStatusClass(svc) + '">' +
+      '<strong>' + safeText(svc.title || svc.key || "-") + '</strong>' +
+      '<span>' + safeText(adminServiceStatusLabel(svc)) + '</span>' +
+    '</div>'
+  ).join("") : '<div class="admin-ops-no-data-v11">اطلاعات وضعیت سرویس‌ها هنوز در دسترس نیست.</div>';
+  const gamesHtml = games.length ? games.map((g) =>
+    '<article class="admin-ops-game">' +
+      '<strong>بازی #' + safeText(toFaDigits(g.id)) + ' | ' + safeText(statusLabel(g.status)) + '</strong>' +
+      '<span>آخرین عدد: ' + safeText(g.last_number ?? "-") +
+        ' | اعلام: ' + safeText(g.called_count || 0) + '/۹۰</span>' +
+      '<span>کارت: ' + safeText(g.cards_count || 0) +
+        ' | بازیکن: ' + safeText(g.players_count || 0) +
+        ' | جایزه: ' + safeText(toman(g.prize_pool || 0)) + '</span>' +
+      '<button class="small-btn admin-ops-open-game" data-game-id="' + safeText(g.id) +
+        '" type="button">مشاهده بازی</button>' +
+    '</article>'
+  ).join("") : '<div class="admin-ops-no-data-v11">در حال حاضر بازی فعالی وجود ندارد. این وضعیت به معنی خطا نیست.</div>';
 
-  const activeGameHtml = games.length
-    ? games
-        .map((g) => `
-          <div class="admin-ops-game">
-            <strong>بازی #${safeText(g.id)} | ${safeText(statusLabel(g.status))}</strong>
-            <span>آخرین عدد: ${safeText(g.last_number ?? "-")} | اعلام: ${safeText(g.called_count || 0)}/۹۰</span>
-            <span>کارت: ${safeText(g.cards_count || 0)} | بازیکن: ${safeText(g.players_count || 0)} | جایزه: ${safeText(toman(g.prize_pool || 0))}</span>
-            <button class="small-btn admin-ops-open-game" data-game-id="${safeText(g.id)}" type="button">مشاهده بازی</button>
-          </div>
-        `)
-        .join("")
-    : '<div class="empty">بازی فعال برای مدیریت وجود ندارد.</div>';
-
-  root.innerHTML = `
-    <div class="admin-ops-counts">
-      ${countCards
-        .map(([label, value]) => `
-          <div class="admin-ops-count">
-            <span>${safeText(label)}</span>
-            <strong>${safeText(String(value || 0))}</strong>
-          </div>
-        `)
-        .join("")}
-    </div>
-    <div class="admin-ops-services">
-      ${services
-        .map((svc) => `
-          <div class="admin-service-pill ${adminServiceStatusClass(svc)}">
-            <strong>${safeText(svc.title || svc.key || "-")}</strong>
-            <span>${safeText(adminServiceStatusLabel(svc))}</span>
-          </div>
-        `)
-        .join("")}
-    </div>
-    <div class="admin-ops-games">${activeGameHtml}</div>
-  `;
+  root.innerHTML =
+    '<section class="admin-ops-group-v11" aria-label="شاخص‌های اصلی">' +
+      '<div class="admin-ops-section-title"><h4>شاخص‌های اصلی</h4><span>از اطلاعات سرور</span></div>' +
+      '<div class="admin-ops-counts">' + countHtml + '</div>' +
+    '</section>' +
+    '<section class="admin-ops-group-v11" aria-label="سلامت زیرساخت">' +
+      '<div class="admin-ops-section-title"><h4>وضعیت سرویس‌ها</h4><span>بر اساس گزارش API</span></div>' +
+      '<div class="admin-ops-services">' + servicesHtml + '</div>' +
+    '</section>' +
+    '<section class="admin-ops-group-v11" aria-label="بازی‌های فعال">' +
+      '<div class="admin-ops-section-title"><h4>بازی‌های فعال</h4><span>' +
+      safeText(toFaDigits(games.length)) + ' بازی</span></div>' +
+      '<div class="admin-ops-games">' + gamesHtml + '</div>' +
+    '</section>';
 
   root.querySelectorAll(".admin-ops-open-game").forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -7377,8 +7407,39 @@ function renderAdminOpsDashboard(payload) {
 
 async function refreshAdminOpsDashboard() {
   if (!state.admin.enabled) return;
-  const out = await apiFetch("/mini-api/admin/ops-dashboard");
-  renderAdminOpsDashboard(out);
+  if (adminOpsInFlight) return adminOpsInFlight;
+  setAdminOpsDashboardStatus("loading", adminOpsLastSuccessAt ? "در حال دریافت اطلاعات تازه..." : "در حال بارگذاری داشبورد...");
+  const request = (async () => {
+    try {
+      const out = await apiFetch("/mini-api/admin/ops-dashboard");
+      if (!state.admin.enabled) return;
+      renderAdminOpsDashboard(out);
+      adminOpsLastSuccessAt = Date.now();
+      setAdminOpsDashboardStatus("fresh", "اطلاعات به‌روز است");
+    } catch (err) {
+      setAdminOpsDashboardStatus("error", "ارتباط برقرار نشد؛ برای تلاش دوباره تازه‌سازی کنید.");
+      const root = getEl("adminOpsDashboard");
+      if (root && !adminOpsLastSuccessAt) {
+        root.innerHTML = '<div class="admin-ops-error-v11" role="alert">نمایش داده‌ها موقتاً ممکن نیست. با دکمه تازه‌سازی دوباره تلاش کنید.</div>';
+      }
+      throw err;
+    }
+  })();
+  adminOpsInFlight = request;
+  try { await request; } finally { adminOpsInFlight = null; }
+}
+
+function startAdminOpsAutoRefresh() {
+  if (adminOpsPollTimer) return;
+  adminOpsPollTimer = setInterval(() => {
+    if (!state.admin.enabled || !isAdminViewActive() || document.visibilityState === "hidden") return;
+    refreshAdminOpsDashboard().catch(() => {});
+  }, ADMIN_OPS_POLL_INTERVAL_MS);
+}
+
+function stopAdminOpsAutoRefresh() {
+  if (adminOpsPollTimer) clearInterval(adminOpsPollTimer);
+  adminOpsPollTimer = null;
 }
 
 function renderAdminAuditLogs(payload) {
@@ -9126,7 +9187,10 @@ function switchToView(target, { skipCardsRefresh = false } = {}) {
   }
 
   if (normalized === "admin" && state.admin.enabled) {
+    startAdminOpsAutoRefresh();
     refreshAdminPanel().catch((e) => setBadge("error", e.message));
+  } else {
+    stopAdminOpsAutoRefresh();
   }
 }
 
@@ -9386,7 +9450,7 @@ async function boot() {
   bind("copyDepositCardBtn", "click", () => copySelectedDepositCard().catch((e) => setLocalError("depositDestinationHint", e)));
   bind("submitWithdrawBtn", "click", () => createWithdraw().catch((e) => setLocalError("withdrawSubmitHint", e)));
   bind("refreshAdminBtn", "click", () => runManualRefresh("refreshAdminBtn", () => refreshAdminPanel()).catch(() => {}));
-  bind("adminOpsRefreshBtn", "click", () => runManualRefresh("adminOpsRefreshBtn", () => refreshAdminPanel()).catch(() => {}));
+  bind("adminOpsRefreshBtn", "click", () => runManualRefresh("adminOpsRefreshBtn", () => refreshAdminOpsDashboard()).catch(() => {}));
   bind("adminGameModeManualBtn", "click", () => setAdminGameMode("MANUAL"));
   bind("adminGameModeAutoBtn", "click", () => setAdminGameMode("AUTO"));
   restoreAdminGameMode();
@@ -9521,6 +9585,7 @@ async function boot() {
 
 
 window.addEventListener("beforeunload", () => {
+  stopAdminOpsAutoRefresh();
   stopCryptoCountdown();
   clearCryptoQrObjectUrl();
   stopMiniSocket();
