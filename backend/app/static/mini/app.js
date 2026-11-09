@@ -5759,14 +5759,24 @@ function renderSystemGameClocks() {
 
 async function refreshSystemGameClocks() {
   if (!state.admin?.enabled) return;
-  const [games, runtime] = await Promise.all([
+  const [games, runtime, settings] = await Promise.all([
     apiFetch("/mini-api/admin/games?status=LOBBY,RUNNING&limit=200"),
     apiFetch("/mini-api/admin/autopilot/runtime").catch(() => null),
+    apiFetch("/mini-api/admin/autopilot/config").catch(() => null),
   ]);
+  const countdownByLevel = Object.fromEntries(
+    (Array.isArray(settings?.items) ? settings.items : []).map((item) => [
+      String(item.level || "").toUpperCase(), Number(item.countdown_seconds || 30),
+    ]),
+  );
   const serverTime = parseApiDate(games?.server_now).getTime();
   if (Number.isFinite(serverTime)) systemGameClockOffsetMs = serverTime - Date.now();
   systemGameClockRows = (Array.isArray(games?.items) ? games.items : [])
-    .filter((game) => String(game.execution_source || "").toUpperCase() === "SYSTEM");
+    .filter((game) => String(game.execution_source || "").toUpperCase() === "SYSTEM")
+    .map((game) => ({
+      ...game,
+      countdown_seconds: countdownByLevel[String(game.game_level || "").toUpperCase()] || 30,
+    }));
   systemGameClockRuntimeReady = Boolean(runtime?.runtime_enabled);
   systemGameDrawWorkerReady = Boolean(runtime?.auto_draw_enabled);
   systemGameClockLastSync = Date.now();
