@@ -858,6 +858,17 @@ def _mini_require_finance_or_game_role(ident: MiniAdminIdentity) -> None:
     raise HTTPException(status_code=403, detail="برای این بخش دسترسی ادمین لازم است.")
 
 
+@router.get("/admin/autopilot/runtime")
+def mini_admin_autopilot_runtime(
+    ident: MiniAdminIdentity = Depends(get_mini_admin_identity),
+):
+    _mini_require_game_role(ident)
+    return {
+        "runtime_enabled": bool(cfg.GAME_AUTOPILOT_RUNTIME_ENABLED),
+        "auto_draw_enabled": bool(cfg.GAME_AUTO_DRAW_ENABLED),
+    }
+
+
 @router.get("/admin/autopilot/config")
 def mini_admin_autopilot_config(
     ident: MiniAdminIdentity = Depends(get_mini_admin_identity),
