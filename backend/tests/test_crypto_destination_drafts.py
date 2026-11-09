@@ -77,7 +77,6 @@ class CryptoDestinationDraftTests(unittest.TestCase):
         )
 
     def test_raw_ton_same_wallet_is_rejected(self):
-        raw = "0:" + bytes([1]) * 32
         with self.assertRaises(HTTPException):
             self._preview(address="0:" + (bytes([1]) * 32).hex())
         with self.assertRaises(HTTPException):
