@@ -5514,6 +5514,7 @@ const ADMIN_QUICK_TARGETS_V2 = {
   adminAutopilotList: "AUTO",
   adminDepositsList: null,
   adminWithdrawsList: null,
+  adminCryptoDepositsList: null,
   adminRiskAlertsList: null,
   adminAuditLogsList: null,
   superAdminSection: null,
@@ -5540,6 +5541,20 @@ function wireAdminQuickNavigationV2() {
   document.querySelectorAll("[data-admin-jump]").forEach((button) => {
     button.addEventListener("click", () => {
       jumpToAdminSectionV2(button.getAttribute("data-admin-jump") || "");
+    });
+  });
+  document.querySelectorAll("[data-super-target]").forEach((button) => {
+    button.addEventListener("click", () => {
+      if (!state.admin.canManageSuperSettings) return;
+      const id = button.getAttribute("data-super-target") || "";
+      if (!["superCryptoWalletSection", "superBankCardsSection", "superAdminFilterInput"].includes(id)) return;
+      const target = getEl(id);
+      if (!target) return;
+      if (target.matches("details")) target.open = true;
+      const parent = target.closest("details");
+      if (parent) parent.open = true;
+      target.scrollIntoView({ behavior: "smooth", block: "start" });
+      if (id === "superAdminFilterInput") target.focus();
     });
   });
 }
@@ -7347,26 +7362,29 @@ function renderAdminOpsDashboard(payload) {
   const games = Array.isArray(payload?.active_games) ? payload.active_games : [];
   const pendingWithdraws = Number(counts.pending_withdraws || 0) + Number(counts.approved_withdraws || 0);
   const countCards = [
-    ["بازی فعال", games.length, "بازی‌های در جریان"],
+    ["بازی فعال", Number(payload?.active_games_total ?? games.length), "مشاهده و کنترل بازی‌ها", "adminGamesList", "🎲"],
     ...(payload?.finance_visible === false ? [] : [
-      ["واریز در انتظار", Number(counts.pending_deposits || 0), "نیازمند بررسی"],
-      ["برداشت در صف", pendingWithdraws, "در انتظار رسیدگی"],
-      ["کریپتو نیازمند بررسی", Number(counts.crypto_needs_review || 0), "وضعیت دریافت"],
-      ["هشدار ریسک ۲۴ساعت", Number(counts.risk_events_24h || 0), "رصد امنیت"],
+      ["واریز در انتظار", Number(counts.pending_deposits || 0), "بازکردن صف رسیدها", "adminDepositsList", "↓"],
+      ["برداشت در صف", pendingWithdraws, "مشاهده درخواست‌ها", "adminWithdrawsList", "↑"],
+      ["کریپتو نیازمند بررسی", Number(counts.crypto_needs_review || 0), "بازکردن واریزهای رمزارز", "adminCryptoDepositsList", "◇"],
+      ["هشدار ریسک ۲۴ساعت", Number(counts.risk_events_24h || 0), "مشاهده هشدارها", "adminRiskAlertsList", "!"],
     ]),
   ];
-  const countHtml = countCards.map(([label, value, hint]) =>
-    '<div class="admin-ops-count admin-ops-count-v11">' +
+  const countHtml = countCards.map(([label, value, hint, target, icon]) =>
+    '<button type="button" class="admin-ops-count admin-ops-count-v11 admin-ops-route-card" data-ops-target="' + safeText(target) + '" aria-label="' + safeText(label + "؛ " + hint) + '">' +
+      '<span class="admin-ops-route-icon" aria-hidden="true">' + safeText(icon) + '</span>' +
       '<span>' + safeText(label) + '</span>' +
       '<strong>' + safeText(toFaDigits(Number.isFinite(value) ? value : 0)) + '</strong>' +
-      '<small>' + safeText(hint) + '</small>' +
-    '</div>'
+      '<small>' + safeText(hint) + ' <span aria-hidden="true">←</span></small>' +
+    '</button>'
   ).join("");
-  const servicesHtml = services.length ? services.map((svc) =>
-    '<div class="admin-service-pill ' + adminServiceStatusClass(svc) + '">' +
+  const servicesHtml = services.length ? services.map((svc, index) =>
+    '<button type="button" class="admin-service-pill admin-ops-service-detail ' + adminServiceStatusClass(svc) +
+      '" data-ops-service="' + index + '" aria-label="جزئیات سرویس ' + safeText(svc.title || svc.key || "-") + '">' +
       '<strong>' + safeText(svc.title || svc.key || "-") + '</strong>' +
       '<span>' + safeText(adminServiceStatusLabel(svc)) + '</span>' +
-    '</div>'
+      '<small>مشاهده جزئیات ←</small>' +
+    '</button>'
   ).join("") : '<div class="admin-ops-no-data-v11">اطلاعات وضعیت سرویس‌ها هنوز در دسترس نیست.</div>';
   const gamesHtml = games.length ? games.map((g) =>
     '<article class="admin-ops-game">' +
@@ -7396,6 +7414,30 @@ function renderAdminOpsDashboard(payload) {
       '<div class="admin-ops-games">' + gamesHtml + '</div>' +
     '</section>';
 
+  root.querySelectorAll(".admin-ops-route-card").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const target = btn.getAttribute("data-ops-target") || "";
+      jumpToAdminSectionV2(target);
+    });
+  });
+  root.querySelectorAll(".admin-ops-service-detail").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const index = Number(btn.getAttribute("data-ops-service"));
+      const svc = services[index];
+      const detail = getEl("adminOpsServiceDetail");
+      if (!svc || !detail) return;
+      detail.hidden = false;
+      detail.replaceChildren();
+      const title = document.createElement("strong");
+      title.textContent = String(svc.title || svc.key || "سرویس");
+      const state = document.createElement("p");
+      state.textContent = "وضعیت گزارش‌شده: " + String(adminServiceStatusLabel(svc));
+      const note = document.createElement("small");
+      note.textContent = "این نتیجه از پاسخ API دریافت شده است؛ برای تشخیص قطعی اختلال، لاگ سرور را بررسی کنید.";
+      detail.append(title, state, note);
+      detail.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    });
+  });
   root.querySelectorAll(".admin-ops-open-game").forEach((btn) => {
     btn.addEventListener("click", () => {
       const gid = Number(btn.getAttribute("data-game-id") || "0");
