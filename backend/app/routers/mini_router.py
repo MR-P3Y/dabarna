@@ -1174,6 +1174,22 @@ def _mini_notify_admin_withdraw_pending(*, db: Session, wr: WithdrawRequest) -> 
     )
 
 
+def _mini_game_rule_announcement_line(rule: str | None) -> str:
+    """Rule text comes from the stored game, never from topic or price."""
+    value = str(rule or "LEGACY").strip().upper()
+    if value == "LINE":
+        return (
+            "🃏 کارت: <b>۳ ردیف × ۹ ستون، ۵ عدد در هر ردیف</b>\\n"
+            "🏆 برد: <b>تورنا ۳ عدد از یک ردیف؛ خطی ۵ عدد از همان ردیف</b>\\n"
+        )
+    if value == "FULL_CARD":
+        return "🏆 قانون: <b>پرکردنی ۱۵ عدد کامل؛ بدون تورنا</b>\\n"
+    return (
+        "🃏 کارت قدیمی: <b>۴×۵، شامل ۲۰ عدد</b>\\n"
+        "🏆 برد قدیمی: <b>تورنا ستون ۴ عددی؛ تکمیل ردیف ۵ عددی</b>\\n"
+    )
+
+
 def _mini_send_game_created_notice(*, game: Game) -> bool:
     """Single compact user announcement; never duplicate into the game thread."""
     group_id = int(getattr(game, "tg_group_id", 0) or 0)
@@ -1186,6 +1202,9 @@ def _mini_send_game_created_notice(*, game: Game) -> bool:
         f"🎮 <b>بازی #{int(game.id)} | خرید کارت باز است</b>\n"
         f"🎯 {html_escape(game_topic_title)}\n"
         f"💳 قیمت هر کارت: <b>{int(game.card_price):,} تومان</b>\n"
+        f"{_mini_game_rule_announcement_line(getattr(game, 'game_rule', None))}"
+        "👥 شروع بازی منوط به حضور دست‌کم ۲ بازیکن متمایز است.\n"
+        "⏳ ساعت شروع قطعی اعلام نشده است؛ پس از آغاز، پیام جداگانه ارسال می‌شود.\n"
         "🛒 برای خرید، ربات را خصوصی باز کنید."
     )
     # Announcements have exactly one owner. Fall back to its actual game
