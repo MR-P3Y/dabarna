@@ -4,8 +4,13 @@ Uses mocked database and health probes. Never connects to Production.
 """
 from __future__ import annotations
 
+import os
 import unittest
 from unittest.mock import patch
+
+os.environ.setdefault("RECEIPTS_DIR", "/tmp/receipts")
+os.environ.setdefault("DATABASE_URL", "sqlite+pysqlite:///:memory:")
+os.environ.setdefault("REDIS_URL", "redis://127.0.0.1:6379/15")
 
 from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
@@ -73,6 +78,7 @@ class OpsDashboardHttpRBAC(unittest.TestCase):
                     self.assertEqual(counts[key], 0, key)
                 self.assertEqual(counts["game_errors"], 7)
                 sql = " ".join(self.db.queries).lower()
+                self.assertIn("admin_user_id", sql, "Game data must be scoped")
                 for table in ("deposit_requests", "withdraw_requests",
                               "crypto_deposit_requests", "admin_audit_logs"):
                     self.assertNotIn(table, sql)
