@@ -1180,7 +1180,7 @@ def _mini_game_rule_announcement_line(rule: str | None) -> str:
     if value == "LINE":
         return (
             "🃏 کارت: <b>۳ ردیف × ۹ ستون، ۵ عدد در هر ردیف</b>\n"
-            "🏆 برد: <b>تورنا ۳ عدد از یک ردیف؛ خطی ۵ عدد از همان ردیف</b>\n"
+            "🏆 برد: <b>تورنا ۳ عدد از یک ردیف؛ خطی ۵ عدد از یک ردیف</b>\n"
         )
     if value == "FULL_CARD":
         return "🏆 قانون: <b>پرکردنی ۱۵ عدد کامل؛ بدون تورنا</b>\n"
