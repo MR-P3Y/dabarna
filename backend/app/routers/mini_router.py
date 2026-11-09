@@ -858,6 +858,55 @@ def _mini_require_finance_or_game_role(ident: MiniAdminIdentity) -> None:
     raise HTTPException(status_code=403, detail="برای این بخش دسترسی ادمین لازم است.")
 
 
+@router.get("/admin/autopilot/readiness")
+def mini_admin_autopilot_readiness(
+    ident: MiniAdminIdentity = Depends(get_mini_admin_identity),
+    db: Session = Depends(get_db),
+):
+    """Read-only snapshot; NEVER advances the scheduler or starts a round."""
+    _mini_require_game_role(ident)
+    group_id = cfg.USER_FORUM_CHAT_ID or cfg.DEFAULT_TG_GROUP_ID
+    system_user_id = cfg.GAME_AUTOPILOT_SYSTEM_USER_ID
+    system_user_ok = bool(system_user_id is not None and db.get(User, int(system_user_id)))
+    levels = []
+    for config in GameAutopilotConfigService.list(db):
+        level = str(config.level).upper()
+        topic_id = GameAutopilotConfigService.topic_id_for_level(level)
+        conditions = {
+            "level_enabled": bool(int(config.enabled or 0)),
+            "runtime_enabled": bool(cfg.GAME_AUTOPILOT_RUNTIME_ENABLED),
+            "auto_draw_worker": bool(cfg.GAME_AUTO_DRAW_ENABLED),
+            "group_configured": group_id is not None,
+            "topic_configured": topic_id is not None,
+            "system_user_valid": system_user_ok,
+            "card_price_valid": config.card_price is not None and int(config.card_price) >= 1000,
+            "scheduler_auto": str(config.scheduler_mode).upper() == "AUTO",
+            "start_auto": str(config.start_mode).upper() == "AUTO",
+            "draw_auto": str(config.draw_mode).upper() == "AUTO",
+        }
+        active = None
+        if group_id is not None and topic_id is not None:
+            active = db.execute(
+                select(Game).where(
+                    Game.tg_group_id == int(group_id),
+                    Game.status.in_(("LOBBY", "RUNNING")),
+                    or_(Game.game_level == level,
+                        and_(Game.game_level.is_(None), Game.tg_topic_id == int(topic_id))),
+                ).order_by(Game.id.desc()).limit(1)
+            ).scalar_one_or_none()
+        levels.append({
+            "level": level,
+            "ready_to_generate": all(conditions.values()),
+            "checks": conditions,
+            "active_game_id": int(active.id) if active else None,
+            "active_game_status": str(active.status) if active else None,
+            "active_execution_source": str(active.execution_source or "ADMIN") if active else None,
+            "blocked_by_manual_game": bool(active and str(active.execution_source or "ADMIN").upper() != "SYSTEM"),
+        })
+    return {"server_now": datetime.now(timezone.utc).isoformat(), "levels": levels,
+            "this_endpoint_starts_games": False}
+
+
 @router.get("/admin/autopilot/runtime")
 def mini_admin_autopilot_runtime(
     ident: MiniAdminIdentity = Depends(get_mini_admin_identity),
