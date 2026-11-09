@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import hashlib
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import func, select
@@ -50,36 +51,43 @@ class CryptoDepositWorker:
     @staticmethod
     def _process_cycle(stats: dict[str, int]) -> dict[str, int]:
         for network in ("TRON", "TON"):
-            if not CryptoDepositWorker._network_has_open_invoices(network):
+            # Invoice destinations are immutable snapshots. A wallet rotation must
+            # keep monitoring every outstanding invoice destination, not just env.
+            destinations = CryptoDepositWorker._network_open_destinations(network)
+            if not destinations:
                 continue
-            since = CryptoDepositWorker._network_scan_since(network)
-            try:
-                transfers = CryptoChainService.list_incoming(network=network, since=since)
-            except Exception as exc:
-                log.warning("crypto chain scan failed: network=%s error=%s", network, exc)
-                continue
-            stats["transfers"] += len(transfers)
-            for transfer in transfers:
-                with SessionLocal() as db:
-                    try:
-                        invoice = CryptoDepositService.process_transfer(db, transfer)
-                        if invoice is None:
+            for address in destinations:
+                since = CryptoDepositWorker._network_scan_since(network, destination_address=address)
+                try:
+                    transfers = CryptoChainService.list_incoming(
+                        network=network, since=since, destination_address=address
+                    )
+                except Exception as exc:
+                    log.warning("crypto chain scan failed: network=%s address_hash=%s error=%s",
+                                network, hashlib.sha256(address.encode()).hexdigest()[:12], exc)
+                    continue
+                stats["transfers"] += len(transfers)
+                for transfer in transfers:
+                    with SessionLocal() as db:
+                        try:
+                            invoice = CryptoDepositService.process_transfer(db, transfer)
+                            if invoice is None:
+                                db.rollback()
+                                continue
+                            db.commit()
+                            stats["matched"] += 1
+                            if invoice.status == "CREDITED":
+                                stats["credited"] += 1
+                            elif invoice.status == "NEEDS_REVIEW":
+                                stats["review"] += 1
+                        except Exception as exc:
                             db.rollback()
-                            continue
-                        db.commit()
-                        stats["matched"] += 1
-                        if invoice.status == "CREDITED":
-                            stats["credited"] += 1
-                        elif invoice.status == "NEEDS_REVIEW":
-                            stats["review"] += 1
-                    except Exception as exc:
-                        db.rollback()
-                        log.exception(
-                            "crypto transfer processing failed: network=%s tx_hash=%s error=%s",
-                            transfer.network,
-                            transfer.tx_hash,
-                            exc,
-                        )
+                            log.exception(
+                                "crypto transfer processing failed: network=%s tx_hash=%s error=%s",
+                                transfer.network,
+                                transfer.tx_hash,
+                                exc,
+                            )
 
         with SessionLocal() as db:
             try:
@@ -89,6 +97,18 @@ class CryptoDepositWorker:
                 db.rollback()
                 log.exception("crypto invoice expiration failed")
         return stats
+
+    @staticmethod
+    def _network_open_destinations(network: str) -> list[str]:
+        """All distinct destinations with unsettled invoices for the network."""
+        with SessionLocal() as db:
+            rows = db.execute(
+                select(CryptoDepositRequest.destination_address).where(
+                    CryptoDepositRequest.network == network,
+                    CryptoDepositRequest.status.in_(OPEN_STATUSES),
+                ).distinct()
+            ).scalars().all()
+        return sorted({str(value).strip() for value in rows if str(value or "").strip()})
 
     @staticmethod
     def _network_has_open_invoices(network: str) -> bool:
@@ -102,13 +122,15 @@ class CryptoDepositWorker:
             return int(count or 0) > 0
 
     @staticmethod
-    def _network_scan_since(network: str) -> datetime:
+    def _network_scan_since(network: str, *, destination_address: str | None = None) -> datetime:
         floor = _utcnow() - timedelta(hours=int(cfg.CRYPTO_SCAN_LOOKBACK_HOURS))
         with SessionLocal() as db:
             earliest = db.execute(
                 select(func.min(CryptoDepositRequest.created_at)).where(
                     CryptoDepositRequest.network == network,
                     CryptoDepositRequest.status.in_(OPEN_STATUSES),
+                    *([CryptoDepositRequest.destination_address == destination_address]
+                      if destination_address is not None else []),
                 )
             ).scalar_one_or_none()
         if isinstance(earliest, datetime) and earliest > floor:
