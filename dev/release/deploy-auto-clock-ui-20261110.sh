@@ -141,7 +141,8 @@ curl -fsS --max-time 10 http://127.0.0.1:18080/health/db >/dev/null || die "DB h
 for path in index.html app.js ux-v2.css; do
  curl -fsS --max-time 10 -o /dev/null "http://127.0.0.1:18080/mini/$path" || die "mini asset missing: $path"
 done
-curl -fsS http://127.0.0.1:18080/mini/index.html | grep -Fq 'auto-draw-clock-v1' || die "new version string not served"
+curl -fsS --max-time 10 -o "$WORK/deployed-index.html" http://127.0.0.1:18080/mini/index.html || die "index fetch failed"
+grep -Fq 'auto-draw-clock-v1' "$WORK/deployed-index.html" || die "new version string not served"
 [[ "$(docker inspect -f '{{.State.Health.Status}}' davarna-bot)" == "healthy" ]] || die "bot health drift"
 RECREATE=0
 echo "===== AUTO CLOCK UI DEPLOY PASS ====="
