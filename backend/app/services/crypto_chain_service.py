@@ -145,6 +145,7 @@ class CryptoChainService:
         """Collect TON Center offset pages; reject truncated or repeated pages."""
         collected: list[dict[str, Any]] = []
         seen_hashes: set[str] = set()
+        first_page_hashes: tuple[str, ...] | None = None
         with cls._client() as client:
             for page_no in range(MAX_CHAIN_SCAN_PAGES):
                 response = client.get(
@@ -158,13 +159,35 @@ class CryptoChainService:
                 rows = payload["transactions"]
                 if any(not isinstance(item, dict) for item in rows):
                     raise CryptoChainUnavailable("TON Center returned malformed transactions")
+                hashes: list[str] = []
                 for item in rows:
                     tx_hash = str(item.get("hash") or "").strip()
                     if not tx_hash or tx_hash in seen_hashes:
                         raise CryptoChainUnavailable("TON Center returned missing/repeated transaction hash")
                     seen_hashes.add(tx_hash)
+                    hashes.append(tx_hash)
+                if page_no == 0:
+                    first_page_hashes = tuple(hashes)
                 collected.extend(rows)
                 if len(rows) < TON_PAGE_LIMIT:
+                    if page_no > 0:
+                        # Offset pages are not a stable snapshot. Recheck the
+                        # first page to detect a new head during pagination.
+                        # Fail closed and retry next cycle if it shifted.
+                        verify = client.get(
+                            url, params=dict(params, offset=0), headers=headers,
+                        )
+                        verify.raise_for_status()
+                        check = verify.json()
+                        if not isinstance(check, dict) or not isinstance(check.get("transactions"), list):
+                            raise CryptoChainUnavailable("TON Center head verification failed")
+                        current_hashes = tuple(
+                            str(row.get("hash") or "").strip()
+                            for row in check["transactions"]
+                            if isinstance(row, dict)
+                        )
+                        if current_hashes != first_page_hashes:
+                            raise CryptoChainUnavailable("TON Center history changed during offset pagination")
                     return collected
         raise CryptoChainUnavailable("TON Center pagination page budget exceeded")
 
