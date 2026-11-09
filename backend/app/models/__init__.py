@@ -9,6 +9,7 @@ from .game_event import GameEvent
 from .admin_audit import AdminAuditLog
 from .crypto import CryptoDepositRequest
 from .crypto_destination_version import CryptoDestinationVersion
+from .crypto_destination_challenge import CryptoDestinationChallenge
 
 __all__ = [
     "User",
@@ -22,4 +23,5 @@ __all__ = [
     "AdminAuditLog",
     "CryptoDepositRequest",
     "CryptoDestinationVersion",
+    "CryptoDestinationChallenge",
 ]
