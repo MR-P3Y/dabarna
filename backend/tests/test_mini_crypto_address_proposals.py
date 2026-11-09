@@ -109,6 +109,24 @@ class CryptoAddressProposalTests(unittest.TestCase):
     def test_invalid_checksum_refused(self):
         self.assertEqual(self.request(address="T" + "0" * 33).status_code, 422)
 
+    def test_readiness_endpoint_remains_owner_only_and_read_only(self):
+        self.assertEqual(self.request().status_code, 201)
+        with patch.object(mini, "assess_rotation", return_value={
+            "network": "TRON", "open_invoices": 1,
+            "recent_closed_invoices": 2, "needs_manual_review": 3,
+            "active_change_allowed": False,
+        }) as assessment:
+            response = self.client.get("/mini-api/admin/super/crypto-address-readiness?network=TRON")
+            self.assertEqual(response.status_code, 200, response.text)
+            self.assertFalse(response.json()["active_change_allowed"])
+            self.assertEqual(response.json()["recent_closed_invoices"], 2)
+            assessment.assert_called_once()
+        self.app.dependency_overrides[mini.get_mini_admin_identity] = lambda: mini.MiniAdminIdentity(
+            user_id=202, tg_user_id=9202, roles=["ADMIN"]
+        )
+        denied = self.client.get("/mini-api/admin/super/crypto-address-readiness?network=TRON")
+        self.assertEqual(denied.status_code, 403)
+
     def test_non_superadmin_denied(self):
         self.app.dependency_overrides[mini.get_mini_admin_identity] = lambda: mini.MiniAdminIdentity(
             user_id=202, tg_user_id=9202, roles=["ADMIN"]
