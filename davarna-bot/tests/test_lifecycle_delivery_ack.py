@@ -152,6 +152,25 @@ class LifecycleDeliveryTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(sender.await_count, 2)
         self.assertEqual(self.marker(key), 101)
 
+    async def test_corrupted_state_is_not_reset_or_overwritten(self):
+        key = "GAME_STARTED_NOTICE_USER"
+        self.path.write_text("{invalid-json", encoding="utf-8")
+        sender = AsyncMock(return_value=True)
+        with self.assertRaises(RuntimeError):
+            await self.deliver(key, sender)
+        sender.assert_not_awaited()
+        self.assertEqual(self.path.read_text(encoding="utf-8"), "{invalid-json")
+
+    async def test_atomic_replace_failure_preserves_old_ack_file(self):
+        import json
+        notify_store.set_event_marker(42, "GAME_CREATED_NOTICE_USER", 33)
+        before = self.path.read_text(encoding="utf-8")
+        with patch.object(notify_store.os, "replace", side_effect=OSError("storage failure")):
+            with self.assertRaises(OSError):
+                notify_store.set_event_marker(42, "GAME_CREATED_NOTICE_USER", 34)
+        self.assertEqual(self.path.read_text(encoding="utf-8"), before)
+        self.assertEqual(json.loads(before)["events"]["42"]["GAME_CREATED_NOTICE_USER"], 33)
+
     async def test_state_json_is_parseable_after_multiple_updates(self):
         import json
         for i in range(10):
