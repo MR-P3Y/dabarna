@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # #30: real invoice-to-ledger financial test in a NEW restricted MySQL test database.
-# No Production schema changes, no address rotation, no restart, no ledger writes.
+# No Production schema or wallet/ledger writes, no address rotation, no restart.
+# All synthetic ledger writes are confined to the new isolated test database.
 set -Eeuo pipefail
 umask 077
 ROOT=/opt/davarna-v2
