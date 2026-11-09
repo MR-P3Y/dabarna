@@ -69,7 +69,7 @@ docker run -d --rm --name "$DB_CONTAINER" --network "$NETWORK" \
   --security-opt no-new-privileges \
   -e MYSQL_ROOT_PASSWORD="$PASS" \
   -e MYSQL_DATABASE=davarna_wallet_rotation_test \
-  "$MYSQL_IMAGE" --innodb-buffer-pool-size=64M >/dev/null
+  "$MYSQL_IMAGE" --innodb-buffer-pool-size=64M --mysql-native-password=ON >/dev/null
 CREATED_DB=1
 
 echo '===== WAIT FOR DEDICATED DATABASE ====='
@@ -84,9 +84,20 @@ for _ in $(seq 1 90); do
 done
 [[ "$READY" == 1 ]] || { echo 'BLOCKER: disposable MySQL did not become ready' >&2; exit 2; }
 
+echo '===== CREATE DISPOSABLE COMPATIBLE TEST USER ====='
+# mysql:8.4 defaults to caching_sha2_password; the existing pinned Python
+# image lacks cryptography for PyMySQL's RSA handshake. Enable mysql_native_password
+# ONLY on the ephemeral container, and grant ONLY this disposable schema.
+# Never modify any production MySQL account or authentication setting.
+TEST_PASS=$(python3 -c 'import secrets; print(secrets.token_urlsafe(36))')
+docker exec -i -e MYSQL_PWD="$PASS" "$DB_CONTAINER" mysql -uroot \
+  --batch --skip-column-names <<SQL
+CREATE USER 'wallet_rotation_test'@'%' IDENTIFIED WITH mysql_native_password BY '${TEST_PASS}';
+GRANT ALL PRIVILEGES ON davarna_wallet_rotation_test.* TO 'wallet_rotation_test'@'%';
+SQL
 echo '===== CONCURRENT TRANSACTION TESTS ====='
 # Supply URL via environment without printing credentials in test output.
-URL="mysql+pymysql://root:${PASS}@davarna-wallet-mysql/davarna_wallet_rotation_test"
+URL="mysql+pymysql://wallet_rotation_test:${TEST_PASS}@davarna-wallet-mysql/davarna_wallet_rotation_test"
 docker run --rm --network "$NETWORK" --read-only --cap-drop ALL \
   --security-opt no-new-privileges \
   --tmpfs /tmp:rw,nosuid,size=128m \
