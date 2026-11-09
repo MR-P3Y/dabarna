@@ -5713,6 +5713,7 @@ let systemGameClockTicker = null;
 let systemGameClockLastSync = 0;
 let systemGameClockRows = [];
 let systemGameClockRuntimeReady = false;
+let systemGameDrawWorkerReady = false;
 let systemGameClockOffsetMs = 0;
 
 function systemGameClockView(game, now = Date.now() + systemGameClockOffsetMs) {
@@ -5720,6 +5721,7 @@ function systemGameClockView(game, now = Date.now() + systemGameClockOffsetMs) {
   const scheduled = parseApiDate(game.scheduled_start_at).getTime();
   const interval = Math.max(0, Number(game.draw_interval_seconds || 0));
   if (status === "RUNNING") {
+    if (!systemGameDrawWorkerReady) return { kind: "waiting", label: "شماره‌خوان سرور غیرفعال است", secs: null };
     return { kind: "running", label: interval ? "در حال اعلام اعداد • هر " + toFaDigits(interval) + " ثانیه" : "بازی در حال اجرا", secs: null };
   }
   if (status !== "LOBBY") return { kind: "ended", label: "پایان یافته", secs: null };
@@ -5766,6 +5768,7 @@ async function refreshSystemGameClocks() {
   systemGameClockRows = (Array.isArray(games?.items) ? games.items : [])
     .filter((game) => String(game.execution_source || "").toUpperCase() === "SYSTEM");
   systemGameClockRuntimeReady = Boolean(runtime?.runtime_enabled);
+  systemGameDrawWorkerReady = Boolean(runtime?.auto_draw_enabled);
   systemGameClockLastSync = Date.now();
   renderSystemGameClocks();
   if (systemGameClockTicker == null) {
