@@ -5641,6 +5641,7 @@ def mini_super_propose_crypto_address(
     db: Session = Depends(get_db),
 ):
     """Record an audited proposal only; invoice generation and chain scanners remain unchanged."""
+    enforce_write_rate_limit(int(ident.user_id))
     network = payload.network
     current = next(
         (str(x["address"]) for x in CryptoDepositService.configured_options()
