@@ -6983,6 +6983,7 @@ const cryptoRotation = {
 
 function clearCryptoRotationPreview() {
   cryptoRotation.preview = null;
+  cryptoRotation.previewInput = null;
   cryptoRotation.operationId = "";
   const btn = getEl("superCryptoDraftBtn");
   if (btn) btn.disabled = true;
@@ -7067,6 +7068,7 @@ async function previewSuperCryptoAddress() {
     method: "POST", body: { network, address, expected_version: cryptoRotation.expectedVersion },
   });
   cryptoRotation.preview = out;
+  cryptoRotation.previewInput = address;
   const box = getEl("superCryptoRotationPreview");
   if (box) {
     box.textContent = "قدیمی: " + out.current_masked +
@@ -7087,7 +7089,7 @@ async function draftSuperCryptoAddress() {
   const network = getVal("superCryptoNetworkInput");
   const address = getVal("superCryptoProposedInput");
   const reason = getVal("superCryptoReasonInput");
-  if (network !== p.network || address !== p.new_address) {
+  if (network !== p.network || address !== cryptoRotation.previewInput) {
     clearCryptoRotationPreview();
     throw new Error("آدرس تغییر کرده است؛ پیش‌نمایش را دوباره انجام دهید.");
   }
@@ -7097,7 +7099,7 @@ async function draftSuperCryptoAddress() {
   const out = await apiFetch("/mini-api/admin/super/crypto-destinations/drafts", {
     method: "POST",
     body: {
-      network, address, expected_version: p.expected_version,
+      network, address: p.new_address, expected_version: p.expected_version,
       reason, operation_id: cryptoRotation.operationId,
     },
   });
