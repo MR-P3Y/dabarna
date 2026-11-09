@@ -59,6 +59,25 @@ class CryptoMultiAddressScanTests(unittest.TestCase):
         self.assertFalse(CryptoDepositService._transfer_matches_invoice_destination(invoice, tx(new, "tx2")))
         self.assertTrue(CryptoDepositService._transfer_matches_invoice_destination(invoice, tx(old, "tx1")))
 
+    def test_bounceable_and_nonbounceable_ton_are_same_destination(self):
+        import base64
+        old = ton_addr(1)
+        friendly_payload = bytes([0x51, 0]) + bytes([1] * 32)
+        nonbounceable = base64.urlsafe_b64encode(
+            friendly_payload + _crc16_xmodem(friendly_payload)
+        ).decode().rstrip("=")
+        invoice = SimpleNamespace(network="TON", destination_address=old)
+        self.assertTrue(
+            CryptoDepositService._transfer_matches_invoice_destination(
+                invoice, tx(nonbounceable, "tx-friendly-alias"),
+            )
+        )
+        self.assertFalse(
+            CryptoDepositService._transfer_matches_invoice_destination(
+                invoice, tx(ton_addr(2), "tx-other-account"),
+            )
+        )
+
     def test_raw_and_friendly_ton_are_same_destination(self):
         old = ton_addr(1)
         invoice = SimpleNamespace(network="TON", destination_address="0:" + bytes([1] * 32).hex())
