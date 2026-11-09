@@ -5729,6 +5729,23 @@ def mini_super_propose_crypto_address(
     }
 
 
+@router.get("/admin/super/crypto-late-review-experimental")
+def mini_super_crypto_late_review_experimental(
+    ident: MiniAdminIdentity = Depends(get_mini_super_admin_identity),
+    db: Session = Depends(get_db),
+):
+    """Read-only inbox; entries cannot be auto-approved or auto-credited."""
+    _ = ident
+    if not rotation_enabled():
+        raise HTTPException(status_code=409, detail="صف بررسی آزمایشی فقط روی دیتابیس مستقل در دسترس است.")
+    rows = db.execute(
+        select(AppSetting).where(AppSetting.k.like("crypto_late_review_v1:%"))
+        .order_by(AppSetting.updated_at.desc()).limit(100)
+    ).scalars().all()
+    items = [dict(row.v_json) for row in rows if isinstance(row.v_json, dict)]
+    return {"items": items, "auto_credit_supported": False, "total_returned": len(items)}
+
+
 @router.post("/admin/super/crypto-address-activate-experimental")
 def mini_super_crypto_address_activate_experimental(
     payload: MiniSuperCryptoAddressActivateIn,
