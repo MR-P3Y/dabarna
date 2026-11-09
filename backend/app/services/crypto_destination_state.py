@@ -19,7 +19,18 @@ KEY_PREFIX = "crypto_destination_v1:"
 
 
 def rotation_enabled() -> bool:
-    return os.getenv(ROTATION_GATE, "").strip() == "I_ACK_DISPOSABLE_DB_ONLY"
+    # Fail closed on the actual environment DATABASE_URL; this prototype must
+    # never become active against the production DB through a single toggle.
+    from sqlalchemy.engine import make_url
+    if os.getenv(ROTATION_GATE, "").strip() != "I_ACK_DISPOSABLE_DB_ONLY":
+        return False
+    try:
+        url = make_url(os.getenv("DATABASE_URL", ""))
+    except Exception:
+        return False
+    return (url.get_backend_name() == "mysql"
+            and url.host == "davarna-wallet-mysql"
+            and url.database == "davarna_wallet_rotation_test")
 
 
 def state_key(network: str) -> str:
