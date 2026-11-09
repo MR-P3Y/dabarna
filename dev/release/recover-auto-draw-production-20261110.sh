@@ -62,6 +62,7 @@ RECREATE_ATTEMPTED=0
 recover_backend_on_failure(){
   code=$?
   trap - EXIT
+  rm -f -- "$BACKUP/before-config.json" "$BACKUP/after-config.json"
   if (( code != 0 && RECREATE_ATTEMPTED == 1 )); then
     echo "WARNING: auto draw activation incomplete; reverting backend Compose overlay" >&2
     compose up -d --no-deps --force-recreate backend || true
