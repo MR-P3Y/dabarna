@@ -39,6 +39,17 @@ services:
       GAME_AUTOPILOT_RUNTIME_ENABLED: "false"
 YAML
 compose(){ (cd "$PROD"; docker compose -p davarna --env-file "$PROD/.env.prod" "${args[@]}" "$@"); }
+RECREATE_ATTEMPTED=0
+recover_backend_on_failure(){
+  code=$?
+  trap - EXIT
+  if (( code != 0 && RECREATE_ATTEMPTED == 1 )); then
+    echo "WARNING: auto draw activation incomplete; reverting backend Compose overlay" >&2
+    compose up -d --no-deps --force-recreate backend || true
+  fi
+  exit "$code"
+}
+trap recover_backend_on_failure EXIT
 echo "===== VALIDATE OVERLAY CHANGES ONLY AUTO DRAW FLAG ====="
 compose config --format json > "$BACKUP/before-config.json"
 compose -f "$overlay" config --format json > "$BACKUP/after-config.json"
@@ -46,6 +57,14 @@ python3 - "$BACKUP/before-config.json" "$BACKUP/after-config.json" <<'PY'
 import copy,json,sys
 before=json.load(open(sys.argv[1]))
 after=json.load(open(sys.argv[2]))
+import subprocess
+live=json.loads(subprocess.check_output(["docker","inspect","davarna-backend"],text=True))[0]
+live_image=live["Config"]["Image"]
+baseline_image=before["services"]["backend"].get("image")
+if baseline_image != live_image:
+    raise SystemExit("BLOCKER: Compose image does not match current deployed backend image")
+if after["services"]["backend"].get("image") != live_image:
+    raise SystemExit("BLOCKER: proposed overlay changes backend image")
 a=after["services"]["backend"]["environment"]
 b=before["services"]["backend"]["environment"]
 if str(b.get("GAME_AUTO_DRAW_ENABLED","")).lower() not in ("false","0"):
@@ -77,6 +96,7 @@ git show "$REF:dev/release/close-stalled-auto-86-87-20261110.py" \
  | docker exec -i -e DAVARNA_STALLED_AUTO_CLOSE_APPROVAL=CLOSE_86_87_REFUND_PURCHASES_NO_PRIZES \
      davarna-backend python -
 echo "===== RECREATE ONLY BACKEND WITH AUTO DRAW WORKER ENABLED ====="
+RECREATE_ATTEMPTED=1
 compose -f "$overlay" up -d --no-deps --force-recreate backend
 echo "===== CHECK BACKEND HEALTH AND FLAGS ====="
 healthy=0
