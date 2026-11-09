@@ -54,14 +54,17 @@ class CryptoAddressProposalTests(unittest.TestCase):
             return_value=[{"network": "TRON", "address": self.old, "asset": "USDT"}],
         )
         self.audit = patch.object(mini.AdminAuditService, "record")
+        self.limiter = patch.object(mini, "enforce_write_rate_limit")
         self.owner.start()
         self.options.start()
         self.audit.start()
+        self.limiter.start()
         self.client = TestClient(self.app)
 
     def tearDown(self):
         self.client.close()
         self.audit.stop()
+        self.limiter.stop()
         self.options.stop()
         self.owner.stop()
         self.engine.dispose()
