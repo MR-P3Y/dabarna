@@ -7,7 +7,8 @@ cd /opt/davarna-v2
 
 BRANCH="release/v1.0.0-rc1-20261109"
 REF="$DAVARNA_V1_RC_REF"
-BASE="release/combined-forum-mini-candidate-20261107"
+# Pinned release base to avoid relying on a potentially absent local branch.
+BASE="22ddf0f60e5eb0e56462503597679d0541efe229"
 
 [[ "$REF" =~ ^[0-9a-f]{40}$ ]] || { echo "BLOCKER: pin DAVARNA_V1_RC_REF"; exit 2; }
 [[ "$(git rev-parse "origin/$BRANCH")" == "$REF" ]] || {
