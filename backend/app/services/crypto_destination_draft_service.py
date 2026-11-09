@@ -197,10 +197,22 @@ class CryptoDestinationDraftService:
             .order_by(CryptoDestinationVersion.version.desc())
             .limit(50)
         ).scalars().all()
+        from app.models.crypto_destination_challenge import CryptoDestinationChallenge
+
+        confirmed_ids = set()
+        if rows:
+            confirmed_ids = set(db.execute(
+                select(CryptoDestinationChallenge.draft_id).where(
+                    CryptoDestinationChallenge.draft_id.in_([row.id for row in rows]),
+                    CryptoDestinationChallenge.consumed_at.is_not(None),
+                ).distinct()
+            ).scalars().all())
         return [
             {
                 "id": int(row.id), "network": network, "asset": asset,
                 "version": int(row.version), "state": row.state,
+                "confirmed_for_review": int(row.id) in confirmed_ids,
+                "can_activate": False,
                 "address_masked": masked_address(row.address),
                 "requested_by": int(row.requested_by),
                 "activated_by": int(row.activated_by) if row.activated_by else None,
