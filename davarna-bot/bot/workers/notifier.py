@@ -31,6 +31,7 @@ from bot.services.user_topics import (
     send_to_topic as send_to_user_topic,
 )
 from bot.services.user_forum_navigation import navigation_keyboard
+from bot.services.lifecycle_delivery import deliver_lifecycle_event
 from bot.services.notify_store import (
     get_event_marker,
     get_last_seen_count,
@@ -522,9 +523,9 @@ def _game_start_draw_line(event: dict | None) -> str:
     return ""
 
 
-async def _send_user_game_started_notice(bot: Bot, *, game_id: int, report: dict, event: dict | None = None) -> None:
+async def _send_user_game_started_notice(bot: Bot, *, game_id: int, report: dict, event: dict | None = None) -> bool:
     if not _is_user_forum_game(report):
-        return
+        return True
     game = report.get("game") or {}
     topic_id = _to_int(game.get("tg_topic_id"), 0)
     mode_line = _game_start_draw_line(event)
@@ -536,15 +537,15 @@ async def _send_user_game_started_notice(bot: Bot, *, game_id: int, report: dict
         "🔢 اعداد بازی را در «اعداد زنده» ببینید.\n"
         "🃏 کارت‌های خود را در ربات دنبال کنید."
     )
-    await send_to_user_topic(
+    return await send_to_user_topic(
         bot, name=game_start_announcement_topic(), text=text, parse_mode="HTML",
         reply_markup=navigation_keyboard(game_topic_id=topic_id or None, show_live=True),
         disable_notification=False,
     )
 
-async def _send_user_game_created_notice(bot: Bot, *, game_id: int, report: dict, event: dict) -> None:
+async def _send_user_game_created_notice(bot: Bot, *, game_id: int, report: dict, event: dict) -> bool:
     if not _is_user_forum_game(report):
-        return
+        return True
     game = report.get("game") or {}
     topic_id = _to_int(game.get("tg_topic_id"), 0)
     text = (
@@ -556,15 +557,15 @@ async def _send_user_game_created_notice(bot: Bot, *, game_id: int, report: dict
         "⏳ ساعت شروع قطعی اعلام نشده است؛ پس از آغاز، پیام جداگانه ارسال می‌شود.\n"
         "🛒 برای خرید، ربات را خصوصی باز کنید."
     )
-    await send_to_user_topic(
+    return await send_to_user_topic(
         bot, name="announce", text=text, parse_mode="HTML",
         reply_markup=navigation_keyboard(game_topic_id=topic_id or None, show_rules=True),
         disable_notification=False,
     )
 
-async def _send_user_game_ended_notice(bot: Bot, *, game_id: int, report: dict, end_reason: str | None) -> None:
+async def _send_user_game_ended_notice(bot: Bot, *, game_id: int, report: dict, end_reason: str | None) -> bool:
     if not _is_user_forum_game(report):
-        return
+        return True
     game = report.get("game") or {}
     topic_id = _to_int(game.get("tg_topic_id"), 0)
     called = _called_numbers_from_report(report)
@@ -576,7 +577,7 @@ async def _send_user_game_ended_notice(bot: Bot, *, game_id: int, report: dict, 
         f"🔢 اعداد اعلام‌شده: <b>{len(called)}</b>\n"
         "🏆 جزئیات برندگان و کارت‌ها را در ربات ببینید."
     )
-    await send_to_user_topic(
+    return await send_to_user_topic(
         bot, name="results", text=text, parse_mode="HTML",
         reply_markup=navigation_keyboard(game_topic_id=topic_id or None),
         disable_notification=False,
@@ -602,38 +603,42 @@ async def _send_user_live_number_notice(
     )
 
 async def _send_game_report_topic(
-    bot: Bot,
-    *,
-    game_id: int,
-    text: str,
-) -> None:
+    bot: Bot, *, game_id: int, text: str,
+) -> bool:
+    """Only acknowledge the admin report if its configured destinations ACK.
+
+    When topic delivery fails and DM fallback is configured, *all* eligible
+    admin DMs must succeed. A partial fallback is retried (possible duplicate
+    in successful DM destinations; Telegram has no send idempotency token).
+    """
     sent_to_topic = await send_to_topic(
-        bot,
-        name="game_audit",
-        text=text,
-        reply_markup=_games_topic_kb(game_id),
-        parse_mode="HTML",
+        bot, name="game_audit", text=text,
+        reply_markup=_games_topic_kb(game_id), parse_mode="HTML",
     )
     if sent_to_topic:
-        return
-
+        return True
     if not bool(settings.ADMIN_TOPIC_ENABLE_DM_FALLBACK):
-        return
-
-    admin_receivers = sorted(int(uid) for uid in settings.admin_ids if int(uid) > 0)
-    for admin_uid in admin_receivers:
+        return False
+    receivers = sorted(int(uid) for uid in settings.admin_ids if int(uid) > 0)
+    if not receivers:
+        return False
+    all_sent = True
+    for admin_uid in receivers:
         try:
             await bot.send_message(
-                chat_id=int(admin_uid),
-                text=text,
-                parse_mode="HTML",
+                chat_id=int(admin_uid), text=text, parse_mode="HTML",
                 reply_markup=_games_topic_kb(game_id),
             )
         except Exception:
-            continue
+            logger.exception(
+                "admin game audit fallback failed: game=%s recipient=%s",
+                game_id, admin_uid,
+            )
+            all_sent = False
+    return all_sent
 
 
-async def _send_game_started_report(bot: Bot, *, game_id: int, report: dict, event: dict) -> None:
+async def _send_game_started_report(bot: Bot, *, game_id: int, report: dict, event: dict) -> bool:
     g = report.get("game") or {}
     purchases = report.get("purchases") or {}
     events = report.get("events") or []
@@ -678,12 +683,10 @@ async def _send_game_started_report(bot: Bot, *, game_id: int, report: dict, eve
         f"🪪 کارت‌های فروخته‌شده: <code>{sold_cards_text}</code>"
         f"{coverage_note}",
     )
-    await _send_game_report_topic(bot, game_id=game_id, text=text)
-    with suppress(Exception):
-        await _send_user_game_started_notice(bot, game_id=game_id, report=report, event=event)
+    return await _send_game_report_topic(bot, game_id=game_id, text=text)
 
 
-async def _send_game_ended_report(bot: Bot, *, game_id: int, report: dict, event: dict) -> None:
+async def _send_game_ended_report(bot: Bot, *, game_id: int, report: dict, event: dict) -> bool:
     g = report.get("game") or {}
     rule = str(g.get("game_rule") or "LEGACY").upper()
     final_label = "پرکردنی" if rule == "FULL_CARD" else "خطی" if rule == "LINE" else "تمام"
@@ -727,14 +730,7 @@ async def _send_game_ended_report(bot: Bot, *, game_id: int, report: dict, event
         f"📍 آخرین عدد: <b>{last_number if last_number is not None else '—'}</b>\n\n"
         f"🧾 اعداد خوانده‌شده به ترتیب نوبت:\n<code>{_fmt_int_list(called, max_items=200)}</code>",
     )
-    await _send_game_report_topic(bot, game_id=game_id, text=text)
-    with suppress(Exception):
-        await _send_user_game_ended_notice(
-            bot,
-            game_id=game_id,
-            report=report,
-            end_reason=str(payload.get("end_reason") or ""),
-        )
+    return await _send_game_report_topic(bot, game_id=game_id, text=text)
 
 def _fmt_amount(value: Any) -> str:
     try:
@@ -1366,54 +1362,69 @@ async def _queue_prize_notifications(
 
 
 async def _process_game_lifecycle_reports(
-    bot: Bot,
-    *,
-    game_id: int,
-    report: dict,
-    runtime_started_ts: float,
-    is_first_seen: bool,
+    bot: Bot, *, game_id: int, report: dict,
+    runtime_started_ts: float, is_first_seen: bool,
 ) -> None:
+    """Reconcile each event against independently acknowledged destinations.
+
+    Deliveries are retried when Telegram says False, and a pending anchor
+    survives restart. The persisted legacy marker avoids historical replay
+    during migration from the previous all-or-nothing notifier.
+    """
+    _ = runtime_started_ts
     events = report.get("events") or []
 
-    created_event = _latest_event(events, "GAME_CREATED")
-    created_event_id = _to_int((created_event or {}).get("id"), 0)
-    prev_created_marker = get_event_marker(game_id, "GAME_CREATED_NOTICE")
-    if created_event and created_event_id > prev_created_marker:
-        created_payload = _event_payload(created_event)
-        created_notice_sent_by_mini = bool(created_payload.get("mini_created_notice_sent"))
-        should_send_created = True
-        if is_first_seen and prev_created_marker <= 0:
-            should_send_created = _is_recent_event_for_runtime(created_event, runtime_started_ts)
-        if should_send_created and not created_notice_sent_by_mini:
-            await _send_user_game_created_notice(
-                bot,
-                game_id=game_id,
-                report=report,
-                event=created_event,
-            )
-        set_event_marker(game_id, "GAME_CREATED_NOTICE", created_event_id)
+    created = _latest_event(events, "GAME_CREATED")
+    if created:
+        mini_sent = bool(_event_payload(created).get("mini_created_notice_sent"))
+        await deliver_lifecycle_event(
+            game_id=game_id, event_key="GAME_CREATED_NOTICE_USER",
+            legacy_event_key="GAME_CREATED_NOTICE",
+            event=created, is_first_seen=is_first_seen,
+            already_delivered=mini_sent,
+            send=lambda: _send_user_game_created_notice(
+                bot, game_id=game_id, report=report, event=created,
+            ),
+        )
 
-    start_event = _latest_event(events, "GAME_STARTED")
-    start_event_id = _to_int((start_event or {}).get("id"), 0)
-    prev_start_marker = get_event_marker(game_id, "GAME_STARTED_NOTICE")
-    if start_event and start_event_id > prev_start_marker:
-        should_send_start = True
-        if is_first_seen and prev_start_marker <= 0:
-            should_send_start = _is_recent_event_for_runtime(start_event, runtime_started_ts)
-        if should_send_start:
-            await _send_game_started_report(bot, game_id=game_id, report=report, event=start_event)
-        set_event_marker(game_id, "GAME_STARTED_NOTICE", start_event_id)
+    started = _latest_event(events, "GAME_STARTED")
+    if started:
+        await deliver_lifecycle_event(
+            game_id=game_id, event_key="GAME_STARTED_NOTICE_ADMIN",
+            legacy_event_key="GAME_STARTED_NOTICE",
+            event=started, is_first_seen=is_first_seen,
+            send=lambda: _send_game_started_report(
+                bot, game_id=game_id, report=report, event=started,
+            ),
+        )
+        await deliver_lifecycle_event(
+            game_id=game_id, event_key="GAME_STARTED_NOTICE_USER",
+            legacy_event_key="GAME_STARTED_NOTICE",
+            event=started, is_first_seen=is_first_seen,
+            send=lambda: _send_user_game_started_notice(
+                bot, game_id=game_id, report=report, event=started,
+            ),
+        )
 
-    end_event = _latest_event(events, "GAME_ENDED")
-    end_event_id = _to_int((end_event or {}).get("id"), 0)
-    prev_end_marker = get_event_marker(game_id, "GAME_ENDED_NOTICE")
-    if end_event and end_event_id > prev_end_marker:
-        should_send_end = True
-        if is_first_seen and prev_end_marker <= 0:
-            should_send_end = _is_recent_event_for_runtime(end_event, runtime_started_ts)
-        if should_send_end:
-            await _send_game_ended_report(bot, game_id=game_id, report=report, event=end_event)
-        set_event_marker(game_id, "GAME_ENDED_NOTICE", end_event_id)
+    ended = _latest_event(events, "GAME_ENDED")
+    if ended:
+        await deliver_lifecycle_event(
+            game_id=game_id, event_key="GAME_ENDED_NOTICE_ADMIN",
+            legacy_event_key="GAME_ENDED_NOTICE",
+            event=ended, is_first_seen=is_first_seen,
+            send=lambda: _send_game_ended_report(
+                bot, game_id=game_id, report=report, event=ended,
+            ),
+        )
+        await deliver_lifecycle_event(
+            game_id=game_id, event_key="GAME_ENDED_NOTICE_USER",
+            legacy_event_key="GAME_ENDED_NOTICE",
+            event=ended, is_first_seen=is_first_seen,
+            send=lambda: _send_user_game_ended_notice(
+                bot, game_id=game_id, report=report,
+                end_reason=str(_event_payload(ended).get("end_reason") or ""),
+            ),
+        )
 
 
 async def _send_with_retry(bot: Bot, user_id: int, text: str) -> tuple[bool, bool, int]:
