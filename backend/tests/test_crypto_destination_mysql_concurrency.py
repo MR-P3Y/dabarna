@@ -101,6 +101,94 @@ class _AtomicWalletMySQLConcurrency(unittest.TestCase):
         self.assertEqual(events[-1], ("invoice_read", 2))
         self.assertEqual(events[1], ("rotation_committed", 2))
 
+    def test_concurrent_invoice_snapshot_is_consistent_and_rollback_restores_old_destination(self):
+        """Persistent invoice snapshots are serialized against rotation commit."""
+        from app.services import crypto_destination_state as state
+        # Dedicated disposable schema only; table has no Production equivalent.
+        with self.engine.begin() as con:
+            con.execute(text(
+                "CREATE TABLE IF NOT EXISTS wallet_rotation_invoice_snapshots "
+                "(id BIGINT PRIMARY KEY AUTO_INCREMENT, address VARCHAR(128) NOT NULL, "
+                "version INTEGER NOT NULL) ENGINE=InnoDB"
+            ))
+            con.execute(text("DELETE FROM wallet_rotation_invoice_snapshots"))
+            con.execute(text("DELETE FROM app_settings WHERE k = 'crypto_destination_v1:TRON'"))
+
+        with patch.object(state, "rotation_enabled", return_value=True), patch.object(
+            state, "validate_crypto_destination", side_effect=lambda n, a: a,
+        ):
+            with Session(self.engine) as db:
+                seed_destination_state(db, network="TRON", address="OLD")
+                db.commit()
+
+            got_lock = threading.Event()
+            release_lock = threading.Event()
+            reader_attempting = threading.Event()
+            order = []
+
+            def issue_first():
+                with Session(self.engine) as db:
+                    snapshot = lock_destination_state(db, "TRON")
+                    db.execute(
+                        text("INSERT INTO wallet_rotation_invoice_snapshots(address, version) "
+                             "VALUES (:address, :version)"),
+                        snapshot,
+                    )
+                    got_lock.set()
+                    if not release_lock.wait(8):
+                        raise AssertionError("first invoice lock timed out")
+                    db.commit()
+                    order.append(("invoice_first", snapshot["address"]))
+
+            def rotate_after_first():
+                if not got_lock.wait(8):
+                    raise AssertionError("first invoice not started")
+                reader_attempting.set()
+                with Session(self.engine) as db:
+                    result = rotate_locked(db, network="TRON", expected_version=1,
+                                           expected_address="OLD", new_address="NEW")
+                    db.commit()
+                    order.append(("rotation", result["address"]))
+
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                first = pool.submit(issue_first)
+                self.assertTrue(got_lock.wait(8))
+                rotator = pool.submit(rotate_after_first)
+                self.assertTrue(reader_attempting.wait(8))
+                time.sleep(0.35)
+                self.assertFalse(order, "rotation must not commit ahead of invoice")
+                release_lock.set()
+                first.result(timeout=12)
+                rotator.result(timeout=12)
+
+            with Session(self.engine) as db:
+                after = lock_destination_state(db, "TRON")
+                db.execute(
+                    text("INSERT INTO wallet_rotation_invoice_snapshots(address, version) "
+                         "VALUES (:address, :version)"),
+                    after,
+                )
+                db.commit()
+
+            with self.engine.begin() as con:
+                saved = con.execute(text(
+                    "SELECT address, version FROM wallet_rotation_invoice_snapshots ORDER BY id"
+                )).all()
+            self.assertEqual([tuple(row) for row in saved], [("OLD", 1), ("NEW", 2)])
+            self.assertEqual(order, [("invoice_first", "OLD"), ("rotation", "NEW")])
+
+            # A rollback is a NEW version, and cannot rewrite existing snapshots.
+            with Session(self.engine) as db:
+                back = rotate_locked(db, network="TRON", expected_version=2,
+                                     expected_address="NEW", new_address="OLD")
+                db.commit()
+            self.assertEqual(back["version"], 3)
+            with self.engine.begin() as con:
+                saved_after = con.execute(text(
+                    "SELECT address, version FROM wallet_rotation_invoice_snapshots ORDER BY id"
+                )).all()
+            self.assertEqual([tuple(row) for row in saved_after], [("OLD", 1), ("NEW", 2)])
+
     def test_stale_activation_refused_after_other_commit(self):
         from app.services import crypto_destination_state as state
         with patch.object(state, "rotation_enabled", return_value=True), patch.object(
