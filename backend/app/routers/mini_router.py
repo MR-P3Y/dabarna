@@ -4089,6 +4089,7 @@ def mini_admin_games(
         "limit": int(limit),
         "offset": int(offset),
         "items": items,
+        "server_now": datetime.now(timezone.utc).isoformat(),
     }
 
 
