@@ -31,14 +31,14 @@ assert url.host == "davarna-v11-mysql"
 assert url.database == "davarna_v11_rbac_test"
 
 SEED = (
-    "INSERT INTO games VALUES (1001,'RUNNING',101,5000,15000,13500),(1002,'RUNNING',202,5000,25000,22500)",
-    "INSERT INTO game_called_numbers VALUES (1,1001,17),(2,1002,28)",
-    "INSERT INTO game_cards VALUES (1,1001,301),(2,1002,302)",
-    "INSERT INTO game_events VALUES (1,1001,'ERROR'),(2,1002,'ERROR'),(3,1002,'ERROR')",
-    "INSERT INTO deposit_requests VALUES (1,'PENDING_REVIEW'),(2,'PENDING_REVIEW')",
-    "INSERT INTO withdraw_requests VALUES (1,'PENDING'),(2,'APPROVED')",
-    "INSERT INTO crypto_deposit_requests VALUES (1,'NEEDS_REVIEW')",
-    "INSERT INTO admin_audit_logs VALUES (1,'risk.detected',UTC_TIMESTAMP())",
+    "INSERT INTO users (id,tg_user_id) VALUES (101,9100000101),(202,9100000202),(301,9100000301),(302,9100000302)",
+    "INSERT INTO games (id,tg_group_id,status,admin_user_id,card_price,sold_amount,prize_pool) VALUES (1001,-100,'RUNNING',101,5000,15000,13500),(1002,-100,'RUNNING',202,5000,25000,22500)",
+    "INSERT INTO game_called_numbers (id,game_id,number,called_by) VALUES (1,1001,17,101),(2,1002,28,202)",
+    "INSERT INTO game_events (id,game_id,kind) VALUES (1,1001,'ERROR'),(2,1002,'ERROR'),(3,1002,'ERROR')",
+    "INSERT INTO deposit_requests (id,user_id,amount,status) VALUES (1,301,100000,'PENDING_REVIEW'),(2,302,200000,'PENDING_REVIEW')",
+    "INSERT INTO withdraw_requests (id,user_id,amount,full_name,iban,card_number,account_number,status) VALUES (1,301,10000,'Test','IR000','000','000','PENDING'),(2,302,10000,'Test','IR000','000','000','APPROVED')",
+    "INSERT INTO crypto_deposit_requests (id,public_id,user_id,network,asset,amount_toman,rate_toman_per_asset,amount_crypto,rate_provider,destination_address,status,expires_at) VALUES (1,'test-crypto-1',301,'TRON','USDT',100000,100000,1,'test','T_TEST','NEEDS_REVIEW',DATE_ADD(UTC_TIMESTAMP(),INTERVAL 1 DAY))",
+    "INSERT INTO admin_audit_logs (id,actor_scope,action,target_type,created_at) VALUES (1,'SUPER_ADMIN','risk.detected','game',UTC_TIMESTAMP())",
 )
 
 class RealMySQLDashboardRBAC(unittest.TestCase):
