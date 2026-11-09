@@ -7797,7 +7797,7 @@ async function refreshAdminPanel(options = {}) {
   const silent = Boolean(options?.silent);
   if (!state.admin.enabled) return;
   await Promise.allSettled([
-    refreshAdminOpsDashboard(),
+    ...(!silent ? [refreshAdminOpsDashboard()] : []),
     refreshAdminAutopilotConfig(),
     refreshAdminCreateOptions(),
     refreshAdminGames(),
