@@ -10,7 +10,7 @@ from typing import Any
 
 from fastapi import HTTPException
 from sqlalchemy import func, select
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm import Session
 
 from app.core import config as cfg
@@ -162,6 +162,14 @@ class CryptoDestinationDraftService:
         except IntegrityError as exc:
             db.rollback()
             raise HTTPException(status_code=409, detail="درخواست هم‌زمان یا تکراری شناسایی شد؛ دوباره بررسی کنید.") from exc
+        except OperationalError as exc:
+            # InnoDB concurrent gap locks can deadlock (1213) or time out (1205).
+            # Surface a safe conflict instead of retrying the financial write.
+            db.rollback()
+            code = getattr(getattr(exc, "orig", None), "args", (None,))[0]
+            if code in (1205, 1213):
+                raise HTTPException(status_code=409, detail="تغییر هم‌زمان ثبت شد؛ وضعیت را تازه کنید.") from exc
+            raise
         return row, False, preview
 
     @staticmethod
