@@ -20,6 +20,8 @@ TEST_ID=sha256:42a77764a254d33f058fb1b606b4a274704975feadce717aa47bb336a3cb9d45
 [[ "$(docker image inspect -f '{{.Id}}' "$TEST_IMAGE")" == "$TEST_ID" ]] || die "test image has changed"
 WORK="$(mktemp -d /tmp/davarna-autodraw-hotfix.XXXXXX)"
 git archive "$REF" -- backend | tar -x -C "$WORK"
+node --check "$WORK/backend/app/static/mini/app.js" || die "mini-app JavaScript syntax invalid"
+grep -Fq 'id="adminSystemGameClocks"' "$WORK/backend/app/static/mini/index.html" || die "system countdown markup missing"
 docker run --rm --network none --read-only --cap-drop ALL \
   --security-opt no-new-privileges --tmpfs /tmp:rw,nosuid,size=128m \
   -e DATABASE_URL=sqlite+pysqlite:///:memory: \
