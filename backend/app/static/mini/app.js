@@ -7040,7 +7040,9 @@ async function refreshSuperCryptoVersions() {
     const card = document.createElement("div");
     card.className = "history-item";
     const heading = document.createElement("strong");
-    heading.textContent = "نسخه " + row.version + " | " + row.state;
+    heading.textContent = "نسخه " + row.version + " | " + row.state +
+      (row.confirmed_for_review ? " | تأیید انسانی ثبت‌شده" : "") +
+      " | فعال نشده";
     const detail = document.createElement("div");
     detail.className = "history-meta";
     detail.textContent = String(row.address_masked || "") + " | " + String(row.created_at || "");
