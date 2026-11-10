@@ -783,6 +783,11 @@ class BotGameOut(BaseModel):
     title: str
     status: str
     card_price: int
+    game_rule: str = "LEGACY"
+    card_layout_version: int = 1
+    game_level: str | None = None
+    execution_source: str = "ADMIN"
+    draw_mode: str | None = None
     tg_group_id: int
     tg_topic_id: int | None = None
     prize_pool: int
@@ -2325,6 +2330,11 @@ def list_bot_games(
                 title=f"Game #{g.id}",
                 status=bot_status,
                 card_price=g.card_price,
+                game_rule=str(g.game_rule or "LEGACY"),
+                card_layout_version=int(g.card_layout_version or 1),
+                game_level=str(g.game_level) if g.game_level else None,
+                execution_source=str(g.execution_source or "ADMIN"),
+                draw_mode=str(g.draw_mode) if g.draw_mode else None,
                 tg_group_id=g.tg_group_id,
                 tg_topic_id=g.tg_topic_id,
                 prize_pool=g.prize_pool,
