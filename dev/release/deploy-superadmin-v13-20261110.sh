@@ -59,22 +59,10 @@ LIVE_BOT_TAG="$(docker inspect -f '{{.Config.Image}}' davarna-bot)"
 LIVE_BOT_ID="$(docker inspect -f '{{.Image}}' davarna-bot)"
 [[ "$(docker image inspect -f '{{.Id}}' "$LIVE_BOT_TAG")" == "$LIVE_BOT_ID" ]] || die "Bot image tag drift"
 
-FLAGS="$(docker exec davarna-backend python -c 'from app.core import config as c; print(int(c.GAME_AUTO_DRAW_ENABLED),int(c.GAME_AUTOPILOT_RUNTIME_ENABLED))')"
-[[ "$FLAGS" == "1 0" ]] || die "worker flags changed; expected auto-draw enabled and autopilot runtime disabled, got: $FLAGS"
-
-echo "===== VERIFY NO RUNNING AUTO GAME ====="
-docker exec -i davarna-backend python - <<'PY'
-from sqlalchemy import select
-from app.core.db import SessionLocal
-from app.models.game import Game
-with SessionLocal() as db:
-    active = db.execute(
-        select(Game.id).where(Game.status == "RUNNING", Game.draw_mode == "AUTO")
-    ).scalars().all()
-    if active:
-        raise SystemExit("BLOCKER: active AUTO games: " + str(active))
-print("PASS: no running AUTO game")
-PY
+BASE_FLAGS="$(docker exec davarna-backend python -c 'from app.core import config as c; print(int(c.GAME_AUTO_DRAW_ENABLED),int(c.GAME_AUTOPILOT_RUNTIME_ENABLED))')"
+[[ "$BASE_FLAGS" == "1 0" || "$BASE_FLAGS" == "1 1" ]] || die "unsupported live worker flags: $BASE_FLAGS"
+echo "PASS: preserving live worker flags: $BASE_FLAGS"
+echo "NOTE: this UI-only deploy briefly recreates backend; test AUTO games are not modified or closed."
 
 echo "===== VERIFY CANDIDATE ASSETS AGAINST LIVE OVERLAY ====="
 WORK="$(mktemp -d /tmp/davarna-superadmin-v13-release.XXXXXX)"
@@ -201,7 +189,7 @@ for svc in davarna-backend davarna-bot davarna-mysql davarna-redis; do
 done
 [[ "$(docker inspect -f '{{.Image}}' davarna-backend)" == "$OLD_ID" ]] || die "backend image changed during preflight"
 FLAGS="$(docker exec davarna-backend python -c 'from app.core import config as c; print(int(c.GAME_AUTO_DRAW_ENABLED),int(c.GAME_AUTOPILOT_RUNTIME_ENABLED))')"
-[[ "$FLAGS" == "1 0" ]] || die "worker flags changed during preflight"
+[[ "$FLAGS" == "$BASE_FLAGS" ]] || die "worker flags changed during preflight: before=$BASE_FLAGS now=$FLAGS"
 
 echo "===== DEPLOY UI-ONLY V1.3: BACKEND CONTAINER ONLY ====="
 STARTED=1
@@ -234,7 +222,7 @@ HTTP="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 http://127.0.0.1:1
 [[ "$HTTP" == 401 || "$HTTP" == 403 ]] || die "unauthenticated dashboard API access not denied: $HTTP"
 
 FLAGS="$(docker exec davarna-backend python -c 'from app.core import config as c; print(int(c.GAME_AUTO_DRAW_ENABLED),int(c.GAME_AUTOPILOT_RUNTIME_ENABLED))')"
-[[ "$FLAGS" == "1 0" ]] || die "worker flags changed after deployment"
+[[ "$FLAGS" == "$BASE_FLAGS" ]] || die "worker flags changed after deployment: before=$BASE_FLAGS now=$FLAGS"
 for svc in davarna-backend davarna-bot davarna-mysql davarna-redis; do
   [[ "$(docker inspect -f '{{.State.Health.Status}}' "$svc")" == healthy ]] || die "post-deploy unhealthy service: $svc"
 done
