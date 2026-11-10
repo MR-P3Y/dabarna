@@ -48,7 +48,7 @@ def tron(seed: int) -> str:
 class RealMySQLOwnerWalletFlows(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.engine = create_engine(str(url), pool_pre_ping=True, pool_size=3)
+        cls.engine = create_engine(url, pool_pre_ping=True, pool_size=3)
         with cls.engine.connect() as con:
             assert con.exec_driver_sql("SELECT DATABASE()").scalar_one() == "davarna_wallet_rotation_test"
         Base.metadata.create_all(
