@@ -82,7 +82,8 @@ def analyze_report(report, exit_code):
         # Each issue identity is stable across polling until the specific game/level changes.
         # Avoid dynamically varying numbers in the key (age/seconds/cursor).
         identity=re.search(r"\b(?:game|level|last_ended_id)=([A-Z0-9]+)",detail)
-        suffix=identity.group(1) if identity else "GLOBAL"
+        lane=re.match(r"^(LOW|MEDIUM|HIGH)\\b",detail)
+        suffix=identity.group(1) if identity else (lane.group(1) if lane else "GLOBAL")
         findings[f"{kind}:{suffix}"]=f"{kind}: {detail[:220]}"
     for service,count in LOG_PATTERN.findall(report):
         if int(count)>0:
