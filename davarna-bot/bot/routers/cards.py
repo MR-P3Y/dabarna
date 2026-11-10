@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from collections import Counter
+from html import escape as html_escape
+import json
 from datetime import datetime, timedelta, timezone
 from aiogram import Router, F
 from aiogram.types import CallbackQuery
@@ -13,7 +15,8 @@ from bot.services.telegram_safe import safe_edit_or_send
 from bot.services.api_client import ApiClient, ApiError
 from bot.services.retry import retry_async
 from bot.services.card_cache import put_card, get_card
-from bot.services.card_render import build_grid_text_from_numbers, render_grid_with_marks
+from bot.services.card_render import build_grid_text_from_numbers, render_grid_with_marks, render_number_grid_with_marks
+from bot.services.game_rules import rule_kind, rule_title, rule_details, card_progress
 from bot.services.game_cards_messages_cache import set_game_card_messages, CardMsgRef
 from bot.keyboards.game_cards_control import game_cards_control_kb
 from bot.keyboards.common import back_to_menu_kb
@@ -26,6 +29,54 @@ MYCARDS_GAMES_PAGE_SIZE = 5
 MYCARDS_SCAN_PAGE_SIZE = 100
 MYCARDS_SCAN_MAX_PAGES = 50
 MYCARDS_ENDED_RETENTION_HOURS = 48
+
+def _card_message(card: dict, game_id: int, game_state: dict, called_numbers: list[int]) -> str:
+    """One consistent card panel in list, detail, refresh, and private sends."""
+    raw_numbers = card.get("numbers_json") or []
+    if isinstance(raw_numbers, str):
+        try:
+            raw_numbers = json.loads(raw_numbers)
+        except (TypeError, ValueError):
+            raw_numbers = []
+    try:
+        numbers = [int(n) for n in raw_numbers] if isinstance(raw_numbers, list) else []
+    except (TypeError, ValueError):
+        numbers = []
+    valid_layout = len(numbers) in (20, 27)
+    if valid_layout:
+        grid = render_number_grid_with_marks(numbers, called_numbers)
+    else:
+        saved = str(card.get("grid_text") or "").strip()
+        grid = render_grid_with_marks(saved, called_numbers) if saved else "داده کارت موجود نیست"
+    layout_text = "۳×۹ / ۱۵ عدد" if len(numbers) == 27 else "۴×۵ / ۲۰ عدد" if len(numbers) == 20 else "نامشخص"
+    game_state = game_state if isinstance(game_state, dict) else {}
+    meta_ready = "game_rule" in game_state and "card_layout_version" in game_state
+    rule = rule_kind(game_state) if meta_ready else "UNKNOWN"
+    expected_layout = 20 if rule == "LEGACY" else 27 if rule in ("LINE", "FULL_CARD") else None
+    mismatch = expected_layout is not None and valid_layout and len(numbers) != expected_layout
+    if mismatch:
+        rule_text = "⚠️ اطلاعات قانون و ساختار کارت با هم ناسازگار است؛ با پشتیبانی تماس بگیرید."
+    elif rule != "UNKNOWN":
+        rule_text = rule_details(game_state)
+    else:
+        rule_text = "⚠️ قانون این بازی فعلاً مشخص نیست؛ برای اطلاع دقیق تازه‌سازی کنید."
+    if valid_layout and not mismatch:
+        progress = card_progress(numbers, called_numbers, game_state)
+    else:
+        progress = "⏳ وضعیت اعداد این کارت قابل محاسبه نیست."
+    fingerprint = html_escape(str(card.get("fingerprint") or "—")[:12], quote=True)
+    return panel(
+        f"🃏 کارت {int(card.get('id') or card.get('card_id') or 0)}",
+        f"🎮 بازی: <b>#{int(game_id)}</b>\\n"
+        f"📐 چیدمان: <b>{layout_text}</b>\\n"
+        f"📋 قانون: <b>{rule_title(game_state) if meta_ready and not mismatch else 'در حال بررسی'}</b>\\n"
+        f"{rule_text}\\n\\n"
+        f"<pre>{grid}</pre>\\n"
+        f"{progress}\\n"
+        "✓ کنار عدد یعنی آن عدد اعلام شده؛ نشانهٔ تأیید برد یا پرداخت جایزه نیست.\\n"
+        f"🔐 شناسه کارت: <code>{fingerprint}…</code>",
+    )
+
 
 
 # --------------------------
@@ -330,6 +381,7 @@ async def mycards_by_game(cq: CallbackQuery, api: ApiClient, tg_user_id: int, tg
         return
 
     # 3) فقط یک بار state را بگیر تا برای همه کارت‌ها ✅ درست شود
+    st = {}
     called_numbers = []
     try:
         st = await api.get_game_state(game_id, last_n=200)
@@ -347,13 +399,7 @@ async def mycards_by_game(cq: CallbackQuery, api: ApiClient, tg_user_id: int, tg
         grid_text = c.get("grid_text") or build_grid_text_from_numbers(numbers, cols=5)
         grid_html = render_grid_with_marks(grid_text, called_numbers)
 
-        text = panel(
-            f"کارت {card_id}",
-            f"بازی: <b>{game_id}</b>\n"
-            f"اثر انگشت کارت: <code>{c.get('fingerprint','—')[:12]}…</code>\n\n"
-            f"<pre>{grid_html}</pre>\n"
-            "✅ عددهای خوانده‌شده مشخص شده‌اند."
-        )
+        text = _card_message(c, game_id, st, called_numbers)
 
         msg = await cq.message.answer(text, parse_mode="HTML")
         refs.append(CardMsgRef(card_id=card_id, message_id=msg.message_id))
@@ -489,6 +535,7 @@ async def card_open(cq: CallbackQuery, api: ApiClient, tg_user_id: int, tg_usern
         await cq.answer()
         return
 
+    st = {}
     called_numbers: list[int] = []
     try:
         st = await api.get_game_state(game_id, last_n=200)
@@ -498,13 +545,7 @@ async def card_open(cq: CallbackQuery, api: ApiClient, tg_user_id: int, tg_usern
 
     grid_html = render_grid_with_marks(grid_text, called_numbers)
 
-    text = panel(
-        f"کارت {card_id}",
-        f"بازی: <b>{game_id}</b>\n"
-        f"اثر انگشت کارت: <code>{card.get('fingerprint','—')[:12]}…</code>\n\n"
-        f"<pre>{grid_html}</pre>\n"
-        "راهنما: عددهای خوانده‌شده با ✅ مشخص شده‌اند.",
-    )
+    text = _card_message(card, game_id, st, called_numbers)
 
     await safe_edit_or_send(cq.message, text, reply_markup=card_detail_kb(card_id), parse_mode="HTML")
     await cq.answer()
@@ -529,6 +570,7 @@ async def card_refresh(cq: CallbackQuery, api: ApiClient, tg_user_id: int, tg_us
         await cq.answer("داده کافی برای نمایش کارت نیست.", show_alert=False)
         return
 
+    st = {}
     called_numbers: list[int] = []
     try:
         st = await api.get_game_state(game_id, last_n=200)
@@ -538,13 +580,7 @@ async def card_refresh(cq: CallbackQuery, api: ApiClient, tg_user_id: int, tg_us
 
     grid_html = render_grid_with_marks(grid_text, called_numbers)
 
-    text = panel(
-        f"کارت {card_id}",
-        f"بازی: <b>{game_id}</b>\n"
-        f"اثر انگشت کارت: <code>{card.get('fingerprint','—')[:12]}…</code>\n\n"
-        f"<pre>{grid_html}</pre>\n"
-        "راهنما: عددهای خوانده‌شده با ✅ مشخص شده‌اند.",
-    )
+    text = _card_message(card, game_id, st, called_numbers)
 
     await safe_edit_or_send(cq.message, text, reply_markup=card_detail_kb(card_id), parse_mode="HTML")
     await cq.answer("به‌روزرسانی شد ✅", show_alert=False)
@@ -569,6 +605,7 @@ async def card_send_pv(cq: CallbackQuery, api: ApiClient, tg_user_id: int, tg_us
         await cq.answer("داده کافی برای نمایش کارت نیست.", show_alert=False)
         return
 
+    st = {}
     called_numbers: list[int] = []
     try:
         st = await api.get_game_state(game_id, last_n=200)
@@ -577,12 +614,7 @@ async def card_send_pv(cq: CallbackQuery, api: ApiClient, tg_user_id: int, tg_us
         called_numbers = []
 
     grid_html = render_grid_with_marks(grid_text, called_numbers)
-    text = panel(
-        f"کارت {card_id}",
-        f"بازی: <b>{game_id}</b>\n\n"
-        f"<pre>{grid_html}</pre>\n"
-        "✅ عددهای خوانده‌شده مشخص شده‌اند.",
-    )
+    text = _card_message(card, game_id, st, called_numbers)
 
     try:
         await retry_async(
@@ -610,6 +642,7 @@ async def mycards_refresh_all(cq: CallbackQuery, api: ApiClient, tg_user_id: int
     await cq.answer("دارم کارت‌ها رو تازه می‌کنم ⏳", show_alert=False)
 
     # state فقط یک بار
+    st = {}
     called_numbers = []
     try:
         st = await api.get_game_state(game_id, last_n=200)
@@ -628,13 +661,7 @@ async def mycards_refresh_all(cq: CallbackQuery, api: ApiClient, tg_user_id: int
         grid_text = card.get("grid_text") or build_grid_text_from_numbers(numbers, cols=5)
         grid_html = render_grid_with_marks(grid_text, called_numbers)
 
-        text = panel(
-            f"کارت {ref.card_id}",
-            f"بازی: <b>{game_id}</b>\n"
-            f"اثر انگشت کارت: <code>{card.get('fingerprint','—')[:12]}…</code>\n\n"
-            f"<pre>{grid_html}</pre>\n"
-            "✅ عددهای خوانده‌شده مشخص شده‌اند."
-        )
+        text = _card_message(card, game_id, st, called_numbers)
 
         try:
             await cq.bot.edit_message_text(
