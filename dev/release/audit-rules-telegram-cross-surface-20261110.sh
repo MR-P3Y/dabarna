@@ -32,14 +32,14 @@ docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-
  -e REDIS_URL=redis://127.0.0.1:6379/14 \
  -e TELEGRAM_BOT_TOKEN=123456789:ISOLATED_TEST_ONLY \
  -e PYTHONPATH=/src/backend \
- "$BACKEND_IMAGE" -m unittest -v \
- tests.test_bingo_v2 \
- tests.test_game_v2_dispatch \
- tests.test_mini_game_rule_labels \
- tests.test_mini_wallet_rule_metadata \
- tests.test_bot_wallet_rule_metadata \
- tests.test_game_forum_lifecycle_contract \
- tests.test_user_forum_created_notice
+ "$BACKEND_IMAGE" -c 'import sys,unittest
+loader=unittest.TestLoader()
+suite=unittest.TestSuite(loader.discover("tests",pattern=name) for name in sys.argv[1:])
+result=unittest.TextTestRunner(verbosity=2).run(suite)
+sys.exit(0 if result.wasSuccessful() else 1)' \
+ test_bingo_v2.py test_game_v2_dispatch.py test_mini_game_rule_labels.py \
+ test_mini_wallet_rule_metadata.py test_bot_wallet_rule_metadata.py \
+ test_game_forum_lifecycle_contract.py test_user_forum_created_notice.py
 echo "===== TELEGRAM RETRY / RULES / FORUM TESTS (OFFLINE BOT) ====="
 BOT_IMAGE="$(docker inspect -f '{{.Config.Image}}' davarna-bot)"
 docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-privileges \
@@ -48,12 +48,13 @@ docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-
  -e TELEGRAM_BOT_TOKEN=123456789:ISOLATED_TEST_ONLY \
  -e API_BASE_URL=http://127.0.0.1:9 \
  -e PYTHONPATH=/src/davarna-bot \
- "$BOT_IMAGE" -m unittest -v \
- tests.test_card_layout_v2 \
- tests.test_help_v2_rules \
- tests.test_notification_rule_consistency \
- tests.test_public_forum_notices \
- tests.test_lifecycle_delivery_ack
+ "$BOT_IMAGE" -c 'import sys,unittest
+loader=unittest.TestLoader()
+suite=unittest.TestSuite(loader.discover("tests",pattern=name) for name in sys.argv[1:])
+result=unittest.TextTestRunner(verbosity=2).run(suite)
+sys.exit(0 if result.wasSuccessful() else 1)' \
+ test_card_layout_v2.py test_help_v2_rules.py test_notification_rule_consistency.py \
+ test_public_forum_notices.py test_lifecycle_delivery_ack.py
 echo "===== MINI APP LABEL TEST (OFFLINE NODE) ====="
 if command -v node >/dev/null 2>&1;then
  (cd "$WORK/backend" && node tests/js/test_notification_rule_labels.mjs)
