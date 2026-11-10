@@ -105,7 +105,15 @@ def transition(previous, findings, now_ts):
             notifications.append(("ALERT",key,message))
     for key,prior in old.items():
         if key not in new and float(prior.get("last_sent",0))>0:
+            # Unacknowledged recovery notices remain pending across checks.
             notifications.append(("RESOLVED",key,prior.get("message",key)))
+            new[key]={"first_seen":prior.get("first_seen",now_ts),
+                      "last_sent":prior.get("last_sent",0),
+                      "message":prior.get("message",key),"pending_resolution":True}
+    for key,prior in old.items():
+        if prior.get("pending_resolution") and key not in findings:
+            if not any(event[1]==key for event in notifications):
+                notifications.append(("RESOLVED",key,prior.get("message",key)))
     return {"open":new},notifications
 
 def persist_history(record):
@@ -150,6 +158,7 @@ def main():
         state,events=transition(previous,findings,started.timestamp())
         sent=0
         failures=0
+        delivered_events=set()
         for typ,key,message in events:
             # Keep message free of sensitive payment/user payloads; all details are operational IDs.
             safe=message.replace("&","&amp;").replace("<","&lt;").replace(">","&gt;")
@@ -158,23 +167,18 @@ def main():
             delivered=send_topic(text)
             if delivered:
                 sent+=1
+                delivered_events.add((typ,key))
                 if typ=="ALERT" and key in state["open"]:
                     state["open"][key]["last_sent"]=started.timestamp()
             else:
                 failures+=1
                 print(f"DELIVERY_FAILED {typ} {key}",file=sys.stderr)
                 # Never mark failed sends as ACKed; they will retry on next run.
-        # A recovery notice may fail: preserve it for retry rather than silently ACKing.
         for typ,key,message in events:
-            if typ=="RESOLVED":
-                # On failed resolution delivery retain prior state for another attempt.
-                # Successful delivery can be inferred only after explicitly tracking it.
-                pass
-        # Persist recovered keys' notification status separately to support retries.
-        for typ,key,message in events:
-            if typ=="RESOLVED" and key in previous.get("open",{}):
-                # Resolution send outcomes tracked above in delivered_events.
-                pass
+            if typ=="RESOLVED" and (typ,key) in delivered_events:
+                state["open"].pop(key,None)
+            elif typ=="RESOLVED" and key in state["open"]:
+                state["open"][key]["pending_resolution"]=True
         save_state(state)
         persist_history({"at":started.isoformat(),"collector_exit":status,
                          "findings":findings,"alerts":len(findings),
