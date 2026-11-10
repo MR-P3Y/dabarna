@@ -34,6 +34,24 @@ def main() -> int:
         "since_utc": SINCE.isoformat() + "Z",
         "through_utc": datetime.now(timezone.utc).isoformat(),
     })
+    # The live Production image currently exposes list_incoming(network, since,
+    # include_pending) only. Verify its configured destination is exactly the
+    # retired address before querying; never scan an unknown/current new wallet.
+    from app.core import config as cfg
+    configured = {
+        "TRON": str(cfg.CRYPTO_TRON_USDT_ADDRESS or "").strip(),
+        "TON": str(cfg.CRYPTO_TON_ADDRESS or "").strip(),
+    }
+    for network, expected_address in DESTINATIONS:
+        if configured.get(network) != expected_address:
+            emit({
+                "section": "chain_history",
+                "network": network,
+                "complete": False,
+                "error": "Configured address differs from the historical destination; scan refused.",
+            })
+            return 3
+
     failed = False
     for network, address in DESTINATIONS:
         try:
@@ -41,7 +59,6 @@ def main() -> int:
                 network=network,
                 since=SINCE,
                 include_pending=False,
-                destination_address=address,
             )
             transfers.sort(key=lambda x: (x.occurred_at, x.tx_hash))
             emit({
