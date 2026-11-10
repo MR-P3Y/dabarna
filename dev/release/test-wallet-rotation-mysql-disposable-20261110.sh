@@ -43,6 +43,12 @@ trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
+echo '===== PRECHECK HOST MEMORY BEFORE STARTING EPHEMERAL MYSQL ====='
+AVAILABLE_KIB="$(awk '/^MemAvailable:/ {print $2}' /proc/meminfo)"
+[[ "${AVAILABLE_KIB:-0}" -ge 900000 ]] || {
+  echo 'BLOCKED: less than 900 MiB memory available; do not pressure live server' >&2
+  exit 2
+}
 echo '===== ISOLATED PRECONDITIONS ====='
 if docker inspect "$DB_CONTAINER" >/dev/null 2>&1; then
   echo 'BLOCKER: disposable container name already exists; refusing reuse' >&2; exit 2
@@ -95,6 +101,26 @@ docker exec -i -e MYSQL_PWD="$PASS" "$DB_CONTAINER" mysql -uroot \
 CREATE USER 'wallet_rotation_test'@'%' IDENTIFIED WITH mysql_native_password BY '${TEST_PASS}';
 GRANT ALL PRIVILEGES ON davarna_wallet_rotation_test.* TO 'wallet_rotation_test'@'%';
 SQL
+echo '===== OWNER ADD/EDIT CROSS-SURFACE REAL MYSQL TESTS (NO NETWORK PAYMENTS) ====='
+URL="mysql+pymysql://wallet_rotation_test:${TEST_PASS}@davarna-wallet-mysql/davarna_wallet_rotation_test"
+docker run --rm --network "$NETWORK" --read-only --cap-drop ALL \
+  --security-opt no-new-privileges \
+  --tmpfs /tmp:rw,nosuid,size=128m \
+  --memory=512m --memory-swap=512m \
+  -e DATABASE_URL="$URL" \
+  -e DAVARNA_WALLET_MYSQL_CONCURRENCY=I_ACK_DISPOSABLE_DB \
+  -e DAVARNA_CRYPTO_ROTATION_EXPERIMENTAL=I_ACK_DISPOSABLE_DB_ONLY \
+  -e CRYPTO_PAYMENTS_ENABLED=false \
+  -e CRYPTO_AUTO_CONFIRM_ENABLED=false \
+  -e CRYPTO_TRON_USDT_ENABLED=true \
+  -e CRYPTO_TON_ENABLED=true \
+  -e GAME_AUTOPILOT_RUNTIME_ENABLED=false \
+  -e GAME_AUTO_DRAW_ENABLED=false \
+  -e REDIS_URL=redis://127.0.0.1:6379/15 \
+  -e RECEIPTS_DIR=/tmp/receipts \
+  -v "$WORK/backend:/app:ro" -w /app --entrypoint python "$BASE" \
+  -m unittest discover -s tests -p 'test_owner_crypto_wallet_mysql_disposable.py' -v
+
 echo '===== CONCURRENT TRANSACTION TESTS ====='
 # Supply URL via environment without printing credentials in test output.
 URL="mysql+pymysql://wallet_rotation_test:${TEST_PASS}@davarna-wallet-mysql/davarna_wallet_rotation_test"
