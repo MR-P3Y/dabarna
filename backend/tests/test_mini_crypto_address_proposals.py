@@ -127,6 +127,54 @@ class CryptoAddressProposalTests(unittest.TestCase):
         denied = self.client.get("/mini-api/admin/super/crypto-address-readiness?network=TRON")
         self.assertEqual(denied.status_code, 403)
 
+    def test_experimental_second_rotation_uses_persisted_active_destination(self):
+        # The environment address remains OLD, but the versioned DB state
+        # has moved to NEW. A subsequent proposal must target NEW.
+        third = tron_address(3)
+        with (
+            patch.object(mini, "rotation_enabled", return_value=True),
+            patch.object(mini.CryptoDepositService, "runtime_status", return_value={
+                "options": [{"network": "TRON", "address": self.new}],
+            }),
+        ):
+            stale = self.request(address=third, expected=self.old)
+            self.assertEqual(stale.status_code, 409, stale.text)
+            fresh = self.request(address=third, expected=self.new)
+            self.assertEqual(fresh.status_code, 201, fresh.text)
+        with Session(self.engine) as db:
+            row = db.get(AppSetting, "crypto_address_change_proposal:TRON")
+            self.assertEqual(row.v_json["address"], third)
+            self.assertEqual(
+                row.v_json["previous_address_sha256"],
+                hashlib.sha256(self.new.encode()).hexdigest(),
+            )
+
+    def test_experimental_readiness_uses_versioned_destination(self):
+        with (
+            patch.object(mini, "rotation_enabled", return_value=True),
+            patch.object(mini.CryptoDepositService, "runtime_status", return_value={
+                "options": [{"network": "TRON", "address": self.new}],
+            }),
+        ):
+            self.assertEqual(self.request(address=tron_address(3), expected=self.new).status_code, 201)
+            with patch.object(mini, "assess_rotation", return_value={
+                "active_change_allowed": False,
+                "open_invoices": 0,
+                "recent_closed_invoices": 0,
+                "needs_manual_review": 0,
+            }) as assessment:
+                response = self.client.get(
+                    "/mini-api/admin/super/crypto-address-readiness?network=TRON"
+                )
+                self.assertEqual(response.status_code, 200, response.text)
+                self.assertEqual(assessment.call_args.kwargs["current_address"], self.new)
+
+    def test_production_proposal_still_uses_environment_destination(self):
+        # Even if a stale experimental record exists, the real environment
+        # address is authoritative when disposable rotation mode is off.
+        with patch.object(mini, "rotation_enabled", return_value=False):
+            self.assertEqual(self.request().status_code, 201)
+
     def test_non_superadmin_denied(self):
         self.app.dependency_overrides[mini.get_mini_admin_identity] = lambda: mini.MiniAdminIdentity(
             user_id=202, tg_user_id=9202, roles=["ADMIN"]
