@@ -44,6 +44,7 @@ from app.services.game_service import GameService
 from app.services.telegram_file_service import download_telegram_file
 from app.services.admin_audit_service import AdminAuditService
 from app.services.crypto_deposit_service import CryptoDepositService
+from app.services.crypto_destination_state import production_rotation_enabled, lock_destination_state
 from app.services.crypto_health_service import CryptoHealthService
 from app.services.crypto_reconciliation_service import CryptoReconciliationService
 from app.services.user_restriction_service import require_not_restricted, restriction_state_for_tg_user_id
@@ -2194,7 +2195,22 @@ def admin_update_crypto_settings(
     if bool(payload.enabled) and (not bool(current.get("master_enabled")) or not bool(current.get("configured"))):
         raise HTTPException(status_code=409, detail="crypto payments are not configured")
     previous = bool(current.get("runtime_enabled"))
-    _setting_set_json(db, "crypto_payments_runtime_enabled", bool(payload.enabled))
+    if production_rotation_enabled() and payload.enabled:
+        # Shared versioned lock must be available before any new invoices.
+        for spec in CryptoDepositService.configured_options():
+            lock_destination_state(db, str(spec["network"]))
+    # Serialize this independent bot admin toggle with Mini App owner
+    # activation, which locks the same runtime AppSetting row.
+    row = db.execute(
+        select(AppSetting).where(
+            AppSetting.k == "crypto_payments_runtime_enabled"
+        ).with_for_update()
+    ).scalar_one_or_none()
+    if row is None:
+        db.add(AppSetting(k="crypto_payments_runtime_enabled", v_json=bool(payload.enabled)))
+    else:
+        row.v_json = bool(payload.enabled)
+        db.add(row)
     db.commit()
     out = _admin_crypto_runtime_status(db)
     out["changed"] = bool(previous != bool(out.get("runtime_enabled")))
