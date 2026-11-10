@@ -3449,9 +3449,13 @@ def mini_admin_ops_dashboard(
     ident: MiniAdminIdentity = Depends(get_mini_admin_identity),
     db: Session = Depends(get_db),
 ):
-    game_query = select(Game).where(Game.status.in_(["LOBBY", "RUNNING"])).order_by(Game.id.desc()).limit(6)
+    active_games_filter = [Game.status.in_(["LOBBY", "RUNNING"])]
     if not ident.is_super_admin:
-        game_query = game_query.where(Game.admin_user_id == int(ident.user_id))
+        active_games_filter.append(Game.admin_user_id == int(ident.user_id))
+    active_games_total = int(
+        db.execute(select(func.count(Game.id)).where(*active_games_filter)).scalar_one() or 0
+    )
+    game_query = select(Game).where(*active_games_filter).order_by(Game.id.desc()).limit(6)
     games = db.execute(game_query).scalars().all()
 
     active_games: list[dict[str, Any]] = []
@@ -3482,25 +3486,49 @@ def mini_admin_ops_dashboard(
             }
         )
 
+    # Do not query or expose global finance metrics to game-only/admin roles.
+    # Keep zero-valued keys for the existing Mini App dashboard contract.
+    can_view_finance = ident.is_super_admin or "FINANCE_ADMIN" in ident.roles
     counts = {
-        "pending_deposits": int(db.execute(select(func.count(DepositRequest.id)).where(DepositRequest.status == "PENDING_REVIEW")).scalar_one() or 0),
-        "pending_withdraws": int(db.execute(select(func.count(WithdrawRequest.id)).where(WithdrawRequest.status == "PENDING")).scalar_one() or 0),
-        "approved_withdraws": int(db.execute(select(func.count(WithdrawRequest.id)).where(WithdrawRequest.status == "APPROVED")).scalar_one() or 0),
-        "crypto_needs_review": int(db.execute(select(func.count(CryptoDepositRequest.id)).where(CryptoDepositRequest.status == "NEEDS_REVIEW")).scalar_one() or 0),
-        "game_errors": int(db.execute(select(func.count(GameEvent.id)).where(GameEvent.kind == "ERROR")).scalar_one() or 0),
-        "risk_events_24h": int(
+        "pending_deposits": 0,
+        "pending_withdraws": 0,
+        "approved_withdraws": 0,
+        "crypto_needs_review": 0,
+        "game_errors": int(
             db.execute(
-                select(func.count(AdminAuditLog.id)).where(
-                    AdminAuditLog.action.like("risk.%"),
-                    AdminAuditLog.created_at >= datetime.utcnow() - timedelta(hours=24),
+                select(func.count(GameEvent.id)).where(
+                    GameEvent.kind == "ERROR",
+                    *([] if ident.is_super_admin else [
+                        GameEvent.game_id.in_(
+                            select(Game.id).where(Game.admin_user_id == int(ident.user_id))
+                        )
+                    ]),
                 )
-            ).scalar_one()
-            or 0
+            ).scalar_one() or 0
         ),
+        "risk_events_24h": 0,
     }
+    if can_view_finance:
+        counts.update({
+            "pending_deposits": int(db.execute(select(func.count(DepositRequest.id)).where(DepositRequest.status == "PENDING_REVIEW")).scalar_one() or 0),
+            "pending_withdraws": int(db.execute(select(func.count(WithdrawRequest.id)).where(WithdrawRequest.status == "PENDING")).scalar_one() or 0),
+            "approved_withdraws": int(db.execute(select(func.count(WithdrawRequest.id)).where(WithdrawRequest.status == "APPROVED")).scalar_one() or 0),
+            "crypto_needs_review": int(db.execute(select(func.count(CryptoDepositRequest.id)).where(CryptoDepositRequest.status == "NEEDS_REVIEW")).scalar_one() or 0),
+            "risk_events_24h": int(
+                db.execute(
+                    select(func.count(AdminAuditLog.id)).where(
+                        AdminAuditLog.action.like("risk.%"),
+                        AdminAuditLog.created_at >= datetime.utcnow() - timedelta(hours=24),
+                    )
+                ).scalar_one()
+                or 0
+            ),
+        })
     return {
         "active_games": active_games,
+        "active_games_total": active_games_total,
         "counts": counts,
+        "finance_visible": can_view_finance,
         "system": _mini_system_health(db),
         "server_time": datetime.utcnow().isoformat(timespec="seconds"),
     }
