@@ -7019,6 +7019,45 @@ async function refreshSuperCryptoProposals() {
       }
     });
     box.append(heading, address, detail, inspect);
+    if (payload.activation_supported === true &&
+        Number.isInteger(item.expected_version) && item.expected_version >= 1 &&
+        item.expected_current_address) {
+      const activate = document.createElement("button");
+      activate.type = "button";
+      activate.className = "small-btn danger";
+      activate.textContent = "فعال‌سازی فقط در دیتابیس آزمایشی";
+      activate.addEventListener("click", async () => {
+        const network = String(item.network || "");
+        const proposedAddress = String(item.address || "");
+        const currentAddress = String(item.expected_current_address || "");
+        const version = Number(item.expected_version);
+        if (!window.confirm("فقط محیط آزمایشی مستقل: تغییر " + network +
+          " از نسخه " + version + " به آدرس جدید انجام شود؟")) return;
+        const typed = window.prompt("برای تأیید فعال‌سازی آزمایشی، عبارت TEST " +
+          network + " را وارد کنید.");
+        if (typed !== "TEST " + network) return;
+        activate.disabled = true;
+        try {
+          await apiFetch("/mini-api/admin/super/crypto-address-activate-experimental", {
+            method: "POST",
+            body: {
+              network,
+              expected_version: version,
+              expected_current_address: currentAddress,
+              proposed_address: proposedAddress,
+              confirmation: "ACTIVATE_CRYPTO_ADDRESS_DISPOSABLE_ONLY",
+            },
+          });
+          await refreshSuperCryptoSettings();
+          setHint("superCryptoProposalHint",
+            "تغییر آدرس فقط در دیتابیس آزمایشی ثبت شد؛ Production تغییری نکرد.");
+        } catch (e) {
+          setLocalError("superCryptoProposalHint", e);
+          activate.disabled = false;
+        }
+      });
+      box.append(activate);
+    }
     root.append(box);
   });
 }
@@ -7102,7 +7141,9 @@ function renderSuperCryptoAddresses(payload) {
     requestBtn.addEventListener("click", () =>
       openCryptoProposalEditor(String(network.network || ""), String(network.address || ""))
     );
-    hint.textContent = "آدرس فعال از تنظیمات سرور خوانده شده و تا هماهنگی اسکنر تغییر نمی‌کند.";
+    hint.textContent = network.address_source === "versioned_disposable_database"
+      ? "آدرس فعال نسخه‌بندی‌شده در دیتابیس آزمایشی؛ انتشار عملیاتی هنوز مجاز نیست."
+      : "آدرس فعال از تنظیمات سرور خوانده شده و تا هماهنگی اسکنر تغییر نمی‌کند.";
     card.append(title, address, hint, requestBtn);
     root.append(card);
   });
