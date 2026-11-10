@@ -19,18 +19,16 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.add_column(
-        "games",
-        sa.Column("card_layout_version", sa.Integer(), nullable=False, server_default="1"),
-    )
-    op.add_column(
-        "games",
-        sa.Column("game_rule", sa.String(length=16), nullable=False, server_default="LEGACY"),
-    )
-    op.add_column(
-        "game_autopilot_configs",
-        sa.Column("game_rule", sa.String(length=16), nullable=False, server_default="LINE"),
-    )
+    bind = op.get_bind()
+    games_cols = {column["name"] for column in sa.inspect(bind).get_columns("games")}
+    if "card_layout_version" not in games_cols:
+        op.add_column("games", sa.Column("card_layout_version", sa.Integer(), nullable=False, server_default="1"))
+    if "game_rule" not in games_cols:
+        op.add_column("games", sa.Column("game_rule", sa.String(length=16), nullable=False, server_default="LEGACY"))
+
+    config_cols = {column["name"] for column in sa.inspect(bind).get_columns("game_autopilot_configs")}
+    if "game_rule" not in config_cols:
+        op.add_column("game_autopilot_configs", sa.Column("game_rule", sa.String(length=16), nullable=False, server_default="LINE"))
 
     # These mappings describe FUTURE lanes; the worker still runs legacy
     # mechanics until the explicitly gated V2 application rollout.
