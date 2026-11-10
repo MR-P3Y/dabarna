@@ -2195,17 +2195,17 @@ def admin_update_crypto_settings(
     if bool(payload.enabled) and (not bool(current.get("master_enabled")) or not bool(current.get("configured"))):
         raise HTTPException(status_code=409, detail="crypto payments are not configured")
     previous = bool(current.get("runtime_enabled"))
-    if production_rotation_enabled() and payload.enabled:
-        # Shared versioned lock must be available before any new invoices.
-        for spec in CryptoDepositService.configured_options():
-            lock_destination_state(db, str(spec["network"]))
-    # Serialize this independent bot admin toggle with Mini App owner
-    # activation, which locks the same runtime AppSetting row.
+    # Lock ordering matches owner production rotation: runtime row first,
+    # then all configured destination versions, to avoid MySQL deadlock.
     row = db.execute(
         select(AppSetting).where(
             AppSetting.k == "crypto_payments_runtime_enabled"
         ).with_for_update()
     ).scalar_one_or_none()
+    if production_rotation_enabled() and payload.enabled:
+        # Shared versioned lock must be available before new invoices.
+        for spec in CryptoDepositService.configured_options():
+            lock_destination_state(db, str(spec["network"]))
     if row is None:
         db.add(AppSetting(k="crypto_payments_runtime_enabled", v_json=bool(payload.enabled)))
     else:
