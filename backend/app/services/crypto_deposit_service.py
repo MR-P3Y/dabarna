@@ -537,6 +537,10 @@ class CryptoDepositService:
         if claimed:
             if str(claimed.destination_address) != str(transfer.destination_address):
                 return None
+            if rotation_enabled() and transfer.network == "TON" and claimed.memo != transfer.memo:
+                # Versioned destinations require exact invoice memo binding.
+                # Never infer a TON invoice from an amount-only transfer.
+                return None
             if not CryptoDepositService._transfer_is_in_window(claimed, transfer):
                 return None
             if claimed.memo and claimed.memo != transfer.memo:
@@ -561,6 +565,11 @@ class CryptoDepositService:
             ]
             if len(valid_memo_matches) == 1:
                 return valid_memo_matches[0]
+
+        # In the experimental wallet-rotation path TON payment ownership
+        # requires an exact invoice memo. No amount-only fallback is allowed.
+        if rotation_enabled() and transfer.network == "TON":
+            return None
 
         candidates = db.execute(
             select(CryptoDepositRequest)
