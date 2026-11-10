@@ -5800,6 +5800,28 @@ def mini_super_crypto_late_review_experimental(
     return {"items": items, "auto_credit_supported": False, "total_returned": len(items)}
 
 
+@router.get("/admin/super/crypto-late-review-production")
+def mini_super_crypto_late_review_production(
+    ident: MiniAdminIdentity = Depends(get_mini_super_admin_identity),
+    db: Session = Depends(get_db),
+):
+    """Read-only historical transfer inbox, without manual/automatic credit."""
+    _ = ident
+    if not production_rotation_enabled():
+        raise HTTPException(status_code=409, detail="صف بررسی عملیاتی فعال نیست.")
+    rows = db.execute(
+        select(AppSetting).where(AppSetting.k.like("crypto_late_review_v1:%"))
+        .order_by(AppSetting.updated_at.desc()).limit(100)
+    ).scalars().all()
+    entries = [dict(row.v_json) for row in rows if isinstance(row.v_json, dict)]
+    return {
+        "items": entries,
+        "returned": len(entries),
+        "auto_credit_supported": False,
+        "manual_credit_supported": False,
+    }
+
+
 @router.post("/admin/super/crypto-address-activate-experimental")
 def mini_super_crypto_address_activate_experimental(
     payload: MiniSuperCryptoAddressActivateIn,
