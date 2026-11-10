@@ -123,6 +123,7 @@ from app.services.crypto_destination_state import (rotation_enabled, disposable_
 from app.services.crypto_qr_service import CryptoQrService
 from app.services.crypto_health_service import CryptoHealthService
 from app.services.crypto_preflight_service import CryptoPreflightService
+from app.services.crypto_chain_service import CryptoChainService
 from app.services.crypto_reconciliation_service import CryptoReconciliationService
 from app.services.user_restriction_service import require_not_restricted, require_user_id_not_restricted
 from app.routers import admin_users_router
@@ -5977,6 +5978,21 @@ def mini_super_crypto_address_activate_production(
             status_code=409,
             detail="فاکتور تاریخی یا باز وجود دارد؛ قبل از فعال‌سازی باید تسویه و بررسی شود.",
         )
+    # Verify the live provider can query the NEW account before committing
+    # its active destination. This is read-only and never credits a wallet.
+    try:
+        CryptoChainService.list_incoming(
+            network=network,
+            since=datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=5),
+            destination_address=proposed,
+            include_pending=False,
+        )
+    except Exception:
+        log.exception("crypto destination provider preflight failed: network=%s", network)
+        raise HTTPException(
+            status_code=503,
+            detail="بررسی سرویس بلاک‌چین برای آدرس جدید ناموفق بود؛ آدرس تغییر نکرد.",
+        ) from None
     updated = rotate_locked(
         db, network=network, expected_version=payload.expected_version,
         expected_address=payload.expected_current_address, new_address=proposed,
