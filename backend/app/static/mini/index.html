@@ -821,19 +821,37 @@
                   <h3 id="superAdminTitle">مرکز مدیریت سوپرادمین</h3>
                   <span class="accordion-icon">▾</span>
                 </summary>
-                <div class="accordion-body superadmin-workspace-v12">
-                  <div class="superadmin-workspace-head">
+                <div class="accordion-body superadmin-workspace-v12 superadmin-workspace-v13"> 
+                  <div class="superadmin-workspace-head superadmin-workspace-head-v13">
                     <div>
-                      <span class="admin-ops-eyebrow">مدیریت پیشرفته</span>
-                      <h4>مرکز عملیات سوپرادمین</h4>
-                      <p>ابزارهای دسترسی، پرداخت و پایش را مستقیماً انتخاب کنید.</p>
+                      <span class="admin-ops-eyebrow">SUPER ADMIN · CONTROL CENTER</span>
+                      <h4>مرکز فرماندهی دبرنا</h4>
+                      <p>مدیریت عملیات در پنج بخش مستقل؛ دسترسی‌ها، APIها و تأییدهای امنیتی فعلی بدون تغییر باقی می‌مانند.</p>
                     </div>
+                    <span class="superadmin-scope-note">محیط مدیریت ویژه سوپرادمین</span>
                   </div>
-                  <nav class="superadmin-tools-nav" aria-label="بخش‌های سوپرادمین">
-                    <button type="button" data-super-target="superCryptoWalletSection">◇ آدرس‌های رمزارز</button>
-                    <button type="button" data-super-target="superBankCardsSection">▤ کارت‌های بانکی</button>
-                    <button type="button" data-super-target="superAdminFilterInput">♙ مدیریت نقش‌ها</button>
-                  </nav>
+                  <div class="superadmin-category-layout">
+                    <nav class="superadmin-category-nav" role="tablist" aria-orientation="vertical" aria-label="دسته‌بندی مدیریت سوپرادمین">
+                      <button id="superTabOverview" class="superadmin-category-tab" type="button" role="tab" data-super-panel-tab="superPanelOverview" aria-controls="superPanelOverview" aria-selected="true" tabindex="0"><span aria-hidden="true">▦</span><span>نمای کلی<small>دسترسی سریع</small></span></button>
+                      <button id="superTabPayments" class="superadmin-category-tab" type="button" role="tab" data-super-panel-tab="superPanelPayments" aria-controls="superPanelPayments" aria-selected="false" tabindex="-1"><span aria-hidden="true">◈</span><span>مدیریت پرداخت‌ها<small>وضعیت و بررسی</small></span></button>
+                      <button id="superTabAccounts" class="superadmin-category-tab" type="button" role="tab" data-super-panel-tab="superPanelAccounts" aria-controls="superPanelAccounts" aria-selected="false" tabindex="-1"><span aria-hidden="true">▤</span><span>مقاصد واریز<small>کیف پول و بانک</small></span></button>
+                      <button id="superTabRoles" class="superadmin-category-tab" type="button" role="tab" data-super-panel-tab="superPanelRoles" aria-controls="superPanelRoles" aria-selected="false" tabindex="-1"><span aria-hidden="true">♙</span><span>نقش‌ها و دسترسی<small>مدیریت ادمین‌ها</small></span></button>
+                      <button id="superTabSecurity" class="superadmin-category-tab" type="button" role="tab" data-super-panel-tab="superPanelSecurity" aria-controls="superPanelSecurity" aria-selected="false" tabindex="-1"><span aria-hidden="true">◇</span><span>امنیت و نظارت<small>هشدارها و لاگ</small></span></button>
+                    </nav>
+                    <div class="superadmin-category-panels">
+                      <section id="superPanelOverview" class="superadmin-panel-v13" role="tabpanel" data-super-panel="superPanelOverview" aria-labelledby="superTabOverview" tabindex="0">
+                        <header class="superadmin-panel-head"><h5>نمای کلی مدیریت</h5><p>عملیات مهم را از این بخش پیدا کنید. داده‌های زنده در داشبورد عملیات بالای صفحه نمایش داده می‌شوند.</p></header>
+                        <div class="superadmin-quick-grid">
+                          <button class="superadmin-quick-card" type="button" data-super-open="superPanelPayments"><strong>◈ وضعیت پرداخت‌ها</strong><span>مدیریت فعال‌بودن روش‌های پرداخت و بررسی سلامت</span></button>
+                          <button class="superadmin-quick-card" type="button" data-super-open="superPanelAccounts"><strong>▤ مقاصد واریز</strong><span>آدرس رمزارز و کارت‌های مقصد بانکی</span></button>
+                          <button class="superadmin-quick-card" type="button" data-super-open="superPanelRoles"><strong>♙ سطح دسترسی</strong><span>اعطا و لغو نقش، جستجوی مدیران</span></button>
+                          <button class="superadmin-quick-card" type="button" data-super-open="superPanelSecurity"><strong>◇ نظارت و امنیت</strong><span>دسترسی به هشدارها و گزارش عملیات</span></button>
+                        </div>
+                        <div class="superadmin-overview-notice">برای مشاهده شاخص‌های زنده و وضعیت سرویس‌ها، از «نمای کلی عملیات» در بالای پنل استفاده کنید.</div>
+                      </section>
+                      <section id="superPanelPayments" class="superadmin-panel-v13" role="tabpanel" data-super-panel="superPanelPayments" aria-labelledby="superTabPayments" tabindex="0" hidden>
+                        <header class="superadmin-panel-head"><h5>مدیریت پرداخت‌ها</h5><p>وضعیت روش‌های پرداخت و ابزارهای پایش؛ تأییدهای فعلی برای عملیات حساس حفظ شده‌اند.</p></header>
+                        <h6 class="superadmin-panel-subtitle">پرداخت رمزارزی</h6>
                   <div class="super-crypto-control">
                     <div class="super-crypto-copy">
                       <strong>پرداخت ارز دیجیتال کاربران</strong>
@@ -854,13 +872,7 @@
                     <button id="superCryptoReconcileBtn" class="small-btn" type="button">تطبیق ۲۴ ساعت اخیر</button>
                   </div>
                   <div id="superCryptoOpsResult" class="super-crypto-ops-result hidden"></div>
-                  <details id="superCryptoWalletSection" class="super-finance-editor mt-12">
-                    <summary>💎 آدرس کیف پول‌های رمزارز</summary>
-                    <p class="hint">این آدرس‌ها از تنظیمات امن سرور خوانده می‌شوند. تغییر مستقیم از مینی‌اپ فعلاً غیرفعال است تا فاکتورهای باز و اسکنر شبکه دچار مغایرت نشوند.</p>
-                    <button id="superCryptoAddressesRefreshBtn" class="small-btn" type="button">بازخوانی آدرس‌ها</button>
-                    <div id="superCryptoAddressesList" class="cards-history-scroll mt-12"></div>
-                  </details>
-
+                        <h6 class="superadmin-panel-subtitle">کارت‌به‌کارت</h6>
                   <div class="super-crypto-control super-bank-control">
                     <div class="super-crypto-copy">
                       <strong>واریز کارت بانکی کاربران</strong>
@@ -876,6 +888,15 @@
                     >خاموش کردن کارت‌به‌کارت</button>
                   </div>
                   <div id="superBankDepositHint" class="step-hint"></div>
+                      </section>
+                      <section id="superPanelAccounts" class="superadmin-panel-v13" role="tabpanel" data-super-panel="superPanelAccounts" aria-labelledby="superTabAccounts" tabindex="0" hidden>
+                        <header class="superadmin-panel-head"><h5>حساب‌ها و مقاصد واریز</h5><p>مشاهده آدرس‌های رمزارزی و مدیریت کارت‌های بانکی، با همان قواعد ایمنی موجود.</p></header>
+                  <details id="superCryptoWalletSection" class="super-finance-editor mt-12">
+                    <summary>💎 آدرس کیف پول‌های رمزارز</summary>
+                    <p class="hint">این آدرس‌ها از تنظیمات امن سرور خوانده می‌شوند. تغییر مستقیم از مینی‌اپ فعلاً غیرفعال است تا فاکتورهای باز و اسکنر شبکه دچار مغایرت نشوند.</p>
+                    <button id="superCryptoAddressesRefreshBtn" class="small-btn" type="button">بازخوانی آدرس‌ها</button>
+                    <div id="superCryptoAddressesList" class="cards-history-scroll mt-12"></div>
+                  </details>
                   <details id="superBankCardsSection" class="super-finance-editor mt-12">
                     <summary>💳 مدیریت کارت‌های مقصد واریز (لیست، افزودن، ویرایش، غیرفعال‌سازی)</summary>
                     <p class="hint">کارت جدید ابتدا غیرفعال ثبت می‌شود. فعال‌سازی و تغییر کارت، تأیید جداگانه دارد.</p>
@@ -910,7 +931,9 @@
                     </div>
                     <div id="superBankCardsHint" class="step-hint" role="status"></div>
                   </details>
-
+                      </section>
+                      <section id="superPanelRoles" class="superadmin-panel-v13" role="tabpanel" data-super-panel="superPanelRoles" aria-labelledby="superTabRoles" tabindex="0" hidden>
+                        <header class="superadmin-panel-head"><h5>مدیریت نقش‌ها و دسترسی‌ها</h5><p>مدیریت کاربران مجاز و فهرست ادمین‌ها. سطح دسترسی از سمت سرور کنترل می‌شود.</p></header>
                   <div class="action-form">
                     <label id="superAdminUserLabel" for="superAdminTgUserInput">شناسه تلگرام کاربر</label>
                     <input id="superAdminTgUserInput" type="text" inputmode="numeric" min="1" autocomplete="off" />
@@ -933,6 +956,18 @@
                   </div>
                   <div id="superAdminListSummary" class="step-hint" aria-live="polite"></div>
                   <div id="superAdminList" class="cards-history-scroll mt-12"></div>
+                      </section>
+                      <section id="superPanelSecurity" class="superadmin-panel-v13" role="tabpanel" data-super-panel="superPanelSecurity" aria-labelledby="superTabSecurity" tabindex="0" hidden>
+                        <header class="superadmin-panel-head"><h5>امنیت و نظارت</h5><p>دسترسی به بخش‌های گزارش و هشدار موجود. این صفحه هیچ تنظیم امنیتی یا تراکنش جدیدی اجرا نمی‌کند.</p></header>
+                        <div class="superadmin-quick-grid">
+                          <button class="superadmin-quick-card" type="button" data-admin-jump="adminRiskAlertsList"><strong>⚠ هشدارهای ریسک</strong><span>بازکردن هشدارهای ثبت‌شده در پنل مدیریت</span></button>
+                          <button class="superadmin-quick-card" type="button" data-admin-jump="adminAuditLogsList"><strong>▣ گزارش عملیات</strong><span>مشاهده سوابق مدیریتی موجود</span></button>
+                          <button class="superadmin-quick-card" type="button" data-admin-jump="adminOpsDashboard"><strong>▦ وضعیت سرویس‌ها</strong><span>بازگشت به مانیتورینگ سلامت و عملیات</span></button>
+                        </div>
+                        <div class="superadmin-overview-notice">ثبت رویدادهای حساس و اعتبارسنجی مجوزها همچنان توسط سرویس‌های فعلی انجام می‌شود.</div>
+                      </section>
+                    </div>
+                  </div>
                 </div>
               </details>
             </div>
