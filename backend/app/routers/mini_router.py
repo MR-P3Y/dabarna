@@ -119,7 +119,7 @@ from app.services.crypto_deposit_service import (
 )
 from app.services.crypto_address_change import proposal_key, validate_crypto_destination
 from app.services.crypto_rotation_readiness import assess_rotation
-from app.services.crypto_destination_state import (rotation_enabled, disposable_rotation_enabled, production_rotation_enabled, rotate_locked, lock_destination_state, seed_destination_state)
+from app.services.crypto_destination_state import (rotation_enabled, disposable_rotation_enabled, production_rotation_enabled, rotate_locked, lock_destination_state, seed_destination_state, state_key)
 from app.services.crypto_qr_service import CryptoQrService
 from app.services.crypto_health_service import CryptoHealthService
 from app.services.crypto_preflight_service import CryptoPreflightService
@@ -718,6 +718,12 @@ class MiniSuperCryptoAddressActivateIn(BaseModel):
     expected_current_address: str = Field(min_length=1, max_length=128)
     proposed_address: str = Field(min_length=1, max_length=128)
     confirmation: Literal["ACTIVATE_CRYPTO_ADDRESS_DISPOSABLE_ONLY"]
+
+
+class MiniSuperCryptoProductionInitialAddressIn(BaseModel):
+    network: Literal["TRON", "TON"]
+    address: str = Field(min_length=1, max_length=128)
+    confirmation: Literal["ADD_NEW_CRYPTO_DESTINATION_WITH_PAYMENTS_OFF"]
 
 
 class MiniSuperCryptoProductionSeedIn(BaseModel):
@@ -5618,6 +5624,7 @@ def _mini_super_crypto_status(db: Session) -> dict[str, Any]:
         "configured": bool(status.get("configured")),
         "enabled": bool(status.get("enabled")),
         "production_rotation_enabled": production_rotation_enabled(),
+        "address_management_enabled": production_rotation_enabled(),
         "networks": [
             {
                 "network": str(item.get("network") or ""),
@@ -5634,6 +5641,18 @@ def _mini_super_crypto_status(db: Session) -> dict[str, Any]:
                 "address_editable": False,
             }
             for item in options
+        ] + [
+            {
+                "network": network,
+                "asset": "USDT" if network == "TRON" else "TON",
+                "address": "",
+                "destination_version": None,
+                "requires_bootstrap": False,
+                "address_source": "unconfigured",
+                "address_editable": bool(production_rotation_enabled()),
+            }
+            for network in ("TRON", "TON")
+            if network not in {str(item.get("network") or "") for item in options}
         ],
     }
 
@@ -5954,6 +5973,66 @@ def mini_super_crypto_address_prepare_production(
     db.commit()
     return {"ok": True, "network": payload.network, "version": record["version"],
             "address": current, "activated": False}
+
+
+@router.post("/admin/super/crypto-address-initialize-production")
+def mini_super_crypto_address_initialize_production(
+    payload: MiniSuperCryptoProductionInitialAddressIn,
+    request: Request,
+    ident: MiniAdminIdentity = Depends(get_mini_super_admin_identity),
+    db: Session = Depends(get_db),
+):
+    """Owner-only first-time ADD, not rotation; only while payments are frozen.
+
+    Requires an exact production DB gate. Never writes an env file and never
+    enables invoicing, which reads this same versioned destination in runtime_status.
+    """
+    if not production_rotation_enabled():
+        raise HTTPException(status_code=409, detail="مدیریت آدرس‌های عملیاتی در سرور فعال نشده است.")
+    enforce_write_rate_limit(int(ident.user_id))
+    _lock_frozen_production_crypto_runtime(db)
+    network = payload.network
+    if (network == "TRON" and not cfg.CRYPTO_TRON_USDT_ENABLED
+            or network == "TON" and not cfg.CRYPTO_TON_ENABLED):
+        raise HTTPException(status_code=409, detail="شبکه انتخابی از تنظیمات سرور غیرفعال است.")
+    existing = db.execute(select(AppSetting).where(
+        AppSetting.k == state_key(network)
+    ).with_for_update()).scalar_one_or_none()
+    if existing is not None:
+        raise HTTPException(status_code=409, detail="آدرس این شبکه قبلاً اضافه شده؛ از مسیر تغییر آدرس استفاده کنید.")
+    historical = int(db.execute(select(func.count(CryptoDepositRequest.id)).where(
+        CryptoDepositRequest.network == network
+    )).scalar_one() or 0)
+    if historical:
+        raise HTTPException(status_code=409, detail="این شبکه سابقه فاکتور دارد؛ افزودن اولیه مجاز نیست.")
+    try:
+        address = validate_crypto_destination(network, payload.address)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="آدرس واردشده با شبکه انتخابی مطابقت ندارد.") from None
+    # Validate the receiving address is queryable before it can be selected.
+    try:
+        CryptoChainService.list_incoming(
+            network=network, destination_address=address,
+            since=datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=5),
+            include_pending=False,
+        )
+    except Exception:
+        log.exception("first destination provider preflight failed: network=%s", network)
+        raise HTTPException(status_code=503, detail="بررسی شبکه برای این آدرس موفق نبود؛ تغییری ثبت نشد.") from None
+    record = seed_destination_state(db, network=network, address=address)
+    AdminAuditService.record(
+        db, admin=_mini_to_admin_identity(ident),
+        action="settings.update", target_type="app_setting", request=request,
+        details={
+            "operation": "add_production_crypto_destination",
+            "network": network, "version": 1,
+            "address_sha256": hashlib.sha256(address.encode()).hexdigest(),
+            "payments_remain_disabled": True,
+        },
+    )
+    db.commit()
+    return {"ok": True, "network": network, "address": address,
+            "version": record["version"], "payments_enabled": False}
 
 
 @router.post("/admin/super/crypto-address-activate-production")
