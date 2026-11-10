@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>مینی‌اپ دبرنای طوفان</title>
     <link rel="stylesheet" href="./styles.css?v=finance-reject-reasons-20261108" />
-    <link rel="stylesheet" href="./ux-v2.css?v=20261109-superadmin-dashboard-v11" />
+    <link rel="stylesheet" href="./ux-v2.css?v=20261110-superadmin-command-v12" />
   </head>
   <body>
     <div id="appSplash" class="app-splash" aria-label="در حال آماده‌سازی مینی‌اپ">
@@ -451,9 +451,9 @@
             <section class="cards-box admin-ops-dashboard admin-ops-dashboard-v11 mt-12" aria-labelledby="adminOpsHeading">
               <div class="admin-ops-head-v11">
                 <div class="admin-ops-head-copy">
-                  <span class="admin-ops-eyebrow">اتاق فرمان دبرنا • نسخه ۱.۱</span>
+                  <span class="admin-ops-eyebrow">اتاق فرمان دبرنا • نسخه ۱.۲</span>
                   <h3 id="adminOpsHeading">نمای کلی عملیات</h3>
-                  <p>آمار لحظه‌ای بازی‌ها، صف بررسی و سلامت سرویس‌ها؛ فقط برای مشاهده.</p>
+                  <p>از شاخص‌ها مستقیماً وارد صف‌ها و عملیات مربوط شوید؛ وضعیت سرویس‌ها را برای جزئیات انتخاب کنید.</p>
                 </div>
                 <button id="adminOpsRefreshBtn" class="small-btn primary" type="button" aria-label="تازه‌سازی اطلاعات داشبورد">↻ تازه‌سازی</button>
               </div>
@@ -464,6 +464,7 @@
               <div id="adminOpsDashboard" class="admin-ops-grid" aria-busy="true">
                 <div class="admin-ops-skeleton-v11" aria-hidden="true"><span></span><span></span><span></span></div>
               </div>
+              <div id="adminOpsServiceDetail" class="admin-ops-service-inspector" role="status" aria-live="polite" hidden></div>
               <nav class="admin-ops-shortcuts-v11" aria-label="میانبرهای اتاق فرمان">
                 <button type="button" data-admin-jump="adminGamesList">بازی‌های دستی</button>
                 <button type="button" data-admin-jump="adminRiskAlertsList">هشدارهای ریسک</button>
@@ -817,10 +818,22 @@
 
               <details id="superAdminSection" class="accordion-item hidden">
                 <summary class="accordion-head">
-                  <h3 id="superAdminTitle">مدیریت ادمین‌ها (سوپر ادمین)</h3>
+                  <h3 id="superAdminTitle">مرکز مدیریت سوپرادمین</h3>
                   <span class="accordion-icon">▾</span>
                 </summary>
-                <div class="accordion-body">
+                <div class="accordion-body superadmin-workspace-v12">
+                  <div class="superadmin-workspace-head">
+                    <div>
+                      <span class="admin-ops-eyebrow">مدیریت پیشرفته</span>
+                      <h4>مرکز عملیات سوپرادمین</h4>
+                      <p>ابزارهای دسترسی، پرداخت و پایش را مستقیماً انتخاب کنید.</p>
+                    </div>
+                  </div>
+                  <nav class="superadmin-tools-nav" aria-label="بخش‌های سوپرادمین">
+                    <button type="button" data-super-target="superCryptoWalletSection">◇ آدرس‌های رمزارز</button>
+                    <button type="button" data-super-target="superBankCardsSection">▤ کارت‌های بانکی</button>
+                    <button type="button" data-super-target="superAdminFilterInput">♙ مدیریت نقش‌ها</button>
+                  </nav>
                   <div class="super-crypto-control">
                     <div class="super-crypto-copy">
                       <strong>پرداخت ارز دیجیتال کاربران</strong>
@@ -1112,6 +1125,6 @@
     <div id="miniToast" class="mini-toast hidden" role="status" aria-live="polite"></div>
 
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="./app.js?v=20261109-superadmin-dashboard-v11" type="module"></script>
+    <script src="./app.js?v=20261110-superadmin-command-v12" type="module"></script>
   </body>
 </html>
