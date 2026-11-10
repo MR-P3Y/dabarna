@@ -59,6 +59,7 @@ from app.core.mini_security import (
 from app.models.finance import DepositRequest, WithdrawRequest
 from app.models.crypto import CryptoDepositRequest
 from app.models.game import Game, GameCalledNumber, GameCard, GamePurchase
+from app.models.game_autopilot import GameAutopilotConfig
 from app.models.game_event import GameEvent
 from app.models.admin_audit import AdminAuditLog
 from app.models.settings import AppSetting
@@ -1597,7 +1598,34 @@ def list_games(
         .all()
     )
     items = [_to_game_out(g) for g in rows]
-    return MiniGameListOut(total=int(total or 0), limit=int(limit), offset=int(offset), items=items)
+    # Autopilot owns the start deadline. Never synthesize another deadline in
+    # the Mini App: disabled lanes and manual games must not show a countdown.
+    active_levels = {
+        str(g.game_level).upper() for g in rows
+        if str(g.status) == "LOBBY"
+        and str(g.execution_source or "ADMIN").upper() == "SYSTEM"
+        and g.scheduled_start_at is not None
+        and g.game_level is not None
+    }
+    lane_configs = {
+        level: db.get(GameAutopilotConfig, level) for level in active_levels
+    } if cfg.GAME_AUTOPILOT_RUNTIME_ENABLED else {}
+    for game, item in zip(rows, items):
+        config = lane_configs.get(str(game.game_level or "").upper())
+        if (
+            config is not None
+            and bool(int(config.enabled or 0))
+            and str(config.start_mode or "MANUAL").upper() == "AUTO"
+            and str(game.status) == "LOBBY"
+            and str(game.execution_source or "ADMIN").upper() == "SYSTEM"
+            and game.scheduled_start_at is not None
+        ):
+            item.countdown_enabled = True
+            item.countdown_seconds = max(5, int(config.countdown_seconds or 30))
+    return MiniGameListOut(
+        total=int(total or 0), limit=int(limit), offset=int(offset), items=items,
+        server_time_utc=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+    )
 
 
 @router.get("/dashboard/insights", response_model=MiniDashboardInsightsOut)
