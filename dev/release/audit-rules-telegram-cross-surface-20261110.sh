@@ -30,6 +30,7 @@ docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-
  -v "$WORK:/src:ro" -w /src/backend --entrypoint python \
  -e DATABASE_URL=sqlite+pysqlite:///:memory: \
  -e REDIS_URL=redis://127.0.0.1:6379/14 \
+ -e RECEIPTS_DIR=/tmp/davarna-test-receipts \
  -e TELEGRAM_BOT_TOKEN=123456789:ISOLATED_TEST_ONLY \
  -e PYTHONPATH=/src/backend \
  "$BACKEND_IMAGE" -c 'import sys,unittest
