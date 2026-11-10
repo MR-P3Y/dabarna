@@ -16,7 +16,7 @@ from app.models.crypto import CryptoDepositRequest
 from app.models.settings import AppSetting
 from app.services.crypto_destination_state import rotation_enabled
 
-HISTORICAL_STATUSES = ("EXPIRED", "CANCELLED")
+HISTORICAL_STATUSES = ("EXPIRED", "CANCELLED", "REJECTED")
 PREFIX = "crypto_late_review_v1:"
 
 
