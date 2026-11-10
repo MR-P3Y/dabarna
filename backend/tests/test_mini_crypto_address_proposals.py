@@ -323,6 +323,38 @@ class CryptoAddressProposalTests(unittest.TestCase):
             self.assertEqual(row.v_json["activated_version"], 2)
             self.assertIs(db.get(AppSetting, "crypto_payments_runtime_enabled").v_json, False)
 
+    def test_production_preflight_failure_never_rotates_destination(self):
+        self.assertEqual(self.request().status_code, 201)
+        with Session(self.engine) as db:
+            db.add(AppSetting(k="crypto_payments_runtime_enabled", v_json=False))
+            db.commit()
+        with (
+            patch.object(mini, "production_rotation_enabled", return_value=True),
+            patch.object(mini, "lock_destination_state",
+                         return_value={"network": "TRON", "version": 1, "address": self.old}),
+            patch.object(mini, "assess_rotation", return_value={
+                "open_invoices": 0, "recent_closed_invoices": 0,
+                "needs_manual_review": 0, "historical_invoices": 0,
+            }),
+            patch.object(mini.CryptoChainService, "list_incoming",
+                         side_effect=RuntimeError("provider unavailable")),
+            patch.object(mini, "rotate_locked") as rotate,
+        ):
+            response = self.client.post(
+                "/mini-api/admin/super/crypto-address-activate-production",
+                json={
+                    "network": "TRON", "expected_version": 1,
+                    "expected_current_address": self.old,
+                    "proposed_address": self.new,
+                    "confirmation": "ACTIVATE_PRODUCTION_CRYPTO_DESTINATION",
+                },
+            )
+        self.assertEqual(response.status_code, 503, response.text)
+        rotate.assert_not_called()
+        with Session(self.engine) as db:
+            proposal = db.get(AppSetting, "crypto_address_change_proposal:TRON")
+            self.assertEqual(proposal.v_json["status"], "PENDING_REVIEW")
+
     def test_non_superadmin_denied(self):
         self.app.dependency_overrides[mini.get_mini_admin_identity] = lambda: mini.MiniAdminIdentity(
             user_id=202, tg_user_id=9202, roles=["ADMIN"]
