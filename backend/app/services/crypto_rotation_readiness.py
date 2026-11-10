@@ -39,6 +39,10 @@ def assess_rotation(db: Session, *, network: str, current_address: str, proposed
         CryptoDepositRequest.destination_address == current_address,
         CryptoDepositRequest.status == "NEEDS_REVIEW",
     )).scalar_one() or 0)
+    historical_count = int(db.execute(select(func.count(CryptoDepositRequest.id)).where(
+        CryptoDepositRequest.network == network,
+        CryptoDepositRequest.destination_address == current_address,
+    )).scalar_one() or 0)
     # Observations are operational diagnostics, NOT verified historical
     # backfill. The experimental gate keeps Production's prior report shape.
     scan_coverage = None
@@ -60,6 +64,9 @@ def assess_rotation(db: Session, *, network: str, current_address: str, proposed
         "open_invoices": open_count,
         "recent_closed_invoices": recent_closed_count,
         "needs_manual_review": manual_review_count,
+        "historical_invoices": historical_count,
+        # This diagnostic never grants permission to switch a live address.
+        # Experimental endpoint applies its own strict atomic transaction guards.
         "active_change_allowed": False,
         "reason": "Active wallet switching is disabled pending atomic revision locking, provider preflight, old-address scan and reconciliation tests.",
     }
