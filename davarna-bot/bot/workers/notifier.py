@@ -556,9 +556,6 @@ async def _notify_autopilot_start_countdown(bot: Bot, *, game_id: int, report: d
     if state is None:
         return False
     schedule_key, seconds_left = state
-    marker_key = f"autopilot_countdown_notice:{int(game_id)}"
-    if get_meta_marker(marker_key, "") == schedule_key:
-        return True
     mode = str(game.get("draw_mode") or "").upper()
     mode_label = "خودکار" if mode == "AUTO" else "دستی توسط ادمین" if mode == "MANUAL" else "در حال آماده‌سازی"
     message = (
@@ -568,14 +565,29 @@ async def _notify_autopilot_start_countdown(bot: Bot, *, game_id: int, report: d
         f"🔢 شماره‌خوان: <b>{mode_label}</b>\n"
         "🃏 کارت‌های خود را آماده کنید. شروع قطعی پس از تأیید سیستم اعلام می‌شود."
     )
-    sent = await send_to_game_topic(
-        bot, game_topic_id=topic, text=message, parse_mode="HTML",
-        reply_markup=navigation_keyboard(game_topic_id=topic, show_live=True),
-        disable_notification=False,
-    )
-    if sent:
-        set_meta_marker(marker_key, schedule_key)
-    return bool(sent)
+    # Two independent acknowledgments: one message in the game's own thread,
+    # one in public announcements. A failure in one never duplicates the other.
+    delivered = True
+    for destination in ("game", "announce"):
+        marker_key = f"autopilot_countdown_notice:{int(game_id)}:{destination}"
+        if get_meta_marker(marker_key, "") == schedule_key:
+            continue
+        markup = navigation_keyboard(game_topic_id=topic, show_live=True)
+        if destination == "game":
+            sent = await send_to_game_topic(
+                bot, game_topic_id=topic, text=message, parse_mode="HTML",
+                reply_markup=markup, disable_notification=False,
+            )
+        else:
+            sent = await send_to_user_topic(
+                bot, name="announce", text=message, parse_mode="HTML",
+                reply_markup=markup, disable_notification=True,
+            )
+        if sent:
+            set_meta_marker(marker_key, schedule_key)
+        else:
+            delivered = False
+    return delivered
 
 
 async def _send_game_started_to_lane(bot: Bot, *, game_id: int, report: dict, event: dict | None = None) -> bool:
