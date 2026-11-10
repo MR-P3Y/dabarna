@@ -7146,6 +7146,33 @@ function renderSuperCryptoAddresses(payload) {
       ? "آدرس فعال نسخه‌بندی‌شده در دیتابیس آزمایشی؛ انتشار عملیاتی هنوز مجاز نیست."
       : "آدرس فعال از تنظیمات سرور خوانده شده و تا هماهنگی اسکنر تغییر نمی‌کند.";
     card.append(title, address, hint, requestBtn);
+    if (payload?.production_rotation_enabled && network.requires_bootstrap) {
+      const prep = document.createElement("button");
+      prep.type = "button";
+      prep.className = "small-btn";
+      prep.textContent = "آماده‌سازی نسخه آدرس بدون تغییر مقصد";
+      prep.disabled = Boolean(payload.runtime_enabled);
+      prep.addEventListener("click", async () => {
+        const net = String(network.network || "");
+        const address = String(network.address || "");
+        if (!window.confirm("آماده‌سازی آدرس " + net + "؟ واریز باید خاموش باشد.")) return;
+        prep.disabled = true;
+        try {
+          await apiFetch("/mini-api/admin/super/crypto-address-prepare-production", {
+            method: "POST",
+            body: {
+              network: net, expected_current_address: address,
+              confirmation: "PREPARE_PRODUCTION_CRYPTO_DESTINATION",
+            },
+          });
+          await refreshSuperCryptoSettings();
+        } catch (e) {
+          setLocalError("superCryptoProposalHint", e);
+          prep.disabled = false;
+        }
+      });
+      card.append(prep);
+    }
     root.append(card);
   });
 }
