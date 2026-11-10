@@ -14,6 +14,7 @@ from app.models.crypto import CryptoDepositRequest
 from app.services.crypto_chain_service import CryptoChainService
 from app.services.crypto_deposit_service import CryptoDepositService, OPEN_STATUSES
 from app.services.crypto_destination_state import rotation_enabled
+from app.services.crypto_scan_observation import record_scan_observation
 from app.services.crypto_late_transfer_review import (
     HISTORICAL_STATUSES, record_unmatched_historical_transfer,
 )
@@ -61,7 +62,9 @@ class CryptoDepositWorker:
             if not destinations:
                 continue
             for address in destinations:
+                gaps_before = stats.get("historical_gaps", 0)
                 since = CryptoDepositWorker._network_scan_since(network, destination_address=address, coverage_stats=stats)
+                historical_gap = stats.get("historical_gaps", 0) > gaps_before
                 try:
                     transfers = CryptoChainService.list_incoming(
                         network=network, since=since, destination_address=address
@@ -69,8 +72,12 @@ class CryptoDepositWorker:
                 except Exception as exc:
                     log.warning("crypto chain scan failed: network=%s address_hash=%s error=%s",
                                 network, hashlib.sha256(address.encode()).hexdigest()[:12], exc)
+                    CryptoDepositWorker._record_scan(network, address, since,
+                        pages_complete=False, processing_complete=False,
+                        historical_gap=historical_gap, transfer_count=0)
                     continue
                 stats["transfers"] += len(transfers)
+                processing_complete = True
                 for transfer in transfers:
                     with SessionLocal() as db:
                         try:
@@ -89,6 +96,7 @@ class CryptoDepositWorker:
                             elif invoice.status == "NEEDS_REVIEW":
                                 stats["review"] += 1
                         except Exception as exc:
+                            processing_complete = False
                             db.rollback()
                             log.exception(
                                 "crypto transfer processing failed: network=%s tx_hash=%s error=%s",
@@ -96,6 +104,11 @@ class CryptoDepositWorker:
                                 transfer.tx_hash,
                                 exc,
                             )
+                CryptoDepositWorker._record_scan(
+                    network, address, since,
+                    pages_complete=True, processing_complete=processing_complete,
+                    historical_gap=historical_gap, transfer_count=len(transfers),
+                )
 
         with SessionLocal() as db:
             try:
@@ -105,6 +118,33 @@ class CryptoDepositWorker:
                 db.rollback()
                 log.exception("crypto invoice expiration failed")
         return stats
+
+    @staticmethod
+    def _record_scan(
+        network: str, address: str, since: datetime, *,
+        pages_complete: bool, processing_complete: bool,
+        historical_gap: bool, transfer_count: int,
+    ) -> None:
+        if not rotation_enabled():
+            return
+        try:
+            with SessionLocal() as db:
+                record_scan_observation(
+                    db, network=network, address=address, since=since,
+                    pages_complete=pages_complete,
+                    processing_complete=processing_complete,
+                    historical_gap=historical_gap,
+                    transfer_count=transfer_count,
+                )
+                db.commit()
+        except Exception:
+            # Never make a monitoring failure a reason to skip processing a
+            # different deposit address. Lack of an observation blocks any
+            # future claim that historical coverage has been verified.
+            log.exception(
+                "crypto scan observation persistence failed: network=%s address_hash=%s",
+                network, hashlib.sha256(address.encode()).hexdigest()[:12],
+            )
 
     @staticmethod
     def _network_open_destinations(network: str) -> list[str]:
