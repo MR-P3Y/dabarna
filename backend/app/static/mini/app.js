@@ -7059,6 +7059,53 @@ async function refreshSuperCryptoProposals() {
       });
       box.append(activate);
     }
+    if (payload.production_activation_supported === true &&
+        Number.isInteger(item.expected_version) && item.expected_current_address) {
+      const liveButton = document.createElement("button");
+      liveButton.type = "button";
+      liveButton.className = "small-btn danger";
+      liveButton.textContent = "فعال‌سازی واقعی آدرس جدید";
+      liveButton.disabled = Boolean(state.admin.cryptoSettings?.runtime_enabled);
+      liveButton.addEventListener("click", async () => {
+        const network = String(item.network || "");
+        const previous = String(item.expected_current_address || "");
+        const proposed = String(item.address || "");
+        const report = await apiFetch(
+          "/mini-api/admin/super/crypto-address-readiness?network=" +
+          encodeURIComponent(network)
+        );
+        if (["open_invoices", "recent_closed_invoices", "needs_manual_review",
+             "historical_invoices"].some(key => Number(report[key] || 0) > 0)) {
+          setHint("superCryptoProposalHint",
+            "تغییر مسدود است: فاکتور قدیمی یا باز روی آدرس فعلی وجود دارد.");
+          return;
+        }
+        if (!window.confirm("تغییر واقعی مقصد واریز " + network +
+          " از " + previous + " به " + proposed + "؟ واریز باید خاموش باشد.")) return;
+        if (window.prompt("عبارت ACTIVATE " + network + " را وارد کنید:") !==
+            "ACTIVATE " + network) return;
+        liveButton.disabled = true;
+        try {
+          await apiFetch("/mini-api/admin/super/crypto-address-activate-production", {
+            method: "POST",
+            body: {
+              network,
+              expected_version: Number(item.expected_version),
+              expected_current_address: previous,
+              proposed_address: proposed,
+              confirmation: "ACTIVATE_PRODUCTION_CRYPTO_DESTINATION",
+            },
+          });
+          await refreshSuperCryptoSettings();
+          setHint("superCryptoProposalHint",
+            "آدرس تغییر کرد و واریز همچنان غیرفعال مانده است.");
+        } catch (e) {
+          setLocalError("superCryptoProposalHint", e);
+          liveButton.disabled = false;
+        }
+      });
+      box.append(liveButton);
+    }
     root.append(box);
   });
 }
