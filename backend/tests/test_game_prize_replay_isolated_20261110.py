@@ -1,6 +1,12 @@
 """Wallet award idempotency regression with only disposable SQLite."""
 import unittest
-from sqlalchemy import create_engine, select, func
+from sqlalchemy import create_engine, select, func, BigInteger
+from sqlalchemy.ext.compiler import compiles
+from app.models.user import User
+
+@compiles(BigInteger, 'sqlite')
+def big_integer_as_integer_for_test(element, compiler, **kw):
+    return 'INTEGER'
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from app.core.db import Base
@@ -11,9 +17,9 @@ from app.services.wallet_service import WalletService
 class AwardReplayIsolatedTests(unittest.TestCase):
     def setUp(self):
         self.engine = create_engine("sqlite+pysqlite:///:memory:", future=True)
-        Base.metadata.create_all(self.engine, tables=[Wallet.__table__, WalletTx.__table__])
+        Base.metadata.create_all(self.engine, tables=[User.__table__, Wallet.__table__, WalletTx.__table__])
         with Session(self.engine) as db:
-            db.add_all([Wallet(user_id=6, balance=100), Wallet(user_id=8, balance=100)])
+            db.add_all([User(id=6, tg_user_id=60006), User(id=8, tg_user_id=80008), Wallet(id=6, user_id=6, balance=100), Wallet(id=8, user_id=8, balance=100)])
             db.commit()
 
     def tearDown(self):
