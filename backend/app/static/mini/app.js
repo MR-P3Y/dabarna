@@ -5537,22 +5537,67 @@ function jumpToAdminSectionV2(id) {
   surface.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
+
+function showSuperAdminPanelV13(panelId, options = {}) {
+  if (!state.admin?.canManageSuperSettings) return false;
+  const root = getEl("superAdminSection");
+  if (!root) return false;
+  const tabs = Array.from(root.querySelectorAll("[data-super-panel-tab]"));
+  const panels = Array.from(root.querySelectorAll("[data-super-panel]"));
+  if (!panels.some((panel) => panel.id === panelId)) return false;
+  root.open = true;
+  for (const panel of panels) panel.hidden = panel.id !== panelId;
+  let selected = null;
+  for (const tab of tabs) {
+    const active = tab.getAttribute("data-super-panel-tab") === panelId;
+    tab.setAttribute("aria-selected", String(active));
+    tab.tabIndex = active ? 0 : -1;
+    if (active) selected = tab;
+  }
+  if (options.focusTab && selected) selected.focus();
+  return true;
+}
+
 function wireAdminQuickNavigationV2() {
   document.querySelectorAll("[data-admin-jump]").forEach((button) => {
     button.addEventListener("click", () => {
       jumpToAdminSectionV2(button.getAttribute("data-admin-jump") || "");
     });
   });
+  document.querySelectorAll("[data-super-panel-tab]").forEach((tab) => {
+    tab.addEventListener("click", () => {
+      showSuperAdminPanelV13(tab.getAttribute("data-super-panel-tab") || "");
+    });
+    tab.addEventListener("keydown", (event) => {
+      if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"].includes(event.key)) return;
+      const tabs = Array.from(document.querySelectorAll("[data-super-panel-tab]"));
+      const index = tabs.indexOf(tab);
+      if (index < 0) return;
+      event.preventDefault();
+      let next = index;
+      if (event.key === "Home") next = 0;
+      else if (event.key === "End") next = tabs.length - 1;
+      else next = (index + ((event.key === "ArrowLeft" || event.key === "ArrowDown") ? 1 : -1) + tabs.length) % tabs.length;
+      showSuperAdminPanelV13(tabs[next].getAttribute("data-super-panel-tab") || "", { focusTab: true });
+    });
+  });
+  document.querySelectorAll("[data-super-open]").forEach((button) => {
+    button.addEventListener("click", () => {
+      showSuperAdminPanelV13(button.getAttribute("data-super-open") || "");
+    });
+  });
   document.querySelectorAll("[data-super-target]").forEach((button) => {
     button.addEventListener("click", () => {
-      if (!state.admin.canManageSuperSettings) return;
+      if (!state.admin?.canManageSuperSettings) return;
       const id = button.getAttribute("data-super-target") || "";
       if (!["superCryptoWalletSection", "superBankCardsSection", "superAdminFilterInput"].includes(id)) return;
       const target = getEl(id);
       if (!target) return;
+      const panel = target.closest("[data-super-panel]");
+      if (panel) showSuperAdminPanelV13(panel.id);
       if (target.matches("details")) target.open = true;
-      const parent = target.closest("details");
-      if (parent) parent.open = true;
+      const innerDetails = target.closest("details");
+      if (innerDetails) innerDetails.open = true;
       target.scrollIntoView({ behavior: "smooth", block: "start" });
       if (id === "superAdminFilterInput") target.focus();
     });

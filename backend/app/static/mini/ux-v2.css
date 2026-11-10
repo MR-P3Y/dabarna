@@ -947,3 +947,46 @@ html[data-theme="light"] .admin-ops-dashboard-v11 {
   .superadmin-tools-nav { grid-template-columns: 1fr 1fr; }
   .superadmin-tools-nav button { min-height: 52px; }
 }
+
+
+/* Superadmin v1.3: five categorized workspaces. Existing controls and RBAC stay unchanged. */
+.superadmin-workspace-v13 { gap: 14px; min-width: 0; }
+.superadmin-workspace-head-v13 { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.superadmin-scope-note { padding: 7px 11px; border: 1px solid var(--ux-border); border-radius: 999px; font-size: 11px; color: var(--muted); }
+.superadmin-category-layout { display: grid; grid-template-columns: minmax(165px, 218px) minmax(0, 1fr); gap: 14px; align-items: start; min-width: 0; }
+.superadmin-category-nav { display: flex; flex-direction: column; gap: 7px; position: sticky; top: 12px; min-width: 0; }
+.superadmin-category-tab { display: flex; align-items: center; gap: 11px; width: 100%; min-height: 64px; padding: 10px 12px; border-radius: 13px; border: 1px solid var(--ux-border); background: var(--ux-raised); color: var(--text); font: inherit; text-align: right; cursor: pointer; }
+.superadmin-category-tab > span:first-child { display: grid; place-items: center; flex: 0 0 30px; height: 30px; border-radius: 9px; background: rgba(87,188,238,.12); font-weight: 900; }
+.superadmin-category-tab > span:last-child { display: flex; flex-direction: column; gap: 2px; font-size: 12px; font-weight: 850; }
+.superadmin-category-tab small { font-weight: 500; font-size: 10px; color: var(--muted); }
+.superadmin-category-tab[aria-selected="true"] { border-color: var(--accent); background: rgba(87,188,238,.10); box-shadow: inset 3px 0 0 var(--accent); }
+.superadmin-category-tab:hover, .superadmin-quick-card:hover { border-color: var(--accent); }
+.superadmin-category-tab:focus-visible, .superadmin-quick-card:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.superadmin-category-panels { min-width: 0; }
+.superadmin-panel-v13 { background: var(--ux-raised); border: 1px solid var(--ux-border); border-radius: 15px; padding: clamp(12px, 2vw, 20px); min-width: 0; }
+.superadmin-panel-v13[hidden] { display: none !important; }
+.superadmin-panel-head { margin-bottom: 18px; padding-bottom: 12px; border-bottom: 1px solid var(--ux-border); }
+.superadmin-panel-head h5 { margin: 0 0 4px; font-size: 16px; color: var(--text); }
+.superadmin-panel-head p { margin: 0; font-size: 12px; line-height: 1.85; color: var(--muted); }
+.superadmin-panel-subtitle { font-size: 13px; margin: 18px 0 8px; color: var(--text); }
+.superadmin-panel-v13 > .super-crypto-control { margin-top: 8px; }
+.superadmin-panel-v13 > .super-finance-editor { margin-top: 10px; }
+.superadmin-quick-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; }
+.superadmin-quick-card { display: flex; flex-direction: column; align-items: flex-start; gap: 9px; text-align: right; min-height: 105px; padding: 14px; border-radius: 13px; border: 1px solid var(--ux-border); background: var(--ux-card); color: var(--text); font: inherit; cursor: pointer; }
+.superadmin-quick-card strong { font-size: 13px; }
+.superadmin-quick-card span { font-size: 11px; line-height: 1.8; color: var(--muted); }
+.superadmin-overview-notice { margin-top: 14px; padding: 12px; background: rgba(87,188,238,.08); border: 1px solid var(--ux-border); border-radius: 12px; color: var(--muted); font-size: 11px; line-height: 1.8; }
+@media (max-width: 780px) {
+  .superadmin-category-layout { grid-template-columns: 1fr; gap: 12px; }
+  .superadmin-category-nav { position: static; flex-direction: row; overflow-x: auto; padding-bottom: 5px; scrollbar-width: thin; }
+  .superadmin-category-tab { flex: 0 0 152px; min-height: 61px; padding: 9px; }
+  .superadmin-category-tab[aria-selected="true"] { box-shadow: inset 0 -3px 0 var(--accent); }
+}
+@media (max-width: 440px) {
+  .superadmin-quick-grid { grid-template-columns: 1fr; }
+  .superadmin-quick-card { min-height: 76px; }
+  .superadmin-scope-note { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .superadmin-category-tab, .superadmin-quick-card { scroll-behavior: auto; transition: none; }
+}
