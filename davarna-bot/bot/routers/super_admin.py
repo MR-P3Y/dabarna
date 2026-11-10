@@ -981,13 +981,13 @@ async def _show_crypto_wallets(
         item = by_network.get(network) or {}
         address = str(item.get("address") or "")
         version = item.get("destination_version")
-        lines.append(f"<b>{network}</b> (نسخه: {h(str(version or '-'))})\\n<code>{h(address or 'هنوز آدرسی ثبت نشده')}</code>")
+        lines.append(f"<b>{network}</b> (نسخه: {h(str(version or '-'))})\n<code>{h(address or 'هنوز آدرسی ثبت نشده')}</code>")
         pending = next((x for x in proposals if x.get("network") == network), None)
         if pending:
-            lines.append(f"⏳ درخواست تغییر در انتظار تأیید:\\n<code>{h(str(pending.get('address') or ''))}</code>")
+            lines.append(f"⏳ درخواست تغییر در انتظار تأیید:\n<code>{h(str(pending.get('address') or ''))}</code>")
     await safe_edit_or_send(
         cq.message,
-        panel("👑 مدیریت آدرس‌های TON / USDT-TRC20", "\\n\\n".join(lines)),
+        panel("👑 مدیریت آدرس‌های TON / USDT-TRC20", "\n\n".join(lines)),
         reply_markup=super_admin_crypto_wallets_kb(
             networks=items, proposals=proposals,
             runtime_enabled=bool(out.get("runtime_enabled")),
@@ -1039,9 +1039,9 @@ async def super_crypto_wallet_edit_start(
         cq.message,
         panel(
             "👑 افزودن/تغییر آدرس " + network,
-            "آدرس عمومی دریافت را ارسال کن.\\n"
-            "آدرس فعلی: <code>" + h(address or "ثبت نشده") + "</code>\\n"
-            "پس از ثبت درخواست، تغییر واقعی نیاز به تأیید جداگانه دارد.\\n"
+            "آدرس عمومی دریافت را ارسال کن.\n"
+            "آدرس فعلی: <code>" + h(address or "ثبت نشده") + "</code>\n"
+            "پس از ثبت درخواست، تغییر واقعی نیاز به تأیید جداگانه دارد.\n"
             "⚠️ کلید خصوصی یا عبارت بازیابی ارسال نکن.",
         ),
         reply_markup=super_admin_cancel_kb(),
@@ -1071,8 +1071,8 @@ async def super_crypto_wallet_address_received(
     await m.answer(
         panel(
             "👑 تأیید آدرس دریافت",
-            f"شبکه: <b>{h(network)}</b>\\n"
-            f"آدرس جدید: <code>{h(address)}</code>\\n\\n"
+            f"شبکه: <b>{h(network)}</b>\n"
+            f"آدرس جدید: <code>{h(address)}</code>\n\n"
             "با دکمه زیر فقط درخواست ثبت می‌شود. "
             "برای آدرس موجود، فعال‌سازی جداگانه لازم است.",
         ),
@@ -1172,8 +1172,8 @@ async def super_crypto_wallet_activate_start(
         cq.message,
         panel(
             "⚠️ تأیید واقعی تغییر مقصد واریز",
-            f"شبکه: <b>{h(network)}</b>\\n"
-            f"آدرس جدید: <code>{h(str(proposal.get('address') or ''))}</code>\\n"
+            f"شبکه: <b>{h(network)}</b>\n"
+            f"آدرس جدید: <code>{h(str(proposal.get('address') or ''))}</code>\n"
             "پرداخت باید خاموش بماند. برای تأیید نهایی بنویس: "
             f"<code>ACTIVATE {h(network)}</code>"
         ),
