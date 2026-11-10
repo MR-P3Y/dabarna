@@ -132,7 +132,7 @@ def main():
         parser.error("choose dry-run or test-notification")
     if os.geteuid()!=0:raise SystemExit("BLOCKER: root required")
     if args.test_notification:
-        ok=send_topic("✅ آزمون کانال پایش دبرنا\\nاتصال اعلان مدیریت فعال شد. این پیام آزمایشی است.")
+        ok=send_topic("✅ آزمون کانال پایش دبرنا\nاتصال اعلان مدیریت فعال شد. این پیام آزمایشی است.")
         print("TELEGRAM_TEST_DELIVERED" if ok else "TELEGRAM_TEST_FAILED")
         return 0 if ok else 2
     if not RUNNER.is_file():raise SystemExit("BLOCKER: audit runner not installed")
