@@ -16,6 +16,7 @@ from app.models.crypto import CryptoDepositRequest
 from app.models.settings import AppSetting
 from app.models.wallet import WalletTx
 from app.services.crypto_chain_service import ChainTransfer
+from app.services.crypto_destination_state import rotation_enabled, lock_destination_state
 from app.services.crypto_preflight_service import CryptoPreflightService
 from app.services.wallet_service import WalletService
 
@@ -74,6 +75,17 @@ class CryptoDepositService:
     @staticmethod
     def runtime_status(db: Session) -> dict[str, object]:
         options = CryptoDepositService.configured_options()
+        if rotation_enabled():
+            from app.models.settings import AppSetting
+            from app.services.crypto_destination_state import state_key, lock_destination_state_from_record
+            mapped = []
+            for item in options:
+                row = db.get(AppSetting, state_key(str(item["network"])))
+                if row is None or not isinstance(row.v_json, dict):
+                    raise HTTPException(status_code=503, detail="رکورد آدرس شبکه آماده نیست.")
+                state = lock_destination_state_from_record(str(item["network"]), row.v_json)
+                mapped.append({**item, "address": str(state["address"]), "destination_version": state["version"]})
+            options = mapped
         master_enabled = bool(cfg.CRYPTO_PAYMENTS_ENABLED)
         runtime_enabled = CryptoDepositService.runtime_enabled(db)
         return {
@@ -120,6 +132,11 @@ class CryptoDepositService:
             requested_toman=amount_toman,
         )
         spec = CryptoDepositService._network_spec(db, network)
+        if rotation_enabled():
+            # Hold row-level lock until outer invoice transaction commits.
+            # Both invoice issuance and candidate rotation must lock this row.
+            locked = lock_destination_state(db, str(spec["network"]))
+            spec = {**spec, "address": str(locked["address"])}
         active = db.execute(
             select(CryptoDepositRequest)
             .where(
@@ -518,6 +535,12 @@ class CryptoDepositService:
             )
         ).scalar_one_or_none()
         if claimed:
+            if str(claimed.destination_address) != str(transfer.destination_address):
+                return None
+            if rotation_enabled() and transfer.network == "TON" and (not claimed.memo or claimed.memo != transfer.memo):
+                # Versioned destinations require exact invoice memo binding.
+                # Never infer a TON invoice from an amount-only transfer.
+                return None
             if not CryptoDepositService._transfer_is_in_window(claimed, transfer):
                 return None
             if claimed.memo and claimed.memo != transfer.memo:
@@ -537,10 +560,16 @@ class CryptoDepositService:
             valid_memo_matches = [
                 invoice
                 for invoice in memo_candidates
-                if CryptoDepositService._transfer_is_in_window(invoice, transfer)
+                if str(invoice.destination_address) == str(transfer.destination_address)
+                and CryptoDepositService._transfer_is_in_window(invoice, transfer)
             ]
             if len(valid_memo_matches) == 1:
                 return valid_memo_matches[0]
+
+        # In the experimental wallet-rotation path TON payment ownership
+        # requires an exact invoice memo. No amount-only fallback is allowed.
+        if rotation_enabled() and transfer.network == "TON":
+            return None
 
         candidates = db.execute(
             select(CryptoDepositRequest)
@@ -554,6 +583,8 @@ class CryptoDepositService:
         ).scalars().all()
         valid: list[CryptoDepositRequest] = []
         for invoice in candidates:
+            if str(invoice.destination_address) != str(transfer.destination_address):
+                continue
             if not CryptoDepositService._transfer_is_in_window(invoice, transfer):
                 continue
             if invoice.memo and transfer.memo and invoice.memo != transfer.memo:

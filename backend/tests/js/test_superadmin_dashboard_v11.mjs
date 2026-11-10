@@ -16,8 +16,8 @@ assert.match(html, /id="adminOpsStatus".*data-state="loading"/);
 assert.match(html, /id="adminOpsUpdatedAt"/);
 assert.match(html, /id="adminOpsDashboard"[^>]*aria-busy="true"/);
 assert.match(html, /id="adminOpsSuperJump" class="hidden"/);
-assert.match(html, /app\.js\?v=20261109-superadmin-dashboard-v11/);
-assert.match(html, /ux-v2\.css\?v=20261109-superadmin-dashboard-v11/);
+assert.match(html, /app\.js\?v=20261110-superadmin-command-v12/);
+assert.match(html, /ux-v2\.css\?v=20261110-superadmin-command-v12/);
 assert.match(source, /id === "superAdminSection" && !state\.admin\.canManageSuperSettings/);
 assert.match(source, /document\.visibilityState === "hidden"/);
 assert.match(source, /ADMIN_OPS_POLL_INTERVAL_MS = 45_000/);
@@ -45,6 +45,7 @@ const payload = {
   counts: { pending_deposits: 2, pending_withdraws: 1, approved_withdraws: 3, crypto_needs_review: 0, risk_events_24h: 1 },
   system: { services: [{ key: "backend", title: "<img src=x onerror=alert(1)>", status: "OK", ok: true }] },
   active_games: [{ id: 101, status: "RUNNING", called_count: 4, players_count: 2, cards_count: 4, prize_pool: 10000 }],
+  active_games_total: 7,
 };
 const context = {
   state: { admin: { enabled: true } },
@@ -65,7 +66,15 @@ await vm.runInContext("refreshAdminOpsDashboard()", context);
 assert.equal(status.dataset.state, "fresh");
 assert.equal(dashboard.attributes["aria-busy"], "false");
 assert.match(dashboard.innerHTML, /بازی فعال/);
+assert.match(dashboard.innerHTML, /<strong>7<\/strong>/, "total active games must not be capped by preview limit");
 assert.match(dashboard.innerHTML, /برداشت در صف/);
+assert.match(dashboard.innerHTML, /data-ops-target="adminWithdrawsList"/);
+assert.match(dashboard.innerHTML, /data-ops-target="adminDepositsList"/);
+assert.match(dashboard.innerHTML, /data-ops-service="0"/);
+assert.match(html, /id="superCryptoProposalEditor"/);
+assert.match(html, /id="adminOpsServiceDetail"/);
+assert.match(source, /REQUEST_ADDRESS_CHANGE/);
+assert.match(source, /superCryptoProposedAddress/);
 assert.match(dashboard.innerHTML, /&lt;img src=x onerror=alert\(1\)&gt;/);
 assert.doesNotMatch(dashboard.innerHTML, /<img src=x onerror/);
 
@@ -99,4 +108,4 @@ context.apiFetch = async () => payload;
 await vm.runInContext("refreshAdminOpsDashboard()", context);
 assert.equal(status.dataset.state, "fresh", "retry recovers after an error");
 
-console.log("PASS: superadmin v1.1 dashboard contract, read-only render, XSS escaping, failure/retry and cache revision");
+console.log("PASS: superadmin v1.2 dashboard contract, read-only render, XSS escaping, failure/retry and cache revision");
