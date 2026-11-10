@@ -9,10 +9,12 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.add_column(
-        "withdraw_requests",
-        sa.Column("rejection_reason", sa.String(length=500), nullable=True),
-    )
+    bind = op.get_bind()
+    if "rejection_reason" not in {c["name"] for c in sa.inspect(bind).get_columns("withdraw_requests")}:
+        op.add_column(
+            "withdraw_requests",
+            sa.Column("rejection_reason", sa.String(length=500), nullable=True),
+        )
 
 
 def downgrade() -> None:
