@@ -15,7 +15,9 @@ git cat-file -e "$REF^{commit}" || { echo "BLOCKER: ref unavailable" >&2; exit 2
 WORK=$(mktemp -d /tmp/davarna-v12-test.XXXXXX)
 trap 'rm -rf -- "$WORK"' EXIT
 echo "===== ARCHIVE PINNED SOURCE ====="
-git archive "$REF" -- backend | tar -x -C "$WORK"
+git archive "$REF" -- backend davarna-bot | tar -x -C "$WORK"
+echo "===== BOT SOURCE SYNTAX ====="
+python3 -m compileall -q "$WORK/davarna-bot/bot"
 echo "===== NODE SYNTAX ====="
 node --check "$WORK/backend/app/static/mini/app.js"
 echo "===== NODE V1.2 CONTRACT ====="
