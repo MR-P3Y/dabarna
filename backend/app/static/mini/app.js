@@ -1850,8 +1850,7 @@ async function runManualRefresh(buttonId, taskFn) {
 async function exchangeSession() {
   const initData = telegramInitData();
   if (!initData) {
-    setBadge("error", "initData یافت نشد");
-    return;
+    throw new Error("اطلاعات ورود تلگرام دریافت نشد. مینی‌اپ را از دکمه «باز کردن برنامه» در ربات رسمی اجرا کنید؛ باز کردن لینک در مرورگر یا لینک معمولی تلگرام احراز هویت نمی‌کند.");
   }
 
   setBadge("pending", "در حال احراز هویت...");
@@ -9721,7 +9720,7 @@ async function boot() {
       setBadge("success", "متصل شد");
     } else {
       await exchangeSession();
-      authOk = true;
+      authOk = Boolean(state.authReady && state.token);
     }
   } catch (err) {
     clearMiniSession();
