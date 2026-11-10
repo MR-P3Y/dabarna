@@ -121,7 +121,7 @@ if [[ "$READY" != 1 ]]; then
   die "preview backend health not ready"
 fi
 
-docker exec "$API_CONTAINER" python - <<'PY'
+docker exec -i "$API_CONTAINER" python - <<'PY'
 from app.core import config as c
 from sqlalchemy.engine import make_url
 db=make_url(c.DATABASE_URL)
