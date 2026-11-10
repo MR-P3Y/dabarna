@@ -977,7 +977,7 @@ async def super_crypto_destination_overview(
             continue
         net = h(str(item.get("network") or "-"))
         address = h(str(item.get("address") or "تنظیم نشده"))
-        lines.append(f"<b>{net}</b>\\n<code>{address}</code>")
+        lines.append(f"<b>{net}</b>\n<code>{address}</code>")
     if len(lines) == 1:
         lines.append("هیچ شبکه‌ای پیکربندی نشده است.")
     lines.append(
@@ -986,7 +986,7 @@ async def super_crypto_destination_overview(
         "ربات اجازه تغییر مستقیم مقصد دریافت را ندارد."
     )
     await safe_edit_or_send(
-        cq.message, panel("👑 آدرس‌های دریافت TON/TRON", "\\n\\n".join(lines)),
+        cq.message, panel("👑 آدرس‌های دریافت TON/TRON", "\n\n".join(lines)),
         reply_markup=super_admin_crypto_settings_kb(
             runtime_enabled=bool(out.get("runtime_enabled")),
             can_enable=bool(out.get("master_enabled") and out.get("configured")),
