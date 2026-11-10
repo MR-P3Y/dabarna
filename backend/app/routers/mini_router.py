@@ -1611,6 +1611,19 @@ def list_games(
     lane_configs = {
         level: db.get(GameAutopilotConfig, level) for level in active_levels
     } if cfg.GAME_AUTOPILOT_RUNTIME_ENABLED else {}
+    # Match the worker's real minimum-distinct-player gate. A countdown must
+    # not promise a start while too few players remain.
+    countdown_game_ids = [
+        int(g.id) for g in rows
+        if str(g.status) == "LOBBY"
+        and str(g.execution_source or "ADMIN").upper() == "SYSTEM"
+        and g.scheduled_start_at is not None
+    ]
+    player_counts = dict(db.execute(
+        select(GameCard.game_id, func.count(func.distinct(GameCard.user_id)))
+        .where(GameCard.game_id.in_(countdown_game_ids))
+        .group_by(GameCard.game_id)
+    ).all()) if countdown_game_ids and lane_configs else {}
     for game, item in zip(rows, items):
         config = lane_configs.get(str(game.game_level or "").upper())
         if (
@@ -1620,6 +1633,7 @@ def list_games(
             and str(game.status) == "LOBBY"
             and str(game.execution_source or "ADMIN").upper() == "SYSTEM"
             and game.scheduled_start_at is not None
+            and int(player_counts.get(int(game.id), 0)) >= max(2, int(config.min_unique_players or 2))
         ):
             item.countdown_enabled = True
             item.countdown_seconds = max(5, int(config.countdown_seconds or 30))
