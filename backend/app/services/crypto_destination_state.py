@@ -129,7 +129,10 @@ def lock_destination_state_from_record(network: str, raw: dict) -> dict[str, obj
 def seed_destination_state(
     db: Session, *, network: str, address: str,
 ) -> dict[str, object]:
-    """Explicit disposable-DB preparation only, never an invoice side effect."""
+    """Explicit gated preparation (disposable or approved frozen production).
+
+    Never create the version row as an implicit invoice side effect.
+    """
     if not rotation_enabled():
         raise HTTPException(status_code=409, detail="آماده‌سازی فقط در محیط آزمایشی مجاز است.")
     record = {"network": network, "address": validate_crypto_destination(network, address), "version": 1}
