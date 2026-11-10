@@ -537,7 +537,7 @@ class CryptoDepositService:
         if claimed:
             if str(claimed.destination_address) != str(transfer.destination_address):
                 return None
-            if rotation_enabled() and transfer.network == "TON" and claimed.memo != transfer.memo:
+            if rotation_enabled() and transfer.network == "TON" and (not claimed.memo or claimed.memo != transfer.memo):
                 # Versioned destinations require exact invoice memo binding.
                 # Never infer a TON invoice from an amount-only transfer.
                 return None
