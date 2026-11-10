@@ -5752,6 +5752,126 @@ async function refreshAdminBootstrap() {
   }
 }
 
+// System-generated game clocks use server-authored schedule values. The
+// client never starts/ends games or calls numbers when the timer reaches zero.
+let systemGameClockTicker = null;
+let systemGameClockLastSync = 0;
+let systemGameClockRows = [];
+let systemGameClockRuntimeReady = false;
+let systemGameDrawWorkerReady = false;
+let systemGameClockOffsetMs = 0;
+
+function systemGameClockView(game, now = Date.now() + systemGameClockOffsetMs) {
+  const status = String(game.status || "").toUpperCase();
+  const scheduled = parseApiDate(game.scheduled_start_at).getTime();
+  const interval = Math.max(0, Number(game.draw_interval_seconds || 0));
+  if (status === "RUNNING") {
+    if (!systemGameDrawWorkerReady) return { kind: "waiting", label: "شماره‌خوان سرور غیرفعال است", secs: null };
+    return { kind: "running", label: interval ? "در حال اعلام اعداد • هر " + toFaDigits(interval) + " ثانیه" : "بازی در حال اجرا", secs: null };
+  }
+  if (status !== "LOBBY") return { kind: "ended", label: "پایان یافته", secs: null };
+  if (!Number.isFinite(scheduled)) return { kind: "waiting", label: "در انتظار حداقل بازیکن", secs: null };
+  if (!systemGameClockRuntimeReady) return { kind: "waiting", label: "زمان‌بند خودکار غیرفعال است", secs: null };
+  const remaining = Math.max(0, Math.ceil((scheduled - now) / 1000));
+  return remaining > 0
+    ? { kind: remaining <= 10 ? "urgent" : "counting", label: "زمان تا شروع", secs: remaining }
+    : { kind: "pending", label: "زمان شروع رسیده • در انتظار تأیید سرور", secs: 0 };
+}
+
+function renderSystemGameClocks() {
+  const root = getEl("adminSystemGameClocks");
+  if (!root) return;
+  if (!systemGameClockRows.length) {
+    root.innerHTML = '<div class="empty">فعلاً بازی سیستمی فعالی وجود ندارد.</div>';
+    return;
+  }
+  root.innerHTML = systemGameClockRows.map((game) => {
+    const view = systemGameClockView(game);
+    const gid = Number(game.id || 0);
+    const total = Math.max(5, Number(game.countdown_seconds || 30));
+    const frac = view.secs == null ? 0 : Math.max(0, Math.min(100, view.secs / total * 100));
+    const digits = view.secs == null ? "—:—" :
+      toFaDigits(String(Math.floor(view.secs / 60)).padStart(2, "0") + ":" + String(view.secs % 60).padStart(2, "0"));
+    return '<div class="system-clock-card system-clock-' + view.kind + '">' +
+      '<div class="system-clock-card-head"><strong>' + safeText(autopilotLevelLabel(game.game_level)) + ' • بازی #' + safeText(toFaDigits(gid)) +
+      '</strong><span class="system-clock-status">' + safeText(view.label) + '</span></div>' +
+      '<div class="system-clock-digits" role="timer" aria-label="شمارش معکوس شروع">' + safeText(digits) + '</div>' +
+      '<div class="system-clock-track"><div class="system-clock-fill" style="width:' + frac.toFixed(1) + '%"></div></div>' +
+      '<div class="system-clock-foot"><span>قیمت کارت: ' + safeText(toman(game.card_price || 0)) + '</span>' +
+      '<span>' + (systemGameClockRuntimeReady ? "زمان‌بندی فعال" : "وضعیت زمان‌بند: غیرفعال یا نامشخص") + '</span></div></div>';
+  }).join("");
+}
+
+const autopilotCheckLabels = {
+  level_enabled: "فعال‌بودن سطح",
+  runtime_enabled: "فعال‌بودن زمان‌بند سیستم",
+  auto_draw_worker: "روشن‌بودن شماره‌خوان",
+  group_configured: "گروه تلگرام",
+  topic_configured: "تاپیک سطح",
+  system_user_valid: "حساب سیستمی معتبر",
+  card_price_valid: "قیمت کارت",
+  scheduler_auto: "ساخت خودکار",
+  start_auto: "شروع خودکار",
+  draw_auto: "اعلام اعداد خودکار",
+};
+
+function renderAutopilotReadiness(payload) {
+  const root = getEl("adminAutopilotReadiness");
+  if (!root) return;
+  const levels = Array.isArray(payload?.levels) ? payload.levels : [];
+  root.innerHTML = levels.map((item) => {
+    const checks = Object.entries(item.checks || {});
+    const missing = checks.filter(([, ok]) => !ok).map(([name]) => autopilotCheckLabels[name] || name);
+    const active = item.active_game_id
+      ? ' • بازی #' + safeText(toFaDigits(item.active_game_id)) + ' (' + safeText(statusLabel(item.active_game_status)) + ')' : '';
+    const blocked = item.blocked_by_manual_game ? " • بازی دستی این سطح را اشغال کرده است" : "";
+    return '<div class="system-clock-card">' +
+      '<strong>' + safeText(autopilotLevelLabel(item.level)) + '</strong>' +
+      '<div class="meta">' + (item.existing_system_game ? 'بازی سیستمی فعال؛ ساخت بازی بعدی پس از پایان این دور' : item.ready_to_generate ? 'آماده ساخت بازی' : 'نیازمند تنظیم یا منتظر آزادشدن سطح') +
+      active + blocked + '</div>' +
+      '<div class="meta">' + (missing.length ? 'موارد باقی‌مانده: ' + safeText(missing.join('، ')) : 'تمام کنترل‌های پایه تأیید شدند') +
+      '</div></div>';
+  }).join("") || '<div class="empty">اطلاعات آمادگی زمان‌بند موجود نیست.</div>';
+}
+
+async function refreshSystemGameClocks() {
+  if (!state.admin?.enabled) return;
+  const [games, runtime, settings, readiness] = await Promise.all([
+    apiFetch("/mini-api/admin/games?status=LOBBY,RUNNING&limit=200"),
+    apiFetch("/mini-api/admin/autopilot/runtime").catch(() => null),
+    apiFetch("/mini-api/admin/autopilot/config").catch(() => null),
+    apiFetch("/mini-api/admin/autopilot/readiness").catch(() => null),
+  ]);
+  renderAutopilotReadiness(readiness);
+  const countdownByLevel = Object.fromEntries(
+    (Array.isArray(settings?.items) ? settings.items : []).map((item) => [
+      String(item.level || "").toUpperCase(), Number(item.countdown_seconds || 30),
+    ]),
+  );
+  const serverTime = parseApiDate(games?.server_now).getTime();
+  if (Number.isFinite(serverTime)) systemGameClockOffsetMs = serverTime - Date.now();
+  systemGameClockRows = (Array.isArray(games?.items) ? games.items : [])
+    .filter((game) => String(game.execution_source || "").toUpperCase() === "SYSTEM")
+    .map((game) => ({
+      ...game,
+      countdown_seconds: countdownByLevel[String(game.game_level || "").toUpperCase()] || 30,
+    }));
+  systemGameClockRuntimeReady = Boolean(runtime?.runtime_enabled);
+  systemGameDrawWorkerReady = Boolean(runtime?.auto_draw_enabled);
+  systemGameClockLastSync = Date.now();
+  renderSystemGameClocks();
+  if (systemGameClockTicker == null) {
+    systemGameClockTicker = setInterval(() => {
+      if (document.hidden) return;
+      renderSystemGameClocks();
+      if (Date.now() - systemGameClockLastSync >= 15000) {
+        systemGameClockLastSync = Date.now();
+        refreshSystemGameClocks().catch(() => {});
+      }
+    }, 1000);
+  }
+}
+
 function renderAdminGames(payload) {
   const root = getEl("adminGamesList");
   if (!root) return;
@@ -7888,6 +8008,7 @@ async function refreshAdminPanel(options = {}) {
   await Promise.allSettled([
     ...(!silent ? [refreshAdminOpsDashboard()] : []),
     refreshAdminAutopilotConfig(),
+    refreshSystemGameClocks(),
     refreshAdminCreateOptions(),
     refreshAdminGames(),
     refreshAdminRiskAlerts(),
