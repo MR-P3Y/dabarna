@@ -113,3 +113,12 @@ Do NOT merge/deploy to Production until tests above pass and the user explicitly
 - `backfill_verified` is deliberately **always false**. Recent page completion is not evidence that all historical transfers were scanned or that a payment has been reconciled. The observation row is operational diagnostics, not a cursor suitable for historical catch-up.
 - Four isolated tests added to the V1.2 harness. They have not been run on NODE2 at this new head.
 - Remaining prerequisite: persisted historical paging checkpoints with verifiable coverage/repair, a trusted manual late-payment resolution workflow, and full integrated chain-to-ledger tests. Do not activate or deploy this wallet-rotation branch to Production.
+
+
+## 2026-11-10 historical review coverage + readiness visibility (UNRELEASED)
+- Experimental old-destination monitoring now includes REJECTED invoices alongside EXPIRED and CANCELLED, without allowing automatic credit for any of them.
+- Owner-only readiness diagnostics (experimental database only) include presence/time and success/failure of the latest per-destination scan observation. The report always sets `scan_coverage.backfill_verified=false`, even if a stored JSON payload misleadingly says otherwise.
+- Activation remains blocked regardless of a successful recent scan; the operational scan observation is not a chain history checkpoint.
+- Four isolated regression cases cover missing/tampered/incomplete observations and REJECTED coverage. The pinned isolated runner includes them.
+- Tests at this new source SHA have NOT run on NODE2; no merge, no Production release, no wallet address change.
+- Remaining: verified provider pagination and time-window backfill with durable checkpoints, complete historical mismatch/reconciliation workflow, safe audited activation and rollback UX in Mini App/Bot and comprehensive MySQL/network replay validation.
