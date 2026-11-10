@@ -63,6 +63,22 @@ with SessionLocal() as db:
   if actual_topic!=topic or str(conf.scheduler_mode)!="AUTO" or str(conf.start_mode)!="AUTO" or str(conf.draw_mode)!="AUTO":
    alert("CONFIG_DRIFT",lvl)
   matches=[g for g in active if str(g.game_level)==lvl or (g.game_level is None and int(g.tg_topic_id or 0)==topic)]
+  if enabled and not matches:
+   # Only flag missing system rounds after the configured repeat/cooldown and grace window.
+   # This avoids false alarms during the normal gap between two rounds.
+   latest=db.execute(select(Game).where(
+     Game.tg_group_id==int(group or 0),
+     Game.status=="ENDED",
+     ((Game.game_level==lvl) | ((Game.game_level.is_(None)) & (Game.tg_topic_id==topic)))
+   ).order_by(Game.ended_at.desc(),Game.id.desc()).limit(1)).scalars().first()
+   if latest is not None:
+    since=age_s(latest.ended_at or latest.created_at)
+    wait_s=max(int(conf.cooldown_seconds or 0),int(conf.repeat_interval_seconds or 0))
+    grace=max(120,5*int(cfg.GAME_AUTOPILOT_TICK_SECONDS))
+    if since is not None and since>wait_s+grace:
+     alert("MISSING_NEXT_ROUND",f"level={lvl} last_ended_id={latest.id} elapsed_s={since} configured_delay_s={wait_s}")
+   else:
+    alert("NO_ACTIVE_OR_ENDED_ROUND",f"level={lvl} enabled but no matching historical ENDED round")
   if len(matches)>1: alert("DUPLICATE_LANE",f"{lvl} games={[g.id for g in matches]}")
   for g in matches:
    if int(g.tg_topic_id or 0)!=topic or (group is not None and int(g.tg_group_id)!=int(group)):
