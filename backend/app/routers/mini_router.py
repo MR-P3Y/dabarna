@@ -5990,6 +5990,18 @@ def mini_super_crypto_address_initialize_production(
     if not production_rotation_enabled():
         raise HTTPException(status_code=409, detail="مدیریت آدرس‌های عملیاتی در سرور فعال نشده است.")
     enforce_write_rate_limit(int(ident.user_id))
+    # On a truly blank launch, the runtime toggle setting does not exist yet.
+    # Create an explicitly OFF lockable row only when NO old invoice and NO
+    # env-configured receiving address exists. Otherwise require the owner
+    # to freeze issuance using the existing toggle first.
+    if db.get(AppSetting, CRYPTO_RUNTIME_SETTING_KEY) is None:
+        if CryptoDepositService.configured_options():
+            raise HTTPException(status_code=409, detail="ابتدا پرداخت رمزارزی را از پنل مدیریت خاموش کنید.")
+        any_invoice = int(db.execute(select(func.count(CryptoDepositRequest.id))).scalar_one() or 0)
+        if any_invoice:
+            raise HTTPException(status_code=409, detail="سابقه فاکتور وجود دارد؛ ابتدا پرداخت را صریحاً خاموش کنید.")
+        db.add(AppSetting(k=CRYPTO_RUNTIME_SETTING_KEY, v_json=False))
+        db.flush()
     _lock_frozen_production_crypto_runtime(db)
     network = payload.network
     if (network == "TRON" and not cfg.CRYPTO_TRON_USDT_ENABLED
