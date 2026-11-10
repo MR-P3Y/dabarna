@@ -70,8 +70,8 @@ trap finish EXIT
 echo "===== PRIVATE PREVIEW REDIS (NO PERSISTENT DATA) ====="
 docker run -d --name "$REDIS_CONTAINER" --network "$NETWORK" \
   --restart no --memory 128m --memory-swap 128m \
-  --security-opt no-new-privileges --cap-drop ALL \
-  --tmpfs /data:rw,nosuid,size=64m \
+  --security-opt no-new-privileges \
+  --tmpfs /data:rw,nosuid,size=64m,mode=1777 \
   "$REDIS_IMAGE" redis-server --save '' --appendonly no >/dev/null
 STARTED_REDIS=1
 READY=0
@@ -79,7 +79,13 @@ for _ in $(seq 1 30); do
   if [[ "$(docker exec "$REDIS_CONTAINER" redis-cli ping 2>/dev/null || true)" == PONG ]]; then READY=1; break; fi
   sleep 1
 done
-[[ "$READY" == 1 ]] || die "preview Redis startup failed"
+if [[ "$READY" != 1 ]]; then
+  echo "===== PREVIEW REDIS ERROR LOGS ====="
+  docker logs --tail 80 "$REDIS_CONTAINER" 2>&1 || true
+  echo "===== PREVIEW REDIS STATE ====="
+  docker inspect -f '{{.State.Status}} exit={{.State.ExitCode}} error={{.State.Error}}' "$REDIS_CONTAINER" 2>&1 || true
+  die "preview Redis startup failed"
+fi
 
 echo "===== PRIVATE ZERO-KM BACKEND (NO BOT / NO PORTS) ====="
 docker run -d --name "$API_CONTAINER" --network "$NETWORK" \
