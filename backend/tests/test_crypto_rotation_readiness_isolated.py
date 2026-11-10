@@ -32,19 +32,20 @@ class _ReadOnlyDb:
 
 class RotationReadinessContracts(TestCase):
     def test_open_expired_and_review_blockers_reported_without_mutation(self):
-        db = _ReadOnlyDb([2, 1, 3])
+        db = _ReadOnlyDb([2, 1, 3, 12])
         report = assess_rotation(db, network="TRON", current_address="OLD", proposed_address="NEW")
         self.assertEqual(report["open_invoices"], 2)
         self.assertEqual(report["recent_closed_invoices"], 1)
         self.assertEqual(report["needs_manual_review"], 3)
+        self.assertEqual(report["historical_invoices"], 12)
         self.assertFalse(report["active_change_allowed"])
-        self.assertEqual(len(db.queries), 3)
+        self.assertEqual(len(db.queries), 4)
         self.assertTrue(all("crypto_deposit_requests" in x for x in db.queries))
         self.assertIn("destination_address", db.queries[0])
         self.assertIn("expires_at", db.queries[1])
 
     def test_candidate_cannot_equal_current(self):
-        db = _ReadOnlyDb([0, 0, 0])
+        db = _ReadOnlyDb([0, 0, 0, 0])
         report = assess_rotation(db, network="TON", current_address="OLD", proposed_address="OLD")
         self.assertTrue(report["candidate_matches_current"])
         self.assertFalse(report["active_change_allowed"])
