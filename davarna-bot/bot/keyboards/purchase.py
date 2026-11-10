@@ -1,4 +1,5 @@
 from aiogram.utils.keyboard import InlineKeyboardBuilder
+from bot.services.game_rules import rule_title
 
 QTY_CHOICES = (1, 2, 5, 10)
 
@@ -40,7 +41,7 @@ def games_list_kb(
         status = _fa_status(str(g.get("status") or ""))
 
         kb.button(
-            text=f"🎮 بازی #{gid} | 💳 {_fmt_int(price)} تومان | {status}",
+            text=f"🎮 #{gid} | {rule_title(g)} | {status} | {_fmt_int(price)} تومان",
             callback_data=f"buy:game:{gid}",
         )
 
