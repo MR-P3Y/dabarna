@@ -92,11 +92,14 @@ from pathlib import Path
 import hashlib
 import json
 from bot.services import notify_store
-from bot.services.user_topics import game_start_announcement_topic
 from bot.config import settings
 from bot.workers import notifier
-print("BOT_START_TOPIC_CONFIGURED:",settings.USER_TOPIC_GAME_START_ID is not None)
-print("BOT_START_ROUTE:",game_start_announcement_topic())
+print("BOT_START_TOPIC_CONFIGURED:",getattr(settings,"USER_TOPIC_GAME_START_ID",None) is not None)
+try:
+ from bot.services.user_topics import game_start_announcement_topic
+ print("BOT_START_ROUTE:",game_start_announcement_topic())
+except (ImportError,AttributeError):
+ print("BOT_START_ROUTE: LEGACY_ROUTER_NOT_DEPLOYED")
 p=Path(notifier.__file__)
 print("BOT_NOTIFIER_SHA256:",hashlib.sha256(p.read_bytes()).hexdigest())
 print("BOT_NOTIFIER_PATH:",str(p))
