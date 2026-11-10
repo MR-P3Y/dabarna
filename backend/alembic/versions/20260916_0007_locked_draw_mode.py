@@ -88,18 +88,39 @@ def _mysql_trigger_preflight(bind) -> None:
         )
 
 
+def _column_exists(bind, table: str, column: str) -> bool:
+    inspector = sa.inspect(bind)
+    return column in {item["name"] for item in inspector.get_columns(table)}
+
+
+def _index_exists(bind, table: str, index: str) -> bool:
+    inspector = sa.inspect(bind)
+    return index in {item["name"] for item in inspector.get_indexes(table)}
+
+
 def upgrade() -> None:
     bind = op.get_bind()
     _mysql_trigger_preflight(bind)
 
-    op.add_column("games", sa.Column("draw_mode", sa.String(length=16), nullable=True))
-    op.add_column("games", sa.Column("draw_interval_seconds", sa.Integer(), nullable=True))
-    op.add_column("games", sa.Column("draw_mode_selected_by", sa.BigInteger(), nullable=True))
-    op.add_column("games", sa.Column("draw_mode_selected_at", sa.TIMESTAMP(), nullable=True))
-    op.add_column("games", sa.Column("draw_mode_locked_at", sa.TIMESTAMP(), nullable=True))
-    op.create_index("idx_games_draw_mode", "games", ["draw_mode"], unique=False)
+    # MySQL DDL auto-commits. Some historical installs were bootstrapped from
+    # metadata that already contained these nullable fields. Make this revision
+    # converge safely instead of failing on the first duplicate column.
+    game_columns = (
+        ("draw_mode", sa.String(length=16)),
+        ("draw_interval_seconds", sa.Integer()),
+        ("draw_mode_selected_by", sa.BigInteger()),
+        ("draw_mode_selected_at", sa.TIMESTAMP()),
+        ("draw_mode_locked_at", sa.TIMESTAMP()),
+    )
+    for name, type_ in game_columns:
+        if not _column_exists(bind, "games", name):
+            op.add_column("games", sa.Column(name, type_, nullable=True))
 
-    op.add_column("game_auto_draws", sa.Column("sequence_commitment", sa.String(length=64), nullable=True))
+    if not _index_exists(bind, "games", "idx_games_draw_mode"):
+        op.create_index("idx_games_draw_mode", "games", ["draw_mode"], unique=False)
+
+    if not _column_exists(bind, "game_auto_draws", "sequence_commitment"):
+        op.add_column("game_auto_draws", sa.Column("sequence_commitment", sa.String(length=64), nullable=True))
 
     # Existing non-LOBBY games must remain playable after deployment.
     # Games that have ever used game_auto_draws are treated as AUTO; others as MANUAL.
@@ -289,10 +310,10 @@ def downgrade() -> None:
             f"ALTER TABLE game_events MODIFY COLUMN kind ENUM({_enum_sql(_OLD_EVENT_ENUM_VALUES)}) NOT NULL"
         )
 
-    op.drop_column("game_auto_draws", "sequence_commitment")
-    op.drop_index("idx_games_draw_mode", table_name="games")
-    op.drop_column("games", "draw_mode_locked_at")
-    op.drop_column("games", "draw_mode_selected_at")
-    op.drop_column("games", "draw_mode_selected_by")
-    op.drop_column("games", "draw_interval_seconds")
-    op.drop_column("games", "draw_mode")
+    if _column_exists(bind, "game_auto_draws", "sequence_commitment"):
+        op.drop_column("game_auto_draws", "sequence_commitment")
+    if _index_exists(bind, "games", "idx_games_draw_mode"):
+        op.drop_index("idx_games_draw_mode", table_name="games")
+    for name in ("draw_mode_locked_at", "draw_mode_selected_at", "draw_mode_selected_by", "draw_interval_seconds", "draw_mode"):
+        if _column_exists(bind, "games", name):
+            op.drop_column("games", name)
