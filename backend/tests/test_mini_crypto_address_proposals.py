@@ -173,6 +173,7 @@ class CryptoAddressProposalTests(unittest.TestCase):
         self.assertEqual(self.request().status_code, 201)
         with (
             patch.object(mini, "rotation_enabled", return_value=True),
+            patch.object(mini, "disposable_rotation_enabled", return_value=True),
             patch.object(mini.CryptoDepositService, "runtime_status", return_value={
                 "options": [{
                     "network": "TRON", "address": self.new, "destination_version": 2,
