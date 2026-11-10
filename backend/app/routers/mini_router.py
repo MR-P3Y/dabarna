@@ -5789,7 +5789,7 @@ def mini_super_crypto_late_review_experimental(
 ):
     """Read-only inbox; entries cannot be auto-approved or auto-credited."""
     _ = ident
-    if not rotation_enabled():
+    if not disposable_rotation_enabled():
         raise HTTPException(status_code=409, detail="صف بررسی آزمایشی فقط روی دیتابیس مستقل در دسترس است.")
     rows = db.execute(
         select(AppSetting).where(AppSetting.k.like("crypto_late_review_v1:%"))
@@ -6029,14 +6029,16 @@ def mini_super_update_crypto_settings(
     previous = bool(status_before["runtime_enabled"])
     # Serialize runtime enable/disable with owner-only production activation.
     # On enabling, verify versioned state for every configured network.
-    if production_rotation_enabled() and payload.enabled:
-        for item in CryptoDepositService.configured_options():
-            lock_destination_state(db, str(item["network"]))
     row = db.execute(
         select(AppSetting).where(
             AppSetting.k == CRYPTO_RUNTIME_SETTING_KEY
         ).with_for_update()
     ).scalar_one_or_none()
+    # Always acquire locks in the same order as activation: runtime first,
+    # then versioned destinations. Prevent cross-endpoint deadlocks.
+    if production_rotation_enabled() and payload.enabled:
+        for item in CryptoDepositService.configured_options():
+            lock_destination_state(db, str(item["network"]))
     if row is None:
         db.add(AppSetting(k=CRYPTO_RUNTIME_SETTING_KEY, v_json=bool(payload.enabled)))
     else:
