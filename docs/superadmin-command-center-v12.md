@@ -104,3 +104,12 @@ Do NOT merge/deploy to Production until tests above pass and the user explicitly
 - **This is detection, not historical backfill.** The worker still cannot guarantee completeness when provider pagination bounds are exhausted or older transfer history is missing. The experimental activation endpoint still blocks historical invoices at the old destination.
 - To safely activate real address rotation, first implement a durable per-address historical scan checkpoint/backfill with explicit provider coverage verification, monitor unresolved gaps and manual review queue, and complete MySQL end-to-end payment/ledger tests.
 - New code remains untested on NODE2, PR remains Draft, and Production activation is prohibited.
+
+
+## 2026-11-10 experimental durable scan observations (UNTESTED, UNRELEASED)
+- A new `crypto_scan_observation_v1:` per-(network,address) AppSetting stores the latest attempted scan floor, per-attempt page completion, transfer-processing completion, detected historical gap and count. Address is represented by a SHA-256 digest; no plaintext destination is stored in the observation.
+- A network provider failure records an incomplete attempt; processing errors mark the scan incomplete. A problem scanning one destination must not stop scanning another.
+- Observations are only written when disposable-MySQL rotation mode is active. Existing production behavior remains unchanged.
+- `backfill_verified` is deliberately **always false**. Recent page completion is not evidence that all historical transfers were scanned or that a payment has been reconciled. The observation row is operational diagnostics, not a cursor suitable for historical catch-up.
+- Four isolated tests added to the V1.2 harness. They have not been run on NODE2 at this new head.
+- Remaining prerequisite: persisted historical paging checkpoints with verifiable coverage/repair, a trusted manual late-payment resolution workflow, and full integrated chain-to-ledger tests. Do not activate or deploy this wallet-rotation branch to Production.
