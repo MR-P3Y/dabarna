@@ -86,3 +86,12 @@ Do NOT merge/deploy to Production until tests above pass and the user explicitly
 - Commits: `9d92ced8ce64e2c38780af55e41b30fea2a9987d`, `19966a4fb1a3e8bc5af344a5e93b66ec274962f8`, `92d3280f9606e492e6f95e9a30a3a13d40084b2f`.
 - **Not run on NODE2 yet.** Fail-closed scan overflow requires operational alerting and persisted backfill/cursor support; no automatic credit should occur from incomplete history.
 - Full production capability **still blocked** on final historical late-payment reconciliation, end-to-end chain event/ledger tests, provider health preflight, auditable user-controlled activation and rollback, and explicit separate finance release approval. Do not flip experimental gate or merge as a ready-to-deploy wallet rotation.
+
+
+## 2026-11-10 staged TON attribution hardening (NOT DEPLOYED)
+- Experimental, disposable-MySQL-only address rotation refuses to infer TON invoice ownership by payment amount alone when the TON memo is missing or mismatched.
+- Claimed transaction-hash invoices require their nonempty invoice memo to match the actual chain memo.
+- This stricter attribution applies **only** when `rotation_enabled()` is true; default Production matching behavior remains unchanged.
+- Five isolated regressions cover missing, wrong, exact and legacy memo handling. Included in the V1.2 pinned test harness. New tests have NOT been run on NODE2.
+- Activation remains disabled for Production. Changing only an address shown in UI is NOT a safe migration. Current experimental endpoint additionally blocks any historical invoice at an old address; this is not a completed historical reconciliation solution.
+- Remaining to implement and test: authenticated owner-operated activation/rollback UI and Bot flow, scanned and persisted old-address history/backfill and missed-page recovery, immutable audit trail, real-chain provider preflight, late-transfer manual resolution policy and noncredit review actions, unified isolated MySQL end-to-end chain-to-wallet settlement, restart and failure injection.
