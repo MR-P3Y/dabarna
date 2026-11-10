@@ -125,8 +125,15 @@ def persist_history(record):
 def main():
     parser=argparse.ArgumentParser()
     parser.add_argument("--dry-run",action="store_true",help="collect only; do not write state/history or send")
+    parser.add_argument("--test-notification",action="store_true",help="send one alert channel setup test, no state/history")
     args=parser.parse_args()
+    if args.dry_run and args.test_notification:
+        parser.error("choose dry-run or test-notification")
     if os.geteuid()!=0:raise SystemExit("BLOCKER: root required")
+    if args.test_notification:
+        ok=send_topic("✅ آزمون کانال پایش دبرنا\\nاتصال اعلان مدیریت فعال شد. این پیام آزمایشی است.")
+        print("TELEGRAM_TEST_DELIVERED" if ok else "TELEGRAM_TEST_FAILED")
+        return 0 if ok else 2
     if not RUNNER.is_file():raise SystemExit("BLOCKER: audit runner not installed")
     STATE_DIR.mkdir(parents=True,exist_ok=True,mode=0o700)
     os.chmod(STATE_DIR,0o700)
