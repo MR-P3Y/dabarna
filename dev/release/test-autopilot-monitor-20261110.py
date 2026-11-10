@@ -20,6 +20,14 @@ class MonitorContractTests(unittest.TestCase):
         a=monitor.analyze_report("ALERT DUPLICATE_LANE: LOW games=[51,52]\n===== READ-ONLY SNAPSHOT COMPLETE =====",0)
         b=monitor.analyze_report("ALERT DUPLICATE_LANE: LOW games=[51,52]\n===== READ-ONLY SNAPSHOT COMPLETE =====",0)
         self.assertEqual(set(a),set(b))
+    def test_two_duplicate_lanes_not_merged(self):
+        report=("ALERT DUPLICATE_LANE: LOW games=[91,94]\\n"
+                "ALERT DUPLICATE_LANE: MEDIUM games=[92,95]\\n"
+                "===== READ-ONLY SNAPSHOT COMPLETE =====")
+        findings=monitor.analyze_report(report,0)
+        self.assertIn("DUPLICATE_LANE:LOW",findings)
+        self.assertIn("DUPLICATE_LANE:MEDIUM",findings)
+        self.assertEqual(len(findings),2)
     def test_overdue_number_identity_ignores_seconds(self):
         a=monitor.analyze_report("ALERT OVERDUE_NUMBER: game=93 due_by=140s interval=15s\n===== READ-ONLY SNAPSHOT COMPLETE =====",0)
         b=monitor.analyze_report("ALERT OVERDUE_NUMBER: game=93 due_by=440s interval=15s\n===== READ-ONLY SNAPSHOT COMPLETE =====",0)
