@@ -14,7 +14,7 @@ done
 echo "===== ACTIVE SYSTEM GAME HEALTH / DATABASE READ ONLY ====="
 docker exec -i davarna-backend python - <<'PY'
 from collections import Counter
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from sqlalchemy import select,func
 from app.core import config as cfg
 from app.core.db import SessionLocal
@@ -130,6 +130,12 @@ with SessionLocal() as db:
   GameEvent.kind.in_(("ERROR","AUTO_DRAW_TAMPER_DETECTED"))
  ).order_by(GameEvent.id.desc()).limit(8)).all()
  print("LATEST_ERROR_EVENTS:",[(int(eid),int(gid),kind) for eid,gid,kind in events])
+ recent=db.execute(select(GameEvent.id,GameEvent.game_id,GameEvent.kind).where(
+  GameEvent.kind.in_(("ERROR","AUTO_DRAW_TAMPER_DETECTED")),
+  GameEvent.created_at >= now-timedelta(minutes=15),
+ ).order_by(GameEvent.id.desc()).limit(8)).all()
+ for eid,gid,kind in recent:
+  alert("RECENT_GAME_ERROR",f"game={int(gid)} event_id={int(eid)} kind={kind}")
  print("ALERT_COUNT:",len(findings))
  print("SUMMARY:", "PASS" if not findings else "REVIEW_REQUIRED")
 PY
