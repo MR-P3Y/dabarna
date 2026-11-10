@@ -183,7 +183,11 @@ async def _collect_user_game_counts(
                 card_price = int(meta.get("card_price") or 0)
             except Exception:
                 card_price = 0
-        filtered.append({"game_id": game_id, "count": cnt, "card_price": card_price})
+        filtered.append({
+            "game_id": game_id, "count": cnt, "card_price": card_price,
+            "game_rule": (meta or {}).get("game_rule"),
+            "card_layout_version": (meta or {}).get("card_layout_version"),
+        })
 
     return filtered
 
@@ -229,7 +233,12 @@ async def _get_game_meta_cached(
     except Exception:
         card_price = 0
 
-    meta: dict[str, object] = {"status": status, "card_price": card_price}
+    meta: dict[str, object] = {
+        "status": status,
+        "card_price": card_price,
+        "game_rule": str((game or {}).get("game_rule") or ""),
+        "card_layout_version": (game or {}).get("card_layout_version"),
+    }
     meta_cache[game_id] = meta
     return meta
 
