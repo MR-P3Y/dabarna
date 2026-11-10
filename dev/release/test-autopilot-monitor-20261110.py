@@ -21,8 +21,8 @@ class MonitorContractTests(unittest.TestCase):
         b=monitor.analyze_report("ALERT DUPLICATE_LANE: LOW games=[51,52]\n===== READ-ONLY SNAPSHOT COMPLETE =====",0)
         self.assertEqual(set(a),set(b))
     def test_two_duplicate_lanes_not_merged(self):
-        report=("ALERT DUPLICATE_LANE: LOW games=[91,94]\\n"
-                "ALERT DUPLICATE_LANE: MEDIUM games=[92,95]\\n"
+        report=("ALERT DUPLICATE_LANE: LOW games=[91,94]\n"
+                "ALERT DUPLICATE_LANE: MEDIUM games=[92,95]\n"
                 "===== READ-ONLY SNAPSHOT COMPLETE =====")
         findings=monitor.analyze_report(report,0)
         self.assertIn("DUPLICATE_LANE:LOW",findings)
