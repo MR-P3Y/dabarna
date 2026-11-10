@@ -151,10 +151,11 @@ def super_admin_crypto_settings_kb(*, runtime_enabled: bool, can_enable: bool) -
     else:
         text = "🟢 روشن کردن پرداخت رمزارزی" if can_enable else "🟢 روشن کردن پرداخت رمزارزی (نیازمند تنظیمات)"
         kb.button(text=text, callback_data="super:crypto:settings:toggle")
+    kb.button(text="💼 آدرس‌های TON/TRON", callback_data="super:crypto:addresses")
     kb.button(text="🧾 واریزهای نیازمند بررسی", callback_data="admin:crypto:pending")
     kb.button(text="🩺 سلامت سرویس‌ها", callback_data="super:crypto:health")
     kb.button(text="🧮 تطبیق ۲۴ ساعت اخیر", callback_data="super:crypto:reconcile")
     kb.button(text="🔄 تازه‌سازی", callback_data="super:crypto:settings")
     kb.button(text="⬅️ پنل سوپرادمین", callback_data="super:admin:panel")
-    kb.adjust(1, 1, 2, 1, 1)
+    kb.adjust(1, 1, 1, 2, 1, 1)
     return kb.as_markup()
