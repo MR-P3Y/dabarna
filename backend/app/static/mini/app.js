@@ -1951,6 +1951,7 @@ function drawGamesOverview(items) {
 let gameStartCountdownTicker = null;
 let gameStartCountdownServerOffsetMs = 0;
 const gameStartCountdownFeedback = new Map();
+let gameStartCountdownLastFeedbackSecond = -1;
 
 function autopilotGameStartClock(game, nowMs = Date.now() + gameStartCountdownServerOffsetMs) {
   if (
@@ -2003,6 +2004,7 @@ function tickAutopilotGameStartClocks() {
   const root = getEl("gamesList");
   if (!root) return;
   const cards = root.querySelectorAll("[data-autopilot-clock]");
+  if (gameStartCountdownFeedback.size > 128) gameStartCountdownFeedback.clear();
   const enabledFeedback = getEl("view-games")?.classList.contains("active") &&
     (typeof document.visibilityState === "undefined" || document.visibilityState === "visible");
   let feedbackPlayedThisTick = false;
@@ -2029,8 +2031,11 @@ function tickAutopilotGameStartClocks() {
     // replay missed beats when a backgrounded Telegram Mini App resumes.
     if (enabledFeedback && !feedbackPlayedThisTick && view.seconds >= 1 && view.seconds <= 3) {
       const key = gid + ":" + view.scheduledMs;
-      if (gameStartCountdownFeedback.get(key) !== view.seconds) {
+      const currentSecond = Math.floor(Date.now() / 1000);
+      if (gameStartCountdownFeedback.get(key) !== view.seconds &&
+          gameStartCountdownLastFeedbackSecond !== currentSecond) {
         gameStartCountdownFeedback.set(key, view.seconds);
+        gameStartCountdownLastFeedbackSecond = currentSecond;
         if (state.soundEnabled) playTone({ freq: 660 + (4 - view.seconds) * 120, duration: 0.085, gain: 0.024 });
         try { tg?.HapticFeedback?.impactOccurred?.("light"); } catch (_) {}
         try { navigator?.vibrate?.(30); } catch (_) {}
