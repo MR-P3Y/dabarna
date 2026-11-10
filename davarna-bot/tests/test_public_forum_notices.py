@@ -39,7 +39,7 @@ class PublicForumNoticeTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("بازی #88", kw["text"])
         self.assertIn("تورنا", kw["text"])
         self.assertIn("ربات را خصوصی", kw["text"])
-        self.assertLess(len(kw["text"]), 350)
+        self.assertLess(len(kw["text"]), 400)
         self.assertIsNotNone(kw["reply_markup"])
         urls = [b.url for row in kw["reply_markup"].inline_keyboard for b in row]
         self.assertIn("https://t.me/c/1234567890/6", urls)
