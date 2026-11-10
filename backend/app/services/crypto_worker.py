@@ -61,7 +61,7 @@ class CryptoDepositWorker:
             if not destinations:
                 continue
             for address in destinations:
-                since = CryptoDepositWorker._network_scan_since(network, destination_address=address)
+                since = CryptoDepositWorker._network_scan_since(network, destination_address=address, coverage_stats=stats)
                 try:
                     transfers = CryptoChainService.list_incoming(
                         network=network, since=since, destination_address=address
@@ -133,7 +133,10 @@ class CryptoDepositWorker:
             return int(count or 0) > 0
 
     @staticmethod
-    def _network_scan_since(network: str, *, destination_address: str | None = None) -> datetime:
+    def _network_scan_since(
+        network: str, *, destination_address: str | None = None,
+        coverage_stats: dict[str, int] | None = None,
+    ) -> datetime:
         floor = _utcnow() - timedelta(hours=int(cfg.CRYPTO_SCAN_LOOKBACK_HOURS))
         with SessionLocal() as db:
             watched_statuses = tuple(OPEN_STATUSES) + (
@@ -147,6 +150,20 @@ class CryptoDepositWorker:
                       if destination_address is not None else []),
                 )
             ).scalar_one_or_none()
+        if isinstance(earliest, datetime) and earliest < floor and rotation_enabled():
+            # A bounded recent scan is NOT proof of historical completeness.
+            # Preserve recent matching but surface the unscanned interval.
+            # Never claim the old address is fully reconciled or clear the
+            # rotation activation blockers from this scan.
+            if coverage_stats is not None:
+                coverage_stats["historical_gaps"] = coverage_stats.get("historical_gaps", 0) + 1
+            log.error(
+                "CRYPTO_HISTORICAL_SCAN_GAP network=%s address_hash=%s earliest_invoice=%s scan_floor=%s",
+                network,
+                hashlib.sha256(str(destination_address or "").encode()).hexdigest()[:12],
+                earliest.isoformat(),
+                floor.isoformat(),
+            )
         if isinstance(earliest, datetime) and earliest > floor:
             return earliest - timedelta(minutes=2)
         return floor
