@@ -95,3 +95,12 @@ Do NOT merge/deploy to Production until tests above pass and the user explicitly
 - Five isolated regressions cover missing, wrong, exact and legacy memo handling. Included in the V1.2 pinned test harness. New tests have NOT been run on NODE2.
 - Activation remains disabled for Production. Changing only an address shown in UI is NOT a safe migration. Current experimental endpoint additionally blocks any historical invoice at an old address; this is not a completed historical reconciliation solution.
 - Remaining to implement and test: authenticated owner-operated activation/rollback UI and Bot flow, scanned and persisted old-address history/backfill and missed-page recovery, immutable audit trail, real-chain provider preflight, late-transfer manual resolution policy and noncredit review actions, unified isolated MySQL end-to-end chain-to-wallet settlement, restart and failure injection.
+
+
+## 2026-11-10 historical scan-gap alarm (UNRELEASED)
+- Crypto worker now explicitly emits `CRYPTO_HISTORICAL_SCAN_GAP` at ERROR level if the earliest historical/open invoice for a scanned address predates the configured lookback floor while experimental rotation is enabled.
+- Per-cycle `historical_gaps` counter reports the number of detected incomplete address scans; the current recent scan still proceeds, preserving existing invoice service. Address appears as a short SHA-256 hash, not a plaintext secret.
+- Four isolated regression tests cover old invoice alarm, recent overlap, empty history and legacy (rotation-off) compatibility; wired into the pinned V1.2 test harness.
+- **This is detection, not historical backfill.** The worker still cannot guarantee completeness when provider pagination bounds are exhausted or older transfer history is missing. The experimental activation endpoint still blocks historical invoices at the old destination.
+- To safely activate real address rotation, first implement a durable per-address historical scan checkpoint/backfill with explicit provider coverage verification, monitor unresolved gaps and manual review queue, and complete MySQL end-to-end payment/ledger tests.
+- New code remains untested on NODE2, PR remains Draft, and Production activation is prohibited.
