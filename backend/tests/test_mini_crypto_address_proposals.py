@@ -201,6 +201,91 @@ class CryptoAddressProposalTests(unittest.TestCase):
         with patch.object(mini, "rotation_enabled", return_value=False):
             self.assertEqual(self.request().status_code, 201)
 
+    def test_production_endpoint_closed_without_strong_environment_gate(self):
+        response = self.client.post(
+            "/mini-api/admin/super/crypto-address-activate-production",
+            json={
+                "network": "TRON", "expected_version": 1,
+                "expected_current_address": self.old,
+                "proposed_address": self.new,
+                "confirmation": "ACTIVATE_PRODUCTION_CRYPTO_DESTINATION",
+            },
+        )
+        self.assertEqual(response.status_code, 409)
+
+    def test_production_bootstrap_requires_explicit_paused_runtime_record(self):
+        with patch.object(mini, "production_rotation_enabled", return_value=True):
+            response = self.client.post(
+                "/mini-api/admin/super/crypto-address-prepare-production",
+                json={
+                    "network": "TRON", "expected_current_address": self.old,
+                    "confirmation": "PREPARE_PRODUCTION_CRYPTO_DESTINATION",
+                },
+            )
+            self.assertEqual(response.status_code, 409, response.text)
+        with Session(self.engine) as db:
+            db.add(AppSetting(k="crypto_payments_runtime_enabled", v_json=True))
+            db.commit()
+        with patch.object(mini, "production_rotation_enabled", return_value=True):
+            response = self.client.post(
+                "/mini-api/admin/super/crypto-address-prepare-production",
+                json={
+                    "network": "TRON", "expected_current_address": self.old,
+                    "confirmation": "PREPARE_PRODUCTION_CRYPTO_DESTINATION",
+                },
+            )
+            self.assertEqual(response.status_code, 409, response.text)
+
+    def test_production_activation_refuses_historical_invoices(self):
+        self.assertEqual(self.request().status_code, 201)
+        with Session(self.engine) as db:
+            db.add(AppSetting(k="crypto_payments_runtime_enabled", v_json=False))
+            db.commit()
+        with (
+            patch.object(mini, "production_rotation_enabled", return_value=True),
+            patch.object(mini, "lock_destination_state",
+                         return_value={"network": "TRON", "version": 1, "address": self.old}),
+            patch.object(mini, "assess_rotation", return_value={
+                "open_invoices": 0, "recent_closed_invoices": 0,
+                "needs_manual_review": 0, "historical_invoices": 20,
+            }),
+            patch.object(mini, "rotate_locked") as rotate,
+        ):
+            response = self.client.post(
+                "/mini-api/admin/super/crypto-address-activate-production",
+                json={
+                    "network": "TRON", "expected_version": 1,
+                    "expected_current_address": self.old,
+                    "proposed_address": self.new,
+                    "confirmation": "ACTIVATE_PRODUCTION_CRYPTO_DESTINATION",
+                },
+            )
+        self.assertEqual(response.status_code, 409, response.text)
+        rotate.assert_not_called()
+
+    def test_production_activation_refuses_stale_version_before_write(self):
+        self.assertEqual(self.request().status_code, 201)
+        with Session(self.engine) as db:
+            db.add(AppSetting(k="crypto_payments_runtime_enabled", v_json=False))
+            db.commit()
+        with (
+            patch.object(mini, "production_rotation_enabled", return_value=True),
+            patch.object(mini, "lock_destination_state",
+                         return_value={"network": "TRON", "version": 2, "address": self.old}),
+            patch.object(mini, "rotate_locked") as rotate,
+        ):
+            response = self.client.post(
+                "/mini-api/admin/super/crypto-address-activate-production",
+                json={
+                    "network": "TRON", "expected_version": 1,
+                    "expected_current_address": self.old,
+                    "proposed_address": self.new,
+                    "confirmation": "ACTIVATE_PRODUCTION_CRYPTO_DESTINATION",
+                },
+            )
+        self.assertEqual(response.status_code, 409, response.text)
+        rotate.assert_not_called()
+
     def test_non_superadmin_denied(self):
         self.app.dependency_overrides[mini.get_mini_admin_identity] = lambda: mini.MiniAdminIdentity(
             user_id=202, tg_user_id=9202, roles=["ADMIN"]
