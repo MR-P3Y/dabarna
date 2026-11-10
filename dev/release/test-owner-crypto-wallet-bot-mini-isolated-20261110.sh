@@ -53,6 +53,17 @@ for suite in \
       -v "$WORK/backend:/app:ro" -w /app \
       --entrypoint python "$BASE" -m unittest discover -s tests -p "$suite" -v
 done
+echo "===== ISOLATED BOT UI TESTS (NO TELEGRAM TOKEN) ====="
+BOT_IMAGE="$(docker inspect -f '{{.Config.Image}}' davarna-bot)"
+BOT_IMAGE_ID="$(docker inspect -f '{{.Image}}' davarna-bot)"
+[[ "$(docker image inspect -f '{{.Id}}' "$BOT_IMAGE")" == "$BOT_IMAGE_ID" ]] || {
+  echo "BLOCKED: installed bot test image drift" >&2; exit 2;
+}
+docker run --rm --network none --read-only --cap-drop ALL \
+  --security-opt no-new-privileges --tmpfs /tmp:rw,nosuid,size=64m \
+  -v "$WORK/davarna-bot:/app:ro" -w /app \
+  --entrypoint python "$BOT_IMAGE" -m unittest discover -s tests -p 'test_crypto_wallet_owner_ui.py' -v
+
 echo "===== OWNER CRYPTO WALLET BOT+MINI SOURCE GATE PASS ====="
 echo "SOURCE=$REF"
 echo "PRODUCTION_UNCHANGED=true"
