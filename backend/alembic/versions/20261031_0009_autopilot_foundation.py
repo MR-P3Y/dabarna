@@ -18,13 +18,18 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.add_column("games", sa.Column("game_level", sa.String(length=16), nullable=True))
-    op.add_column(
-        "games",
-        sa.Column("execution_source", sa.String(length=16), nullable=False, server_default="ADMIN"),
-    )
-    op.add_column("games", sa.Column("scheduled_start_at", sa.TIMESTAMP(), nullable=True))
-    op.create_index("idx_games_level_status", "games", ["game_level", "status"], unique=False)
+    bind = op.get_bind()
+    existing = {item["name"] for item in sa.inspect(bind).get_columns("games")}
+    for name, typ, nullable, default in (
+        ("game_level", sa.String(length=16), True, None),
+        ("execution_source", sa.String(length=16), False, "ADMIN"),
+        ("scheduled_start_at", sa.TIMESTAMP(), True, None),
+    ):
+        if name not in existing:
+            op.add_column("games", sa.Column(name, typ, nullable=nullable, server_default=default))
+    indexes = {item["name"] for item in sa.inspect(bind).get_indexes("games")}
+    if "idx_games_level_status" not in indexes:
+        op.create_index("idx_games_level_status", "games", ["game_level", "status"], unique=False)
 
     op.create_table(
         "game_autopilot_configs",
