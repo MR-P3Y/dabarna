@@ -80,6 +80,20 @@ docker run --rm --network none --read-only --cap-drop ALL \
   -v "$WORK/backend:/app:ro" -w /app \
   --entrypoint python "$IMAGE" \
   -m unittest discover -s tests -p 'test_crypto_multi_address_provider_contracts.py' -v
+for suite in test_crypto_scan_pagination_isolated.py test_crypto_late_transfer_inbox_isolated.py; do
+  echo "===== CRYPTO SAFETY SUITE: $suite ====="
+  docker run --rm --network none --read-only --cap-drop ALL \
+    --security-opt no-new-privileges --tmpfs /tmp:rw,nosuid,size=128m \
+    -e DATABASE_URL=sqlite+pysqlite:///:memory: \
+    -e REDIS_URL=redis://127.0.0.1:6379/15 \
+    -e RECEIPTS_DIR=/tmp/receipts \
+    -e GAME_AUTOPILOT_RUNTIME_ENABLED=false \
+    -e GAME_AUTO_DRAW_ENABLED=false \
+    -e CRYPTO_AUTO_CONFIRM_ENABLED=false \
+    -v "$WORK/backend:/app:ro" -w /app \
+    --entrypoint python "$IMAGE" \
+    -m unittest discover -s tests -p "$suite" -v
+done
 echo "===== ROTATION READINESS AND EXPIRY ISOLATION ====="
 docker run --rm --network none --read-only --cap-drop ALL \
   --security-opt no-new-privileges --tmpfs /tmp:rw,nosuid,size=128m \
