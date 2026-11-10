@@ -36,6 +36,32 @@ class ProductionRotationGateTests(unittest.TestCase):
             self.assertTrue(rotation_enabled())
             self.assertFalse(disposable_rotation_enabled())
 
+    def test_clean_launch_host_must_match_exact_allowlisted_host_and_schema(self):
+        with patch.dict("os.environ", {
+            "DATABASE_URL": "mysql+pymysql://x:y@davarna-zero-mysql-20261110/davarna_zero_20261110",
+            "DAVARNA_CRYPTO_ROTATION_PRODUCTION_DB": "davarna_zero_20261110",
+            "DAVARNA_CRYPTO_ROTATION_PRODUCTION_DB_HOST": "davarna-zero-mysql-20261110",
+            "DAVARNA_CRYPTO_ROTATION_PRODUCTION": PRODUCTION_APPROVAL,
+            "DAVARNA_CRYPTO_ROTATION_EXPERIMENTAL": "",
+        }):
+            self.assertTrue(production_rotation_enabled())
+        with patch.dict("os.environ", {
+            "DATABASE_URL": "mysql+pymysql://x:y@mysql/PEYMOON_DAVARNA",
+            "DAVARNA_CRYPTO_ROTATION_PRODUCTION_DB": "davarna_zero_20261110",
+            "DAVARNA_CRYPTO_ROTATION_PRODUCTION_DB_HOST": "davarna-zero-mysql-20261110",
+            "DAVARNA_CRYPTO_ROTATION_PRODUCTION": PRODUCTION_APPROVAL,
+            "DAVARNA_CRYPTO_ROTATION_EXPERIMENTAL": "",
+        }):
+            self.assertFalse(production_rotation_enabled())
+        with patch.dict("os.environ", {
+            "DATABASE_URL": "mysql+pymysql://x:y@attacker.example/davarna_zero_20261110",
+            "DAVARNA_CRYPTO_ROTATION_PRODUCTION_DB": "davarna_zero_20261110",
+            "DAVARNA_CRYPTO_ROTATION_PRODUCTION_DB_HOST": "attacker.example",
+            "DAVARNA_CRYPTO_ROTATION_PRODUCTION": PRODUCTION_APPROVAL,
+            "DAVARNA_CRYPTO_ROTATION_EXPERIMENTAL": "",
+        }):
+            self.assertFalse(production_rotation_enabled())
+
     def test_experimental_gate_never_activates_production(self):
         with patch.dict("os.environ", {
             "DATABASE_URL": "mysql+pymysql://x:y@mysql/davarna",
