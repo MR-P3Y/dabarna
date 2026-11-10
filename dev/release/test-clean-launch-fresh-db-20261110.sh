@@ -80,6 +80,7 @@ docker run --rm --network "$NETWORK" --read-only --cap-drop ALL \
   --memory=512m --memory-swap=512m --tmpfs /tmp:rw,nosuid,size=128m \
   -v "$WORK/backend:/app:ro" -w /app \
   -e DATABASE_URL="$DB_URL" \
+  -e RECEIPTS_DIR=/tmp/receipts \
   -e CRYPTO_PAYMENTS_ENABLED=false \
   -e CRYPTO_AUTO_CONFIRM_ENABLED=false \
   -e DAVARNA_CRYPTO_ROTATION_PRODUCTION= \
