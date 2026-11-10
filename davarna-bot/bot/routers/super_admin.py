@@ -17,6 +17,8 @@ from bot.keyboards.super_admin import (
     super_admin_panel_kb,
     super_admin_bank_deposit_settings_kb,
     super_admin_crypto_settings_kb,
+    super_admin_crypto_wallets_kb,
+    super_admin_crypto_wallet_confirm_kb,
     super_admin_remove_confirm_kb,
     super_admin_role_select_kb,
 )
@@ -957,43 +959,263 @@ async def super_crypto_settings_toggle(cq: CallbackQuery, api: ApiClient, is_sup
     await _show_crypto_settings(cq, api, notice=notice)
 
 
-@router.callback_query(F.data == "super:crypto:addresses")
-async def super_crypto_destination_overview(
-    cq: CallbackQuery, api: ApiClient, is_super_admin: bool = False,
-):
-    """Read-only bot view; activation requires owner identity in Mini App."""
-    if not _require_super_admin(is_super_admin):
-        await cq.answer("فقط سوپرادمین دسترسی دارد.", show_alert=True)
-        return
+async def _show_crypto_wallets(
+    cq: CallbackQuery, api: ApiClient, *, notice: str = "",
+) -> None:
     try:
-        out = await api.super_admin_get_crypto_settings()
+        out = await api.super_admin_crypto_wallets()
     except ApiError as exc:
         await cq.answer(exc.detail, show_alert=True)
         return
-    rows = out.get("networks") or []
-    lines = ["وضعیت آدرس‌های دریافت:"]
-    for item in rows:
-        if not isinstance(item, dict):
-            continue
-        net = h(str(item.get("network") or "-"))
-        address = h(str(item.get("address") or "تنظیم نشده"))
-        lines.append(f"<b>{net}</b>\n<code>{address}</code>")
-    if len(lines) == 1:
-        lines.append("هیچ شبکه‌ای پیکربندی نشده است.")
-    lines.append(
-        "تغییر آدرس فقط از بخش سوپرادمین مینی‌اپ، "
-        "با بررسی وضعیت فاکتورها و تأیید هویت انجام می‌شود. "
-        "ربات اجازه تغییر مستقیم مقصد دریافت را ندارد."
-    )
+    items = [x for x in (out.get("networks") or []) if isinstance(x, dict)]
+    proposals = [x for x in (out.get("proposals") or []) if isinstance(x, dict)]
+    by_network = {str(x.get("network") or ""): x for x in items}
+    lines = []
+    if notice:
+        lines += [h(notice), ""]
+    if not bool(out.get("address_management_enabled")):
+        lines.append("🔒 تغییر آدرس در Backend هنوز فعال نیست؛ ابتدا قابلیت را در محیط آزمایشی و سپس با تأیید انتشار فعال کنید.")
+    if bool(out.get("runtime_enabled")):
+        lines.append("⚠️ پرداخت رمزارزی روشن است. قبل از تأیید تغییر آدرس، از تنظیمات رمزارز خاموشش کنید.")
+    for network in ("TRON", "TON"):
+        item = by_network.get(network) or {}
+        address = str(item.get("address") or "")
+        version = item.get("destination_version")
+        lines.append(f"<b>{network}</b> (نسخه: {h(str(version or '-'))})\\n<code>{h(address or 'هنوز آدرسی ثبت نشده')}</code>")
+        pending = next((x for x in proposals if x.get("network") == network), None)
+        if pending:
+            lines.append(f"⏳ درخواست تغییر در انتظار تأیید:\\n<code>{h(str(pending.get('address') or ''))}</code>")
     await safe_edit_or_send(
-        cq.message, panel("👑 آدرس‌های دریافت TON/TRON", "\n\n".join(lines)),
-        reply_markup=super_admin_crypto_settings_kb(
+        cq.message,
+        panel("👑 مدیریت آدرس‌های TON / USDT-TRC20", "\\n\\n".join(lines)),
+        reply_markup=super_admin_crypto_wallets_kb(
+            networks=items, proposals=proposals,
             runtime_enabled=bool(out.get("runtime_enabled")),
-            can_enable=bool(out.get("master_enabled") and out.get("configured")),
         ),
         parse_mode="HTML",
     )
     await cq.answer()
+
+
+@router.callback_query(F.data == "super:crypto:addresses")
+async def super_crypto_destination_overview(
+    cq: CallbackQuery, state: FSMContext, api: ApiClient, is_super_admin: bool = False,
+):
+    if not _require_super_admin(is_super_admin):
+        await cq.answer("فقط سوپرادمین دسترسی دارد.", show_alert=True)
+        return
+    await state.clear()
+    await _show_crypto_wallets(cq, api)
+
+
+@router.callback_query(F.data.startswith("super:crypto:wallet:edit:"))
+async def super_crypto_wallet_edit_start(
+    cq: CallbackQuery, state: FSMContext, api: ApiClient, is_super_admin: bool = False,
+):
+    if not _require_super_admin(is_super_admin):
+        await cq.answer("فقط سوپرادمین دسترسی دارد.", show_alert=True)
+        return
+    network = str(cq.data or "").split(":")[-1].upper()
+    if network not in {"TRON", "TON"}:
+        await cq.answer("شبکه نامعتبر است.", show_alert=True)
+        return
+    try:
+        out = await api.super_admin_crypto_wallets()
+    except ApiError as exc:
+        await cq.answer(exc.detail, show_alert=True)
+        return
+    if not out.get("address_management_enabled"):
+        await cq.answer("مدیریت آدرس‌ها در Backend فعال نیست.", show_alert=True)
+        return
+    item = next((x for x in out.get("networks", []) if x.get("network") == network), {})
+    if item.get("requires_bootstrap"):
+        await cq.answer("ابتدا نسخه اولیه آدرس فعلی را آماده‌سازی کنید.", show_alert=True)
+        return
+    address = str(item.get("address") or "")
+    await state.clear()
+    await state.update_data(wallet_network=network, wallet_old_address=address)
+    await state.set_state(SuperAdminManageSG.waiting_for_crypto_address)
+    await safe_edit_or_send(
+        cq.message,
+        panel(
+            "👑 افزودن/تغییر آدرس " + network,
+            "آدرس عمومی دریافت را ارسال کن.\\n"
+            "آدرس فعلی: <code>" + h(address or "ثبت نشده") + "</code>\\n"
+            "پس از ثبت درخواست، تغییر واقعی نیاز به تأیید جداگانه دارد.\\n"
+            "⚠️ کلید خصوصی یا عبارت بازیابی ارسال نکن.",
+        ),
+        reply_markup=super_admin_cancel_kb(),
+        parse_mode="HTML",
+    )
+    await cq.answer()
+
+
+@router.message(SuperAdminManageSG.waiting_for_crypto_address)
+async def super_crypto_wallet_address_received(
+    m: Message, state: FSMContext, is_super_admin: bool = False,
+):
+    if not _require_super_admin(is_super_admin):
+        await state.clear()
+        await m.answer("دسترسی ندارید.")
+        return
+    data = await state.get_data()
+    network = str(data.get("wallet_network") or "").upper()
+    address = str(m.text or "").strip()
+    if network not in {"TRON", "TON"} or not 30 <= len(address) <= 128:
+        await m.answer("آدرس کامل و معتبر شبکه را ارسال کن.")
+        return
+    if address == str(data.get("wallet_old_address") or ""):
+        await m.answer("آدرس جدید با آدرس فعلی یکسان است.")
+        return
+    await state.update_data(wallet_new_address=address)
+    await m.answer(
+        panel(
+            "👑 تأیید آدرس دریافت",
+            f"شبکه: <b>{h(network)}</b>\\n"
+            f"آدرس جدید: <code>{h(address)}</code>\\n\\n"
+            "با دکمه زیر فقط درخواست ثبت می‌شود. "
+            "برای آدرس موجود، فعال‌سازی جداگانه لازم است.",
+        ),
+        reply_markup=super_admin_crypto_wallet_confirm_kb(),
+        parse_mode="HTML",
+    )
+
+
+@router.callback_query(F.data == "super:crypto:wallet:save")
+async def super_crypto_wallet_save(
+    cq: CallbackQuery, state: FSMContext, api: ApiClient, is_super_admin: bool = False,
+):
+    if not _require_super_admin(is_super_admin):
+        await cq.answer("فقط سوپرادمین دسترسی دارد.", show_alert=True)
+        return
+    data = await state.get_data()
+    network = str(data.get("wallet_network") or "")
+    address = str(data.get("wallet_new_address") or "")
+    previous = str(data.get("wallet_old_address") or "")
+    if network not in {"TRON", "TON"} or not address:
+        await cq.answer("درخواست منقضی یا ناقص است.", show_alert=True)
+        return
+    try:
+        if previous:
+            await api.super_admin_crypto_wallet_propose(
+                network=network, address=address, expected_address=previous,
+            )
+            message = "درخواست تغییر ثبت شد. برای اعمال واقعی، پرداخت را خاموش و تأیید نهایی را انجام بده."
+        else:
+            await api.super_admin_crypto_wallet_add(network=network, address=address)
+            message = "آدرس اولیه ثبت شد؛ پرداخت همچنان خاموش است."
+    except ApiError as exc:
+        await cq.answer(exc.detail, show_alert=True)
+        return
+    await state.clear()
+    await _show_crypto_wallets(cq, api, notice=message)
+
+
+@router.callback_query(F.data.startswith("super:crypto:wallet:prepare:"))
+async def super_crypto_wallet_prepare(
+    cq: CallbackQuery, api: ApiClient, is_super_admin: bool = False,
+):
+    if not _require_super_admin(is_super_admin):
+        await cq.answer("فقط سوپرادمین دسترسی دارد.", show_alert=True)
+        return
+    network = str(cq.data or "").split(":")[-1].upper()
+    if network not in {"TRON", "TON"}:
+        await cq.answer("شبکه نامعتبر.", show_alert=True)
+        return
+    try:
+        status = await api.super_admin_crypto_wallets()
+        entry = next(x for x in status.get("networks", []) if x.get("network") == network)
+        if status.get("runtime_enabled"):
+            await cq.answer("ابتدا واریز رمزارز را خاموش کن.", show_alert=True)
+            return
+        result = await api.super_admin_crypto_wallet_prepare(
+            network=network, expected_address=str(entry["address"]),
+        )
+    except (ApiError, StopIteration, KeyError) as exc:
+        await cq.answer(str(getattr(exc, "detail", "آدرس پیدا نشد")), show_alert=True)
+        return
+    await _show_crypto_wallets(cq, api, notice="نسخه اولیه آدرس آماده شد؛ پرداخت همچنان خاموش است.")
+
+
+@router.callback_query(F.data.startswith("super:crypto:wallet:activate:"))
+async def super_crypto_wallet_activate_start(
+    cq: CallbackQuery, state: FSMContext, api: ApiClient, is_super_admin: bool = False,
+):
+    if not _require_super_admin(is_super_admin):
+        await cq.answer("فقط سوپرادمین دسترسی دارد.", show_alert=True)
+        return
+    network = str(cq.data or "").split(":")[-1].upper()
+    if network not in {"TRON", "TON"}:
+        await cq.answer("شبکه نامعتبر.", show_alert=True)
+        return
+    try:
+        status = await api.super_admin_crypto_wallets()
+        if bool(status.get("runtime_enabled")):
+            await cq.answer("ابتدا پرداخت رمزارزی را خاموش کنید.", show_alert=True)
+            return
+        proposal = next(x for x in status.get("proposals", []) if x.get("network") == network)
+        report = await api.super_admin_crypto_wallet_readiness(network)
+    except (ApiError, StopIteration) as exc:
+        await cq.answer(str(getattr(exc, "detail", "درخواست باز موجود نیست")), show_alert=True)
+        return
+    blocking = ("open_invoices", "recent_closed_invoices", "needs_manual_review", "historical_invoices")
+    if any(int(report.get(k) or 0) > 0 for k in blocking):
+        await cq.answer("فاکتور باز یا قدیمی وجود دارد؛ تغییر مسدود شد.", show_alert=True)
+        return
+    if not proposal.get("expected_version") or not proposal.get("expected_current_address"):
+        await cq.answer("ابتدا نسخه مبنای آدرس را آماده کنید.", show_alert=True)
+        return
+    await state.clear()
+    await state.update_data(wallet_activation_network=network)
+    await state.set_state(SuperAdminManageSG.waiting_for_crypto_activation_confirmation)
+    await safe_edit_or_send(
+        cq.message,
+        panel(
+            "⚠️ تأیید واقعی تغییر مقصد واریز",
+            f"شبکه: <b>{h(network)}</b>\\n"
+            f"آدرس جدید: <code>{h(str(proposal.get('address') or ''))}</code>\\n"
+            "پرداخت باید خاموش بماند. برای تأیید نهایی بنویس: "
+            f"<code>ACTIVATE {h(network)}</code>"
+        ),
+        reply_markup=super_admin_cancel_kb(),
+        parse_mode="HTML",
+    )
+    await cq.answer()
+
+
+@router.message(SuperAdminManageSG.waiting_for_crypto_activation_confirmation)
+async def super_crypto_wallet_activate_confirm(
+    m: Message, state: FSMContext, api: ApiClient, is_super_admin: bool = False,
+):
+    if not _require_super_admin(is_super_admin):
+        await state.clear()
+        return
+    data = await state.get_data()
+    network = str(data.get("wallet_activation_network") or "").upper()
+    if network not in {"TRON", "TON"} or (m.text or "").strip() != f"ACTIVATE {network}":
+        await m.answer("عبارت تأیید صحیح نیست. برای انصراف به پنل سوپرادمین برگرد.")
+        return
+    try:
+        # Fresh read prevents reusing a stale FSM payload after another change.
+        status = await api.super_admin_crypto_wallets()
+        if status.get("runtime_enabled"):
+            await m.answer("پرداخت فعال است؛ تغییر انجام نشد.")
+            return
+        proposal = next(x for x in status.get("proposals", []) if x.get("network") == network)
+        await api.super_admin_crypto_wallet_activate(
+            network=network, address=str(proposal["address"]),
+            expected_address=str(proposal["expected_current_address"]),
+            expected_version=int(proposal["expected_version"]),
+        )
+    except (ApiError, StopIteration, KeyError, ValueError) as exc:
+        await m.answer(panel("خطای تغییر آدرس", h(str(getattr(exc, "detail", "نسخه درخواست تغییر کرده یا آماده نیست."))), parse_mode="HTML"))
+        return
+    await state.clear()
+    await m.answer(
+        panel("👑 آدرس جدید فعال شد", f"شبکه <b>{h(network)}</b> به آدرس جدید تغییر کرد. پرداخت هنوز خاموش است."),
+        reply_markup=super_admin_crypto_settings_kb(runtime_enabled=False, can_enable=True),
+        parse_mode="HTML",
+    )
 
 
 @router.callback_query(F.data == "super:crypto:health")
