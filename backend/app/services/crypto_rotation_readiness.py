@@ -12,6 +12,9 @@ from sqlalchemy.orm import Session
 from app.core import config as cfg
 from app.models.crypto import CryptoDepositRequest
 from app.services.crypto_deposit_service import OPEN_STATUSES
+from app.services.crypto_destination_state import rotation_enabled
+from app.services.crypto_scan_observation import observation_key
+from app.models.settings import AppSetting
 
 
 def assess_rotation(db: Session, *, network: str, current_address: str, proposed_address: str) -> dict[str, object]:
@@ -36,7 +39,22 @@ def assess_rotation(db: Session, *, network: str, current_address: str, proposed
         CryptoDepositRequest.destination_address == current_address,
         CryptoDepositRequest.status == "NEEDS_REVIEW",
     )).scalar_one() or 0)
-    return {
+    # Observations are operational diagnostics, NOT verified historical
+    # backfill. The experimental gate keeps Production's prior report shape.
+    scan_coverage = None
+    if rotation_enabled():
+        row = db.get(AppSetting, observation_key(network, current_address))
+        data = row.v_json if row is not None and isinstance(row.v_json, dict) else {}
+        scan_coverage = {
+            "observation_present": bool(data),
+            "checked_at": data.get("checked_at"),
+            "pages_complete": data.get("pages_complete") is True,
+            "processing_complete": data.get("processing_complete") is True,
+            "historical_gap": data.get("historical_gap") is True,
+            # Never trust a mutable diagnostic flag as readiness evidence.
+            "backfill_verified": False,
+        }
+    report = {
         "network": network,
         "candidate_matches_current": proposed_address == current_address,
         "open_invoices": open_count,
@@ -45,3 +63,6 @@ def assess_rotation(db: Session, *, network: str, current_address: str, proposed
         "active_change_allowed": False,
         "reason": "Active wallet switching is disabled pending atomic revision locking, provider preflight, old-address scan and reconciliation tests.",
     }
+    if scan_coverage is not None:
+        report["scan_coverage"] = scan_coverage
+    return report
