@@ -15,7 +15,7 @@ from bot.services.telegram_safe import safe_edit_or_send
 from bot.services.api_client import ApiClient, ApiError
 from bot.services.retry import retry_async
 from bot.services.card_cache import put_card, get_card
-from bot.services.card_render import build_grid_text_from_numbers, render_grid_with_marks, render_number_grid_with_marks
+from bot.services.card_render import render_grid_with_marks, render_number_grid_with_marks
 from bot.services.game_rules import rule_kind, rule_title, rule_details, card_progress
 from bot.services.game_cards_messages_cache import set_game_card_messages, CardMsgRef
 from bot.keyboards.game_cards_control import game_cards_control_kb
@@ -60,7 +60,9 @@ def _card_message(card: dict, game_id: int, game_state: dict, called_numbers: li
         rule_text = rule_details(game_state)
     else:
         rule_text = "⚠️ قانون این بازی فعلاً مشخص نیست؛ برای اطلاع دقیق تازه‌سازی کنید."
-    if valid_layout and not mismatch:
+    if not meta_ready:
+        progress = "⏳ وضعیت زنده اعداد در دسترس نیست؛ برای نمایش دقیق تازه‌سازی کنید."
+    elif valid_layout and not mismatch:
         progress = card_progress(numbers, called_numbers, game_state)
     else:
         progress = "⏳ وضعیت اعداد این کارت قابل محاسبه نیست."
@@ -529,8 +531,7 @@ async def card_open(cq: CallbackQuery, api: ApiClient, tg_user_id: int, tg_usern
 
     game_id = int(card.get("game_id"))
     numbers = card.get("numbers_json") or []
-    grid_text = card.get("grid_text") or build_grid_text_from_numbers(numbers, cols=5)
-    if not grid_text:
+    if not numbers and not card.get("grid_text"):
         await safe_edit_or_send(
             cq.message,
             panel("کارت", "این کارت داده کافی برای نمایش ندارد."),
@@ -569,8 +570,7 @@ async def card_refresh(cq: CallbackQuery, api: ApiClient, tg_user_id: int, tg_us
 
     game_id = int(card.get("game_id"))
     numbers = card.get("numbers_json") or []
-    grid_text = card.get("grid_text") or build_grid_text_from_numbers(numbers, cols=5)
-    if not grid_text:
+    if not numbers and not card.get("grid_text"):
         await cq.answer("داده کافی برای نمایش کارت نیست.", show_alert=False)
         return
 
@@ -603,8 +603,7 @@ async def card_send_pv(cq: CallbackQuery, api: ApiClient, tg_user_id: int, tg_us
 
     game_id = int(card.get("game_id"))
     numbers = card.get("numbers_json") or []
-    grid_text = card.get("grid_text") or build_grid_text_from_numbers(numbers, cols=5)
-    if not grid_text:
+    if not numbers and not card.get("grid_text"):
         await cq.answer("داده کافی برای نمایش کارت نیست.", show_alert=False)
         return
 
