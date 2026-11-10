@@ -23,15 +23,74 @@ done
 WORK="$(mktemp -d /tmp/davarna-zero-combined.XXXXXX)"
 trap 'rm -rf -- "$WORK"' EXIT
 git archive "$REF" | tar -x -C "$WORK"
-git diff --binary "$BASE" "$UI_HEAD" -- \
-  backend/app/static/mini/index.html \
-  backend/app/static/mini/app.js > "$WORK/v13.patch"
-echo "===== APPLY V1.3 UI OVER V1.2 WALLET SOURCE ====="
-if ! (cd "$WORK" && git apply --check v13.patch); then
-  echo "BLOCKED: V1.3 patch conflicts with V1.2; requires explicit source integration" >&2
-  exit 4
-fi
-(cd "$WORK" && git apply v13.patch)
+echo "===== MERGE V1.3 SUPERVISOR UI WITH V1.2 WALLET CONTROLS ====="
+git show "$UI_HEAD:backend/app/static/mini/index.html" > "$WORK/v13-index.html"
+git show "$UI_HEAD:backend/app/static/mini/app.js" > "$WORK/v13-app.js"
+python3 - "$WORK" <<'PY'
+from pathlib import Path
+import sys
+root = Path(sys.argv[1])
+mini = root / "backend/app/static/mini"
+
+def one(text, token, label):
+    count = text.count(token)
+    if count != 1:
+        raise SystemExit(f"BLOCKED: {label} marker count={count}")
+    return text.index(token)
+
+def section(src, start, end, label):
+    i = one(src, start, label + " start")
+    j = src.find(end, i + len(start))
+    if j < 0:
+        raise SystemExit(f"BLOCKED: {label} end marker missing")
+    return i, j
+
+old_html = (mini / "index.html").read_text()
+v13_html = (root / "v13-index.html").read_text()
+begin = '              <details id="superAdminSection"'
+end = '\n            </div>\n          </article>'
+old_i, old_j = section(old_html, begin, end, "V1.2 superadmin")
+new_i, new_j = section(v13_html, begin, end, "V1.3 superadmin")
+old_section = old_html[old_i:old_j]
+new_section = v13_html[new_i:new_j]
+
+# V1.2 has owner-controlled wallet proposals absent from the older V1.3 UI.
+# Preserve all such form IDs/handlers while inserting the V1.3 five-panel layout.
+wallet_start = '                  <details id="superCryptoWalletSection"'
+wallet_end = '\n                  </details>'
+a, b = section(old_section, wallet_start, wallet_end, "V1.2 crypto wallet")
+c, d = section(new_section, wallet_start, wallet_end, "V1.3 crypto wallet")
+v12_wallet = old_section[a:b + len(wallet_end)]
+v13_wallet = new_section[c:d + len(wallet_end)]
+assert v12_wallet.count('superCryptoProposalSubmitBtn') == 1
+assert v13_wallet.count('superCryptoProposalSubmitBtn') == 0
+new_section = new_section.replace(v13_wallet, v12_wallet, 1)
+merged_html = old_html[:old_i] + new_section + old_html[old_j:]
+for required in (
+    'superadmin-workspace-v13', 'superPanelPayments', 'superPanelAccounts',
+    'superPanelRoles', 'superPanelSecurity', 'superCryptoProposalSubmitBtn',
+    'superCryptoProposalsList',
+):
+    if merged_html.count(required) < 1:
+        raise SystemExit(f"BLOCKED: merged HTML missing {required}")
+(mini / "index.html").write_text(merged_html)
+
+old_js = (mini / "app.js").read_text()
+new_js = (root / "v13-app.js").read_text()
+js_start = 'function showSuperAdminPanelV13('
+js_old_start = 'function wireAdminQuickNavigationV2()'
+js_end = 'function syncAdminSelectedGameListV2()'
+x, y = section(new_js, js_start, js_end, "V1.3 navigation")
+p, q = section(old_js, js_old_start, js_end, "V1.2 navigation")
+if 'function showSuperAdminPanelV13(' in old_js:
+    raise SystemExit("BLOCKED: V1.3 navigation already exists in V1.2")
+merged_js = old_js[:p] + new_js[x:y] + old_js[q:]
+for required in ('showSuperAdminPanelV13(', 'superCryptoProposalSubmitBtn', 'wireAdminQuickNavigationV2()'):
+    if required not in merged_js:
+        raise SystemExit(f"BLOCKED: merged JS missing {required}")
+(mini / "app.js").write_text(merged_js)
+print("PASS: V1.3 five-panel UI merged with V1.2 wallet proposal editor")
+PY
 git show "$UI_HEAD:backend/app/static/mini/ux-v2.css" \
   | awk '/^\/\* Superadmin v1\.3:/ {found=1} found {print}' > "$WORK/v13.css"
 [[ -s "$WORK/v13.css" ]] || { echo "BLOCKED: V1.3 CSS missing"; exit 4; }
