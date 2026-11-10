@@ -40,9 +40,12 @@ def production_rotation_enabled() -> bool:
         url = make_url(os.getenv("DATABASE_URL", ""))
     except Exception:
         return False
+    approved_host = os.getenv("DAVARNA_CRYPTO_ROTATION_PRODUCTION_DB_HOST", "mysql").strip()
+    if approved_host not in {"mysql", "davarna-zero-mysql-20261110"}:
+        return False
     return (
         url.get_backend_name() == "mysql"
-        and url.host == "mysql"
+        and url.host == approved_host
         and url.database == approved_schema
     )
 
