@@ -53,7 +53,8 @@ docker run -d --rm --name "$DB_CONTAINER" --network "$NETWORK" \
   --memory=768m --memory-swap=768m --security-opt no-new-privileges \
   -e MYSQL_ROOT_PASSWORD="$ROOTPASS" \
   -e MYSQL_DATABASE=davarna_clean_launch_validation \
-  "$MYSQL_IMAGE" --innodb-buffer-pool-size=64M --mysql-native-password=ON >/dev/null
+  "$MYSQL_IMAGE" --innodb-buffer-pool-size=64M --mysql-native-password=ON \
+  --log-bin-trust-function-creators=ON >/dev/null
 CREATED_DB=1
 READY=0
 for _ in $(seq 1 90); do
@@ -73,6 +74,15 @@ CREATE USER 'clean_launch_test'@'%' IDENTIFIED WITH mysql_native_password BY '$T
 GRANT ALL PRIVILEGES ON davarna_clean_launch_validation.* TO 'clean_launch_test'@'%';
 SQL
 DB_URL="mysql+pymysql://clean_launch_test:$TESTPASS@$DB_CONTAINER/davarna_clean_launch_validation"
+
+echo "===== DISPOSABLE-ONLY MYSQL TRIGGER PREFLIGHT ====="
+# The pinned 20260916_0007 migration checks this variable and TRIGGER grants.
+# Set at container startup ONLY on the ephemeral isolated MySQL; the live
+# davarna-mysql instance, its global settings and named volume are untouched.
+TRUST="$(docker exec -e MYSQL_PWD="$ROOTPASS" "$DB_CONTAINER" \
+  mysql -uroot --batch --skip-column-names -e 'SELECT @@GLOBAL.log_bin_trust_function_creators')"
+[[ "$TRUST" == 1 ]] || { echo "BLOCKED: isolated MySQL trigger setting unexpected" >&2; exit 3; }
+echo "PASS: isolated MySQL trigger creation allowed"
 
 echo "===== CLEAN MIGRATIONS + FRESH INITIAL SEED ====="
 docker run --rm --network "$NETWORK" --read-only --cap-drop ALL \
