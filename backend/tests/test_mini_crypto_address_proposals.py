@@ -169,6 +169,32 @@ class CryptoAddressProposalTests(unittest.TestCase):
                 self.assertEqual(response.status_code, 200, response.text)
                 self.assertEqual(assessment.call_args.kwargs["current_address"], self.new)
 
+    def test_experimental_proposal_listing_includes_current_version(self):
+        self.assertEqual(self.request().status_code, 201)
+        with (
+            patch.object(mini, "rotation_enabled", return_value=True),
+            patch.object(mini.CryptoDepositService, "runtime_status", return_value={
+                "options": [{
+                    "network": "TRON", "address": self.new, "destination_version": 2,
+                }],
+            }),
+        ):
+            response = self.client.get("/mini-api/admin/super/crypto-address-proposals")
+        self.assertEqual(response.status_code, 200, response.text)
+        body = response.json()
+        self.assertTrue(body["activation_supported"])
+        self.assertEqual(body["items"][0]["expected_version"], 2)
+        self.assertEqual(body["items"][0]["expected_current_address"], self.new)
+
+    def test_production_proposal_listing_exposes_no_activation_version(self):
+        self.assertEqual(self.request().status_code, 201)
+        with patch.object(mini, "rotation_enabled", return_value=False):
+            response = self.client.get("/mini-api/admin/super/crypto-address-proposals")
+        self.assertEqual(response.status_code, 200, response.text)
+        body = response.json()
+        self.assertFalse(body["activation_supported"])
+        self.assertNotIn("expected_version", body["items"][0])
+
     def test_production_proposal_still_uses_environment_destination(self):
         # Even if a stale experimental record exists, the real environment
         # address is authoritative when disposable rotation mode is off.
