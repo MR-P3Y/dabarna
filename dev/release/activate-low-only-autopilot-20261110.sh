@@ -31,7 +31,7 @@ from app.models.user import User
 from app.services.game_autopilot_config_service import GameAutopilotConfigService
 assert cfg.GAME_AUTO_DRAW_ENABLED and not cfg.GAME_AUTOPILOT_RUNTIME_ENABLED
 assert cfg.GAME_AUTOPILOT_SYSTEM_USER_ID is not None
-assert cfg.USER_FORUM_CHAT_ID or cfg.DEFAULT_TG_GROUP_ID
+assert int(cfg.USER_FORUM_CHAT_ID or cfg.DEFAULT_TG_GROUP_ID or 0)==-1003614031001, "Telegram group drift"
 with SessionLocal() as db:
  assert db.get(User,int(cfg.GAME_AUTOPILOT_SYSTEM_USER_ID)), "system user missing"
  active=db.execute(select(Game.id).where(Game.status.in_(("LOBBY","RUNNING")))).scalars().all()
