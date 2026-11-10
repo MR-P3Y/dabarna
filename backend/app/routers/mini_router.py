@@ -5607,12 +5607,32 @@ def _mini_super_crypto_status(db: Session) -> dict[str, Any]:
                 "network": str(item.get("network") or ""),
                 "asset": str(item.get("asset") or ""),
                 "address": str(item.get("address") or ""),
-                "address_source": "server_environment",
+                "address_source": (
+                    "versioned_disposable_database"
+                    if rotation_enabled() else "server_environment"
+                ),
                 "address_editable": False,
             }
             for item in options
         ],
     }
+
+
+def _mini_current_crypto_destination(db: Session, network: str) -> str | None:
+    """Use the persisted active version in experimental mode, not stale .env.
+
+    For Production, retain the current environment-based behavior. This
+    helper never enables wallet rotation or writes any setting.
+    """
+    options = (
+        CryptoDepositService.runtime_status(db).get("options", [])
+        if rotation_enabled()
+        else CryptoDepositService.configured_options()
+    )
+    return next(
+        (str(item["address"]) for item in options if item["network"] == network),
+        None,
+    )
 
 
 @router.get("/admin/super/crypto-settings")
@@ -5650,8 +5670,7 @@ def mini_super_crypto_address_readiness(
     db: Session = Depends(get_db),
 ):
     _ = ident
-    options = CryptoDepositService.configured_options()
-    current = next((str(x["address"]) for x in options if x["network"] == network), None)
+    current = _mini_current_crypto_destination(db, network)
     if current is None:
         raise HTTPException(status_code=409, detail="این شبکه روی سرور پیکربندی نشده است.")
     proposal = _setting_get_json(db, proposal_key(network))
@@ -5673,11 +5692,7 @@ def mini_super_propose_crypto_address(
     """Record an audited proposal only; invoice generation and chain scanners remain unchanged."""
     enforce_write_rate_limit(int(ident.user_id))
     network = payload.network
-    current = next(
-        (str(x["address"]) for x in CryptoDepositService.configured_options()
-         if x["network"] == network),
-        None,
-    )
+    current = _mini_current_crypto_destination(db, network)
     if not current or current != payload.expected_current_address:
         raise HTTPException(status_code=409, detail="آدرس فعلی تغییر کرده یا شبکه تنظیم نیست؛ دوباره بارگذاری کنید.")
     try:
