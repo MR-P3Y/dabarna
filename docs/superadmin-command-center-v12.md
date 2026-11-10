@@ -122,3 +122,14 @@ Do NOT merge/deploy to Production until tests above pass and the user explicitly
 - Four isolated regression cases cover missing/tampered/incomplete observations and REJECTED coverage. The pinned isolated runner includes them.
 - Tests at this new source SHA have NOT run on NODE2; no merge, no Production release, no wallet address change.
 - Remaining: verified provider pagination and time-window backfill with durable checkpoints, complete historical mismatch/reconciliation workflow, safe audited activation and rollback UX in Mini App/Bot and comprehensive MySQL/network replay validation.
+
+
+## 2026-11-10 operator clarification: earlier deposits were test-only (UNVERIFIED)
+
+The operator reports no real funds moved during earlier TON/TRON trials and authorizes removal of test records if needed. This changes the proposed migration plan but is **not** database proof that all rows are disposable. Do not infer cleanup eligibility from status alone, and do not execute production DELETE/TRUNCATE, wallet ledger rewrites or balance reset without a separate evidence-based scope.
+
+A read-only SQL dependency audit is available at `dev/release/audit-crypto-test-history-readonly-20261110.sql`. It counts invoices by network/status, tx hashes, chain detections, credit links, crypto wallet ledger entries, orphaned ledger entries and nonzero wallet balances. Run on NODE2 with a read-only SQL account and preserve the output without exporting private user data. Compare against a verified snapshot/backup and classify exact test invoice IDs.
+
+If there are **no** crypto invoice rows, no crypto ledger entries, and no linked transfer evidence, the old-invoice historical-reconciliation release blocker for this specific database can be eliminated **without deleting anything**. Do not generalize this to other databases or networks. If any linked credit/ledger/chain evidence exists, preserve accounting history and escalate those rows for explicit reconciliation, even if the initial scenario was a test.
+
+The ability to switch active wallet destinations in Production remains blocked independently by provider preflight, atomic live state/bootstrap, authenticated UI/Bot activation, rollback and end-to-end chain-to-ledger regression coverage. The existing disposable-only rotation guard must not be relaxed merely because old invoices are test data. This documentation is planning only; no Production data mutation has occurred.
