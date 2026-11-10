@@ -110,7 +110,30 @@ if state.is_file():
 else:
  print("INFO: inspect bot notification storage mount; no ACK inference")
 PY
-echo "===== GITHUB CANDIDATE BOT NOTIFIER HASH ====="
-sha256sum "$WORK/davarna-bot/bot/workers/notifier.py" | cut -d' ' -f1
+echo "===== DEPLOYED-VS-GITHUB TELEGRAM CODE PROVENANCE ====="
+# Hash actual files without exporting tokens, .env, state, or copy of the Bot filesystem.
+for path in bot/workers/notifier.py bot/services/lifecycle_delivery.py bot/services/user_topics.py; do
+ candidate="$WORK/davarna-bot/$path"
+ expected="$(sha256sum "$candidate" | cut -d' ' -f1)"
+ live="$(docker exec -i davarna-bot python - "$path" <<'PY'
+import hashlib
+from pathlib import Path
+import sys
+from bot.workers import notifier
+base=Path(notifier.__file__).resolve().parents[1]
+relative=Path(sys.argv[1])
+target=base.parent / relative
+if target.is_file():
+ print(hashlib.sha256(target.read_bytes()).hexdigest())
+else:
+ print("MISSING")
+PY
+)"
+ if [[ "$expected" == "$live" ]];then
+  echo "SOURCE_MATCH $path PASS"
+ else
+  echo "SOURCE_MATCH $path NOT_DEPLOYED_OR_MODIFIED"
+ fi
+done
 echo "===== RULES / TELEGRAM AUDIT COMPLETE ====="
 echo "No live Telegram sends or changes to Production data or containers."
