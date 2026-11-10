@@ -80,19 +80,30 @@ class CryptoDepositService:
             from app.models.settings import AppSetting
             from app.services.crypto_destination_state import state_key, lock_destination_state_from_record
             mapped = []
-            for item in options:
-                row = db.get(AppSetting, state_key(str(item["network"])))
-                if row is None or not isinstance(row.v_json, dict):
-                    if production_rotation_enabled() and not runtime_enabled:
-                        # Allow the owner to access the setup page while
-                        # issuance is frozen. This fallback is for display
-                        # ONLY; create_invoice will fail closed until seeded.
-                        mapped.append({**item, "destination_version": None,
+            # Versioned state is the source of truth; it must also support
+            # first-time owner-added addresses without requiring .env editing.
+            by_network = {str(item["network"]): item for item in options}
+            for network, asset, decimals, network_enabled in (
+                ("TRON", "USDT", 6, cfg.CRYPTO_TRON_USDT_ENABLED),
+                ("TON", "TON", min(9, int(cfg.CRYPTO_TON_DECIMALS)), cfg.CRYPTO_TON_ENABLED),
+            ):
+                if not network_enabled:
+                    continue
+                initial = by_network.get(network)
+                row = db.get(AppSetting, state_key(network))
+                if row is None:
+                    if initial is not None and production_rotation_enabled() and not runtime_enabled:
+                        mapped.append({**initial, "destination_version": None,
                                        "requires_bootstrap": True})
                         continue
-                    raise HTTPException(status_code=503, detail="رکورد آدرس شبکه آماده نیست.")
-                state = lock_destination_state_from_record(str(item["network"]), row.v_json)
-                mapped.append({**item, "address": str(state["address"]),
+                    if initial is not None and runtime_enabled:
+                        raise HTTPException(status_code=503, detail="نسخه آدرس شبکه آماده نیست.")
+                    continue
+                if not isinstance(row.v_json, dict):
+                    raise HTTPException(status_code=503, detail="رکورد آدرس شبکه نامعتبر است.")
+                state = lock_destination_state_from_record(network, row.v_json)
+                spec = initial or {"network": network, "asset": asset, "decimals": decimals}
+                mapped.append({**spec, "address": str(state["address"]),
                                "destination_version": state["version"],
                                "requires_bootstrap": False})
             options = mapped
