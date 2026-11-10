@@ -871,6 +871,9 @@ class BotAdminGameReportGameOut(BaseModel):
     admin_user_id: int
     admin_tg_user_id: int | None = None
     status: str
+    execution_source: str = "ADMIN"
+    scheduled_start_at: str | None = None
+    draw_mode: str | None = None
     card_price: int
     card_layout_version: int = 1
     game_rule: str = "LEGACY"
@@ -2674,6 +2677,7 @@ def get_bot_admin_game_report(
         text("""
             SELECT
               id, tg_group_id, tg_topic_id, admin_user_id, status,
+              execution_source, scheduled_start_at, draw_mode,
               card_price, card_layout_version, game_rule, commission_rate,
               sold_amount, commission_amount, prize_pool,
               prize_locked, col_prize_amount, row_prize_amount,
@@ -2778,6 +2782,9 @@ def get_bot_admin_game_report(
             admin_user_id=int(game["admin_user_id"]),
             admin_tg_user_id=admin_tg_user_id,
             status=str(game["status"]),
+            execution_source=str(game["execution_source"] or "ADMIN"),
+            scheduled_start_at=_as_str_datetime(game["scheduled_start_at"]) if game["scheduled_start_at"] is not None else None,
+            draw_mode=str(game["draw_mode"]) if game["draw_mode"] is not None else None,
             card_price=int(game["card_price"]),
             card_layout_version=int(game["card_layout_version"] or 1),
             game_rule=str(game["game_rule"] or "LEGACY"),
