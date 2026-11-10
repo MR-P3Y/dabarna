@@ -25,6 +25,7 @@ class MiniGameItemOut(BaseModel):
     card_layout_version: int = 1
     game_rule: str = "LEGACY"
     execution_source: str = "ADMIN"
+    draw_mode: str | None = None
     commission_rate: float = 0.10
     scheduled_start_at: str | None = None
     # Read-only timer metadata, derived from the active Autopilot schedule.
