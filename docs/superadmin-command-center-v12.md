@@ -142,3 +142,28 @@ The ability to switch active wallet destinations in Production remains blocked i
 - Mini App now renders an additional double-confirmed **disposable-test-only** activation control only when server explicitly advertises `activation_supported=true`. The endpoint remains hard-gated to `davarna-wallet-mysql/davarna_wallet_rotation_test`; production activation is not implemented or implied.
 - Five new HTTP regression cases in `test_mini_crypto_address_proposals.py` cover second rotation, versioned readiness, production isolation and test-only activation metadata.
 - Pending: execute pinned isolated suite and disposable MySQL suite for this HEAD, verify Mini App JS syntax, add a separate production-safe startup/bootstrap and rollback policy, implement Bot approval UX, provider preflight and transaction replay checks, and release only with a dedicated explicit deployment approval.
+
+
+## 2026-11-10: production wallet rotation implementation candidate (UNTESTED)
+A *new, default-off* gated Production mode is implemented in this branch. It is **not activated or deployed** merely by merging the code.
+
+### Security and concurrency
+- `DAVARNA_CRYPTO_ROTATION_PRODUCTION=I_ACK_REAL_FUNDS_PRODUCTION_WALLET_ROTATION` and `DAVARNA_CRYPTO_ROTATION_PRODUCTION_DB=<verified exact schema>` must BOTH be explicitly set in the backend process, and actual `DATABASE_URL` must be MySQL with `mysql` hostname and matching database. Otherwise production mode remains OFF.
+- The separate experimental endpoint accepts only exact disposable MySQL and is not unlocked by the production gate.
+- Issuance, crypto runtime toggling (both Mini and Bot endpoints), and destination rotation coordinate with SQL row locks. Runtime is locked BEFORE versioned destination to avoid opposite lock ordering.
+- Owner-only initial bootstrap `POST /mini-api/admin/super/crypto-address-prepare-production` seeds a version 1 state from the existing configured env address, only while a **persisted runtime setting exists and is FALSE**. It does not change recipient addresses, and repeated initialization is refused.
+- Owner-only `POST /mini-api/admin/super/crypto-address-activate-production` requires a pending proposal, matching active version/address, the prior-address SHA256, disabled issuance, zero open/recent-closed/needs-review/**any historical** invoices on that address, and a successful read-only query of the proposed destination via TronGrid or TON provider. All writes and audit commit atomically.
+- Production activation **never reenables user deposits**. The operator must separately verify live status and explicitly resume them.
+- Pending destinations display actual database versions only after bootstrap; without bootstrap, the owner can see preparation state while issuance remains frozen, but invoice creation fails closed.
+- Bot owner crypto menu includes read-only address overview, backed by the existing protected `/bot/admin/crypto-settings` route. Direct Bot approval was deliberately NOT added: a shared Bot admin token is insufficient identity for destination mutation; approval must use authenticated Mini App ownership.
+- Owner-only `GET /mini-api/admin/super/crypto-late-review-production` surfaces unmatched historical transfers for manual review without any credit action.
+- Regression tests added for runtime off, exact production database gate, stale version, unresolved history, failed provider preflight, successful audited CAS handler and non-enabling of deposits. Both test harness and bot-source compile checks are included in pinned isolated runner.
+
+### Current deployment blockers — IMPORTANT
+- **The live DB currently contains 20 closed historical crypto test invoices (14 TRON, 6 TON) on the old environment destinations.** They are NOT automatically deleted or hidden. The new production activation endpoint intentionally denies any switch while a historical invoice references the previous address. This must be resolved through a separate, auditable reconciliation decision; never reset wallets or delete the game ledger.
+- The current historical scanner only scans a bounded recent lookback for older invoices. It does not certify historical backfill. The read-only late review queue does not authorize auto-credit.
+- **No Production runtime gate has been enabled**, no Production address has been changed, and these latest candidate commits **have not been tested yet**. Older commit `3ca9d6a7...` passed 66 isolated + 9 disposable MySQL tests; do NOT count those as validating the new production code.
+- Do NOT set the Production opt-in environment variables, merge as ready-to-use, or deploy with live funds until the newly pinned release-candidate suites pass, proper historical invoice treatment/backfill is tested, external chain/provider preflight is checked, and a reversible deployment checklist is approved.
+
+### One-shot isolated validation
+Pin the latest branch head in `DAVARNA_WALLET_RELEASE_TEST_REF`; execute `dev/release/verify-wallet-rotation-release-candidate-20261110.sh` only with `DAVARNA_WALLET_RELEASE_TEST_APPROVAL=RUN_ISOLATED_WALLET_RELEASE_TESTS`. All MySQL tests run in disposable container `davarna-wallet-mysql` on isolated network with tmpfs; the script never deploys to Production.
