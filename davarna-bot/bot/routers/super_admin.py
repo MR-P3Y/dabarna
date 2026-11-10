@@ -29,6 +29,7 @@ from bot.services.admin_acl import (
     sync_dynamic_admin_roles,
 )
 from bot.services.api_client import ApiClient, ApiError
+from bot.services.html import h
 from bot.services.telegram_safe import safe_edit_or_send
 from bot.services.ui import panel
 from bot.services.numerals import normalize_digits
@@ -954,6 +955,45 @@ async def super_crypto_settings_toggle(cq: CallbackQuery, api: ApiClient, is_sup
         return
     notice = "✅ پرداخت رمزارزی برای کاربران روشن شد." if next_enabled else "✅ پرداخت رمزارزی برای کاربران خاموش شد."
     await _show_crypto_settings(cq, api, notice=notice)
+
+
+@router.callback_query(F.data == "super:crypto:addresses")
+async def super_crypto_destination_overview(
+    cq: CallbackQuery, api: ApiClient, is_super_admin: bool = False,
+):
+    """Read-only bot view; activation requires owner identity in Mini App."""
+    if not _require_super_admin(is_super_admin):
+        await cq.answer("فقط سوپرادمین دسترسی دارد.", show_alert=True)
+        return
+    try:
+        out = await api.super_admin_get_crypto_settings()
+    except ApiError as exc:
+        await cq.answer(exc.detail, show_alert=True)
+        return
+    rows = out.get("networks") or []
+    lines = ["وضعیت آدرس‌های دریافت:"]
+    for item in rows:
+        if not isinstance(item, dict):
+            continue
+        net = h(str(item.get("network") or "-"))
+        address = h(str(item.get("address") or "تنظیم نشده"))
+        lines.append(f"<b>{net}</b>\\n<code>{address}</code>")
+    if len(lines) == 1:
+        lines.append("هیچ شبکه‌ای پیکربندی نشده است.")
+    lines.append(
+        "تغییر آدرس فقط از بخش سوپرادمین مینی‌اپ، "
+        "با بررسی وضعیت فاکتورها و تأیید هویت انجام می‌شود. "
+        "ربات اجازه تغییر مستقیم مقصد دریافت را ندارد."
+    )
+    await safe_edit_or_send(
+        cq.message, panel("👑 آدرس‌های دریافت TON/TRON", "\\n\\n".join(lines)),
+        reply_markup=super_admin_crypto_settings_kb(
+            runtime_enabled=bool(out.get("runtime_enabled")),
+            can_enable=bool(out.get("master_enabled") and out.get("configured")),
+        ),
+        parse_mode="HTML",
+    )
+    await cq.answer()
 
 
 @router.callback_query(F.data == "super:crypto:health")
