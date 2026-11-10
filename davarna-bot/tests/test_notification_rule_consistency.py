@@ -43,8 +43,8 @@ class BotNotificationRuleConsistencyTests(unittest.TestCase):
         legacy = announce({"game_rule": "LEGACY"})
         self.assertIn("۱۵ عدد", full)
         self.assertIn("بدون تورنا", full)
-        self.assertIn("۳ عدد یک ردیف", line)
-        self.assertIn("۵ عدد یک ردیف", line)
+        self.assertIn("۳ عدد از یک ردیف", line)
+        self.assertIn("۵ عدد از یک ردیف", line)
         self.assertIn("ستون ۴ عددی", legacy)
         self.assertIn("ردیف ۵ عددی", legacy)
 
