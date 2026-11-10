@@ -76,3 +76,13 @@ Do NOT merge/deploy to Production until tests above pass and the user explicitly
 - A separate MySQL integration test creates a real `Wallet` and `WalletTx`, credits with `WalletService.credit`, then retries in a fresh Session as a worker restart simulation; verifies one ledger transaction and unchanged balance.
 - Only the quote/preflight and service enablement are mocked; no chain provider calls and no external transfers.
 - These checks do **not** implement automatic late-payment reconciliation or activation endpoint. Actual `process_transfer` end-to-end replay and scanner retry orchestration still require separate tests; avoid treating a green result as permission to deploy financial changes.
+
+
+## 2026-11-10 pagination guard (not released)
+
+- TRON/USDT scans now follow TronGrid `meta.fingerprint` while preserving request filters, both for pending and confirmed transfer views. Repeated cursors, malformed response data, an unpaginated full page and more than 20 pages fail closed.
+- TON scans now follow TON Center v3 `offset` in increments of 100; malformed pages, HTTP errors or more than 20 pages fail closed. No truncated page result is handed to the crediting worker.
+- Four new mocked pagination tests are included in the V1.2 isolated test runner alongside late-transfer inbox tests.
+- Commits: `9d92ced8ce64e2c38780af55e41b30fea2a9987d`, `19966a4fb1a3e8bc5af344a5e93b66ec274962f8`, `92d3280f9606e492e6f95e9a30a3a13d40084b2f`.
+- **Not run on NODE2 yet.** Fail-closed scan overflow requires operational alerting and persisted backfill/cursor support; no automatic credit should occur from incomplete history.
+- Full production capability **still blocked** on final historical late-payment reconciliation, end-to-end chain event/ledger tests, provider health preflight, auditable user-controlled activation and rollback, and explicit separate finance release approval. Do not flip experimental gate or merge as a ready-to-deploy wallet rotation.
