@@ -2253,7 +2253,7 @@ def bot_owner_crypto_wallet_prepare(
     )
 
 
-@router.post("/admin/crypto-wallets/propose")
+@router.post("/admin/crypto-wallets/propose", status_code=201)
 def bot_owner_crypto_wallet_propose(
     payload: MiniSuperCryptoAddressProposalIn,
     request: Request,
