@@ -9,6 +9,7 @@ from bot.keyboards.join_gate import join_gate_action_kb, join_gate_kb
 from bot.keyboards.purchase import after_purchase_kb, confirm_kb, games_list_kb, qty_kb
 from bot.services.api_client import ApiClient, ApiError
 from bot.services.join_gate import configured_join_group_id, join_gate_body, resolve_join_gate_target
+from bot.services.game_rules import rule_title, rule_details
 from bot.services.notify_store import get_user_subscription_map, is_subscribed
 from bot.services.tg_membership import is_member
 from bot.services.ui import panel
@@ -102,7 +103,7 @@ async def _render_games_list(cq: CallbackQuery, api: ApiClient, tg_user_id: int,
         )
         return
 
-    text = panel("خرید کارت", "یک بازی را انتخاب کن 👇")
+    text = panel("خرید کارت", "بازی و قانون کارت را بررسی کن، سپس تعداد کارت را انتخاب کن 👇")
     await cq.message.edit_text(
         text,
         parse_mode="HTML",
@@ -163,8 +164,11 @@ async def buy_select_game(cq: CallbackQuery, state: FSMContext, api: ApiClient, 
         "خرید کارت 🛒",
         f"🎮 بازی: <b>{game_title}</b>\n"
         f"وضعیت: <b>{game_status_fa}</b>\n"
-        f"💳 قیمت هر کارت: <b>{_fmt_int(card_price)}</b>\n\n"
-        "حالا تعداد کارت رو انتخاب کن 👇",
+        f"📋 نوع بازی: <b>{rule_title(g)}</b>\n"
+        f"{rule_details(g)}\n"
+        f"💳 قیمت هر کارت: <b>{_fmt_int(card_price)} تومان</b>\n"
+        "👥 شروع بازی با حضور حداقل ۲ بازیکن متمایز دارای کارت امکان‌پذیر است.\n\n"
+        "حالا تعداد کارت را انتخاب کن 👇",
     )
     await cq.message.edit_text(text, parse_mode="HTML", reply_markup=qty_kb(game_id))
     await cq.answer()
