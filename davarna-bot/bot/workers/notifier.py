@@ -533,6 +533,8 @@ def _autopilot_countdown_notice_state(game: dict, *, now_ts: float | None = None
         return None
     if str(game.get("execution_source") or "ADMIN").upper() != "SYSTEM":
         return None
+    if not bool(game.get("countdown_enabled")):
+        return None
     scheduled_raw = str(game.get("scheduled_start_at") or "").strip()
     scheduled = _parse_dt(scheduled_raw)
     if scheduled is None:
@@ -1685,7 +1687,10 @@ async def notifier_loop(
         game = rep.get("game") or {}
         # At most one countdown notice per game/deadline. Retry on failed
         # Telegram delivery; never send after the scheduled start instant.
-        await _notify_autopilot_start_countdown(bot, game_id=gid, report=rep)
+        try:
+            await _notify_autopilot_start_countdown(bot, game_id=gid, report=rep)
+        except Exception:
+            logger.exception("Autopilot countdown forum notice failed: game_id=%s", gid)
         if _is_user_forum_game(rep):
             called_numbers = _called_numbers_from_report(rep)
             live_marker_key = f"user_live_count:{gid}"
