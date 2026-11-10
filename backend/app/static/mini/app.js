@@ -6941,7 +6941,7 @@ function renderSuperCryptoSettings(payload) {
     if (!masterEnabled) {
       statusEl.textContent = "کلید اصلی سرور خاموش است؛ ابتدا .env.prod را تنظیم کنید.";
     } else if (!configured) {
-      statusEl.textContent = "آدرس معتبر TRON یا TON در .env.prod تنظیم نشده است.";
+      statusEl.textContent = "آدرس دریافت ثبت نشده؛ از بخش مقاصد واریز آن را اضافه کنید.";
     } else {
       statusEl.textContent = `${effectiveEnabled ? "فعال برای کاربران" : "غیرفعال برای کاربران"} | شبکه‌ها: ${networks.join("، ") || "-"}`;
     }
@@ -7118,7 +7118,8 @@ function openCryptoProposalEditor(network, currentAddress) {
   if (!editor) return;
   getEl("superCryptoWalletSection").open = true;
   editor.classList.remove("hidden");
-  getEl("superCryptoProposalNetwork").textContent = "شبکه: " + selectedCryptoProposalNetwork;
+  getEl("superCryptoProposalNetwork").textContent = "شبکه: " + selectedCryptoProposalNetwork +
+    (selectedCryptoCurrentAddress ? " | تغییر آدرس" : " | افزودن آدرس اولیه");
   const input = getEl("superCryptoProposedAddress");
   if (input) { input.value = ""; input.focus(); }
 }
@@ -7134,28 +7135,48 @@ function closeCryptoProposalEditor() {
 
 async function submitCryptoProposal() {
   if (!state.admin.canManageSuperSettings) throw new Error("دسترسی سوپرادمین لازم است.");
+  if (!state.admin.cryptoSettings?.address_management_enabled)
+    throw new Error("مدیریت آدرس‌ها هنوز در Backend فعال نیست.");
   const address = String(getVal("superCryptoProposedAddress") || "").trim();
-  if (!selectedCryptoProposalNetwork || !selectedCryptoCurrentAddress || !address)
-    throw new Error("شبکه و آدرس جدید را تکمیل کنید.");
-  if (address === selectedCryptoCurrentAddress)
+  const network = selectedCryptoProposalNetwork;
+  const previous = selectedCryptoCurrentAddress;
+  if (!network || !address) throw new Error("شبکه و آدرس را تکمیل کنید.");
+  if (previous && address === previous)
     throw new Error("آدرس جدید نباید با آدرس فعلی یکسان باشد.");
-  if (!window.confirm("درخواست تغییر " + selectedCryptoProposalNetwork +
-    " ثبت شود؟\\nتأکید: این عملیات آدرس دریافت کاربران و اسکنر را تغییر نمی‌دهد.")) return;
+  const initial = !previous;
+  const action = initial
+    ? "افزودن آدرس اولیه " + network + " (پرداخت خاموش می‌ماند)"
+    : "ثبت درخواست تغییر آدرس " + network + " (هنوز فعال نمی‌شود)";
+  if (!window.confirm(action + "؟")) return;
   const button = getEl("superCryptoProposalSubmitBtn");
   if (button) button.disabled = true;
   try {
-    await apiFetch("/mini-api/admin/super/crypto-address-proposals", {
-      method: "POST",
-      body: {
-        network: selectedCryptoProposalNetwork,
-        address,
-        expected_current_address: selectedCryptoCurrentAddress,
-        confirmation: "REQUEST_ADDRESS_CHANGE",
-      },
-    });
+    if (initial) {
+      await apiFetch("/mini-api/admin/super/crypto-address-initialize-production", {
+        method: "POST",
+        body: {
+          network, address,
+          confirmation: "ADD_NEW_CRYPTO_DESTINATION_WITH_PAYMENTS_OFF",
+        },
+      });
+    } else {
+      await apiFetch("/mini-api/admin/super/crypto-address-proposals", {
+        method: "POST",
+        body: {
+          network, address, expected_current_address: previous,
+          confirmation: "REQUEST_ADDRESS_CHANGE",
+        },
+      });
+    }
     closeCryptoProposalEditor();
-    await refreshSuperCryptoProposals();
-    setHint("superCryptoProposalHint", "درخواست ثبت شد؛ آدرس فعال بدون تغییر است.", "success");
+    await refreshSuperCryptoSettings();
+    setHint(
+      "superCryptoProposalHint",
+      initial
+        ? "آدرس اولیه ثبت شد؛ واریز رمزارزی همچنان خاموش است."
+        : "درخواست تغییر ثبت شد؛ برای اعمال واقعی ابتدا پرداخت را خاموش و تأیید نهایی را انجام دهید.",
+      "success"
+    );
   } finally {
     if (button) button.disabled = false;
   }
@@ -7185,13 +7206,18 @@ function renderSuperCryptoAddresses(payload) {
     const requestBtn = document.createElement("button");
     requestBtn.type = "button";
     requestBtn.className = "small-btn";
-    requestBtn.textContent = "پیشنهاد آدرس جدید";
+    requestBtn.textContent = network.address ? "✏️ تغییر آدرس" : "➕ افزودن آدرس";
+    requestBtn.disabled = !Boolean(payload?.address_management_enabled);
     requestBtn.addEventListener("click", () =>
       openCryptoProposalEditor(String(network.network || ""), String(network.address || ""))
     );
-    hint.textContent = network.address_source === "versioned_disposable_database"
-      ? "آدرس فعال نسخه‌بندی‌شده در دیتابیس آزمایشی؛ انتشار عملیاتی هنوز مجاز نیست."
-      : "آدرس فعال از تنظیمات سرور خوانده شده و تا هماهنگی اسکنر تغییر نمی‌کند.";
+    hint.textContent = !payload?.address_management_enabled
+      ? "تغییر آدرس فعلاً قفل است؛ باید قابلیت مدیریت امن روی سرور فعال شود."
+      : !network.address
+      ? "آدرس اولیه را اضافه کنید؛ پرداخت تا تأیید جداگانه خاموش می‌ماند."
+      : network.requires_bootstrap
+      ? "ابتدا نسخه آدرس را آماده‌سازی کنید؛ آدرس فعال هنوز از سرور خوانده می‌شود."
+      : "تغییر آدرس نیازمند ثبت درخواست، خاموش‌بودن پرداخت و تأیید نهایی است.";
     card.append(title, address, hint, requestBtn);
     if (payload?.production_rotation_enabled && network.requires_bootstrap) {
       const prep = document.createElement("button");
