@@ -350,6 +350,7 @@ def _to_game_out(g: Game) -> MiniGameItemOut:
         card_layout_version=int(g.card_layout_version or 1),
         game_rule=str(g.game_rule or "LEGACY"),
         execution_source=str(getattr(g, "execution_source", "ADMIN") or "ADMIN"),
+        draw_mode=str(g.draw_mode) if g.draw_mode is not None else None,
         commission_rate=float(g.commission_rate or 0),
         scheduled_start_at=str(g.scheduled_start_at) if getattr(g, "scheduled_start_at", None) else None,
         sold_amount=int(g.sold_amount),
