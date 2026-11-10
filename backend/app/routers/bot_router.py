@@ -2308,7 +2308,7 @@ def admin_update_crypto_settings(
     ).scalar_one_or_none()
     if production_rotation_enabled() and payload.enabled:
         # Shared versioned lock must be available before new invoices.
-        for spec in CryptoDepositService.configured_options():
+        for spec in current["networks"]:
             lock_destination_state(db, str(spec["network"]))
     if row is None:
         db.add(AppSetting(k="crypto_payments_runtime_enabled", v_json=bool(payload.enabled)))
