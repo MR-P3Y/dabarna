@@ -5651,16 +5651,29 @@ def mini_super_crypto_address_proposals(
 ):
     _ = ident
     items = []
+    experimental = rotation_enabled()
+    versioned_options = (
+        CryptoDepositService.runtime_status(db).get("options", [])
+        if experimental else []
+    )
     for network in ("TRON", "TON"):
         raw = _setting_get_json(db, proposal_key(network))
         if isinstance(raw, dict) and raw.get("status") == "PENDING_REVIEW":
-            items.append({
+            active = next(
+                (item for item in versioned_options if item.get("network") == network),
+                None,
+            )
+            entry = {
                 "network": network,
                 "address": str(raw.get("address") or ""),
                 "status": "PENDING_REVIEW",
                 "created_at": str(raw.get("created_at") or ""),
-            })
-    return {"items": items, "activation_supported": False}
+            }
+            if experimental and active is not None:
+                entry["expected_current_address"] = str(active["address"])
+                entry["expected_version"] = int(active["destination_version"])
+            items.append(entry)
+    return {"items": items, "activation_supported": experimental}
 
 
 @router.get("/admin/super/crypto-address-readiness")
