@@ -5616,11 +5616,14 @@ def _mini_super_crypto_status(db: Session) -> dict[str, Any]:
         "runtime_enabled": bool(status.get("runtime_enabled")),
         "configured": bool(status.get("configured")),
         "enabled": bool(status.get("enabled")),
+        "production_rotation_enabled": production_rotation_enabled(),
         "networks": [
             {
                 "network": str(item.get("network") or ""),
                 "asset": str(item.get("asset") or ""),
                 "address": str(item.get("address") or ""),
+                "destination_version": item.get("destination_version"),
+                "requires_bootstrap": bool(item.get("requires_bootstrap")),
                 "address_source": (
                     "versioned_production_database"
                     if production_rotation_enabled() else
@@ -5686,7 +5689,8 @@ def mini_super_crypto_address_proposals(
                 "status": "PENDING_REVIEW",
                 "created_at": str(raw.get("created_at") or ""),
             }
-            if (experimental or production) and active is not None:
+            if ((experimental or production) and active is not None
+                    and active.get("destination_version") is not None):
                 entry["expected_current_address"] = str(active["address"])
                 entry["expected_version"] = int(active["destination_version"])
             items.append(entry)
