@@ -67,13 +67,13 @@ def _card_message(card: dict, game_id: int, game_state: dict, called_numbers: li
     fingerprint = html_escape(str(card.get("fingerprint") or "—")[:12], quote=True)
     return panel(
         f"🃏 کارت {int(card.get('id') or card.get('card_id') or 0)}",
-        f"🎮 بازی: <b>#{int(game_id)}</b>\\n"
-        f"📐 چیدمان: <b>{layout_text}</b>\\n"
-        f"📋 قانون: <b>{rule_title(game_state) if meta_ready and not mismatch else 'در حال بررسی'}</b>\\n"
-        f"{rule_text}\\n\\n"
-        f"<pre>{grid}</pre>\\n"
-        f"{progress}\\n"
-        "✓ کنار عدد یعنی آن عدد اعلام شده؛ نشانهٔ تأیید برد یا پرداخت جایزه نیست.\\n"
+        f"🎮 بازی: <b>#{int(game_id)}</b>\n"
+        f"📐 چیدمان: <b>{layout_text}</b>\n"
+        f"📋 قانون: <b>{rule_title(game_state) if meta_ready and not mismatch else 'در حال بررسی'}</b>\n"
+        f"{rule_text}\n\n"
+        f"<pre>{grid}</pre>\n"
+        f"{progress}\n"
+        "✓ کنار عدد یعنی آن عدد اعلام شده؛ نشانهٔ تأیید برد یا پرداخت جایزه نیست.\n"
         f"🔐 شناسه کارت: <code>{fingerprint}…</code>",
     )
 
@@ -395,10 +395,6 @@ async def mycards_by_game(cq: CallbackQuery, api: ApiClient, tg_user_id: int, tg
         put_card(tg_user_id, c)  # برای PV/refresh single اگر خواستی
 
         card_id = int(c.get("id"))
-        numbers = c.get("numbers_json") or []
-        grid_text = c.get("grid_text") or build_grid_text_from_numbers(numbers, cols=5)
-        grid_html = render_grid_with_marks(grid_text, called_numbers)
-
         text = _card_message(c, game_id, st, called_numbers)
 
         msg = await cq.message.answer(text, parse_mode="HTML")
@@ -543,7 +539,6 @@ async def card_open(cq: CallbackQuery, api: ApiClient, tg_user_id: int, tg_usern
     except Exception:
         called_numbers = []
 
-    grid_html = render_grid_with_marks(grid_text, called_numbers)
 
     text = _card_message(card, game_id, st, called_numbers)
 
@@ -578,7 +573,6 @@ async def card_refresh(cq: CallbackQuery, api: ApiClient, tg_user_id: int, tg_us
     except Exception:
         called_numbers = []
 
-    grid_html = render_grid_with_marks(grid_text, called_numbers)
 
     text = _card_message(card, game_id, st, called_numbers)
 
@@ -613,7 +607,6 @@ async def card_send_pv(cq: CallbackQuery, api: ApiClient, tg_user_id: int, tg_us
     except Exception:
         called_numbers = []
 
-    grid_html = render_grid_with_marks(grid_text, called_numbers)
     text = _card_message(card, game_id, st, called_numbers)
 
     try:
@@ -656,10 +649,6 @@ async def mycards_refresh_all(cq: CallbackQuery, api: ApiClient, tg_user_id: int
         card = get_card(tg_user_id, ref.card_id)
         if not card:
             continue
-
-        numbers = card.get("numbers_json") or []
-        grid_text = card.get("grid_text") or build_grid_text_from_numbers(numbers, cols=5)
-        grid_html = render_grid_with_marks(grid_text, called_numbers)
 
         text = _card_message(card, game_id, st, called_numbers)
 
