@@ -20,7 +20,7 @@ for c in davarna-backend davarna-bot davarna-mysql davarna-redis; do
  [[ "$(docker inspect -f '{{.State.Health.Status}}' "$c")" == healthy ]] || die "container not healthy: $c"
 done
 echo "===== CHECK EXISTING BOT ADMIN ALERTS ROUTE (NO TOKENS PRINTED) ====="
-docker exec davarna-bot python - <<'PY'
+docker exec -i davarna-bot python - <<'PY'
 from bot.config import settings
 from bot.services.admin_topics import topic_id,forum_enabled
 assert settings.TELEGRAM_BOT_TOKEN and forum_enabled(),"bot token or admin forum missing"
