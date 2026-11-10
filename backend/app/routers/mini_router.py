@@ -6154,7 +6154,7 @@ def mini_super_update_crypto_settings(
     # Always acquire locks in the same order as activation: runtime first,
     # then versioned destinations. Prevent cross-endpoint deadlocks.
     if production_rotation_enabled() and payload.enabled:
-        for item in CryptoDepositService.configured_options():
+        for item in status_before["options"]:
             lock_destination_state(db, str(item["network"]))
     if row is None:
         db.add(AppSetting(k=CRYPTO_RUNTIME_SETTING_KEY, v_json=bool(payload.enabled)))
