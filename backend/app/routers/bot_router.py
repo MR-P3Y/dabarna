@@ -35,6 +35,7 @@ from app.models.wallet import Wallet, WalletTx
 from app.models.finance import WithdrawRequest, DepositRequest
 from app.models.crypto import CryptoDepositRequest
 from app.models.game import Game, GameCalledNumber, GameCard, GamePurchase
+from app.models.game_autopilot import GameAutopilotConfig
 from app.models.game_event import GameEvent
 from app.models.admin_audit import AdminAuditLog
 from app.models.settings import AppSetting
@@ -871,6 +872,8 @@ class BotAdminGameReportGameOut(BaseModel):
     admin_user_id: int
     admin_tg_user_id: int | None = None
     status: str
+    game_level: str | None = None
+    countdown_enabled: bool = False
     execution_source: str = "ADMIN"
     scheduled_start_at: str | None = None
     draw_mode: str | None = None
@@ -2676,7 +2679,7 @@ def get_bot_admin_game_report(
     game = db.execute(
         text("""
             SELECT
-              id, tg_group_id, tg_topic_id, admin_user_id, status,
+              id, tg_group_id, tg_topic_id, admin_user_id, status, game_level,
               execution_source, scheduled_start_at, draw_mode,
               card_price, card_layout_version, game_rule, commission_rate,
               sold_amount, commission_amount, prize_pool,
@@ -2774,6 +2777,24 @@ def get_bot_admin_game_report(
         {"game_id": game_id, "lim": events_limit},
     ).mappings().all()
 
+    # Same readiness gate used by /mini-api/games. Telegram must not promise
+    # a start if Autopilot is paused, the lane is disabled or players dropped.
+    countdown_enabled = False
+    if (
+        cfg.GAME_AUTOPILOT_RUNTIME_ENABLED
+        and str(game["status"]) == "LOBBY"
+        and str(game["execution_source"] or "ADMIN").upper() == "SYSTEM"
+        and game["scheduled_start_at"] is not None
+        and game["game_level"] is not None
+    ):
+        lane = db.get(GameAutopilotConfig, str(game["game_level"]).upper())
+        if lane is not None and bool(int(lane.enabled or 0)) and str(lane.start_mode or "").upper() == "AUTO":
+            players = int(db.execute(
+                select(func.count(func.distinct(GameCard.user_id)))
+                .where(GameCard.game_id == int(game_id))
+            ).scalar_one() or 0)
+            countdown_enabled = players >= max(2, int(lane.min_unique_players or 2))
+
     return BotAdminReportOut(
         game=BotAdminGameReportGameOut(
             id=int(game["id"]),
@@ -2782,6 +2803,8 @@ def get_bot_admin_game_report(
             admin_user_id=int(game["admin_user_id"]),
             admin_tg_user_id=admin_tg_user_id,
             status=str(game["status"]),
+            game_level=str(game["game_level"]) if game["game_level"] is not None else None,
+            countdown_enabled=bool(countdown_enabled),
             execution_source=str(game["execution_source"] or "ADMIN"),
             scheduled_start_at=_as_str_datetime(game["scheduled_start_at"]) if game["scheduled_start_at"] is not None else None,
             draw_mode=str(game["draw_mode"]) if game["draw_mode"] is not None else None,
