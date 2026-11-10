@@ -119,7 +119,7 @@ from app.services.crypto_deposit_service import (
 )
 from app.services.crypto_address_change import proposal_key, validate_crypto_destination
 from app.services.crypto_rotation_readiness import assess_rotation
-from app.services.crypto_destination_state import rotation_enabled, rotate_locked, lock_destination_state
+from app.services.crypto_destination_state import (rotation_enabled, disposable_rotation_enabled, production_rotation_enabled, rotate_locked, lock_destination_state, seed_destination_state)
 from app.services.crypto_qr_service import CryptoQrService
 from app.services.crypto_health_service import CryptoHealthService
 from app.services.crypto_preflight_service import CryptoPreflightService
@@ -5786,7 +5786,7 @@ def mini_super_crypto_address_activate_experimental(
     No production enablement flag is provided by this endpoint. It can only
     run in the disposable MySQL test environment enforced by rotation_enabled.
     """
-    if not rotation_enabled():
+    if not disposable_rotation_enabled():
         raise HTTPException(status_code=409, detail="فعال‌سازی فقط در پایگاه داده آزمایشی مستقل امکان‌پذیر است.")
     enforce_write_rate_limit(int(ident.user_id))
     network = payload.network
