@@ -18,9 +18,37 @@ ROTATION_GATE = "DAVARNA_CRYPTO_ROTATION_EXPERIMENTAL"
 KEY_PREFIX = "crypto_destination_v1:"
 
 
-def rotation_enabled() -> bool:
-    # Fail closed on the actual environment DATABASE_URL; this prototype must
-    # never become active against the production DB through a single toggle.
+PRODUCTION_GATE = "DAVARNA_CRYPTO_ROTATION_PRODUCTION"
+PRODUCTION_APPROVAL = "I_ACK_REAL_FUNDS_PRODUCTION_WALLET_ROTATION"
+
+
+def production_rotation_enabled() -> bool:
+    """Explicit two-variable opt-in; never infer Production from a test flag.
+
+    The actual MySQL schema name must be pinned independently. There is no
+    default and no wildcard. Turning the gate on is NOT permission to change
+    any active address; each API call still requires owner auth, frozen
+    crypto issuance, an unchanged version and a clean readiness assessment.
+    """
+    from sqlalchemy.engine import make_url
+    if os.getenv(PRODUCTION_GATE, "") != PRODUCTION_APPROVAL:
+        return False
+    approved_schema = os.getenv("DAVARNA_CRYPTO_ROTATION_PRODUCTION_DB", "").strip()
+    if not approved_schema or approved_schema == "davarna_wallet_rotation_test":
+        return False
+    try:
+        url = make_url(os.getenv("DATABASE_URL", ""))
+    except Exception:
+        return False
+    return (
+        url.get_backend_name() == "mysql"
+        and url.host == "mysql"
+        and url.database == approved_schema
+    )
+
+
+def disposable_rotation_enabled() -> bool:
+    """Only the strictly isolated MySQL harness may invoke experimental APIs."""
     from sqlalchemy.engine import make_url
     if os.getenv(ROTATION_GATE, "").strip() != "I_ACK_DISPOSABLE_DB_ONLY":
         return False
@@ -31,6 +59,10 @@ def rotation_enabled() -> bool:
     return (url.get_backend_name() == "mysql"
             and url.host == "davarna-wallet-mysql"
             and url.database == "davarna_wallet_rotation_test")
+
+
+def rotation_enabled() -> bool:
+    return disposable_rotation_enabled() or production_rotation_enabled()
 
 
 def state_key(network: str) -> str:
