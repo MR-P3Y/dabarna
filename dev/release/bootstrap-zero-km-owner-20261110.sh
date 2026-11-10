@@ -24,7 +24,7 @@ OWNER_FILE="$SECRETS_DIR/owner-local.env"
 [[ "$(docker inspect -f '{{.State.Running}}' "$DB_CONTAINER")" == true ]] || die "private fresh DB unavailable"
 
 echo "===== VERIFY OWNER IDENTITY READ-ONLY ON CURRENT PRODUCTION ====="
-OWNER_TG_ID="$(docker exec davarna-backend python - <<'PY'
+OWNER_TG_ID="$(docker exec -i davarna-backend python - <<'PY'
 from app.core import config as cfg
 from app.core.db import SessionLocal
 from app.models.user import User
