@@ -299,6 +299,7 @@ class CryptoAddressProposalTests(unittest.TestCase):
                 "open_invoices": 0, "recent_closed_invoices": 0,
                 "needs_manual_review": 0, "historical_invoices": 0,
             }),
+            patch.object(mini.CryptoChainService, "list_incoming", return_value=[]),
             patch.object(mini, "rotate_locked", return_value={
                 "network": "TRON", "address": self.new, "version": 2,
             }) as rotate,
