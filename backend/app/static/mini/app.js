@@ -5569,7 +5569,7 @@ function wireAdminQuickNavigationV2() {
       showSuperAdminPanelV13(tab.getAttribute("data-super-panel-tab") || "");
     });
     tab.addEventListener("keydown", (event) => {
-      if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+      if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"].includes(event.key)) return;
       const tabs = Array.from(document.querySelectorAll("[data-super-panel-tab]"));
       const index = tabs.indexOf(tab);
       if (index < 0) return;
@@ -5577,7 +5577,7 @@ function wireAdminQuickNavigationV2() {
       let next = index;
       if (event.key === "Home") next = 0;
       else if (event.key === "End") next = tabs.length - 1;
-      else next = (index + (event.key === "ArrowLeft" ? 1 : -1) + tabs.length) % tabs.length;
+      else next = (index + ((event.key === "ArrowLeft" || event.key === "ArrowDown") ? 1 : -1) + tabs.length) % tabs.length;
       showSuperAdminPanelV13(tabs[next].getAttribute("data-super-panel-tab") || "", { focusTab: true });
     });
   });
