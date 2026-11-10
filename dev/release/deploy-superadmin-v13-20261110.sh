@@ -18,7 +18,7 @@ CANDIDATE_ID=sha256:4bfe2afa070fa9ca330f70e02ce2233bf2dcf33fb7aa21a1335fc3666cce
 NEW_TAG=davarna-backend:superadmin-v13-247c2be
 
 die(){ echo "BLOCKER: $*" >&2; exit 2; }
-[[ "\${DAVARNA_SUPERADMIN_V13_APPROVAL:-}" == "DEPLOY_SUPERADMIN_V13_UI_ONLY" ]] || die "explicit V1.3 production approval missing"
+[[ "${DAVARNA_SUPERADMIN_V13_APPROVAL:-}" == "DEPLOY_SUPERADMIN_V13_UI_ONLY" ]] || die "explicit V1.3 production approval missing"
 [[ "$(id -u)" == 0 ]] || die "root required"
 [[ -f "$PROD/.env.prod" ]] || die "production env file missing"
 cd "$ROOT"
@@ -154,10 +154,10 @@ fi
 chain="$(docker inspect -f '{{index .Config.Labels "com.docker.compose.project.config_files"}}' davarna-backend)"
 [[ -n "$chain" && "$chain" != "<no value>" ]] || die "Compose chain missing"
 IFS=',' read -r -a FILES <<< "$chain"
-(( \${#FILES[@]} >= 2 )) || die "unexpected Compose chain"
-[[ "\${FILES[0]}" == "$PROD/docker-compose.yml" ]] || die "unexpected Compose base"
+(( ${#FILES[@]} >= 2 )) || die "unexpected Compose chain"
+[[ "${FILES[0]}" == "$PROD/docker-compose.yml" ]] || die "unexpected Compose base"
 args=()
-for f in "\${FILES[@]}"; do
+for f in "${FILES[@]}"; do
   [[ "$f" = /* && -f "$f" && ! -L "$f" ]] || die "unsafe or missing Compose file: $f"
   args+=(-f "$f")
 done
@@ -168,7 +168,7 @@ export DAVARNA_UX5_BACKEND_IMAGE="$LIVE_TAG"
 export DAVARNA_UX5_BOT_IMAGE="$LIVE_BOT_TAG"
 
 compose() {
-  (cd "$PROD" && docker compose -p davarna --env-file "$PROD/.env.prod" "\${args[@]}" "$@")
+  (cd "$PROD" && docker compose -p davarna --env-file "$PROD/.env.prod" "${args[@]}" "$@")
 }
 
 printf '%s\n' "$chain" > "$BACKUP/compose-chain.txt"
