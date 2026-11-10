@@ -2175,6 +2175,110 @@ def admin_update_bank_deposit_settings(
     return out
 
 
+# Both Superadmin surfaces use the same versioned destination logic.
+# Backend checks owner identity independently of Telegram button visibility.
+from app.routers.mini_router import (
+    MiniAdminIdentity,
+    MiniSuperCryptoProductionInitialAddressIn,
+    MiniSuperCryptoAddressProposalIn,
+    MiniSuperCryptoProductionActivateIn,
+    MiniSuperCryptoProductionSeedIn,
+    mini_super_crypto_address_initialize_production,
+    mini_super_propose_crypto_address,
+    mini_super_crypto_address_activate_production,
+    mini_super_crypto_address_prepare_production,
+    mini_super_crypto_address_readiness,
+    mini_super_crypto_address_proposals,
+    mini_super_crypto_settings,
+)
+
+
+def _owner_mini_identity_for_bot(admin: AdminIdentity, db: Session) -> MiniAdminIdentity:
+    owner_id = _require_super_admin_owner(admin)
+    user = db.get(User, owner_id)
+    if user is None or not user.tg_user_id:
+        raise HTTPException(status_code=409, detail="Owner user is not initialized.")
+    return MiniAdminIdentity(
+        user_id=owner_id, tg_user_id=int(user.tg_user_id),
+        roles=["SUPER_ADMIN", "ADMIN"],
+    )
+
+
+@router.get("/admin/crypto-wallets")
+def bot_owner_crypto_wallets(
+    db: Session = Depends(get_db),
+    admin: AdminIdentity = Depends(get_admin_identity),
+):
+    identity = _owner_mini_identity_for_bot(admin, db)
+    status = mini_super_crypto_settings(ident=identity, db=db)
+    proposals = mini_super_crypto_address_proposals(ident=identity, db=db)
+    return {**status, "proposals": proposals["items"]}
+
+
+@router.get("/admin/crypto-wallets/readiness")
+def bot_owner_crypto_wallet_readiness(
+    network: str,
+    db: Session = Depends(get_db),
+    admin: AdminIdentity = Depends(get_admin_identity),
+):
+    identity = _owner_mini_identity_for_bot(admin, db)
+    if network not in {"TRON", "TON"}:
+        raise HTTPException(status_code=422, detail="Invalid network")
+    return mini_super_crypto_address_readiness(network=network, ident=identity, db=db)
+
+
+@router.post("/admin/crypto-wallets/add")
+def bot_owner_crypto_wallet_add(
+    payload: MiniSuperCryptoProductionInitialAddressIn,
+    request: Request,
+    db: Session = Depends(get_db),
+    admin: AdminIdentity = Depends(get_admin_identity),
+):
+    identity = _owner_mini_identity_for_bot(admin, db)
+    return mini_super_crypto_address_initialize_production(
+        payload=payload, request=request, ident=identity, db=db,
+    )
+
+
+@router.post("/admin/crypto-wallets/prepare")
+def bot_owner_crypto_wallet_prepare(
+    payload: MiniSuperCryptoProductionSeedIn,
+    request: Request,
+    db: Session = Depends(get_db),
+    admin: AdminIdentity = Depends(get_admin_identity),
+):
+    identity = _owner_mini_identity_for_bot(admin, db)
+    return mini_super_crypto_address_prepare_production(
+        payload=payload, request=request, ident=identity, db=db,
+    )
+
+
+@router.post("/admin/crypto-wallets/propose")
+def bot_owner_crypto_wallet_propose(
+    payload: MiniSuperCryptoAddressProposalIn,
+    request: Request,
+    db: Session = Depends(get_db),
+    admin: AdminIdentity = Depends(get_admin_identity),
+):
+    identity = _owner_mini_identity_for_bot(admin, db)
+    return mini_super_propose_crypto_address(
+        payload=payload, request=request, ident=identity, db=db,
+    )
+
+
+@router.post("/admin/crypto-wallets/activate")
+def bot_owner_crypto_wallet_activate(
+    payload: MiniSuperCryptoProductionActivateIn,
+    request: Request,
+    db: Session = Depends(get_db),
+    admin: AdminIdentity = Depends(get_admin_identity),
+):
+    identity = _owner_mini_identity_for_bot(admin, db)
+    return mini_super_crypto_address_activate_production(
+        payload=payload, request=request, ident=identity, db=db,
+    )
+
+
 @router.get("/admin/crypto-settings")
 def admin_crypto_settings(
     db: Session = Depends(get_db),
