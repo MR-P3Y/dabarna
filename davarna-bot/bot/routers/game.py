@@ -13,6 +13,7 @@ from bot.services.tg_membership import is_member
 from bot.services.telegram_safe import safe_edit_or_send
 from bot.services.ui import panel
 from bot.services.numerals import normalize_digits
+from bot.services.game_rules import rule_kind, rule_title, rule_details
 
 router = Router()
 
@@ -90,32 +91,34 @@ def _build_game_flow_body(game_id: int, state: dict) -> str:
     buy_state = "باز" if status_raw == "LOBBY" else "بسته"
     col_paid = bool(int(state.get("col_paid") or 0))
     row_paid = bool(int(state.get("row_paid") or 0))
-    game_rule = str(state.get("game_rule") or "LEGACY").upper()
-    if game_rule == "FULL_CARD":
-        win_rule = "پرکردنی: تکمیل هر ۱۵ عدد کارت"
-        intermediate = "بدون تورنا"
-    elif game_rule == "LINE":
-        win_rule = "خطی: تکمیل ۵ عدد یک ردیف"
-        intermediate = "تورنا: هر ۳ عدد یک ردیف"
-    else:
-        win_rule = "تمام: ردیف ۵ عددی"
-        intermediate = "تورنا: ستون ۴ عددی"
+    kind = rule_kind(state)
+    rule_line = rule_details(state)
+    source = "سیستمی (Autopilot)" if str(state.get("execution_source") or "").upper() == "SYSTEM" else "توسط ادمین"
+    mode = str(state.get("draw_mode") or "").upper()
+    number_mode = "خودکار" if mode == "AUTO" else "دستی" if mode == "MANUAL" else "هنوز انتخاب نشده"
     commission_raw = state.get("commission_rate")
     try:
         commission_percent = float(0.10 if commission_raw is None else commission_raw) * 100.0
     except Exception:
         commission_percent = 10.0
 
-    if game_rule == "FULL_CARD":
-        winner_stats = f"پرکردنی: <b>{winners['row_users']}</b> نفر"
-        payout_status = f"پرکردنی {'✅' if row_paid else '❌'} | تورنا: ندارد"
-    elif game_rule == "LINE":
-        winner_stats = f"تورنا: <b>{winners['col_users']}</b> نفر | خطی: <b>{winners['row_users']}</b> نفر"
-        payout_status = f"تورنا {'✅' if col_paid else '❌'} | خطی {'✅' if row_paid else '❌'}"
-    else:
-        winner_stats = f"تورنا: <b>{winners['col_users']}</b> نفر | تمام: <b>{winners['row_users']}</b> نفر"
-        payout_status = f"تورنا {'✅' if col_paid else '❌'} | تمام {'✅' if row_paid else '❌'}"
+    def _paid_label(value: bool) -> str:
+        return "✅ ثبت شده" if value else "⏳ ثبت نشده"
 
+    if kind == "FULL_CARD":
+        winner_stats = f"پرکردنی: <b>{winners['row_users']}</b> نفر"
+        payout_status = f"پرکردنی: {_paid_label(row_paid)}"
+    elif kind == "LINE":
+        winner_stats = f"تورنا: <b>{winners['col_users']}</b> نفر | خطی: <b>{winners['row_users']}</b> نفر"
+        payout_status = f"تورنا: {_paid_label(col_paid)} | خطی: {_paid_label(row_paid)}"
+    elif kind == "LEGACY":
+        winner_stats = f"تورنا: <b>{winners['col_users']}</b> نفر | نهایی: <b>{winners['row_users']}</b> نفر"
+        payout_status = f"تورنا: {_paid_label(col_paid)} | نهایی: {_paid_label(row_paid)}"
+    else:
+        winner_stats = "قانون بازی در حال بررسی است."
+        payout_status = "نامشخص"
+    if status_raw == "LOBBY":
+        payout_status = "بازی هنوز شروع نشده است."
     lines = [
         f"🎮 بازی: <b>#{game_id}</b>",
         f"وضعیت بازی: <b>{status_fa}</b>",
@@ -123,18 +126,20 @@ def _build_game_flow_body(game_id: int, state: dict) -> str:
         f"🪪 کارت‌های برنده: <b>{winners['cards_total']}</b>",
         winner_stats,
         "",
-        f"📋 قانون: <b>{win_rule}</b> | {intermediate}",
-        f"💳 قیمت کارت: <b>{_fmt_int(state.get('card_price'))}</b>",
-        f"🧾 کمیسیون بازی: <b>{commission_percent:g}%</b>",
-        f"🎁 جایزه کل: <b>{_fmt_int(state.get('prize_pool'))}</b>",
-        f"💵 فروش کارت: <b>{_fmt_int(state.get('sold_amount'))}</b>",
+        f"📋 نوع بازی: <b>{rule_title(state)}</b>",
+        rule_line,
+        f"🧭 مدیریت بازی: <b>{source}</b> | اعلام عدد: <b>{number_mode}</b>",
+        f"💳 قیمت هر کارت: <b>{_fmt_int(state.get('card_price'))} تومان</b>",
+        f"🧾 کمیسیون همین بازی: <b>{commission_percent:g}%</b>",
+        f"🏆 صندوق جایزه: <b>{_fmt_int(state.get('prize_pool'))} تومان</b>",
+        f"💵 فروش کارت‌ها: <b>{_fmt_int(state.get('sold_amount'))} تومان</b>",
         "",
         f"🔢 آخرین عدد: <b>{last_number if last_number is not None else '—'}</b>",
         f"🧾 اعداد اخیر (تا ۱۰ عدد): {_recent_numbers_text(called_numbers)}",
         f"📊 تعداد اعداد اعلام‌شده: <b>{len(called_numbers)}</b>",
         "",
         f"🧭 وضعیت خرید کارت: <b>{buy_state}</b>",
-        f"🏁 وضعیت پرداخت: {payout_status}",
+        f"🏁 وضعیت ثبت پرداخت جایزه: {payout_status}",
     ]
 
     if status_raw == "ENDED":
