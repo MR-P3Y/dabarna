@@ -22,6 +22,7 @@ class CountdownNoticeTests(unittest.IsolatedAsyncioTestCase):
             "tg_topic_id": 6,
             "status": "LOBBY",
             "execution_source": "SYSTEM",
+            "countdown_enabled": True,
             "draw_mode": "AUTO",
             "scheduled_start_at": self.deadline.isoformat(),
         }
@@ -70,6 +71,7 @@ class CountdownNoticeTests(unittest.IsolatedAsyncioTestCase):
         ):
             for override in (
                 {"execution_source": "ADMIN"},
+                {"countdown_enabled": False},
                 {"status": "RUNNING"},
                 {"scheduled_start_at": (datetime.now(timezone.utc) - timedelta(seconds=5)).isoformat()},
                 {"scheduled_start_at": None},
