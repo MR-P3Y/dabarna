@@ -24,8 +24,8 @@ class BotNotificationRuleConsistencyTests(unittest.TestCase):
         self.assertIn("ردیفی", _tx_reason_fa("PRIZE_ROW", game_rule="LEGACY"))
 
     def test_wallet_old_response_is_compatible(self):
-        # Old transaction payloads do not have game_rule. Default remains LEGACY.
-        self.assertIn("ردیفی", _tx_reason_fa("PRIZE_ROW"))
+        # Missing stored metadata must not invent a legacy rule.
+        self.assertIn("قابل تأیید نیست", _tx_reason_fa("PRIZE_ROW"))
         self.assertIn("خرید کارت", _tx_reason_fa("BUY_CARDS"))
 
     def test_notifier_announces_stored_rule_not_topic(self):
@@ -35,16 +35,17 @@ class BotNotificationRuleConsistencyTests(unittest.TestCase):
             node for node in module.body
             if isinstance(node, ast.FunctionDef) and node.name == "_game_rule_notice_line"
         )
-        namespace = {}
+        from bot.services.game_rules import rule_kind
+        namespace = {"rule_kind": rule_kind}
         exec(compile(ast.Module(body=[target], type_ignores=[]), str(notifier), "exec"), namespace)
         announce = namespace["_game_rule_notice_line"]
-        full = announce({"game_rule": "FULL_CARD"})
-        line = announce({"game_rule": "LINE"})
-        legacy = announce({"game_rule": "LEGACY"})
+        full = announce({"game_rule": "FULL_CARD", "card_layout_version": 2})
+        line = announce({"game_rule": "LINE", "card_layout_version": 2})
+        legacy = announce({"game_rule": "LEGACY", "card_layout_version": 1})
         self.assertIn("۱۵ عدد", full)
         self.assertIn("بدون تورنا", full)
-        self.assertIn("۳ عدد یک ردیف", line)
-        self.assertIn("۵ عدد یک ردیف", line)
+        self.assertIn("۳ عدد از یک ردیف", line)
+        self.assertIn("۵ عدد از یک ردیف", line)
         self.assertIn("ستون ۴ عددی", legacy)
         self.assertIn("ردیف ۵ عددی", legacy)
 

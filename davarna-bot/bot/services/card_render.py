@@ -38,7 +38,7 @@ def render_number_grid_with_marks(numbers: list[int], called_numbers: Iterable[i
     rows, columns = (4, 5) if kind == "LEGACY" else (3, 9)
     if not isinstance(numbers, list) or len(numbers) != rows * columns:
         raise ValueError("دادهٔ کارت با چیدمان ثبت‌شده ناسازگار است.")
-    if any(type(n) is not int or n < 0 for n in numbers):
+    if any(type(n) is not int or n < 0 or n > 90 for n in numbers):
         raise ValueError("اعداد کارت نامعتبرند.")
     played = [n for n in numbers if n]
     card_rows = [numbers[i:i + columns] for i in range(0, len(numbers), columns)]

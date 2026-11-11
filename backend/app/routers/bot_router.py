@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app.utils.messages import stored_rule
 from fastapi import APIRouter, Depends, HTTPException, Header, Query, Request # type: ignore
 from sqlalchemy.orm import Session # type: ignore
 from sqlalchemy import select, text, func # type: ignore
@@ -1146,9 +1147,9 @@ def get_wallet(
     game_rules = {}
     if prize_game_ids:
         game_rules = {
-            int(game_id): str(rule or "LEGACY").upper()
-            for game_id, rule in db.execute(
-                select(Game.id, Game.game_rule).where(Game.id.in_(prize_game_ids))
+            int(game_id): stored_rule(rule, layout)
+            for game_id, rule, layout in db.execute(
+                select(Game.id, Game.game_rule, Game.card_layout_version).where(Game.id.in_(prize_game_ids))
             ).all()
         }
 

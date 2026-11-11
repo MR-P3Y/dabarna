@@ -82,16 +82,17 @@ class GameForumLifecycleContractTests(unittest.TestCase):
             self.assertEqual(target.value, expected)
 
     def test_notifier_and_mini_rule_text_agree(self):
-        bot_rule = _load_plain_function(NOTIFIER, "_game_rule_notice_line")
-        mini_rule = _load_plain_function(MINI, "_mini_game_rule_announcement_line")
+        from app.utils.messages import stored_rule, RULE_LINES, RULE_ERROR
+        bot_rule = _load_plain_function(NOTIFIER, "_game_rule_notice_line", {"rule_kind": lambda g: stored_rule(g.get("game_rule"), g.get("card_layout_version"))})
+        mini_rule = _load_plain_function(MINI, "_mini_game_rule_announcement_line", dict(stored_rule=stored_rule, RULE_LINES=RULE_LINES, RULE_ERROR=RULE_ERROR))
         for rule, required in (
             ("LINE", ("۳ ردیف × ۹ ستون", "۵ عدد در هر ردیف",
                       "تورنا ۳ عدد از یک ردیف", "خطی ۵ عدد از یک ردیف")),
             ("FULL_CARD", ("۱۵ عدد کامل", "بدون تورنا")),
             ("LEGACY", ("۴×۵", "۲۰ عدد", "ستون ۴ عددی")),
         ):
-            game = {"game_rule": rule}
-            a, b = bot_rule(game), mini_rule(rule)
+            game = {"game_rule": rule, "card_layout_version": 1 if rule == "LEGACY" else 2}
+            a, b = bot_rule(game), mini_rule(rule, game["card_layout_version"])
             self.assertEqual(a, b, rule)
             for phrase in required:
                 self.assertIn(phrase, a, (rule, phrase))
@@ -134,7 +135,7 @@ class GameForumLifecycleContractTests(unittest.TestCase):
         source = NOTIFIER.read_text(encoding="utf-8")
         mini = MINI.read_text(encoding="utf-8")
         for text in (source, mini):
-            self.assertIn("ساعت شروع قطعی اعلام نشده است", text)
+            self.assertIn("شروع واقعی جداگانه اعلام می‌شود", text)
             self.assertNotIn("۵ دقیقه مانده", text)
 
     def test_mini_announcement_uses_stored_rule(self):

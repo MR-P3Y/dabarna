@@ -220,7 +220,7 @@ class MiniDepositRejectContractTests(unittest.TestCase):
         self.assertIn('id="withdrawRejectReasonLabel"', html)
         self.assertIn('id="withdrawRejectWarningText"', html)
         self.assertIn('z-index: 13020', css)
-        self.assertIn("./app.js?v=finance-reject-reasons-20261108", html)
+        self.assertIn("./app.js?v=autopilot-start-countdown-v1", html)
 
     def test_migration_has_nullable_field_and_exact_revision_parent(self):
         migration = (ROOT / "alembic/versions/20261108_0012_deposit_rejection_reason.py").read_text(encoding="utf-8")

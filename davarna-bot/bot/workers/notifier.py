@@ -678,7 +678,7 @@ async def _send_user_game_created_notice(bot: Bot, *, game_id: int, report: dict
         f"💳 قیمت هر کارت: <b>{_fmt_amount(_to_int(game.get('card_price'), 0))} تومان</b>\n"
         f"{_game_rule_notice_line(game)}"
         "👥 شروع بازی پس از احراز شرایط بازی تأیید می‌شود.\n"
-        "⏳ ساعت شروع قطعی اعلام نشده است؛ پس از آغاز، پیام جداگانه ارسال می‌شود.\n"
+        "⏳ شروع واقعی جداگانه اعلام می‌شود.\n"
         "🛒 برای خرید، ربات را خصوصی باز کنید."
     )
     return await send_to_user_topic(

@@ -63,7 +63,7 @@ class UserForumNavigationTests(unittest.TestCase):
             patch.object(settings, "USER_TOPIC_CHAT_ID", 12),
         ):
             text = group_guide_text()
-        for word in ("اعلان‌ها", "بازی ۱", "بازی ۲", "بازی ۳", "اعداد زنده",
+        for word in ("اعلان‌ها", "بازی سطح پایین", "بازی سطح متوسط", "بازی سطح بالا", "اعداد زنده",
                      "نتایج", "قوانین", "گفت‌وگو", "کیف پول"):
             self.assertIn(word, text)
         self.assertEqual(text.count("https://t.me/c/1234567890/"), 8)

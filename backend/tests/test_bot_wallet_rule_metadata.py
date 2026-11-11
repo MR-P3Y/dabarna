@@ -29,7 +29,7 @@ class BotWalletRuleMetadataTests(unittest.TestCase):
         code = ast.get_source_segment(self.source, endpoint)
         self.assertIn('{"PRIZE_COL", "PRIZE_ROW"}', code)
         self.assertIn('str(tx.ref_type or "").upper() == "GAME"', code)
-        self.assertIn("select(Game.id, Game.game_rule)", code)
+        self.assertIn("select(Game.id, Game.game_rule, Game.card_layout_version)", code)
         self.assertIn("game_rule=game_rules.get(", code)
         self.assertIn("idempotency_key=str(tx.idempotency_key)", code)
 

@@ -21,7 +21,7 @@ for (const id of [
 }
 assert.match(css, /\.admin-list-filter\s*\{/);
 assert.match(css, /\.admin-quick-history\s*\{/);
-assert.match(html, /app\.js\?v=payments-admin-wave1-20261106/);
+assert.match(html, /app\.js\?v=autopilot-start-countdown-v1/);
 assert.match(js, /function renderAdminUsersRecent\(/);
 assert.match(js, /function renderSuperAdminList\(/);
 assert.match(js, /function syncDepositMethodAvailability\(/);

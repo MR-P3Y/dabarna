@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 import unittest
 from unittest.mock import patch
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, MetaData
 from sqlalchemy.orm import Session
 
 from app.core import config
@@ -14,6 +14,7 @@ from app.models.game_autopilot import GameAutopilotConfig
 from app.models.game_event import GameEvent
 from app.models.settings import AppSetting
 from app.models.user import User
+from app.models.wallet import Wallet, WalletTx
 from app.routers.bot_router import get_bot_admin_game_report
 from app.routers.mini_router import list_games
 from app.services.game_autopilot_worker import GameAutopilotWorker
@@ -23,8 +24,14 @@ class CountdownIntegrationTests(unittest.TestCase):
     def setUp(self):
         engine = create_engine("sqlite+pysqlite:///:memory:")
         self.addCleanup(engine.dispose)
-        models = (User, Game, GameCard, GamePurchase, GameCalledNumber, GameEvent, GameAutopilotConfig, AppSetting)
-        Base.metadata.create_all(engine, tables=[model.__table__ for model in models])
+        models = (User, Wallet, WalletTx, Game, GameCard, GamePurchase, GameCalledNumber, GameEvent, GameAutopilotConfig, AppSetting)
+        metadata = MetaData()
+        for model in models:
+            model.__table__.to_metadata(metadata)
+        for table in metadata.tables.values():
+            for index in table.indexes:
+                index.name = f"{table.name}_{index.name}"
+        metadata.create_all(engine)
         self.db = Session(engine)
         self.addCleanup(self.db.close)
         self.enterContext(patch.multiple(config, GAME_AUTOPILOT_RUNTIME_ENABLED=True,

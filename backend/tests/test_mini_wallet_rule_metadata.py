@@ -50,7 +50,7 @@ class WalletPrizeRuleMetadataTests(unittest.TestCase):
         )
         self.assertIsNotNone(endpoint, "Wallet transaction endpoint is missing")
         endpoint_source = ast.get_source_segment(source, endpoint)
-        self.assertIn("select(Game.id, Game.game_rule)", endpoint_source)
+        self.assertIn("select(Game.id, Game.game_rule, Game.card_layout_version)", endpoint_source)
         self.assertIn('{"PRIZE_COL", "PRIZE_ROW"}', endpoint_source)
         self.assertIn("game_rule=game_rules.get(", endpoint_source)
 

@@ -1,4 +1,5 @@
 from __future__ import annotations
+from app.utils.messages import stored_rule, RULE_LINES, RULE_ERROR
 
 import asyncio
 import json
@@ -1253,20 +1254,8 @@ def _mini_notify_admin_withdraw_pending(*, db: Session, wr: WithdrawRequest) -> 
     )
 
 
-def _mini_game_rule_announcement_line(rule: str | None) -> str:
-    """Rule text comes from the stored game, never from topic or price."""
-    value = str(rule or "LEGACY").strip().upper()
-    if value == "LINE":
-        return (
-            "🃏 کارت: <b>۳ ردیف × ۹ ستون، ۵ عدد در هر ردیف</b>\n"
-            "🏆 برد: <b>تورنا ۳ عدد از یک ردیف؛ خطی ۵ عدد از یک ردیف</b>\n"
-        )
-    if value == "FULL_CARD":
-        return "🏆 قانون: <b>پرکردنی ۱۵ عدد کامل؛ بدون تورنا</b>\n"
-    return (
-        "🃏 کارت قدیمی: <b>۴×۵، شامل ۲۰ عدد</b>\n"
-        "🏆 برد قدیمی: <b>تورنا ستون ۴ عددی؛ تکمیل ردیف ۵ عددی</b>\n"
-    )
+def _mini_game_rule_announcement_line(rule: str | None, layout: int | None = None) -> str:
+    return RULE_LINES.get(stored_rule(rule, layout), "⚠️ " + RULE_ERROR + "\n")
 
 
 def _mini_send_game_created_notice(*, game: Game) -> bool:
@@ -1281,9 +1270,9 @@ def _mini_send_game_created_notice(*, game: Game) -> bool:
         f"🎮 <b>بازی #{int(game.id)} | خرید کارت باز است</b>\n"
         f"🎯 {html_escape(game_topic_title)}\n"
         f"💳 قیمت هر کارت: <b>{int(game.card_price):,} تومان</b>\n"
-        f"{_mini_game_rule_announcement_line(getattr(game, 'game_rule', None))}"
+        f"{_mini_game_rule_announcement_line(getattr(game, 'game_rule', None), getattr(game, 'card_layout_version', None))}"
         "👥 شروع بازی منوط به حضور دست‌کم ۲ بازیکن متمایز است.\n"
-        "⏳ ساعت شروع قطعی اعلام نشده است؛ پس از آغاز، پیام جداگانه ارسال می‌شود.\n"
+        "⏳ شروع واقعی جداگانه اعلام می‌شود.\n"
         "🛒 برای خرید، ربات را خصوصی باز کنید."
     )
     # Announcements have exactly one owner. Fall back to its actual game
@@ -2418,9 +2407,9 @@ def my_wallet_txs(
     game_rules: dict[int, str] = {}
     if prize_game_ids:
         game_rules = {
-            int(game_id): str(rule or "LEGACY").upper()
-            for game_id, rule in db.execute(
-                select(Game.id, Game.game_rule).where(Game.id.in_(prize_game_ids))
+            int(game_id): stored_rule(rule, layout)
+            for game_id, rule, layout in db.execute(
+                select(Game.id, Game.game_rule, Game.card_layout_version).where(Game.id.in_(prize_game_ids))
             ).all()
         }
 
@@ -2464,9 +2453,9 @@ def mini_my_notifications(
             and str(tx.reason or "").upper() in ("PRIZE_COL", "PRIZE_ROW")
         }
         game_rules = {
-            int(gid): str(rule or "LEGACY")
-            for gid, rule in db.execute(
-                select(Game.id, Game.game_rule).where(Game.id.in_(prize_game_ids))
+            int(gid): stored_rule(rule, layout)
+            for gid, rule, layout in db.execute(
+                select(Game.id, Game.game_rule, Game.card_layout_version).where(Game.id.in_(prize_game_ids))
             ).all()
         } if prize_game_ids else {}
         for tx in tx_rows:

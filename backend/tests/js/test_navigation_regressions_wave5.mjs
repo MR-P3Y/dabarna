@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
 
-const js = readFileSync(new URL("../../app/static/mini/app.js", import.meta.url), "utf8");
+const js = readFileSync(new URL("../../app/static/mini/app.js", import.meta.url), "utf8").replace(/\r\n/g, "\n");
 
 function extract(name, next, isAsync = false) {
   const prefix = isAsync ? "async function " : "function ";
@@ -40,6 +40,9 @@ const navigationContext = {
   refreshCards() { cardsRefreshes++; return Promise.resolve(); },
   refreshAdminPanel() { adminRefreshes++; return Promise.resolve(); },
   setBadge() {},
+  stopAdminOpsAutoRefresh() {},
+  startAdminOpsAutoRefresh() {},
+  updateGameStartCountdowns() {},
 };
 vm.runInNewContext(
   extract("switchToView", "wireNavigation") + "\nthis.navigate = switchToView;",
