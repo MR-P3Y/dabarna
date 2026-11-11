@@ -35,6 +35,7 @@ from app.models.wallet import Wallet, WalletTx
 from app.models.finance import WithdrawRequest, DepositRequest
 from app.models.crypto import CryptoDepositRequest
 from app.models.game import Game, GameCalledNumber, GameCard, GamePurchase
+from app.services.game_autopilot_worker import GameAutopilotWorker
 from app.models.game_event import GameEvent
 from app.models.admin_audit import AdminAuditLog
 from app.models.settings import AppSetting
@@ -876,6 +877,12 @@ class BotAdminGameReportGameOut(BaseModel):
     admin_user_id: int
     admin_tg_user_id: int | None = None
     status: str
+    game_level: str | None = None
+    countdown_enabled: bool = False
+    countdown_seconds: int | None = None
+    execution_source: str = "ADMIN"
+    scheduled_start_at: str | None = None
+    draw_mode: str | None = None
     card_price: int
     card_layout_version: int = 1
     game_rule: str = "LEGACY"
@@ -2686,7 +2693,8 @@ def get_bot_admin_game_report(
     game = db.execute(
         text("""
             SELECT
-              id, tg_group_id, tg_topic_id, admin_user_id, status,
+              id, tg_group_id, tg_topic_id, admin_user_id, status, game_level,
+              execution_source, scheduled_start_at, draw_mode,
               card_price, card_layout_version, game_rule, commission_rate,
               sold_amount, commission_amount, prize_pool,
               prize_locked, col_prize_amount, row_prize_amount,
@@ -2783,6 +2791,12 @@ def get_bot_admin_game_report(
         {"game_id": game_id, "lim": events_limit},
     ).mappings().all()
 
+    countdown_seconds = None
+    if game["status"] == "LOBBY" and game["execution_source"] == "SYSTEM" and game["scheduled_start_at"]:
+        countdown_seconds = GameAutopilotWorker.countdowns_for_games(
+            db, {int(game_id): game["game_level"]}
+        ).get(int(game_id))
+
     return BotAdminReportOut(
         game=BotAdminGameReportGameOut(
             id=int(game["id"]),
@@ -2791,6 +2805,12 @@ def get_bot_admin_game_report(
             admin_user_id=int(game["admin_user_id"]),
             admin_tg_user_id=admin_tg_user_id,
             status=str(game["status"]),
+            game_level=str(game["game_level"]) if game["game_level"] is not None else None,
+            countdown_enabled=countdown_seconds is not None,
+            countdown_seconds=countdown_seconds,
+            execution_source=str(game["execution_source"] or "ADMIN"),
+            scheduled_start_at=_as_str_datetime(game["scheduled_start_at"]) if game["scheduled_start_at"] is not None else None,
+            draw_mode=str(game["draw_mode"]) if game["draw_mode"] is not None else None,
             card_price=int(game["card_price"]),
             card_layout_version=int(game["card_layout_version"] or 1),
             game_rule=str(game["game_rule"] or "LEGACY"),

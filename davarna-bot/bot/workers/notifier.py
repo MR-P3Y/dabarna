@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import math
 import logging
 import time
 from html import escape as html_escape
@@ -29,6 +30,9 @@ from bot.services.jalali import format_jalali_datetime
 from bot.services.user_topics import (
     game_topic_title as user_game_topic_title,
     game_start_announcement_topic,
+    game_topic_name_for_id,
+    topic_id as user_topic_id,
+    send_to_game_topic,
     send_to_topic as send_to_user_topic,
 )
 from bot.services.user_forum_navigation import navigation_keyboard
@@ -547,6 +551,100 @@ def _game_start_draw_line(event: dict | None) -> str:
     if mode == "MANUAL":
         return "🔢 اعلام اعداد: <b>دستی</b> • توسط ادمین"
     return ""
+
+
+# Countdown uses the *existing* scheduled_start_at written by Autopilot.
+# No additional scheduler, game mutation, or repeated Telegram per-second edits.
+def _autopilot_countdown_notice_state(game: dict, *, now_ts: float | None = None) -> tuple[str, int] | None:
+    if str(game.get("status") or "").upper() != "LOBBY":
+        return None
+    if str(game.get("execution_source") or "ADMIN").upper() != "SYSTEM":
+        return None
+    if not bool(game.get("countdown_enabled")):
+        return None
+    scheduled_raw = str(game.get("scheduled_start_at") or "").strip()
+    scheduled = _parse_dt(scheduled_raw)
+    if scheduled is None:
+        return None
+    left = int(math.ceil(scheduled.timestamp() - (time.time() if now_ts is None else now_ts)))
+    if not 0 < left <= max(5, _to_int(game.get("countdown_seconds"), 30)):
+        return None
+    return scheduled.isoformat(), left
+
+
+def _is_configured_game_lane(game: dict) -> bool:
+    expected = {"LOW": "game_low", "MEDIUM": "game_medium", "HIGH": "game_high"}.get(game.get("game_level"))
+    return expected is not None and game_topic_name_for_id(game.get("tg_topic_id")) == expected
+
+
+async def _notify_autopilot_start_countdown(bot: Bot, *, game_id: int, report: dict) -> bool:
+    if not _is_user_forum_game(report):
+        return False
+    game = report.get("game") or {}
+    topic = _to_int(game.get("tg_topic_id"), 0)
+    if not _is_configured_game_lane(game):
+        return False
+    state = _autopilot_countdown_notice_state(game)
+    if state is None:
+        return False
+    schedule_key, seconds_left = state
+    mode = str(game.get("draw_mode") or "").upper()
+    mode_label = "خودکار" if mode == "AUTO" else "دستی توسط ادمین" if mode == "MANUAL" else "در حال آماده‌سازی"
+    message = (
+        f"⏳ <b>بازی #{int(game_id)} در آستانه شروع است!</b>\n"
+        f"🎮 {user_game_topic_title(topic)}\n"
+        f"⏱ شروع خودکار طبق ساعت سرور: <b>حدود {seconds_left} ثانیه دیگر</b>\n"
+        f"🔢 شماره‌خوان: <b>{mode_label}</b>\n"
+        "🃏 کارت‌های خود را آماده کنید. شروع قطعی پس از تأیید سیستم اعلام می‌شود."
+    )
+    # Two independent acknowledgments: one message in the game's own thread,
+    # one in public announcements. A failure in one never duplicates the other.
+    delivered = True
+    expires_at = datetime.fromisoformat(schedule_key).timestamp()
+    destinations = ("game",) if topic == user_topic_id("announce") else ("game", "announce")
+    for destination in destinations:
+        marker_key = f"autopilot_countdown_notice:{int(game_id)}:{destination}"
+        if get_meta_marker(marker_key, "") == schedule_key:
+            continue
+        markup = navigation_keyboard(game_topic_id=topic, show_live=True)
+        if destination == "game":
+            sent = await send_to_game_topic(
+                bot, game_topic_id=topic, text=message, parse_mode="HTML",
+                reply_markup=markup, disable_notification=False, expires_at=expires_at,
+            )
+        else:
+            sent = await send_to_user_topic(
+                bot, name="announce", text=message, parse_mode="HTML",
+                reply_markup=markup, disable_notification=True, expires_at=expires_at,
+            )
+        if sent:
+            set_meta_marker(marker_key, schedule_key)
+        else:
+            delivered = False
+    return delivered
+
+
+async def _send_game_started_to_lane(bot: Bot, *, game_id: int, report: dict, event: dict | None = None) -> bool:
+    if not _is_user_forum_game(report):
+        return True
+    game = report.get("game") or {}
+    topic = _to_int(game.get("tg_topic_id"), 0)
+    if game.get("execution_source") != "SYSTEM" or topic == user_topic_id(game_start_announcement_topic()):
+        return True
+    if not _is_configured_game_lane(game):
+        return False
+    mode_line = _game_start_draw_line(event)
+    message = (
+        f"🚀 <b>بازی #{int(game_id)} شروع شد!</b>\n"
+        f"🎮 {user_game_topic_title(topic)}\n"
+        f"{mode_line + chr(10) if mode_line else ''}"
+        "🔢 اعداد را در بخش «اعداد زنده» دنبال کنید."
+    )
+    return await send_to_game_topic(
+        bot, game_topic_id=topic, text=message, parse_mode="HTML",
+        reply_markup=navigation_keyboard(game_topic_id=topic, show_live=True),
+        disable_notification=False,
+    )
 
 
 async def _send_user_game_started_notice(bot: Bot, *, game_id: int, report: dict, event: dict | None = None) -> bool:
@@ -1423,6 +1521,14 @@ async def _process_game_lifecycle_reports(
                 bot, game_id=game_id, report=report, event=started,
             ),
         )
+        await deliver_lifecycle_event(
+            game_id=game_id, event_key="GAME_STARTED_NOTICE_LANE",
+            legacy_event_key=None,
+            event=started, is_first_seen=is_first_seen,
+            send=lambda: _send_game_started_to_lane(
+                bot, game_id=game_id, report=report, event=started,
+            ),
+        )
 
     ended = _latest_event(events, "GAME_ENDED")
     if ended:
@@ -1619,6 +1725,12 @@ async def notifier_loop(
             return
 
         game = rep.get("game") or {}
+        # At most one countdown notice per game/deadline. Retry on failed
+        # Telegram delivery; never send after the scheduled start instant.
+        try:
+            await _notify_autopilot_start_countdown(bot, game_id=gid, report=rep)
+        except Exception:
+            logger.exception("Autopilot countdown forum notice failed: game_id=%s", gid)
         if _is_user_forum_game(rep):
             called_numbers = _called_numbers_from_report(rep)
             live_marker_key = f"user_live_count:{gid}"

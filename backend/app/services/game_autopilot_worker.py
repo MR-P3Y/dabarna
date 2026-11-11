@@ -102,6 +102,33 @@ class GameAutopilotWorker:
         ).scalar_one()
         return int(value or 0)
 
+    @classmethod
+    def countdowns_for_games(cls, db, levels_by_id: dict[int, str]) -> dict[int, int]:
+        """Read the deadlines this worker can service without arming or starting anything."""
+        group_id = cfg.USER_FORUM_CHAT_ID or cfg.DEFAULT_TG_GROUP_ID
+        actor_id = cfg.GAME_AUTOPILOT_SYSTEM_USER_ID
+        if not levels_by_id or not cfg.GAME_AUTOPILOT_RUNTIME_ENABLED or not group_id or not actor_id:
+            return {}
+        if db.get(User, actor_id) is None:
+            return {}
+        durations = {}
+        for level in set(levels_by_id.values()).intersection(AUTOPILOT_LEVELS):
+            config = db.get(GameAutopilotConfig, level)
+            topic_id = GameAutopilotConfigService.topic_id_for_level(level)
+            if not topic_id or not config or not config.enabled or config.start_mode != "AUTO":
+                continue
+            game = cls._active_game(db, level=level, group_id=group_id, topic_id=topic_id)
+            if (
+                not game or levels_by_id.get(game.id) != level or game.tg_topic_id != topic_id
+                or game.status != "LOBBY" or game.execution_source != "SYSTEM"
+                or game.scheduled_start_at is None or game.draw_mode not in {"AUTO", "MANUAL"}
+                or (game.draw_mode == "AUTO" and not cfg.GAME_AUTO_DRAW_ENABLED)
+            ):
+                continue
+            if cls._unique_players(db, game.id) >= max(2, int(config.min_unique_players or 2)):
+                durations[game.id] = max(5, int(config.countdown_seconds or 30))
+        return durations
+
     @staticmethod
     def _ensure_draw_mode(
         db,

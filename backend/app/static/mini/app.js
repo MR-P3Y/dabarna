@@ -66,6 +66,7 @@ const state = {
   adminNotifyCurrent: null,
   audioCtx: null,
   soundEnabled: false,
+  countdownVibration: false,
   receiptPreviewUrl: null,
   depositReceiptObjectUrl: null,
   splashHidden: false,
@@ -545,8 +546,25 @@ function toggleSound() {
   updateSoundButton();
 }
 
+function updateCountdownVibrationButton() {
+  const button = getEl("countdownVibrationBtn");
+  if (!button) return;
+  button.setAttribute("aria-pressed", String(state.countdownVibration));
+  button.classList.toggle("is-on", state.countdownVibration);
+}
+
+function toggleCountdownVibration() {
+  state.countdownVibration = !state.countdownVibration;
+  try { localStorage.setItem("davarna_countdown_vibration", state.countdownVibration ? "1" : "0"); } catch (_) {}
+  updateCountdownVibrationButton();
+}
+
 function initSoundPreference() {
-  try { state.soundEnabled = localStorage.getItem("davarna_sound_enabled") === "1"; } catch (_) {}
+  try {
+    state.soundEnabled = localStorage.getItem("davarna_sound_enabled") === "1";
+    state.countdownVibration = localStorage.getItem("davarna_countdown_vibration") === "1";
+  } catch (_) {}
+  updateCountdownVibrationButton();
   updateSoundButton();
 }
 
@@ -1942,6 +1960,114 @@ function drawGamesOverview(items) {
   root.querySelector(".games-overview-cards")?.addEventListener("click", () => switchToView("cards"));
 }
 
+// Autopilot is the only authority for the deadline. This module only displays
+// the time supplied by /mini-api/games; it never triggers GameService.start_game.
+let gameStartCountdownTicker = null;
+let gameStartCountdownServerOffsetMs = 0;
+const gameStartCountdownFeedback = new Map();
+let gameStartCountdownLastFeedbackSecond = -1;
+
+function autopilotGameStartClock(game, nowMs = Date.now() + gameStartCountdownServerOffsetMs) {
+  if (
+    !game || !game.countdown_enabled || !game.scheduled_start_at ||
+    String(game.status || "").toUpperCase() !== "LOBBY" ||
+    String(game.execution_source || "ADMIN").toUpperCase() !== "SYSTEM"
+  ) return null;
+  const scheduledMs = parseApiDate(game.scheduled_start_at).getTime();
+  if (!Number.isFinite(scheduledMs)) return null;
+  const total = Math.max(5, Number(game.countdown_seconds || 30));
+  const seconds = Math.max(0, Math.ceil((scheduledMs - nowMs) / 1000));
+  return {
+    seconds,
+    scheduledMs,
+    total,
+    pending: seconds === 0,
+    urgent: seconds > 0 && seconds <= 10,
+    progress: Math.max(0, Math.min(100, seconds / total * 100)),
+    label: seconds === 0 ? "زمان شروع رسیده؛ در انتظار تأیید سرور" : "شروع بازی تا",
+    digits: toFaDigits(
+      String(Math.floor(seconds / 60)).padStart(2, "0") + ":" +
+      String(seconds % 60).padStart(2, "0")
+    ),
+  };
+}
+
+function autopilotGameStartClockHtml(game, clock) {
+  if (!clock) return "";
+  const mode = String(game.draw_mode || "").toUpperCase() === "AUTO"
+    ? "شماره‌خوان خودکار" : "شماره‌خوان دستی";
+  return `
+    <div class="autopilot-start-clock${clock.urgent ? " is-urgent" : ""}${clock.pending ? " is-pending" : ""}"
+      data-autopilot-clock="${safeText(Number(game.id || 0))}" style="--countdown-progress:${clock.progress.toFixed(1)}%">
+      <div class="autopilot-start-clock-ring" aria-hidden="true">
+        <div class="autopilot-start-clock-inner">⏱</div>
+      </div>
+      <div class="autopilot-start-clock-content">
+        <span class="autopilot-start-clock-caption">${safeText(clock.label)}</span>
+        <strong class="autopilot-start-clock-digits" role="timer" aria-live="off">${safeText(clock.digits)}</strong>
+        <span class="autopilot-start-clock-mode">⚡ هماهنگ با Autopilot • ${safeText(mode)}</span>
+      </div>
+      <div class="autopilot-start-clock-track" aria-hidden="true">
+        <div class="autopilot-start-clock-fill" style="width:${clock.progress.toFixed(1)}%"></div>
+      </div>
+    </div>
+  `;
+}
+
+function tickAutopilotGameStartClocks() {
+  const root = getEl("gamesList");
+  if (!root) return;
+  const cards = root.querySelectorAll("[data-autopilot-clock]");
+  if (gameStartCountdownFeedback.size > 128) gameStartCountdownFeedback.clear();
+  const enabledFeedback = getEl("view-games")?.classList.contains("active") &&
+    (typeof document.visibilityState === "undefined" || document.visibilityState === "visible");
+  let feedbackPlayedThisTick = false;
+  for (const card of cards) {
+    const gid = Number(card.getAttribute("data-autopilot-clock") || 0);
+    const game = state.gamesCache.find((item) => Number(item.id) === gid);
+    const view = autopilotGameStartClock(game);
+    if (!view) {
+      card.remove();
+      continue;
+    }
+    card.style.setProperty("--countdown-progress", view.progress.toFixed(1) + "%");
+    const digits = card.querySelector(".autopilot-start-clock-digits");
+    const caption = card.querySelector(".autopilot-start-clock-caption");
+    const fill = card.querySelector(".autopilot-start-clock-fill");
+    if (digits && digits.textContent !== view.digits) digits.textContent = view.digits;
+    if (caption && caption.textContent !== view.label) caption.textContent = view.label;
+    if (fill) fill.style.width = view.progress.toFixed(1) + "%";
+    card.classList.toggle("is-urgent", view.urgent);
+    card.classList.toggle("is-pending", view.pending);
+    card.closest(".game-hero-v2")?.classList.toggle("countdown-urgent", view.urgent);
+
+    // At most one gentle tick per second and per displayed game. Do not
+    // replay missed beats when a backgrounded Telegram Mini App resumes.
+    if (enabledFeedback && !feedbackPlayedThisTick && view.seconds >= 1 && view.seconds <= 3) {
+      const key = gid + ":" + view.scheduledMs;
+      const currentSecond = Math.floor(Date.now() / 1000);
+      if (gameStartCountdownFeedback.get(key) !== view.seconds &&
+          gameStartCountdownLastFeedbackSecond !== currentSecond) {
+        gameStartCountdownFeedback.set(key, view.seconds);
+        gameStartCountdownLastFeedbackSecond = currentSecond;
+        if (state.soundEnabled) playTone({ freq: 660 + (4 - view.seconds) * 120, duration: 0.085, gain: 0.024 });
+        if (state.countdownVibration) {
+          try {
+            if (tg?.HapticFeedback?.impactOccurred) tg.HapticFeedback.impactOccurred("light");
+            else navigator.vibrate?.(30);
+          } catch (_) {}
+        }
+        feedbackPlayedThisTick = true;
+      }
+    }
+  }
+}
+
+function startAutopilotGameStartClockTicker() {
+  if (gameStartCountdownTicker !== null) return;
+  gameStartCountdownTicker = setInterval(tickAutopilotGameStartClocks, 250);
+}
+
 function drawGames(items) {
   const root = getEl("gamesList");
   const hotBanner = getEl("hotGameBanner");
@@ -1968,7 +2094,8 @@ function drawGames(items) {
   }
 
   const sorted = [...games].sort((a, b) => {
-    const rank = (g) => String(g?.status || "").toUpperCase() === "LOBBY" ? 0 : 1;
+    const rank = (g) => autopilotGameStartClock(g) ? 0 :
+      String(g?.status || "").toUpperCase() === "LOBBY" ? 1 : 2;
     return rank(a) - rank(b) || Number(b?.id || 0) - Number(a?.id || 0);
   });
   root.innerHTML = sorted.map((g) => {
@@ -1978,6 +2105,7 @@ function drawGames(items) {
     const statusKey = String(g.status || "").toUpperCase();
     const isLobby = statusKey === "LOBBY";
     const isRunning = statusKey === "RUNNING";
+    const startClock = autopilotGameStartClock(g);
     const myCards = Number(state.myCardsByGame.get(gid) || 0);
     const soldCards = soldCardsCount(g, snap);
     const players = playersCount(g, snap);
@@ -1990,7 +2118,7 @@ function drawGames(items) {
       : "مشاهده اعداد زنده";
 
     return `
-      <article class="item game-hero game-hero-v2" data-game-id="${safeText(gid)}">
+      <article class="item game-hero game-hero-v2${startClock ? " countdown-soon" : ""}" data-game-id="${safeText(gid)}">
         <div class="item-row game-hero-top">
           <div class="game-identity">
             <span class="game-identity-overline">${safeText(ruleMeta.levelLabel)}</span>
@@ -1998,6 +2126,7 @@ function drawGames(items) {
           </div>
           <span class="game-state ${statusClass}">${safeText(statusLabel(statusKey))}</span>
         </div>
+        ${autopilotGameStartClockHtml(g, startClock)}
         <div class="rule-chip-v2 rule-chip-${safeText(ruleMeta.rule.toLowerCase())}">
           <strong>${safeText(ruleMeta.label)}</strong>
           <span>${safeText(ruleMeta.description)}</span>
@@ -2021,6 +2150,7 @@ function drawGames(items) {
       </article>
     `;
   }).join("");
+  tickAutopilotGameStartClocks();
 
   root.querySelectorAll(".open-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -3087,6 +3217,9 @@ async function refreshGames() {
   const gameItems = Array.isArray(gamesRes?.items) ? gamesRes.items : (Array.isArray(state.gamesCache) ? state.gamesCache : []);
   const cards = Array.isArray(cardsRes?.items) ? cardsRes.items : null;
   if (Array.isArray(gamesRes?.items)) {
+    // Correct client clock drift using the same server clock used by Autopilot.
+    const serverMs = Date.parse(String(gamesRes.server_time_utc || ""));
+    if (Number.isFinite(serverMs)) gameStartCountdownServerOffsetMs = serverMs - Date.now();
     state.gamesCache = gamesRes.items;
   }
 
@@ -5766,12 +5899,14 @@ function systemGameClockView(game, now = Date.now() + systemGameClockOffsetMs) {
   const scheduled = parseApiDate(game.scheduled_start_at).getTime();
   const interval = Math.max(0, Number(game.draw_interval_seconds || 0));
   if (status === "RUNNING") {
+    if (game.draw_mode === "MANUAL") return { kind: "running", label: "شماره‌خوان دستی", secs: null };
     if (!systemGameDrawWorkerReady) return { kind: "waiting", label: "شماره‌خوان سرور غیرفعال است", secs: null };
     return { kind: "running", label: interval ? "در حال اعلام اعداد • هر " + toFaDigits(interval) + " ثانیه" : "بازی در حال اجرا", secs: null };
   }
   if (status !== "LOBBY") return { kind: "ended", label: "پایان یافته", secs: null };
   if (!Number.isFinite(scheduled)) return { kind: "waiting", label: "در انتظار حداقل بازیکن", secs: null };
   if (!systemGameClockRuntimeReady) return { kind: "waiting", label: "زمان‌بند خودکار غیرفعال است", secs: null };
+  if (!game.countdown_enabled) return { kind: "waiting", label: "در انتظار آمادگی بازی", secs: null };
   const remaining = Math.max(0, Math.ceil((scheduled - now) / 1000));
   return remaining > 0
     ? { kind: remaining <= 10 ? "urgent" : "counting", label: "زمان تا شروع", secs: remaining }
@@ -5836,26 +5971,16 @@ function renderAutopilotReadiness(payload) {
 
 async function refreshSystemGameClocks() {
   if (!state.admin?.enabled) return;
-  const [games, runtime, settings, readiness] = await Promise.all([
+  const [games, runtime, readiness] = await Promise.all([
     apiFetch("/mini-api/admin/games?status=LOBBY,RUNNING&limit=200"),
     apiFetch("/mini-api/admin/autopilot/runtime").catch(() => null),
-    apiFetch("/mini-api/admin/autopilot/config").catch(() => null),
     apiFetch("/mini-api/admin/autopilot/readiness").catch(() => null),
   ]);
   renderAutopilotReadiness(readiness);
-  const countdownByLevel = Object.fromEntries(
-    (Array.isArray(settings?.items) ? settings.items : []).map((item) => [
-      String(item.level || "").toUpperCase(), Number(item.countdown_seconds || 30),
-    ]),
-  );
   const serverTime = parseApiDate(games?.server_now).getTime();
   if (Number.isFinite(serverTime)) systemGameClockOffsetMs = serverTime - Date.now();
   systemGameClockRows = (Array.isArray(games?.items) ? games.items : [])
-    .filter((game) => String(game.execution_source || "").toUpperCase() === "SYSTEM")
-    .map((game) => ({
-      ...game,
-      countdown_seconds: countdownByLevel[String(game.game_level || "").toUpperCase()] || 30,
-    }));
+    .filter((game) => String(game.execution_source || "").toUpperCase() === "SYSTEM");
   systemGameClockRuntimeReady = Boolean(runtime?.runtime_enabled);
   systemGameDrawWorkerReady = Boolean(runtime?.auto_draw_enabled);
   systemGameClockLastSync = Date.now();
@@ -9634,6 +9759,7 @@ async function boot() {
   wireWalletDynamic();
   wireWalletUxHelpers();
   initSoundPreference();
+  startAutopilotGameStartClockTicker();
   wireAdminCreateUi();
   wireAdminAccordion();
   wireAdminNotify();
@@ -9646,6 +9772,7 @@ async function boot() {
   if (copyBtn) copyBtn.disabled = true;
 
   bind("soundBtn", "click", toggleSound);
+  bind("countdownVibrationBtn", "click", toggleCountdownVibration);
   bind("notificationsBtn", "click", openNotificationCenter);
   bind("notificationCloseBtn", "click", closeNotificationCenter);
   bind("notificationMarkAllBtn", "click", markAllNotificationsRead);
