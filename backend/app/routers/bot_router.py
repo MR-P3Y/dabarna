@@ -782,6 +782,11 @@ class BotGameOut(BaseModel):
     title: str
     status: str
     card_price: int
+    game_rule: str | None
+    card_layout_version: int | None
+    game_level: str | None = None
+    execution_source: str | None
+    draw_mode: str | None = None
     tg_group_id: int
     tg_topic_id: int | None = None
     prize_pool: int
@@ -2280,6 +2285,7 @@ def list_bot_games(
     status: Optional[str] = "LOBBY|ACTIVE",
     tg_group_id: int | None = Query(default=None),
     tg_topic_id: int | None = Query(default=None),
+    game_id: int | None = None,
     limit: int = 50,
     offset: int = 0,
     user: User = Depends(get_bot_user),
@@ -2301,6 +2307,8 @@ def list_bot_games(
 
     statuses = _parse_bot_game_statuses(status)
     query = select(Game).where(Game.status.in_(statuses))
+    if game_id is not None:
+        query = query.where(Game.id == game_id)
     if tg_group_id is not None:
         query = query.where(Game.tg_group_id == int(tg_group_id))
     if tg_topic_id is not None:
@@ -2316,9 +2324,14 @@ def list_bot_games(
         out.append(
             BotGameOut(
                 id=g.id,
-                title=f"Game #{g.id}",
+                title=f"بازی شمارهٔ {g.id}",
                 status=bot_status,
                 card_price=g.card_price,
+                game_rule=g.game_rule,
+                card_layout_version=g.card_layout_version,
+                game_level=str(g.game_level) if g.game_level else None,
+                execution_source=g.execution_source,
+                draw_mode=str(g.draw_mode) if g.draw_mode else None,
                 tg_group_id=g.tg_group_id,
                 tg_topic_id=g.tg_topic_id,
                 prize_pool=g.prize_pool,

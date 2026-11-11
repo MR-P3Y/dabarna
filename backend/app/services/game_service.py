@@ -1388,7 +1388,7 @@ class GameService:
         return out
 
     @staticmethod
-    def get_state(db: Session, game_id: int, last_n: int = 12) -> dict:
+    def get_state(db: Session, game_id: int, last_n: int = 12, *, include_counts: bool = False) -> dict:
         g = db.execute(select(Game).where(Game.id == game_id)).scalar_one_or_none()
         if not g:
             raise HTTPException(status_code=404, detail="game not found")
@@ -1415,16 +1415,28 @@ class GameService:
         row_payout_total = int(_safe_int(row_info.get("amount_total", 0), 0))
         row_paid = int(_safe_int(payout_state.get("row_paid", 0), 0))
 
+        cards_count = participants_count = None
+        if include_counts:
+            cards_count, participants_count = db.execute(
+                select(func.count(GameCard.id), func.count(func.distinct(GameCard.user_id)))
+                .where(GameCard.game_id == game_id)
+            ).one()
+
         return {
+            "ended_at": str(g.ended_at) if g.ended_at else None,
+            "col_absorbed_into_row": bool(col_info.get("absorbed_into_row")),
+            "cards_count": cards_count,
+            "participants_count": participants_count,
             "game_id": int(g.id),
             "tg_group_id": int(g.tg_group_id),
             "tg_topic_id": int(g.tg_topic_id) if getattr(g, "tg_topic_id", None) is not None else None,
             "status": str(g.status),
             "card_price": int(g.card_price),
             "game_level": str(g.game_level) if getattr(g, "game_level", None) else None,
-            "card_layout_version": int(g.card_layout_version or 1),
-            "game_rule": str(g.game_rule or "LEGACY"),
-            "execution_source": str(getattr(g, "execution_source", "ADMIN") or "ADMIN"),
+            "card_layout_version": g.card_layout_version,
+            "game_rule": g.game_rule,
+            "execution_source": g.execution_source,
+            "draw_mode": str(g.draw_mode) if g.draw_mode else None,
             "commission_rate": float(g.commission_rate or 0),
             "scheduled_start_at": str(g.scheduled_start_at) if getattr(g, "scheduled_start_at", None) else None,
             "sold_amount": int(g.sold_amount),
