@@ -1,69 +1,51 @@
-﻿from __future__ import annotations
-
-from typing import Optional
-
-
-def money_toman(n: int) -> str:
-    return f"{int(n):,} toman"
+"""Persian game copy for the compatibility APIs and Telegram forum."""
+from __future__ import annotations
 
 
-def _col_amount(state: dict) -> int:
-    return int(state.get("col_prize_amount", 0) or 0)
+def stored_rule(rule, layout) -> str:
+    if type(layout) is int:
+        if layout == 2 and rule in ("LINE", "FULL_CARD"):
+            return rule
+        if layout == 1 and rule == "LEGACY":
+            return rule
+    return "UNKNOWN"
 
 
-def _row_amount(state: dict) -> int:
-    return int(state.get("row_prize_amount", 0) or 0)
+RULE_ERROR = "قانون و ساختار ذخیره‌شدهٔ بازی ناقص یا ناسازگار است."
+RULE_LINES = {
+    "LINE": "🃏 کارت: <b>۳ ردیف × ۹ ستون، ۵ عدد در هر ردیف</b>\n🏆 برد: <b>تورنا ۳ عدد از یک ردیف؛ خطی ۵ عدد از یک ردیف</b>\n",
+    "FULL_CARD": "🏆 قانون: <b>پرکردنی ۱۵ عدد کامل؛ بدون تورنا</b>\n",
+    "LEGACY": "🃏 کارت قدیمی: <b>۴×۵، شامل ۲۰ عدد</b>\n🏆 برد قدیمی: <b>تورنا ستون ۴ عددی؛ تکمیل ردیف ۵ عددی</b>\n",
+}
+FINAL_LABEL = {"LINE": "خطی", "FULL_CARD": "پرکردنی", "LEGACY": "ردیفی"}
 
 
-def format_game_lobby(game_state: dict) -> str:
-    return (
-        "Game lobby is ready\n"
-        f"Game ID: `{game_state['game_id']}`\n"
-        f"Card price: *{money_toman(game_state['card_price'])}*\n"
-        f"Sales so far: *{money_toman(game_state['sold_amount'])}*\n"
-        f"Prize pool: *{money_toman(game_state['prize_pool'])}*\n\n"
-        "Buy cards to join."
-    )
+def money_toman(value) -> str:
+    return f"{value:,} تومان" if type(value) is int and value >= 0 else "هنوز ثبت نشده"
 
 
-def format_game_running(game_state: dict) -> str:
-    called = game_state.get("called_numbers", [])
-    called_str = " - ".join(str(x) for x in called[-12:]) if called else "-"
-    return (
-        "Game is RUNNING\n"
-        f"Game: `{game_state['game_id']}`\n"
-        f"Card price: *{money_toman(game_state['card_price'])}*\n"
-        f"Prize pool: *{money_toman(game_state['prize_pool'])}*\n"
-        f"Column prize (1/3 of prize pool): *{money_toman(_col_amount(game_state))}*\n"
-        f"Row prize (2/3 of prize pool): *{money_toman(_row_amount(game_state))}*\n\n"
-        f"Called numbers: `{called_str}`\n"
-        f"Last number: *{game_state.get('last_number') or '-'}*"
-    )
-
-
-def format_col_winner(game_state: dict) -> Optional[str]:
-    col_paid = int(game_state.get("col_paid", 0) or 0)
-    if not col_paid:
-        return None
-
-    winners = game_state.get("col_winner_user_ids") or []
-    if not winners:
-        return "Column prize paid."
-    if len(winners) == 1:
-        return f"Column win: `{winners[0]}`"
-    return f"Column tie win: {', '.join(f'`{x}`' for x in winners)}"
-
-
-def format_row_winner(game_state: dict) -> Optional[str]:
-    row_paid = int(game_state.get("row_paid", 0) or 0)
-    if not row_paid:
-        return None
-
-    winners = game_state.get("row_winner_user_ids") or []
-    if not winners:
-        return None
-
-    amount = int(game_state.get("row_payout_total", _row_amount(game_state)) or 0)
-    if len(winners) == 1:
-        return f"Row win confirmed. Winner: `{winners[0]}`\nPaid: *{money_toman(amount)}*"
-    return f"Row tie win confirmed. Winners: {', '.join(f'`{x}`' for x in winners)}\nPaid total: *{money_toman(amount)}*"
+def format_game_summary(state: dict) -> str:
+    status = {"LOBBY": "در انتظار شروع", "RUNNING": "در حال بازی", "ENDED": "پایان‌یافته"}.get(state["status"], "وضعیت نامشخص")
+    rule = stored_rule(state.get("game_rule"), state.get("card_layout_version"))
+    lines = [f"بازی شماره {state['game_id']} | {status}"]
+    if rule == "UNKNOWN":
+        return "\n".join([*lines, RULE_ERROR])
+    lines += [RULE_LINES[rule].strip().replace("<b>", "").replace("</b>", ""),
+              f"قیمت کارت: {money_toman(state.get('card_price'))}",
+              f"صندوق جایزه: {money_toman(state.get('prize_pool'))}"]
+    if state["status"] == "LOBBY":
+        lines.append(f"فروش تاکنون: {money_toman(state.get('sold_amount'))}")
+    else:
+        if rule != "FULL_CARD":
+            lines.append(f"جایزه تورنا: {money_toman(state.get('col_prize_amount'))}")
+        lines.append(f"جایزه {FINAL_LABEL[rule]}: {money_toman(state.get('row_prize_amount'))}")
+        for bucket, label in (("col", "تورنا"), ("row", FINAL_LABEL[rule])):
+            if bucket == "col" and rule == "FULL_CARD":
+                continue
+            if state.get(f"{bucket}_winner_card_ids") and state.get(f"{bucket}_paid") == 1:
+                lines.append(f"مجموع پرداخت {label}: {money_toman(state.get(f'{bucket}_payout_total'))}")
+        called = state.get("called_numbers") or []
+        lines.append("اعداد اخیر (از تازه‌ترین): " + ("، ".join(map(str, called)) or "هنوز ثبت نشده"))
+        last = state.get("last_number")
+        lines.append(f"آخرین عدد: {last if last is not None else 'هنوز ثبت نشده'}")
+    return "\n".join(lines)

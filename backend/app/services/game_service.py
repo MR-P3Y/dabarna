@@ -9,6 +9,7 @@ from typing import Any
 from fastapi import HTTPException
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
+from app.utils.card_render import render_card_text
 from app.core.redis_client import RedisLock, idem_get, idem_set
 from app.core import config as cfg
 from app.models.game import Game, GameAutoDraw, GameCalledNumber, GameCard, GamePurchase
@@ -556,6 +557,14 @@ class GameService:
             raise HTTPException(status_code=400, detail="draw mode must be selected before game start")
 
         if draw_mode == "AUTO":
+            # Do not enter RUNNING when the lifespan never launches the draw worker.
+            # Without this guard the database trigger arms a permanent due job
+            # but no backend worker exists to call the numbers.
+            if not cfg.GAME_AUTO_DRAW_ENABLED:
+                raise HTTPException(
+                    status_code=503,
+                    detail="automatic number draw is disabled on this server; enable the worker before starting AUTO games",
+                )
             interval = int(game.draw_interval_seconds or 0)
             sequence = auto_control.sequence_json if auto_control is not None and isinstance(auto_control.sequence_json, list) else []
             if interval not in {5, 8, 10, 15}:
@@ -1388,7 +1397,7 @@ class GameService:
         return out
 
     @staticmethod
-    def get_state(db: Session, game_id: int, last_n: int = 12) -> dict:
+    def get_state(db: Session, game_id: int, last_n: int = 12, *, include_counts: bool = False) -> dict:
         g = db.execute(select(Game).where(Game.id == game_id)).scalar_one_or_none()
         if not g:
             raise HTTPException(status_code=404, detail="game not found")
@@ -1415,16 +1424,28 @@ class GameService:
         row_payout_total = int(_safe_int(row_info.get("amount_total", 0), 0))
         row_paid = int(_safe_int(payout_state.get("row_paid", 0), 0))
 
+        cards_count = participants_count = None
+        if include_counts:
+            cards_count, participants_count = db.execute(
+                select(func.count(GameCard.id), func.count(func.distinct(GameCard.user_id)))
+                .where(GameCard.game_id == game_id)
+            ).one()
+
         return {
+            "ended_at": str(g.ended_at) if g.ended_at else None,
+            "col_absorbed_into_row": bool(col_info.get("absorbed_into_row")),
+            "cards_count": cards_count,
+            "participants_count": participants_count,
             "game_id": int(g.id),
             "tg_group_id": int(g.tg_group_id),
             "tg_topic_id": int(g.tg_topic_id) if getattr(g, "tg_topic_id", None) is not None else None,
             "status": str(g.status),
             "card_price": int(g.card_price),
             "game_level": str(g.game_level) if getattr(g, "game_level", None) else None,
-            "card_layout_version": int(g.card_layout_version or 1),
-            "game_rule": str(g.game_rule or "LEGACY"),
-            "execution_source": str(getattr(g, "execution_source", "ADMIN") or "ADMIN"),
+            "card_layout_version": g.card_layout_version,
+            "game_rule": g.game_rule,
+            "execution_source": g.execution_source,
+            "draw_mode": str(g.draw_mode) if g.draw_mode else None,
             "commission_rate": float(g.commission_rate or 0),
             "scheduled_start_at": str(g.scheduled_start_at) if getattr(g, "scheduled_start_at", None) else None,
             "sold_amount": int(g.sold_amount),
@@ -1462,44 +1483,22 @@ class GameService:
             .order_by(GameCalledNumber.id.asc())
         ).scalars().all()
         called_numbers = [int(x) for x in called]
-        called_set = set(called_numbers)
-
         cards_rows = db.execute(
             select(GameCard)
             .where(GameCard.game_id == game_id, GameCard.user_id == user_id)
             .order_by(GameCard.id.asc())
         ).scalars().all()
 
-        def _fmt_cell(n: int) -> str:
-            if n == 0:
-                return " -- "
-            return f"[{n:02d}]" if n in called_set else f" {n:02d} "
-
-        def _grid_text(nums: list[int]) -> str:
-            is_v2 = int(g.card_layout_version or 1) == 2
-            rows_count, cols_count = (3, 9) if is_v2 else (4, 5)
-            rows = []
-            for row in range(rows_count):
-                row_nums = nums[row * cols_count:(row + 1) * cols_count]
-                rows.append(" ".join(_fmt_cell(int(x)) for x in row_nums))
-            return "\n".join(rows)
-
         out_cards = []
         for c in cards_rows:
             nums = c.numbers_json
             if isinstance(nums, str):
                 nums = json.loads(nums)
-            nums = [int(x) for x in nums]
-
-            expected = 27 if int(g.card_layout_version or 1) == 2 else 20
-            if len(nums) != expected:
-                raise HTTPException(status_code=500, detail=f"invalid card numbers count: card_id={c.id}")
-
             out_cards.append(
                 {
                     "card_id": int(c.id),
                     "fingerprint": str(c.fingerprint),
-                    "grid_text": _grid_text(nums),
+                    "grid_text": render_card_text(nums, called_numbers, g.game_rule, g.card_layout_version),
                 }
             )
 

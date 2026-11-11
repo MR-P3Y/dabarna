@@ -71,4 +71,4 @@ def test_critical_light_theme_overrides_exist() -> None:
 
 
 def test_stylesheet_cache_token_matches_contrast_release() -> None:
-    assert "./styles.css?v=mini-light-contrast-20261009-1" in INDEX
+    assert "./styles.css?v=finance-reject-reasons-20261108" in INDEX

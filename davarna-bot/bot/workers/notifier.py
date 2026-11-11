@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import math
 import logging
 import time
 from html import escape as html_escape
@@ -20,6 +21,7 @@ from aiogram.exceptions import (
     TelegramRetryAfter,
 )
 
+from bot.services.game_rules import rule_kind
 from bot.config import settings
 from bot.keyboards.crypto import admin_crypto_item_kb
 from bot.services.api_client import ApiClient
@@ -28,6 +30,9 @@ from bot.services.jalali import format_jalali_datetime
 from bot.services.user_topics import (
     game_topic_title as user_game_topic_title,
     game_start_announcement_topic,
+    game_topic_name_for_id,
+    topic_id as user_topic_id,
+    send_to_game_topic,
     send_to_topic as send_to_user_topic,
 )
 from bot.services.user_forum_navigation import navigation_keyboard
@@ -331,43 +336,66 @@ def _is_recent_event_for_runtime(event: dict | None, runtime_started_ts: float, 
     return created_ts >= (runtime_started_ts - float(skew_sec))
 
 
-def _group_cards_by_tg_user(
-    tg_user_ids: list[int],
-    card_ids: list[int],
-    amounts_by_card: list[int],
-) -> dict[int, list[tuple[int, int]]]:
-    out: dict[int, list[tuple[int, int]]] = {}
-    if not tg_user_ids:
-        return out
-
-    for idx, tg_uid in enumerate(tg_user_ids):
-        if tg_uid <= 0:
-            continue
-        card_id = card_ids[idx] if idx < len(card_ids) else 0
-        amount = amounts_by_card[idx] if idx < len(amounts_by_card) else 0
-        out.setdefault(int(tg_uid), []).append((int(card_id), int(amount)))
-    return out
+def _prize_amount(value: object) -> int | None:
+    return value if type(value) is int and value >= 0 else None
 
 
-def _fmt_cards(items: list[tuple[int, int]]) -> str:
-    cards = [str(card_id) for card_id, _ in items if card_id > 0]
-    return ", ".join(cards) if cards else "—"
+def _amount_text(amount: int | None) -> str:
+    return f"{amount:,} تومان" if amount is not None else "مبلغ قابل تأیید نیست"
 
 
-async def _fmt_winner_rows(bot: Bot, grouped: dict[int, list[tuple[int, int]]]) -> str:
-    if not grouped:
-        return "—"
+def _winner_shares(game: dict, payload: dict, bucket: str) -> dict[int, list[tuple[int, int | None]]]:
+    """Use the settled owners, matching explicit event receipts by card and both identities."""
+    cards = game.get(f"{bucket}_winner_card_ids") or []
+    users = game.get(f"{bucket}_winner_user_ids") or []
+    recipients = game.get(f"{bucket}_winner_tg_user_ids") or []
+    if not all(isinstance(v, list) for v in (cards, users, recipients)):
+        return {}
+    if len(cards) != len(users) or len(cards) != len(recipients):
+        return {}
+    if not all(type(cid) is int and cid > 0 for cid in cards) or len(cards) != len(set(cards)):
+        return {}
 
-    lines: list[str] = []
-    for tg_uid in sorted(grouped):
-        cards = grouped.get(tg_uid) or []
-        amount = sum(max(0, amt) for _, amt in cards)
-        amount_txt = str(amount) if amount > 0 else "—"
-        display_name = await resolve_tg_identity(bot, int(tg_uid))
-        lines.append(
-            f"• <b>{html_escape(display_name)}</b> | کارت: <code>{_fmt_cards(cards)}</code> | مبلغ: <b>{amount_txt}</b>"
-        )
-    return "\n".join(lines)
+    rows = payload.get("winner_users")
+    receipts = {}
+    if isinstance(rows, list) and len(rows) == len(cards):
+        for row in rows:
+            if not isinstance(row, dict):
+                break
+            identity = tuple(row.get(k) for k in ("card_id", "user_id", "tg_user_id"))
+            if not all(type(v) is int and v > 0 for v in identity) or identity in receipts:
+                break
+            receipts[identity] = _prize_amount(row.get("amount"))
+    owners = list(zip(cards, users, recipients))
+    if (not all(type(v) is int for owner in owners for v in owner)
+            or set(receipts) != set(owners)):
+        receipts.clear()
+    # A complete set of shares must reconcile to the recorded event total.
+    if receipts and "amount_total" in payload and all(n is not None for n in receipts.values()):
+        if _prize_amount(payload["amount_total"]) != sum(receipts.values()):
+            receipts.clear()
+    grouped = {}
+    for card_id, uid, tg_uid in owners:
+        if type(uid) is int and uid > 0 and type(tg_uid) is int and tg_uid > 0:
+            grouped.setdefault(tg_uid, []).append((card_id, receipts.get((card_id, uid, tg_uid))))
+    return grouped
+
+
+def _personal_amount(cards: list[tuple[int, int | None]]) -> str:
+    amounts = [amount for _, amount in cards]
+    return _amount_text(sum(amounts) if amounts and None not in amounts else None)
+
+
+def _fmt_cards(items: list[tuple[int, int | None]]) -> str:
+    return "، ".join(str(card_id) for card_id, _ in items)
+
+
+async def _fmt_winner_rows(bot: Bot, grouped: dict) -> str:
+    lines = []
+    for tg_uid, cards in sorted(grouped.items()):
+        display_name = await resolve_tg_identity(bot, tg_uid)
+        lines.append(f"• <b>{html_escape(display_name)}</b> | کارت: <code>{_fmt_cards(cards)}</code> | سهم: {_personal_amount(cards)}")
+    return "\n".join(lines) or "هنوز ثبت نشده"
 
 
 def _winners_topic_kb(game_id: int | None = None):
@@ -502,7 +530,9 @@ def _is_user_forum_game(report: dict) -> bool:
 
 def _game_rule_notice_line(game: dict) -> str:
     """Show stored rules for each game, regardless of Telegram topic."""
-    rule = str(game.get("game_rule") or "LEGACY").strip().upper()
+    rule = rule_kind(game)
+    if rule == "UNKNOWN":
+        return "⚠️ قانون و ساختار ذخیره‌شدهٔ بازی ناقص یا ناسازگار است.\n"
     if rule == "FULL_CARD":
         return "🏆 قانون: <b>پرکردنی ۱۵ عدد کامل؛ بدون تورنا</b>\n"
     if rule == "LINE":
@@ -521,6 +551,100 @@ def _game_start_draw_line(event: dict | None) -> str:
     if mode == "MANUAL":
         return "🔢 اعلام اعداد: <b>دستی</b> • توسط ادمین"
     return ""
+
+
+# Countdown uses the *existing* scheduled_start_at written by Autopilot.
+# No additional scheduler, game mutation, or repeated Telegram per-second edits.
+def _autopilot_countdown_notice_state(game: dict, *, now_ts: float | None = None) -> tuple[str, int] | None:
+    if str(game.get("status") or "").upper() != "LOBBY":
+        return None
+    if str(game.get("execution_source") or "ADMIN").upper() != "SYSTEM":
+        return None
+    if not bool(game.get("countdown_enabled")):
+        return None
+    scheduled_raw = str(game.get("scheduled_start_at") or "").strip()
+    scheduled = _parse_dt(scheduled_raw)
+    if scheduled is None:
+        return None
+    left = int(math.ceil(scheduled.timestamp() - (time.time() if now_ts is None else now_ts)))
+    if not 0 < left <= max(5, _to_int(game.get("countdown_seconds"), 30)):
+        return None
+    return scheduled.isoformat(), left
+
+
+def _is_configured_game_lane(game: dict) -> bool:
+    expected = {"LOW": "game_low", "MEDIUM": "game_medium", "HIGH": "game_high"}.get(game.get("game_level"))
+    return expected is not None and game_topic_name_for_id(game.get("tg_topic_id")) == expected
+
+
+async def _notify_autopilot_start_countdown(bot: Bot, *, game_id: int, report: dict) -> bool:
+    if not _is_user_forum_game(report):
+        return False
+    game = report.get("game") or {}
+    topic = _to_int(game.get("tg_topic_id"), 0)
+    if not _is_configured_game_lane(game):
+        return False
+    state = _autopilot_countdown_notice_state(game)
+    if state is None:
+        return False
+    schedule_key, seconds_left = state
+    mode = str(game.get("draw_mode") or "").upper()
+    mode_label = "خودکار" if mode == "AUTO" else "دستی توسط ادمین" if mode == "MANUAL" else "در حال آماده‌سازی"
+    message = (
+        f"⏳ <b>بازی #{int(game_id)} در آستانه شروع است!</b>\n"
+        f"🎮 {user_game_topic_title(topic)}\n"
+        f"⏱ شروع خودکار طبق ساعت سرور: <b>حدود {seconds_left} ثانیه دیگر</b>\n"
+        f"🔢 شماره‌خوان: <b>{mode_label}</b>\n"
+        "🃏 کارت‌های خود را آماده کنید. شروع قطعی پس از تأیید سیستم اعلام می‌شود."
+    )
+    # Two independent acknowledgments: one message in the game's own thread,
+    # one in public announcements. A failure in one never duplicates the other.
+    delivered = True
+    expires_at = datetime.fromisoformat(schedule_key).timestamp()
+    destinations = ("game",) if topic == user_topic_id("announce") else ("game", "announce")
+    for destination in destinations:
+        marker_key = f"autopilot_countdown_notice:{int(game_id)}:{destination}"
+        if get_meta_marker(marker_key, "") == schedule_key:
+            continue
+        markup = navigation_keyboard(game_topic_id=topic, show_live=True)
+        if destination == "game":
+            sent = await send_to_game_topic(
+                bot, game_topic_id=topic, text=message, parse_mode="HTML",
+                reply_markup=markup, disable_notification=False, expires_at=expires_at,
+            )
+        else:
+            sent = await send_to_user_topic(
+                bot, name="announce", text=message, parse_mode="HTML",
+                reply_markup=markup, disable_notification=True, expires_at=expires_at,
+            )
+        if sent:
+            set_meta_marker(marker_key, schedule_key)
+        else:
+            delivered = False
+    return delivered
+
+
+async def _send_game_started_to_lane(bot: Bot, *, game_id: int, report: dict, event: dict | None = None) -> bool:
+    if not _is_user_forum_game(report):
+        return True
+    game = report.get("game") or {}
+    topic = _to_int(game.get("tg_topic_id"), 0)
+    if game.get("execution_source") != "SYSTEM" or topic == user_topic_id(game_start_announcement_topic()):
+        return True
+    if not _is_configured_game_lane(game):
+        return False
+    mode_line = _game_start_draw_line(event)
+    message = (
+        f"🚀 <b>بازی #{int(game_id)} شروع شد!</b>\n"
+        f"🎮 {user_game_topic_title(topic)}\n"
+        f"{mode_line + chr(10) if mode_line else ''}"
+        "🔢 اعداد را در بخش «اعداد زنده» دنبال کنید."
+    )
+    return await send_to_game_topic(
+        bot, game_topic_id=topic, text=message, parse_mode="HTML",
+        reply_markup=navigation_keyboard(game_topic_id=topic, show_live=True),
+        disable_notification=False,
+    )
 
 
 async def _send_user_game_started_notice(bot: Bot, *, game_id: int, report: dict, event: dict | None = None) -> bool:
@@ -553,8 +677,8 @@ async def _send_user_game_created_notice(bot: Bot, *, game_id: int, report: dict
         f"🎯 {user_game_topic_title(topic_id or None)}\n"
         f"💳 قیمت هر کارت: <b>{_fmt_amount(_to_int(game.get('card_price'), 0))} تومان</b>\n"
         f"{_game_rule_notice_line(game)}"
-        "👥 شروع بازی منوط به حضور دست‌کم ۲ بازیکن متمایز است.\n"
-        "⏳ ساعت شروع قطعی اعلام نشده است؛ پس از آغاز، پیام جداگانه ارسال می‌شود.\n"
+        "👥 شروع بازی پس از احراز شرایط بازی تأیید می‌شود.\n"
+        "⏳ شروع واقعی جداگانه اعلام می‌شود.\n"
         "🛒 برای خرید، ربات را خصوصی باز کنید."
     )
     return await send_to_user_topic(
@@ -651,11 +775,11 @@ async def _send_game_started_report(bot: Bot, *, game_id: int, report: dict, eve
     col_prize = _to_int(g.get("col_prize_amount"), 0)
     row_prize = _to_int(g.get("row_prize_amount"), 0)
     card_price = _to_int(g.get("card_price"), 0)
-    rule = str(g.get("game_rule") or "LEGACY").upper()
-    final_label = "پرکردنی" if rule == "FULL_CARD" else "خطی" if rule == "LINE" else "تمام"
+    rule = rule_kind(g)
+    final_label = {"FULL_CARD": "پرکردنی", "LINE": "خطی", "LEGACY": "ردیفی"}.get(rule, "با قانون نامشخص")
     intermediate_prize = (
-        "" if rule == "FULL_CARD"
-        else f"🏆 جایزه برد تورنا: <b>{_fmt_amount(col_prize)}</b>\n"
+        "" if rule in ("FULL_CARD", "UNKNOWN")
+        else f"🏆 جایزه برد تورنا: <b>{_fmt_amount(col_prize)} تومان</b>\n"
     )
 
     sold_card_ids = _purchase_card_ids_from_events(events)
@@ -673,13 +797,13 @@ async def _send_game_started_report(bot: Bot, *, game_id: int, report: dict, eve
         f"🎮 بازی: <b>#{game_id}</b>\n"
         f"{(_game_start_draw_line(event) + chr(10)) if _game_start_draw_line(event) else ''}"
         f"وضعیت: <b>{_fa_game_status(str(g.get('status') or 'RUNNING'))}</b>\n\n"
-        f"💳 قیمت هر کارت: <b>{_fmt_amount(card_price)}</b>\n"
+        f"💳 قیمت هر کارت: <b>{_fmt_amount(card_price)} تومان</b>\n"
         f"🧾 تعداد خریدها: <b>{_fmt_amount(purchases_count)}</b>\n"
         f"🃏 تعداد کارت فروخته‌شده: <b>{_fmt_amount(cards_sold)}</b>\n"
-        f"💰 مبلغ فروش: <b>{_fmt_amount(max(sales_total, sold_amount))}</b>\n"
-        f"🎁 جایزه کل: <b>{_fmt_amount(prize_pool)}</b>\n"
+        f"💰 مبلغ فروش: <b>{_fmt_amount(max(sales_total, sold_amount))} تومان</b>\n"
+        f"🎁 جایزه کل: <b>{_fmt_amount(prize_pool)} تومان</b>\n"
         f"{intermediate_prize}"
-        f"🏁 جایزه برد {final_label}: <b>{_fmt_amount(row_prize)}</b>\n\n"
+        f"🏁 جایزه برد {final_label}: <b>{_fmt_amount(row_prize)} تومان</b>\n\n"
         f"🪪 کارت‌های فروخته‌شده: <code>{sold_cards_text}</code>"
         f"{coverage_note}",
     )
@@ -688,8 +812,8 @@ async def _send_game_started_report(bot: Bot, *, game_id: int, report: dict, eve
 
 async def _send_game_ended_report(bot: Bot, *, game_id: int, report: dict, event: dict) -> bool:
     g = report.get("game") or {}
-    rule = str(g.get("game_rule") or "LEGACY").upper()
-    final_label = "پرکردنی" if rule == "FULL_CARD" else "خطی" if rule == "LINE" else "تمام"
+    rule = rule_kind(g)
+    final_label = {"FULL_CARD": "پرکردنی", "LINE": "خطی", "LEGACY": "ردیفی"}.get(rule, "با قانون نامشخص")
     purchases = report.get("purchases") or {}
     events = report.get("events") or []
     payload = _event_payload(event)
@@ -707,8 +831,8 @@ async def _send_game_ended_report(bot: Bot, *, game_id: int, report: dict, event
     col_paid_total = _to_int(_event_payload(col_event).get("amount_total"), 0)
     row_paid_total = _to_int(_event_payload(row_event).get("amount_total"), 0)
     intermediate_report = (
-        "" if rule == "FULL_CARD" else
-        f"🏆 جایزه تورنا (تعریف‌شده/پرداخت): <b>{_fmt_amount(_to_int(g.get('col_prize_amount'), 0))}</b> / <b>{_fmt_amount(col_paid_total)}</b>\n"
+        "" if rule in ("FULL_CARD", "UNKNOWN") else
+        f"🏆 جایزه تورنا (تعریف‌شده/پرداخت): <b>{_fmt_amount(_to_int(g.get('col_prize_amount'), 0))} تومان</b> / <b>{_fmt_amount(col_paid_total)} تومان</b>\n"
         f"👥 برندگان تورنا: <b>{_fmt_amount(len(set(col_users)))}</b> | کارت: <b>{_fmt_amount(len(set(col_cards)))}</b>\n"
     )
 
@@ -718,13 +842,13 @@ async def _send_game_ended_report(bot: Bot, *, game_id: int, report: dict, event
         f"🕒 زمان پایان: <code>{_event_time_text(event)}</code>\n"
         f"🎮 بازی: <b>#{game_id}</b>\n"
         f"📌 دلیل پایان: <b>{_end_reason_fa(payload.get('end_reason'))}</b>\n\n"
-        f"💳 قیمت هر کارت: <b>{_fmt_amount(_to_int(g.get('card_price'), 0))}</b>\n"
+        f"💳 قیمت هر کارت: <b>{_fmt_amount(_to_int(g.get('card_price'), 0))} تومان</b>\n"
         f"🧾 تعداد خریدها: <b>{_fmt_amount(_to_int(purchases.get('purchases_count'), 0))}</b>\n"
         f"🃏 تعداد کارت فروخته‌شده: <b>{_fmt_amount(_to_int(purchases.get('cards_sold'), 0))}</b>\n"
-        f"💰 مبلغ بازی (فروش): <b>{_fmt_amount(_to_int(g.get('sold_amount'), 0))}</b>\n"
-        f"🎁 جایزه کل: <b>{_fmt_amount(_to_int(g.get('prize_pool'), 0))}</b>\n"
+        f"💰 مبلغ بازی (فروش): <b>{_fmt_amount(_to_int(g.get('sold_amount'), 0))} تومان</b>\n"
+        f"🎁 جایزه کل: <b>{_fmt_amount(_to_int(g.get('prize_pool'), 0))} تومان</b>\n"
         f"{intermediate_report}"
-        f"🏁 جایزه {final_label} (تعریف‌شده/پرداخت): <b>{_fmt_amount(_to_int(g.get('row_prize_amount'), 0))}</b> / <b>{_fmt_amount(row_paid_total)}</b>\n"
+        f"🏁 جایزه {final_label} (تعریف‌شده/پرداخت): <b>{_fmt_amount(_to_int(g.get('row_prize_amount'), 0))} تومان</b> / <b>{_fmt_amount(row_paid_total)} تومان</b>\n"
         f"👥 برندگان {final_label}: <b>{_fmt_amount(len(set(row_users)))}</b> | کارت: <b>{_fmt_amount(len(set(row_cards)))}</b>\n"
         f"🔢 تعداد اعداد خوانده‌شده: <b>{_fmt_amount(len(called))}</b>\n"
         f"📍 آخرین عدد: <b>{last_number if last_number is not None else '—'}</b>\n\n"
@@ -1269,27 +1393,19 @@ async def _queue_prize_notifications(
     game = report.get("game") or {}
     payload = _event_payload(event)
     call_number = _to_int(payload.get("call_number"), 0)
-    amount_total = _to_int(payload.get("amount_total"), 0)
-    amounts_by_card = _as_int_list(payload.get("amounts_by_card"))
+    amount_total = _prize_amount(payload.get("amount_total"))
     admin_tg_user_id = _to_int(game.get("admin_tg_user_id"), 0)
     game_topic_id = _to_int(game.get("tg_topic_id"), 0)
-    game_rule = str(game.get("game_rule") or "LEGACY").upper()
-    kind_title = (
-        "تورنا" if kind == "PRIZE_COL"
-        else "پرکردنی" if game_rule == "FULL_CARD"
-        else "خطی" if game_rule == "LINE"
-        else "تمام"
-    )
-
-    if kind == "PRIZE_COL":
-        winner_tg_user_ids = _as_int_list(game.get("col_winner_tg_user_ids"))
-        winner_card_ids = _as_int_list(game.get("col_winner_card_ids"))
-    else:
-        winner_tg_user_ids = _as_int_list(game.get("row_winner_tg_user_ids"))
-        winner_card_ids = _as_int_list(game.get("row_winner_card_ids"))
-
-    grouped = _group_cards_by_tg_user(winner_tg_user_ids, winner_card_ids, amounts_by_card)
-    winners_rows = await _fmt_winner_rows(bot, grouped)
+    rule = rule_kind(game)
+    if rule == "UNKNOWN" or (kind == "PRIZE_COL" and rule == "FULL_CARD"):
+        logger.warning("Inconsistent prize rule/layout: game=%s kind=%s", game_id, kind)
+        return
+    bucket = {"PRIZE_COL": "col", "PRIZE_ROW": "row"}[kind]
+    if bucket == "col" and (game.get("payout_state_json") or {}).get("col", {}).get("absorbed_into_row"):
+        return
+    kind_title = "تورنا" if bucket == "col" else {"FULL_CARD": "پرکردنی", "LINE": "خطی", "LEGACY": "ردیفی"}[rule]
+    grouped = _winner_shares(game, payload, bucket)
+    winner_card_ids = [cid for cards in grouped.values() for cid, _ in cards]
     if _is_user_forum_game(report):
         public_text = panel(
             "اعلان برنده",
@@ -1297,11 +1413,11 @@ async def _queue_prize_notifications(
             f"🎮 بازی: <b>#{game_id}</b>\n"
             f"🧵 دسته بازی: <b>{user_game_topic_title(game_topic_id if game_topic_id > 0 else None)}</b>\n"
             f"🏆 نوع برد: <b>{kind_title}</b>\n"
-            f"👥 تعداد برنده‌ها: <b>{len([x for x in winner_tg_user_ids if x > 0])}</b>\n"
+            f"👥 تعداد برنده‌ها: <b>{len(grouped)}</b>\n"
             f"🪪 کارت‌های برنده: <code>{', '.join(str(x) for x in winner_card_ids) if winner_card_ids else '—'}</code>\n"
-            f"💰 مجموع پرداخت: <b>{amount_total if amount_total > 0 else '—'}</b>\n"
+            f"💰 مجموع پرداخت: <b>{_amount_text(amount_total)}</b>\n"
             f"{f'🔢 عدد برنده: <b>{call_number}</b>' if call_number > 0 else ''}\n\n"
-            f"جزئیات:\n{winners_rows}",
+            "سهم هر برنده در ربات خصوصی نمایش داده می‌شود.",
         )
         await send_to_user_topic(
             bot,
@@ -1312,12 +1428,11 @@ async def _queue_prize_notifications(
         )
 
     for tg_uid, cards in grouped.items():
-        user_amount = sum(max(0, amt) for _, amt in cards)
         text = (
             f"🏆 <b>تبریک!</b>\n"
             f"تو در بازی <b>#{game_id}</b> برنده {kind_title} شدی.\n"
             f"🪪 کارت(ها): <code>{_fmt_cards(cards)}</code>\n"
-            f"💰 مبلغ: <b>{user_amount if user_amount > 0 else amount_total}</b>\n"
+            f"💰 مبلغ: <b>{_personal_amount(cards)}</b>\n"
             f"{f'🔢 عدد برنده: <b>{call_number}</b>' if call_number > 0 else ''}"
         ).strip()
         await queue.put(_SendJob(game_id=game_id, user_id=int(tg_uid), text=text))
@@ -1329,8 +1444,9 @@ async def _queue_prize_notifications(
         admin_receivers.update(int(uid) for uid in settings.admin_ids if int(uid) > 0)
 
     if admin_receivers:
+        winners_rows = await _fmt_winner_rows(bot, grouped)
         cards_txt = ", ".join(str(x) for x in winner_card_ids) if winner_card_ids else "—"
-        winners_count = len([x for x in winner_tg_user_ids if x > 0])
+        winners_count = len(grouped)
         admin_text = panel(
             "گزارش برنده حین بازی",
             "#برنده #حین_بازی\n"
@@ -1339,7 +1455,7 @@ async def _queue_prize_notifications(
             f"نوع برد: <b>{kind_title}</b>\n"
             f"👥 تعداد برنده‌ها: <b>{winners_count}</b>\n"
             f"🪪 کارت(های) برنده: <code>{cards_txt}</code>\n"
-            f"💰 مجموع پرداخت: <b>{amount_total if amount_total > 0 else '—'}</b>\n"
+            f"💰 مجموع پرداخت: <b>{_amount_text(amount_total)}</b>\n"
             f"{f'🔢 عدد برنده: <b>{call_number}</b>' if call_number > 0 else ''}\n\n"
             f"جزئیات برنده‌ها:\n{winners_rows}",
         )
@@ -1402,6 +1518,14 @@ async def _process_game_lifecycle_reports(
             legacy_event_key="GAME_STARTED_NOTICE",
             event=started, is_first_seen=is_first_seen,
             send=lambda: _send_user_game_started_notice(
+                bot, game_id=game_id, report=report, event=started,
+            ),
+        )
+        await deliver_lifecycle_event(
+            game_id=game_id, event_key="GAME_STARTED_NOTICE_LANE",
+            legacy_event_key=None,
+            event=started, is_first_seen=is_first_seen,
+            send=lambda: _send_game_started_to_lane(
                 bot, game_id=game_id, report=report, event=started,
             ),
         )
@@ -1601,6 +1725,12 @@ async def notifier_loop(
             return
 
         game = rep.get("game") or {}
+        # At most one countdown notice per game/deadline. Retry on failed
+        # Telegram delivery; never send after the scheduled start instant.
+        try:
+            await _notify_autopilot_start_countdown(bot, game_id=gid, report=rep)
+        except Exception:
+            logger.exception("Autopilot countdown forum notice failed: game_id=%s", gid)
         if _is_user_forum_game(rep):
             called_numbers = _called_numbers_from_report(rep)
             live_marker_key = f"user_live_count:{gid}"

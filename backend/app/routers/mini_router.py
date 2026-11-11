@@ -1,4 +1,5 @@
 from __future__ import annotations
+from app.utils.messages import stored_rule, RULE_LINES, RULE_ERROR
 
 import asyncio
 import json
@@ -19,7 +20,7 @@ from uuid import uuid4
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel, Field
-from sqlalchemy import delete, func, select
+from sqlalchemy import and_, delete, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -59,6 +60,7 @@ from app.core.mini_security import (
 from app.models.finance import DepositRequest, WithdrawRequest
 from app.models.crypto import CryptoDepositRequest
 from app.models.game import Game, GameCalledNumber, GameCard, GamePurchase
+from app.services.game_autopilot_worker import GameAutopilotWorker
 from app.models.game_event import GameEvent
 from app.models.admin_audit import AdminAuditLog
 from app.models.settings import AppSetting
@@ -349,6 +351,7 @@ def _to_game_out(g: Game) -> MiniGameItemOut:
         card_layout_version=int(g.card_layout_version or 1),
         game_rule=str(g.game_rule or "LEGACY"),
         execution_source=str(getattr(g, "execution_source", "ADMIN") or "ADMIN"),
+        draw_mode=str(g.draw_mode) if g.draw_mode is not None else None,
         commission_rate=float(g.commission_rate or 0),
         scheduled_start_at=str(g.scheduled_start_at) if getattr(g, "scheduled_start_at", None) else None,
         sold_amount=int(g.sold_amount),
@@ -357,6 +360,20 @@ def _to_game_out(g: Game) -> MiniGameItemOut:
         row_prize_amount=int(g.row_prize_amount),
         created_at=str(g.created_at) if g.created_at else None,
     )
+
+
+def _game_list_items(db: Session, games: list[Game]) -> list[MiniGameItemOut]:
+    items = [_to_game_out(game) for game in games]
+    durations = GameAutopilotWorker.countdowns_for_games(db, {
+        item.id: item.game_level for item in items
+        if item.status == "LOBBY" and item.execution_source == "SYSTEM"
+        and item.scheduled_start_at and item.game_level
+    })
+    for item in items:
+        if item.id in durations:
+            item.countdown_enabled = True
+            item.countdown_seconds = durations[item.id]
+    return items
 
 
 def _parse_status_filter(raw: str | None) -> list[str]:
@@ -519,7 +536,11 @@ def _winner_ids_from_payload_state(raw_state: Any, key: str) -> list[int]:
 def _prize_label_for_rule(reason: str, game_rule: str = "LEGACY") -> str:
     """Label a wallet prize using the rule snapshotted on its own game."""
     reason = str(reason or "").upper()
-    game_rule = str(game_rule or "LEGACY").upper()
+    game_rule = str(game_rule or "UNKNOWN").upper()
+    if game_rule not in {"LEGACY", "LINE", "FULL_CARD"}:
+        return "جایزه با قانون نامشخص"
+    if reason == "PRIZE_COL" and game_rule == "FULL_CARD":
+        return "رویداد جایزه با قانون پرکردنی ناسازگار است"
     if reason == "PRIZE_COL":
         return "برد تورنا (۳ عدد از یک ردیف)" if game_rule == "LINE" else "برد ستونی(تورنا)"
     if reason == "PRIZE_ROW":
@@ -858,6 +879,69 @@ def _mini_require_finance_or_game_role(ident: MiniAdminIdentity) -> None:
     raise HTTPException(status_code=403, detail="برای این بخش دسترسی ادمین لازم است.")
 
 
+@router.get("/admin/autopilot/readiness")
+def mini_admin_autopilot_readiness(
+    ident: MiniAdminIdentity = Depends(get_mini_admin_identity),
+    db: Session = Depends(get_db),
+):
+    """Read-only snapshot; NEVER advances the scheduler or starts a round."""
+    _mini_require_game_role(ident)
+    group_id = cfg.USER_FORUM_CHAT_ID or cfg.DEFAULT_TG_GROUP_ID
+    system_user_id = cfg.GAME_AUTOPILOT_SYSTEM_USER_ID
+    system_user_ok = bool(system_user_id is not None and db.get(User, int(system_user_id)))
+    levels = []
+    for config in GameAutopilotConfigService.list(db):
+        level = str(config.level).upper()
+        topic_id = GameAutopilotConfigService.topic_id_for_level(level)
+        conditions = {
+            "level_enabled": bool(int(config.enabled or 0)),
+            "runtime_enabled": bool(cfg.GAME_AUTOPILOT_RUNTIME_ENABLED),
+            "auto_draw_worker": bool(cfg.GAME_AUTO_DRAW_ENABLED),
+            "group_configured": group_id is not None,
+            "topic_configured": topic_id is not None,
+            "system_user_valid": system_user_ok,
+            "card_price_valid": config.card_price is not None and int(config.card_price) >= 1000,
+            "scheduler_auto": str(config.scheduler_mode).upper() == "AUTO",
+            "start_auto": str(config.start_mode).upper() == "AUTO",
+            "draw_auto": str(config.draw_mode).upper() == "AUTO",
+        }
+        active = None
+        if group_id is not None and topic_id is not None:
+            active = db.execute(
+                select(Game).where(
+                    Game.tg_group_id == int(group_id),
+                    Game.status.in_(("LOBBY", "RUNNING")),
+                    or_(Game.game_level == level,
+                        and_(Game.game_level.is_(None), Game.tg_topic_id == int(topic_id))),
+                ).order_by(Game.id.desc()).limit(1)
+            ).scalar_one_or_none()
+        levels.append({
+            "level": level,
+            "ready_to_generate": all(conditions.values()) and active is None,
+            "existing_system_game": bool(
+                active and str(active.execution_source or "ADMIN").upper() == "SYSTEM"
+            ),
+            "checks": conditions,
+            "active_game_id": int(active.id) if active else None,
+            "active_game_status": str(active.status) if active else None,
+            "active_execution_source": str(active.execution_source or "ADMIN") if active else None,
+            "blocked_by_manual_game": bool(active and str(active.execution_source or "ADMIN").upper() != "SYSTEM"),
+        })
+    return {"server_now": datetime.now(timezone.utc).isoformat(), "levels": levels,
+            "this_endpoint_starts_games": False}
+
+
+@router.get("/admin/autopilot/runtime")
+def mini_admin_autopilot_runtime(
+    ident: MiniAdminIdentity = Depends(get_mini_admin_identity),
+):
+    _mini_require_game_role(ident)
+    return {
+        "runtime_enabled": bool(cfg.GAME_AUTOPILOT_RUNTIME_ENABLED),
+        "auto_draw_enabled": bool(cfg.GAME_AUTO_DRAW_ENABLED),
+    }
+
+
 @router.get("/admin/autopilot/config")
 def mini_admin_autopilot_config(
     ident: MiniAdminIdentity = Depends(get_mini_admin_identity),
@@ -1174,20 +1258,8 @@ def _mini_notify_admin_withdraw_pending(*, db: Session, wr: WithdrawRequest) -> 
     )
 
 
-def _mini_game_rule_announcement_line(rule: str | None) -> str:
-    """Rule text comes from the stored game, never from topic or price."""
-    value = str(rule or "LEGACY").strip().upper()
-    if value == "LINE":
-        return (
-            "🃏 کارت: <b>۳ ردیف × ۹ ستون، ۵ عدد در هر ردیف</b>\n"
-            "🏆 برد: <b>تورنا ۳ عدد از یک ردیف؛ خطی ۵ عدد از یک ردیف</b>\n"
-        )
-    if value == "FULL_CARD":
-        return "🏆 قانون: <b>پرکردنی ۱۵ عدد کامل؛ بدون تورنا</b>\n"
-    return (
-        "🃏 کارت قدیمی: <b>۴×۵، شامل ۲۰ عدد</b>\n"
-        "🏆 برد قدیمی: <b>تورنا ستون ۴ عددی؛ تکمیل ردیف ۵ عددی</b>\n"
-    )
+def _mini_game_rule_announcement_line(rule: str | None, layout: int | None = None) -> str:
+    return RULE_LINES.get(stored_rule(rule, layout), "⚠️ " + RULE_ERROR + "\n")
 
 
 def _mini_send_game_created_notice(*, game: Game) -> bool:
@@ -1202,9 +1274,9 @@ def _mini_send_game_created_notice(*, game: Game) -> bool:
         f"🎮 <b>بازی #{int(game.id)} | خرید کارت باز است</b>\n"
         f"🎯 {html_escape(game_topic_title)}\n"
         f"💳 قیمت هر کارت: <b>{int(game.card_price):,} تومان</b>\n"
-        f"{_mini_game_rule_announcement_line(getattr(game, 'game_rule', None))}"
+        f"{_mini_game_rule_announcement_line(getattr(game, 'game_rule', None), getattr(game, 'card_layout_version', None))}"
         "👥 شروع بازی منوط به حضور دست‌کم ۲ بازیکن متمایز است.\n"
-        "⏳ ساعت شروع قطعی اعلام نشده است؛ پس از آغاز، پیام جداگانه ارسال می‌شود.\n"
+        "⏳ شروع واقعی جداگانه اعلام می‌شود.\n"
         "🛒 برای خرید، ربات را خصوصی باز کنید."
     )
     # Announcements have exactly one owner. Fall back to its actual game
@@ -1533,8 +1605,11 @@ def list_games(
         .scalars()
         .all()
     )
-    items = [_to_game_out(g) for g in rows]
-    return MiniGameListOut(total=int(total or 0), limit=int(limit), offset=int(offset), items=items)
+    items = _game_list_items(db, rows)
+    return MiniGameListOut(
+        total=int(total or 0), limit=int(limit), offset=int(offset), items=items,
+        server_time_utc=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+    )
 
 
 @router.get("/dashboard/insights", response_model=MiniDashboardInsightsOut)
@@ -2336,9 +2411,9 @@ def my_wallet_txs(
     game_rules: dict[int, str] = {}
     if prize_game_ids:
         game_rules = {
-            int(game_id): str(rule or "LEGACY").upper()
-            for game_id, rule in db.execute(
-                select(Game.id, Game.game_rule).where(Game.id.in_(prize_game_ids))
+            int(game_id): stored_rule(rule, layout)
+            for game_id, rule, layout in db.execute(
+                select(Game.id, Game.game_rule, Game.card_layout_version).where(Game.id.in_(prize_game_ids))
             ).all()
         }
 
@@ -2382,9 +2457,9 @@ def mini_my_notifications(
             and str(tx.reason or "").upper() in ("PRIZE_COL", "PRIZE_ROW")
         }
         game_rules = {
-            int(gid): str(rule or "LEGACY")
-            for gid, rule in db.execute(
-                select(Game.id, Game.game_rule).where(Game.id.in_(prize_game_ids))
+            int(gid): stored_rule(rule, layout)
+            for gid, rule, layout in db.execute(
+                select(Game.id, Game.game_rule, Game.card_layout_version).where(Game.id.in_(prize_game_ids))
             ).all()
         } if prize_game_ids else {}
         for tx in tx_rows:
@@ -4064,9 +4139,9 @@ def mini_admin_games(
         .all()
     )
     items: list[dict[str, Any]] = []
-    for g in rows:
+    for g, game_out in zip(rows, _game_list_items(db, rows)):
         url, updated_at = _read_game_live_link(db, game_id=int(g.id))
-        item = _to_game_out(g).model_dump()
+        item = game_out.model_dump()
         item["admin_user_id"] = int(g.admin_user_id)
         item["can_manage"] = bool(ident.is_super_admin or int(g.admin_user_id) == int(ident.user_id))
         item["live_link_url"] = url
@@ -4078,6 +4153,7 @@ def mini_admin_games(
         "limit": int(limit),
         "offset": int(offset),
         "items": items,
+        "server_now": datetime.now(timezone.utc).isoformat(),
     }
 
 

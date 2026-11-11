@@ -124,8 +124,11 @@ class ApiClient:
     async def get_game(self, game_id: int) -> dict:
         return await self._request("GET", f"/games/{game_id}")
 
-    async def get_game_state(self, game_id: int, last_n: int = 12) -> dict:
-        return await self._request("GET", f"/games/{game_id}/state", params={"last_n": last_n})
+    async def get_game_state(self, game_id: int, last_n: int = 12, *, include_counts: bool = False) -> dict:
+        params = {"last_n": last_n}
+        if include_counts:
+            params["include_counts"] = "true"
+        return await self._request("GET", f"/games/{game_id}/state", params=params)
 
     async def get_active_game_for_group(self, tg_group_id: int, *, tg_topic_id: int | None = None) -> dict:
         params: dict[str, int] | None = None
@@ -803,10 +806,13 @@ class ApiClient:
         tg_username: str | None = None,
         *,
         status: str = "LOBBY|ACTIVE",
+        game_id: int | None = None,
         limit: int = 50,
         offset: int = 0,
     ) -> dict:
         params = {"status": status, "limit": limit, "offset": offset}
+        if game_id is not None:
+            params["game_id"] = game_id
         if settings.USER_FORUM_CHAT_ID is not None:
             params["tg_group_id"] = int(settings.USER_FORUM_CHAT_ID)
         elif settings.BOT_JOIN_GROUP_ID is not None:
