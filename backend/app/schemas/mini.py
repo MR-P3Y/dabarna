@@ -25,8 +25,12 @@ class MiniGameItemOut(BaseModel):
     card_layout_version: int = 1
     game_rule: str = "LEGACY"
     execution_source: str = "ADMIN"
+    draw_mode: str | None = None
     commission_rate: float = 0.10
     scheduled_start_at: str | None = None
+    # Read-only timer metadata, derived from the active Autopilot schedule.
+    countdown_enabled: bool = False
+    countdown_seconds: int | None = None
     sold_amount: int
     prize_pool: int
     col_prize_amount: int
@@ -39,6 +43,7 @@ class MiniGameListOut(BaseModel):
     limit: int
     offset: int
     items: list[MiniGameItemOut]
+    server_time_utc: str | None = None
 
 
 class MiniEventOut(BaseModel):

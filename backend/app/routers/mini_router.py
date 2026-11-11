@@ -59,6 +59,7 @@ from app.core.mini_security import (
 from app.models.finance import DepositRequest, WithdrawRequest
 from app.models.crypto import CryptoDepositRequest
 from app.models.game import Game, GameCalledNumber, GameCard, GamePurchase
+from app.services.game_autopilot_worker import GameAutopilotWorker
 from app.models.game_event import GameEvent
 from app.models.admin_audit import AdminAuditLog
 from app.models.settings import AppSetting
@@ -349,6 +350,7 @@ def _to_game_out(g: Game) -> MiniGameItemOut:
         card_layout_version=int(g.card_layout_version or 1),
         game_rule=str(g.game_rule or "LEGACY"),
         execution_source=str(getattr(g, "execution_source", "ADMIN") or "ADMIN"),
+        draw_mode=str(g.draw_mode) if g.draw_mode is not None else None,
         commission_rate=float(g.commission_rate or 0),
         scheduled_start_at=str(g.scheduled_start_at) if getattr(g, "scheduled_start_at", None) else None,
         sold_amount=int(g.sold_amount),
@@ -357,6 +359,20 @@ def _to_game_out(g: Game) -> MiniGameItemOut:
         row_prize_amount=int(g.row_prize_amount),
         created_at=str(g.created_at) if g.created_at else None,
     )
+
+
+def _game_list_items(db: Session, games: list[Game]) -> list[MiniGameItemOut]:
+    items = [_to_game_out(game) for game in games]
+    durations = GameAutopilotWorker.countdowns_for_games(db, {
+        item.id: item.game_level for item in items
+        if item.status == "LOBBY" and item.execution_source == "SYSTEM"
+        and item.scheduled_start_at and item.game_level
+    })
+    for item in items:
+        if item.id in durations:
+            item.countdown_enabled = True
+            item.countdown_seconds = durations[item.id]
+    return items
 
 
 def _parse_status_filter(raw: str | None) -> list[str]:
@@ -1596,8 +1612,11 @@ def list_games(
         .scalars()
         .all()
     )
-    items = [_to_game_out(g) for g in rows]
-    return MiniGameListOut(total=int(total or 0), limit=int(limit), offset=int(offset), items=items)
+    items = _game_list_items(db, rows)
+    return MiniGameListOut(
+        total=int(total or 0), limit=int(limit), offset=int(offset), items=items,
+        server_time_utc=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+    )
 
 
 @router.get("/dashboard/insights", response_model=MiniDashboardInsightsOut)
@@ -4127,9 +4146,9 @@ def mini_admin_games(
         .all()
     )
     items: list[dict[str, Any]] = []
-    for g in rows:
+    for g, game_out in zip(rows, _game_list_items(db, rows)):
         url, updated_at = _read_game_live_link(db, game_id=int(g.id))
-        item = _to_game_out(g).model_dump()
+        item = game_out.model_dump()
         item["admin_user_id"] = int(g.admin_user_id)
         item["can_manage"] = bool(ident.is_super_admin or int(g.admin_user_id) == int(ident.user_id))
         item["live_link_url"] = url
