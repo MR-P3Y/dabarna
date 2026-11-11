@@ -536,7 +536,11 @@ def _winner_ids_from_payload_state(raw_state: Any, key: str) -> list[int]:
 def _prize_label_for_rule(reason: str, game_rule: str = "LEGACY") -> str:
     """Label a wallet prize using the rule snapshotted on its own game."""
     reason = str(reason or "").upper()
-    game_rule = str(game_rule or "LEGACY").upper()
+    game_rule = str(game_rule or "UNKNOWN").upper()
+    if game_rule not in {"LEGACY", "LINE", "FULL_CARD"}:
+        return "جایزه با قانون نامشخص"
+    if reason == "PRIZE_COL" and game_rule == "FULL_CARD":
+        return "رویداد جایزه با قانون پرکردنی ناسازگار است"
     if reason == "PRIZE_COL":
         return "برد تورنا (۳ عدد از یک ردیف)" if game_rule == "LINE" else "برد ستونی(تورنا)"
     if reason == "PRIZE_ROW":

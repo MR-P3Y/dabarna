@@ -10,6 +10,7 @@ class WinnerArchiveLabelsTests(unittest.TestCase):
             [{
                 "id": 777,
                 "game_rule": rule,
+                "card_layout_version": 1 if rule == "LEGACY" else 2,
                 "col_count": 1,
                 "row_count": 2,
                 "card_price": 5000,

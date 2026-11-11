@@ -1,4 +1,5 @@
-﻿from aiogram.types import InlineKeyboardMarkup
+from bot.services.game_rules import rule_kind
+from aiogram.types import InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from bot.keyboards.common import back_to_menu_kb
@@ -194,13 +195,15 @@ def admin_winners_archive_kb(items: list[dict], *, offset: int, has_next: bool) 
         col_count = int(g.get("col_count", 0) or 0)
         row_count = int(g.get("row_count", 0) or 0)
         price = _fmt_int(g.get("card_price"))
-        rule = str(g.get("game_rule") or "LEGACY").strip().upper()
+        rule = rule_kind(g)
         if rule == "FULL_CARD":
             badge = f"پرکردنی:{row_count}"
         elif rule == "LINE":
             badge = f"تورنا:{col_count} | خطی:{row_count}"
-        else:
+        elif rule == "LEGACY":
             badge = f"ستونی:{col_count} | ردیفی:{row_count}"
+        else:
+            badge = "قانون یا چیدمان ناسازگار"
         kb.button(text=f"🏆 بازی #{gid} | 💳 {price} | {badge}", callback_data=f"admin:games:winners:{gid}:ENDED:{offset}")
 
     kb.button(text="🔄 تازه‌سازی", callback_data=f"admin:games:winners:archive:{offset}")
