@@ -13,11 +13,11 @@ from app.schemas.game import (
     GroupMessageOut,TgMessageOut
 )
 from app.services.game_service import GameService, GameEventService
-from app.utils.card_render import render_card_text
-from app.utils.messages import format_game_lobby, format_game_running, format_row_winner, format_col_winner
-from app.utils.game_messages import build_private_cards_blocks, group_message_running, private_cards_preview
+from app.utils.messages import format_game_summary
+from app.utils.tg_markdown import md2_escape
+from app.utils.game_messages import build_private_cards_blocks
 from app.schemas.game_events import GameEventOut
-from app.utils.tg_text import chunk_text, paginate_blocks
+from app.utils.tg_text import paginate_blocks
 from app.services.admin_audit_service import AdminAuditService
 
 
@@ -234,74 +234,22 @@ def my_cards_preview(
     db: Session = Depends(get_db),
     current_user_id: int = Depends(get_current_user_id),
 ):
-    cards = GameService.get_user_cards(db, game_id=game_id, user_id=current_user_id)
-    state = GameService.get_state(db, game_id=game_id, last_n=200)
-    called = state["called_numbers"]
-
-    previews: list[CardPreviewOut] = []
-    for c in cards:
-        grid = render_card_text(c["numbers"], called)
-        previews.append(
-            CardPreviewOut(
-                card_id=c["card_id"],
-                fingerprint=c["fingerprint"],
-                grid_text=grid,
-            )
-        )
-
-    # حتی اگر کارت نداشت، باز هم خروجی معتبر بده
-    return MyCardsPreviewOut(
-        game_id=game_id,
-        called_numbers=called,
-        cards=previews,
-    )
+    preview = GameService.get_user_cards_preview(db, game_id, current_user_id)
+    return MyCardsPreviewOut(**preview)
 
 
 @router.get("/{game_id}/group-message", response_model=GroupMessageOut)
 def group_message(game_id: int, db: Session = Depends(get_db)):
     state = GameService.get_state(db, game_id=game_id, last_n=12)
 
-    if state["status"] == "LOBBY":
-        text = format_game_lobby(state)
-        mode = "LOBBY"
-    elif state["status"] == "RUNNING":
-        # پیام running + اگر بردی ثبت شده باشد اضافه می‌کنیم
-        parts = [format_game_running(state)]
-        lw = format_col_winner(state)
-        if lw:
-            parts.append("\n" + lw)
-        fw = format_row_winner(state)
-        if fw:
-            parts.append("\n" + fw)
-        text = "\n".join(parts)
-        mode = "RUNNING"
-    else:
-        parts = [format_game_running(state)]
-        fw = format_row_winner(state)
-        if fw:
-            parts.append("\n" + fw)
-        text = "\n".join(parts)
-        mode = "ENDED"
+    return GroupMessageOut(game_id=game_id, mode=state["status"], text=format_game_summary(state))
 
-    return GroupMessageOut(game_id=game_id, mode=mode, text=text)
 
 @router.get("/{game_id}/group-message/plain", response_model=TgMessageOut)
-def group_message(game_id: int, db: Session = Depends(get_db)):
-    st = GameService.get_state(db, game_id, last_n=24)
-    if st["status"] == "RUNNING":
-        txt = group_message_running(
-            game_id=st["game_id"],
-            card_price=st["card_price"],
-            prize_pool=st["prize_pool"],
-            col_prize_amount=st["col_prize_amount"],
-            row_prize_amount=st["row_prize_amount"],
-            called_numbers=st["called_numbers"],
-            last_number=st["last_number"],
-        )
-        return TgMessageOut(game_id=game_id, mode="RUNNING", parse_mode="MarkdownV2", text=txt)
-
-    # برای LOBBY/ENDED بعداً متن جدا می‌سازیم
-    return TgMessageOut(game_id=game_id, mode=st["status"], parse_mode="MarkdownV2", text="")
+def group_message_plain(game_id: int, db: Session = Depends(get_db)):
+    state = GameService.get_state(db, game_id, last_n=24)
+    return TgMessageOut(game_id=game_id, mode=state["status"], parse_mode="MarkdownV2",
+                        text=md2_escape(format_game_summary(state)))
 
 
 @router.get("/{game_id}/my-cards/message", response_model=TgMessageOut)

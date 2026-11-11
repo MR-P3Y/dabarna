@@ -9,6 +9,7 @@ from typing import Any
 from fastapi import HTTPException
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
+from app.utils.card_render import render_card_text
 from app.core.redis_client import RedisLock, idem_get, idem_set
 from app.core import config as cfg
 from app.models.game import Game, GameAutoDraw, GameCalledNumber, GameCard, GamePurchase
@@ -1470,44 +1471,22 @@ class GameService:
             .order_by(GameCalledNumber.id.asc())
         ).scalars().all()
         called_numbers = [int(x) for x in called]
-        called_set = set(called_numbers)
-
         cards_rows = db.execute(
             select(GameCard)
             .where(GameCard.game_id == game_id, GameCard.user_id == user_id)
             .order_by(GameCard.id.asc())
         ).scalars().all()
 
-        def _fmt_cell(n: int) -> str:
-            if n == 0:
-                return " -- "
-            return f"[{n:02d}]" if n in called_set else f" {n:02d} "
-
-        def _grid_text(nums: list[int]) -> str:
-            is_v2 = int(g.card_layout_version or 1) == 2
-            rows_count, cols_count = (3, 9) if is_v2 else (4, 5)
-            rows = []
-            for row in range(rows_count):
-                row_nums = nums[row * cols_count:(row + 1) * cols_count]
-                rows.append(" ".join(_fmt_cell(int(x)) for x in row_nums))
-            return "\n".join(rows)
-
         out_cards = []
         for c in cards_rows:
             nums = c.numbers_json
             if isinstance(nums, str):
                 nums = json.loads(nums)
-            nums = [int(x) for x in nums]
-
-            expected = 27 if int(g.card_layout_version or 1) == 2 else 20
-            if len(nums) != expected:
-                raise HTTPException(status_code=500, detail=f"invalid card numbers count: card_id={c.id}")
-
             out_cards.append(
                 {
                     "card_id": int(c.id),
                     "fingerprint": str(c.fingerprint),
-                    "grid_text": _grid_text(nums),
+                    "grid_text": render_card_text(nums, called_numbers, g.game_rule, g.card_layout_version),
                 }
             )
 
