@@ -1,0 +1,8 @@
+{
+  "source_commit": "850a6db",
+  "images": {
+    "dabarna-backend:rc-850a6db": "sha256:e713ff8b7a43a800549b94048efba403ee6e7314a28ae72a1cd7a73e33cf7731",
+    "dabarna-bot:rc-850a6db": "sha256:9f2bad21e0f3884a7f31151accb3a06c5229991194afdc5685af22751fa1d47b"
+  },
+  "published": false
+}
