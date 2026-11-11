@@ -12,6 +12,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
+from bot.services.card_render import render_number_grid_with_marks
 from bot.config import settings
 from bot.keyboards.admin_games import (
     admin_game_close_reason_kb,
@@ -466,28 +467,11 @@ def _int_list(values) -> list[int]:
     return out
 
 
-def _render_card_grid(numbers: list[int], called_set: set[int]) -> str:
-    nums = [int(x) for x in numbers]
-    if len(nums) not in {20, 27}:
-        return "کارت نامعتبر"
-
-    is_v2 = len(nums) == 27
-    cols = 9 if is_v2 else 5
-    rows: list[str] = []
-    for i in range(0, len(nums), cols):
-        chunk = nums[i : i + cols]
-        cells: list[str] = []
-        for n in chunk:
-            if is_v2:
-                # Compact 3x9 layout on narrow Telegram screens. Blank cells
-                # do not display 00 and never count as called numbers.
-                cells.append(" · " if n == 0 else f"✓{n:02d}" if n in called_set else f" {n:02d}")
-            elif n in called_set:
-                cells.append(f"✅{n:02d}")
-            else:
-                cells.append(f"⬜️{n:02d}")
-        rows.append((" " if is_v2 else "  ").join(cells))
-    return "\n".join(rows)
+def _render_card_grid(numbers: list[int], called_set: set[int], game: dict) -> str:
+    try:
+        return render_number_grid_with_marks(numbers, called_set, game)
+    except ValueError as error:
+        return f"کارت نامعتبر: {error}"
 
 
 def _has_winners(g: dict | None) -> bool:
@@ -1515,7 +1499,6 @@ async def admin_games_winners(cq: CallbackQuery, api: ApiClient, is_admin: bool 
         rep = await api.admin_get_game_report(game_id)
         g = rep.get("game") or {}
         game_rule = str(g.get("game_rule") or "LEGACY").upper()
-        is_v2 = int(g.get("card_layout_version") or 1) == 2
         final_win_label = "پرکردنی" if game_rule == "FULL_CARD" else "خطی" if game_rule == "LINE" else "تمام"
         game_status = str(g.get("status") or "")
         called = _extract_numbers(rep.get("called_numbers") or [])
@@ -1548,8 +1531,7 @@ async def admin_games_winners(cq: CallbackQuery, api: ApiClient, is_admin: bool 
             card = cards_by_id.get(card_id) or {}
             user_id = _to_int(str(card.get("user_id") or ""), 0)
             tg_user_id = _to_int(str(card.get("tg_user_id") or ""), 0)
-            numbers = _int_list(card.get("numbers") or [])
-            grid = _render_card_grid(numbers, called_set) if numbers else "—"
+            grid = _render_card_grid(card.get("numbers") or [], called_set, g)
             display_name = tg_name_map.get(tg_user_id, "—") if tg_user_id > 0 else "—"
 
             lines.append(
@@ -1562,7 +1544,7 @@ async def admin_games_winners(cq: CallbackQuery, api: ApiClient, is_admin: bool 
             f"وضعیت: <b>{_fa_status(game_status)}</b>",
             f"تعداد اعداد اعلام‌شده: <b>{len(called)}</b>",
             "",
-            ("راهنما: ✓ عدد اعلام‌شده | · خانه خالی" if is_v2 else "راهنما: ✅ عدد اعلام‌شده | ⬜️ عدد اعلام‌نشده"),
+            "راهنما: ✓ عدد اعلام‌شده | · خانه خالی",
             "",
         ]
 

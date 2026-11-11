@@ -3,7 +3,6 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from bot.keyboards.purchase import qty_kb
 from bot.services.tg_membership import is_member
 from bot.services.ui import panel
 
@@ -71,7 +70,7 @@ async def join_check(cq: CallbackQuery, state: FSMContext, tg_user_id: int):
 
     await cq.answer("عضویت تایید شد ✅", show_alert=False)
     await cq.message.edit_text(
-        panel("خرید کارت", "عضویت تایید شد.\nحالا تعداد کارت را انتخاب کن:"),
+        panel("خرید کارت", "عضویت تأیید شد. برای انتخاب تعداد کارت، ابتدا مشخصات بازی را ببینید."),
         parse_mode="HTML",
-        reply_markup=qty_kb(game_id),
+        reply_markup=_continue_after_join_kb("مشخصات بازی", f"buy:game:{game_id}"),
     )

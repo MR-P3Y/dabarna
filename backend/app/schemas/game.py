@@ -15,11 +15,12 @@ class GameOut(BaseModel):
     admin_user_id: int
     card_price: int
     game_level: str | None = None
-    card_layout_version: int = 1
-    game_rule: str = "LEGACY"
-    execution_source: str = "ADMIN"
+    card_layout_version: int | None
+    game_rule: str | None
+    execution_source: str | None
     commission_rate: float = 0.10
     scheduled_start_at: str | None = None
+    ended_at: str | None = None
     sold_amount: int
     commission_amount: int
     prize_pool: int
@@ -74,17 +75,22 @@ class GameStateOut(BaseModel):
     status: str
     card_price: int
     game_level: str | None = None
-    card_layout_version: int = 1
-    game_rule: str = "LEGACY"
-    execution_source: str = "ADMIN"
+    card_layout_version: int | None
+    game_rule: str | None
+    execution_source: str | None
+    draw_mode: str | None = None
     commission_rate: float = 0.10
     scheduled_start_at: str | None = None
+    ended_at: str | None = None
     sold_amount: int
     commission_amount: int
     prize_pool: int
     prize_locked: int
     col_prize_amount: int
     row_prize_amount: int
+    cards_count: int | None = None
+    participants_count: int | None = None
+    col_absorbed_into_row: bool = False
     called_numbers: list[int]
     last_number: int | None = None
     col_paid: int

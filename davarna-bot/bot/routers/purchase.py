@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from html import escape
 import uuid
 from aiogram import F, Router
 from aiogram.fsm.context import FSMContext
@@ -9,6 +10,7 @@ from bot.keyboards.join_gate import join_gate_action_kb, join_gate_kb
 from bot.keyboards.purchase import after_purchase_kb, confirm_kb, games_list_kb, qty_kb
 from bot.services.api_client import ApiClient, ApiError
 from bot.services.join_gate import configured_join_group_id, join_gate_body, resolve_join_gate_target
+from bot.services.game_rules import draw_mode_title, level_title, rule_kind, rule_title, rule_details
 from bot.services.notify_store import get_user_subscription_map, is_subscribed
 from bot.services.tg_membership import is_member
 from bot.services.ui import panel
@@ -102,7 +104,7 @@ async def _render_games_list(cq: CallbackQuery, api: ApiClient, tg_user_id: int,
         )
         return
 
-    text = panel("خرید کارت", "یک بازی را انتخاب کن 👇")
+    text = panel("خرید کارت", "بازی و قانون کارت را بررسی کن، سپس تعداد کارت را انتخاب کن 👇")
     await cq.message.edit_text(
         text,
         parse_mode="HTML",
@@ -114,8 +116,8 @@ async def _render_games_list(cq: CallbackQuery, api: ApiClient, tg_user_id: int,
 async def buy_select_game(cq: CallbackQuery, state: FSMContext, api: ApiClient, tg_user_id: int, tg_username: str | None = None):
     game_id = int(cq.data.split(":")[-1])
 
-    # برای نمایش قیمت/عنوان، دوباره از لیست بازی‌ها می‌گیریم.
-    res = await api.bot_list_games(tg_user_id, tg_username, status="LOBBY", limit=50, offset=0)
+    await state.set_state(PurchaseSG.select_game)
+    res = await api.bot_list_games(tg_user_id, tg_username, status="LOBBY", game_id=game_id, limit=1, offset=0)
     games = res.get("items") or []
     g = next((x for x in games if int(x.get("id")) == game_id), None)
 
@@ -123,7 +125,13 @@ async def buy_select_game(cq: CallbackQuery, state: FSMContext, api: ApiClient, 
         await cq.answer("این بازی پیدا نشد 😕\nیه‌بار دیگه از لیست انتخاب کن.", show_alert=True)
         return
 
-    game_title = str(g.get("title") or f"بازی {game_id}")
+    if rule_kind(g) == "UNKNOWN":
+        await state.clear()
+        await cq.answer(rule_details(g), show_alert=True)
+        return
+
+    game_title = escape(str(g.get("title") or f"بازی شمارهٔ {game_id}"))
+    game_title += f" | {level_title(g)}"
     card_price = int(g.get("card_price") or 0)
     game_status = str(g.get("status") or "")
     game_status_fa = _fa_status(game_status)
@@ -142,7 +150,6 @@ async def buy_select_game(cq: CallbackQuery, state: FSMContext, api: ApiClient, 
         game_status=game_status_fa,
         tg_group_id=tg_group_id,
     )
-    await state.set_state(PurchaseSG.select_qty)
 
     # اگر بازی group-bound باشد، قبل از انتخاب تعداد عضویت را enforce کن.
     if tg_group_id is not None:
@@ -159,12 +166,16 @@ async def buy_select_game(cq: CallbackQuery, state: FSMContext, api: ApiClient, 
             await cq.answer("ابتدا عضو گروه شو.", show_alert=True)
             return
 
+    await state.set_state(PurchaseSG.select_qty)
     text = panel(
         "خرید کارت 🛒",
         f"🎮 بازی: <b>{game_title}</b>\n"
         f"وضعیت: <b>{game_status_fa}</b>\n"
-        f"💳 قیمت هر کارت: <b>{_fmt_int(card_price)}</b>\n\n"
-        "حالا تعداد کارت رو انتخاب کن 👇",
+        f"📋 نوع بازی: <b>{rule_title(g)}</b>\n"
+        f"{rule_details(g)}\n"
+        f"💳 قیمت هر کارت: <b>{_fmt_int(card_price)} تومان</b>\n"
+        f"🔢 شماره‌خوان: <b>{draw_mode_title(g)}</b>\n\n"
+        "حالا تعداد کارت را انتخاب کن 👇",
     )
     await cq.message.edit_text(text, parse_mode="HTML", reply_markup=qty_kb(game_id))
     await cq.answer()
@@ -177,7 +188,10 @@ async def buy_select_qty(cq: CallbackQuery, state: FSMContext, api: ApiClient, t
     qty = int(qty_s)
 
     data = await state.get_data()
-    price = int(data.get("card_price") or 0)
+    if data.get("game_id") != game_id or await state.get_state() != PurchaseSG.select_qty.state:
+        await cq.answer("مشخصات خرید تغییر کرده است. بازی را دوباره انتخاب کنید.", show_alert=True)
+        return
+    price = int(data["card_price"])
     title = str(data.get("game_title") or f"بازی {game_id}")
     total = price * qty
 
@@ -195,9 +209,9 @@ async def buy_select_qty(cq: CallbackQuery, state: FSMContext, api: ApiClient, t
         "تایید خرید",
         f"🎮 بازی: <b>{title}</b>\n"
         f"🃏 تعداد: <b>{qty}</b>\n"
-        f"💳 قیمت هر کارت: <b>{_fmt_int(price)}</b>\n"
-        f"💰 مبلغ کل: <b>{_fmt_int(total)}</b>\n"
-        f"👛 موجودی: <b>{_fmt_int(balance)}</b>" + hint,
+        f"💳 قیمت هر کارت: <b>{_fmt_int(price)} تومان</b>\n"
+        f"💰 مبلغ کل: <b>{_fmt_int(total)} تومان</b>\n"
+        f"👛 موجودی: <b>{_fmt_int(balance)} تومان</b>" + hint,
     )
     await cq.message.edit_text(text, parse_mode="HTML", reply_markup=confirm_kb(game_id, qty))
     await cq.answer()
@@ -210,7 +224,11 @@ async def buy_confirm(cq: CallbackQuery, state: FSMContext, api: ApiClient, tg_u
     qty = int(qty_s)
 
     data = await state.get_data()
-    total = int(data.get("total_amount") or 0)
+    if (data.get("game_id") != game_id or data.get("quantity") != qty
+            or await state.get_state() != PurchaseSG.confirm.state):
+        await cq.answer("این تأیید خرید معتبر نیست. بازی و تعداد کارت را دوباره انتخاب کنید.", show_alert=True)
+        return
+    total = int(data["total_amount"])
     balance = int(data.get("wallet_balance") or 0)
 
     if balance < total:
@@ -234,8 +252,8 @@ async def buy_confirm(cq: CallbackQuery, state: FSMContext, api: ApiClient, tg_u
             f"🎮 بازی: <b>{out.get('game_id')}</b>\n"
             f"🧾 سفارش: <b>{out.get('order_id')}</b>\n"
             f"🃏 کارت ساخته شد: <b>{out.get('cards_created')}</b>\n"
-            f"💰 مبلغ: <b>{_fmt_int(out.get('total_amount') or 0)}</b>\n"
-            f"👛 موجودی جدید: <b>{_fmt_int(out.get('wallet_balance') or 0)}</b>\n"
+            f"💰 مبلغ: <b>{_fmt_int(out['total_amount'])} تومان</b>\n"
+            f"👛 موجودی جدید: <b>{_fmt_int(out['wallet_balance'])} تومان</b>\n"
             f"💳 شناسه تراکنش کیف پول: <code>{out.get('wallet_tx_id')}</code>",
         )
         out_game_id = int(out.get("game_id") or game_id)

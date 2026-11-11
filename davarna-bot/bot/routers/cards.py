@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from collections import Counter
+from html import escape as html_escape
+import json
 from datetime import datetime, timedelta, timezone
 from aiogram import Router, F
 from aiogram.types import CallbackQuery
@@ -13,7 +15,8 @@ from bot.services.telegram_safe import safe_edit_or_send
 from bot.services.api_client import ApiClient, ApiError
 from bot.services.retry import retry_async
 from bot.services.card_cache import put_card, get_card
-from bot.services.card_render import build_grid_text_from_numbers, render_grid_with_marks
+from bot.services.card_render import render_number_grid_with_marks
+from bot.services.game_rules import rule_kind, rule_title, rule_details, card_progress
 from bot.services.game_cards_messages_cache import set_game_card_messages, CardMsgRef
 from bot.keyboards.game_cards_control import game_cards_control_kb
 from bot.keyboards.common import back_to_menu_kb
@@ -26,6 +29,39 @@ MYCARDS_GAMES_PAGE_SIZE = 5
 MYCARDS_SCAN_PAGE_SIZE = 100
 MYCARDS_SCAN_MAX_PAGES = 50
 MYCARDS_ENDED_RETENTION_HOURS = 48
+
+def _card_message(card: dict, game_id: int, game_state: dict, called_numbers: list[int]) -> str:
+    """One consistent card panel in list, detail, refresh, and private sends."""
+    raw_numbers = card.get("numbers_json") or []
+    if isinstance(raw_numbers, str):
+        try:
+            raw_numbers = json.loads(raw_numbers)
+        except (TypeError, ValueError):
+            raw_numbers = []
+    title = f"🃏 کارت {int(card.get('id') or card.get('card_id') or 0)}"
+    header = f"🎮 بازی <b>#{game_id}</b>\n"
+    kind = rule_kind(game_state)
+    if kind == "UNKNOWN":
+        return panel(title, header + rule_details(game_state))
+    numbers = raw_numbers if isinstance(raw_numbers, list) else []
+    if not isinstance(called_numbers, list) or any(type(n) is not int or n <= 0 for n in called_numbers):
+        return panel(title, header + "⚠️ اعداد اعلام‌شده در دسترس نیست. دوباره تازه‌سازی کنید.")
+    try:
+        grid = render_number_grid_with_marks(numbers, called_numbers, game_state)
+    except ValueError as error:
+        return panel(title, header + f"⚠️ {error}")
+    progress = card_progress(numbers, called_numbers, game_state)
+    fingerprint = html_escape(str(card.get("fingerprint") or "—")[:12], quote=True)
+    return panel(
+        title,
+        f"{header}📋 قانون: <b>{rule_title(game_state)}</b>\n"
+        f"{rule_details(game_state)}\n\n"
+        f"<pre>{grid}</pre>\n"
+        f"{progress}\n"
+        "✓ کنار عدد یعنی آن عدد اعلام شده؛ نشانهٔ تأیید برد یا پرداخت جایزه نیست.\n"
+        f"🔐 شناسه کارت: <code>{fingerprint}…</code>",
+    )
+
 
 
 # --------------------------
@@ -73,7 +109,6 @@ async def _collect_user_game_counts(
     tg_username: str | None,
 ) -> list[dict]:
     counts: Counter[int] = Counter()
-    latest_created_at: dict[int, datetime] = {}
     page = 1
     total_pages = 1
 
@@ -98,13 +133,6 @@ async def _collect_user_game_counts(
                 continue
 
             counts[game_id] += 1
-            created_at = _parse_ts_utc(c.get("created_at"))
-            if created_at is None:
-                continue
-            prev = latest_created_at.get(game_id)
-            if prev is None or created_at > prev:
-                latest_created_at[game_id] = created_at
-
         pg = data.get("pagination") or {}
         try:
             total_pages = max(1, int(pg.get("total_pages", total_pages)))
@@ -118,21 +146,16 @@ async def _collect_user_game_counts(
     meta_cache: dict[int, dict[str, object]] = {}
     filtered: list[dict] = []
     for game_id, cnt in sorted(counts.items(), key=lambda x: x[0], reverse=True):
-        if await _is_ended_game_expired(
-            api=api,
-            game_id=game_id,
-            latest_card_created_at=latest_created_at.get(game_id),
-            meta_cache=meta_cache,
-        ):
-            continue
         meta = await _get_game_meta_cached(api, game_id, meta_cache)
-        card_price = 0
-        if meta is not None:
-            try:
-                card_price = int(meta.get("card_price") or 0)
-            except Exception:
-                card_price = 0
-        filtered.append({"game_id": game_id, "count": cnt, "card_price": card_price})
+        if _is_ended_game_expired(meta):
+            continue
+        card_price = (meta or {}).get("card_price")
+        filtered.append({
+            "game_id": game_id, "count": cnt, "card_price": card_price,
+            "game_rule": (meta or {}).get("game_rule"),
+            "game_level": (meta or {}).get("game_level"),
+            "card_layout_version": (meta or {}).get("card_layout_version"),
+        })
 
     return filtered
 
@@ -172,34 +195,18 @@ async def _get_game_meta_cached(
     except ApiError:
         return None
 
-    status = str((game or {}).get("status") or "").upper() or None
-    try:
-        card_price = int((game or {}).get("card_price") or 0)
-    except Exception:
-        card_price = 0
-
-    meta: dict[str, object] = {"status": status, "card_price": card_price}
-    meta_cache[game_id] = meta
-    return meta
+    meta_cache[game_id] = game
+    return game
 
 
-async def _is_ended_game_expired(
-    *,
-    api: ApiClient,
-    game_id: int,
-    latest_card_created_at: datetime | None,
-    meta_cache: dict[int, dict[str, object]],
-) -> bool:
-    if latest_card_created_at is None:
+def _is_ended_game_expired(game: dict | None, *, now: datetime | None = None) -> bool:
+    if not game or game.get("status") != "ENDED":
         return False
-
-    cutoff = datetime.now(timezone.utc) - timedelta(hours=MYCARDS_ENDED_RETENTION_HOURS)
-    if latest_card_created_at >= cutoff:
+    ended_at = _parse_ts_utc(game.get("ended_at"))
+    if ended_at is None:
         return False
-
-    meta = await _get_game_meta_cached(api, game_id, meta_cache)
-    status = str((meta or {}).get("status") or "").upper()
-    return status == "ENDED"
+    cutoff = (now or datetime.now(timezone.utc)) - timedelta(hours=MYCARDS_ENDED_RETENTION_HOURS)
+    return ended_at <= cutoff
 
 
 def _mycards_games_text(page: int, total_pages: int, total_games: int) -> str:
@@ -307,16 +314,7 @@ async def mycards_by_game(cq: CallbackQuery, api: ApiClient, tg_user_id: int, tg
         await cq.answer()
         return
 
-    latest_card_created_at = max(
-        (ts for ts in (_parse_ts_utc(c.get("created_at")) for c in cards) if ts is not None),
-        default=None,
-    )
-    if await _is_ended_game_expired(
-        api=api,
-        game_id=game_id,
-        latest_card_created_at=latest_card_created_at,
-        meta_cache={},
-    ):
+    if _is_ended_game_expired(await _get_game_meta_cached(api, game_id, {})):
         await safe_edit_or_send(
             cq.message,
             panel(
@@ -330,10 +328,11 @@ async def mycards_by_game(cq: CallbackQuery, api: ApiClient, tg_user_id: int, tg
         return
 
     # 3) فقط یک بار state را بگیر تا برای همه کارت‌ها ✅ درست شود
+    st = {}
     called_numbers = []
     try:
         st = await api.get_game_state(game_id, last_n=200)
-        called_numbers = st.get("called_numbers") or []
+        called_numbers = st.get("called_numbers")
     except Exception:
         called_numbers = []
 
@@ -343,17 +342,7 @@ async def mycards_by_game(cq: CallbackQuery, api: ApiClient, tg_user_id: int, tg
         put_card(tg_user_id, c)  # برای PV/refresh single اگر خواستی
 
         card_id = int(c.get("id"))
-        numbers = c.get("numbers_json") or []
-        grid_text = c.get("grid_text") or build_grid_text_from_numbers(numbers, cols=5)
-        grid_html = render_grid_with_marks(grid_text, called_numbers)
-
-        text = panel(
-            f"کارت {card_id}",
-            f"بازی: <b>{game_id}</b>\n"
-            f"اثر انگشت کارت: <code>{c.get('fingerprint','—')[:12]}…</code>\n\n"
-            f"<pre>{grid_html}</pre>\n"
-            "✅ عددهای خوانده‌شده مشخص شده‌اند."
-        )
+        text = _card_message(c, game_id, st, called_numbers)
 
         msg = await cq.message.answer(text, parse_mode="HTML")
         refs.append(CardMsgRef(card_id=card_id, message_id=msg.message_id))
@@ -413,16 +402,7 @@ async def mycards_page(cq: CallbackQuery, api: ApiClient, tg_user_id: int, tg_us
     try:
         data = await api.bot_get_my_cards(tg_user_id, tg_username, page=page, page_size=12, game_id=game_id)
         cards_raw = data.get("cards") or []
-        latest_card_created_at = max(
-            (ts for ts in (_parse_ts_utc(c.get("created_at")) for c in cards_raw) if ts is not None),
-            default=None,
-        )
-        if cards_raw and await _is_ended_game_expired(
-            api=api,
-            game_id=game_id,
-            latest_card_created_at=latest_card_created_at,
-            meta_cache={},
-        ):
+        if cards_raw and _is_ended_game_expired(await _get_game_meta_cached(api, game_id, {})):
             await safe_edit_or_send(
                 cq.message,
                 panel(
@@ -478,8 +458,7 @@ async def card_open(cq: CallbackQuery, api: ApiClient, tg_user_id: int, tg_usern
 
     game_id = int(card.get("game_id"))
     numbers = card.get("numbers_json") or []
-    grid_text = card.get("grid_text") or build_grid_text_from_numbers(numbers, cols=5)
-    if not grid_text:
+    if not numbers and not card.get("grid_text"):
         await safe_edit_or_send(
             cq.message,
             panel("کارت", "این کارت داده کافی برای نمایش ندارد."),
@@ -489,22 +468,16 @@ async def card_open(cq: CallbackQuery, api: ApiClient, tg_user_id: int, tg_usern
         await cq.answer()
         return
 
+    st = {}
     called_numbers: list[int] = []
     try:
         st = await api.get_game_state(game_id, last_n=200)
-        called_numbers = st.get("called_numbers") or []
+        called_numbers = st.get("called_numbers")
     except Exception:
         called_numbers = []
 
-    grid_html = render_grid_with_marks(grid_text, called_numbers)
 
-    text = panel(
-        f"کارت {card_id}",
-        f"بازی: <b>{game_id}</b>\n"
-        f"اثر انگشت کارت: <code>{card.get('fingerprint','—')[:12]}…</code>\n\n"
-        f"<pre>{grid_html}</pre>\n"
-        "راهنما: عددهای خوانده‌شده با ✅ مشخص شده‌اند.",
-    )
+    text = _card_message(card, game_id, st, called_numbers)
 
     await safe_edit_or_send(cq.message, text, reply_markup=card_detail_kb(card_id), parse_mode="HTML")
     await cq.answer()
@@ -524,27 +497,20 @@ async def card_refresh(cq: CallbackQuery, api: ApiClient, tg_user_id: int, tg_us
 
     game_id = int(card.get("game_id"))
     numbers = card.get("numbers_json") or []
-    grid_text = card.get("grid_text") or build_grid_text_from_numbers(numbers, cols=5)
-    if not grid_text:
+    if not numbers and not card.get("grid_text"):
         await cq.answer("داده کافی برای نمایش کارت نیست.", show_alert=False)
         return
 
+    st = {}
     called_numbers: list[int] = []
     try:
         st = await api.get_game_state(game_id, last_n=200)
-        called_numbers = st.get("called_numbers") or []
+        called_numbers = st.get("called_numbers")
     except Exception:
         called_numbers = []
 
-    grid_html = render_grid_with_marks(grid_text, called_numbers)
 
-    text = panel(
-        f"کارت {card_id}",
-        f"بازی: <b>{game_id}</b>\n"
-        f"اثر انگشت کارت: <code>{card.get('fingerprint','—')[:12]}…</code>\n\n"
-        f"<pre>{grid_html}</pre>\n"
-        "راهنما: عددهای خوانده‌شده با ✅ مشخص شده‌اند.",
-    )
+    text = _card_message(card, game_id, st, called_numbers)
 
     await safe_edit_or_send(cq.message, text, reply_markup=card_detail_kb(card_id), parse_mode="HTML")
     await cq.answer("به‌روزرسانی شد ✅", show_alert=False)
@@ -564,25 +530,19 @@ async def card_send_pv(cq: CallbackQuery, api: ApiClient, tg_user_id: int, tg_us
 
     game_id = int(card.get("game_id"))
     numbers = card.get("numbers_json") or []
-    grid_text = card.get("grid_text") or build_grid_text_from_numbers(numbers, cols=5)
-    if not grid_text:
+    if not numbers and not card.get("grid_text"):
         await cq.answer("داده کافی برای نمایش کارت نیست.", show_alert=False)
         return
 
+    st = {}
     called_numbers: list[int] = []
     try:
         st = await api.get_game_state(game_id, last_n=200)
-        called_numbers = st.get("called_numbers") or []
+        called_numbers = st.get("called_numbers")
     except Exception:
         called_numbers = []
 
-    grid_html = render_grid_with_marks(grid_text, called_numbers)
-    text = panel(
-        f"کارت {card_id}",
-        f"بازی: <b>{game_id}</b>\n\n"
-        f"<pre>{grid_html}</pre>\n"
-        "✅ عددهای خوانده‌شده مشخص شده‌اند.",
-    )
+    text = _card_message(card, game_id, st, called_numbers)
 
     try:
         await retry_async(
@@ -610,10 +570,11 @@ async def mycards_refresh_all(cq: CallbackQuery, api: ApiClient, tg_user_id: int
     await cq.answer("دارم کارت‌ها رو تازه می‌کنم ⏳", show_alert=False)
 
     # state فقط یک بار
+    st = {}
     called_numbers = []
     try:
         st = await api.get_game_state(game_id, last_n=200)
-        called_numbers = st.get("called_numbers") or []
+        called_numbers = st.get("called_numbers")
     except Exception:
         called_numbers = []
 
@@ -624,17 +585,7 @@ async def mycards_refresh_all(cq: CallbackQuery, api: ApiClient, tg_user_id: int
         if not card:
             continue
 
-        numbers = card.get("numbers_json") or []
-        grid_text = card.get("grid_text") or build_grid_text_from_numbers(numbers, cols=5)
-        grid_html = render_grid_with_marks(grid_text, called_numbers)
-
-        text = panel(
-            f"کارت {ref.card_id}",
-            f"بازی: <b>{game_id}</b>\n"
-            f"اثر انگشت کارت: <code>{card.get('fingerprint','—')[:12]}…</code>\n\n"
-            f"<pre>{grid_html}</pre>\n"
-            "✅ عددهای خوانده‌شده مشخص شده‌اند."
-        )
+        text = _card_message(card, game_id, st, called_numbers)
 
         try:
             await cq.bot.edit_message_text(

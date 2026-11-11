@@ -59,11 +59,12 @@ def _to_game_out(g: Game) -> GameOut:
         admin_user_id=g.admin_user_id,
         card_price=g.card_price,
         game_level=str(g.game_level) if getattr(g, "game_level", None) else None,
-        card_layout_version=int(g.card_layout_version or 1),
-        game_rule=str(g.game_rule or "LEGACY"),
-        execution_source=str(getattr(g, "execution_source", "ADMIN") or "ADMIN"),
+        card_layout_version=g.card_layout_version,
+        game_rule=g.game_rule,
+        execution_source=g.execution_source,
         commission_rate=float(g.commission_rate or 0),
         scheduled_start_at=str(g.scheduled_start_at) if getattr(g, "scheduled_start_at", None) else None,
+        ended_at=str(g.ended_at) if g.ended_at else None,
         sold_amount=g.sold_amount,
         commission_amount=g.commission_amount,
         prize_pool=g.prize_pool,
@@ -223,8 +224,8 @@ def my_cards(
     )
 
 @router.get("/{game_id}/state", response_model=GameStateOut)
-def game_state(game_id: int, last_n: int = 12, db: Session = Depends(get_db)):
-    s = GameService.get_state(db, game_id=game_id, last_n=last_n)
+def game_state(game_id: int, last_n: int = 12, db: Session = Depends(get_db), include_counts: bool = False):
+    s = GameService.get_state(db, game_id=game_id, last_n=last_n, include_counts=include_counts)
     return GameStateOut(**s)
 
 
