@@ -17,6 +17,7 @@ from app.models.settings import AppSetting
 from app.models.wallet import WalletTx
 from app.services.crypto_chain_service import ChainTransfer
 from app.services.crypto_destination_state import rotation_enabled, production_rotation_enabled, lock_destination_state
+from app.services.crypto_address_change import same_crypto_destination
 from app.services.crypto_preflight_service import CryptoPreflightService
 from app.services.wallet_service import WalletService
 
@@ -30,6 +31,17 @@ def _utcnow() -> datetime:
 
 
 class CryptoDepositService:
+    @staticmethod
+    def _same_destination(network: str, invoice_address: str, transfer_address: str) -> bool:
+        if not invoice_address or not transfer_address:
+            return False
+        if str(invoice_address) == str(transfer_address):
+            return True
+        try:
+            return same_crypto_destination(network, str(invoice_address), str(transfer_address))
+        except ValueError:
+            return False
+
     @staticmethod
     def configured_options() -> list[dict[str, object]]:
         out: list[dict[str, object]] = []
@@ -555,7 +567,7 @@ class CryptoDepositService:
             )
         ).scalar_one_or_none()
         if claimed:
-            if str(claimed.destination_address) != str(transfer.destination_address):
+            if not CryptoDepositService._same_destination(transfer.network, claimed.destination_address, transfer.destination_address):
                 return None
             if rotation_enabled() and transfer.network == "TON" and (not claimed.memo or claimed.memo != transfer.memo):
                 # Versioned destinations require exact invoice memo binding.
@@ -580,7 +592,7 @@ class CryptoDepositService:
             valid_memo_matches = [
                 invoice
                 for invoice in memo_candidates
-                if str(invoice.destination_address) == str(transfer.destination_address)
+                if CryptoDepositService._same_destination(transfer.network, invoice.destination_address, transfer.destination_address)
                 and CryptoDepositService._transfer_is_in_window(invoice, transfer)
             ]
             if len(valid_memo_matches) == 1:
@@ -603,7 +615,7 @@ class CryptoDepositService:
         ).scalars().all()
         valid: list[CryptoDepositRequest] = []
         for invoice in candidates:
-            if str(invoice.destination_address) != str(transfer.destination_address):
+            if not CryptoDepositService._same_destination(transfer.network, invoice.destination_address, transfer.destination_address):
                 continue
             if not CryptoDepositService._transfer_is_in_window(invoice, transfer):
                 continue

@@ -6,6 +6,8 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 from types import SimpleNamespace
 import unittest
+import base64
+from app.services.crypto_address_change import _crc16_xmodem
 
 from app.services.crypto_chain_service import ChainTransfer
 from app.services.crypto_deposit_service import CryptoDepositService
@@ -82,6 +84,17 @@ class DestinationMatchIsolation(unittest.TestCase):
         )
         inv = self.invoice("NEW_DESTINATION", memo="DAV-TEST")
         self.assertIs(CryptoDepositService._match_invoice(_Db([], [inv]), transfer), inv)
+
+    def test_ton_friendly_invoice_matches_raw_provider_without_rewriting_invoice(self):
+        raw = bytes([0x51, 0]) + bytes.fromhex("ab" * 32)
+        friendly = base64.urlsafe_b64encode(raw + _crc16_xmodem(raw).to_bytes(2, "big")).decode()
+        inv = self.invoice(friendly, memo="DAV-ALIAS")
+        transfer = ChainTransfer(network="TON", asset="TON", tx_hash="alias", amount=Decimal("2"),
+            sender_address="sender", destination_address="0:" + "ab" * 32, occurred_at=self.now, memo="DAV-ALIAS")
+        self.assertIs(CryptoDepositService._match_invoice(_Db([], [inv]), transfer), inv)
+        self.assertEqual(inv.destination_address, friendly)
+        self.assertFalse(CryptoDepositService._same_destination("TON", friendly, "0:" + "ac" * 32))
+        self.assertFalse(CryptoDepositService._same_destination("TON", "", ""))
 
 
 if __name__ == "__main__":
