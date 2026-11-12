@@ -1,0 +1,3581 @@
+[
+  {
+    "base": "main",
+    "draft": true,
+    "head": "feature/autopilot-foundation-20261031",
+    "html_url": "https://github.com/MR-P3Y/dabarna/pull/11",
+    "number": 11,
+    "sha": "03220fa47b7fb1d402714fe675d869ccd63797bb",
+    "title": "feat: guarded Dabarna autopilot, manual/automatic admin UX and per-game commission",
+    "ancestor_of_deployed_release": true,
+    "review_base": "4a41e6c016025f3fa8cfc694bc878e1d906a7dd1",
+    "changed_files": [
+      "README.fa.md",
+      "README.md",
+      "backend/alembic/versions/20261031_0009_autopilot_foundation.py",
+      "backend/alembic/versions/20261031_0010_autopilot_interval_compat.py",
+      "backend/app/core/config.py",
+      "backend/app/main.py",
+      "backend/app/models/__init__.py",
+      "backend/app/models/game.py",
+      "backend/app/models/game_autopilot.py",
+      "backend/app/routers/admin_autopilot_router.py",
+      "backend/app/routers/admin_reports_router.py",
+      "backend/app/routers/bot_router.py",
+      "backend/app/routers/game_router.py",
+      "backend/app/routers/mini_router.py",
+      "backend/app/routers/settings_router.py",
+      "backend/app/routers/tg_router.py",
+      "backend/app/schemas/game.py",
+      "backend/app/schemas/mini.py",
+      "backend/app/scripts/seed_initial.py",
+      "backend/app/services/game_autopilot_config_service.py",
+      "backend/app/services/game_autopilot_worker.py",
+      "backend/app/services/game_service.py",
+      "backend/app/static/mini/app.js",
+      "backend/app/static/mini/index.html",
+      "backend/app/static/mini/styles.css",
+      "backend/app/utils/game_messages.py",
+      "backend/app/utils/messages.py",
+      "backend/tests/test_game_commission.py",
+      "davarna-bot/bot/keyboards/admin_games.py",
+      "davarna-bot/bot/routers/admin_games.py",
+      "davarna-bot/bot/routers/game.py",
+      "davarna-bot/bot/routers/help.py",
+      "davarna-bot/bot/services/api_client.py",
+      "davarna-bot/bot/states/admin_game_create.py"
+    ],
+    "unique_patch_commits": [],
+    "migration_files": [
+      "backend/alembic/versions/20261031_0009_autopilot_foundation.py",
+      "backend/alembic/versions/20261031_0010_autopilot_interval_compat.py"
+    ],
+    "sensitive_paths": [
+      "backend/alembic/versions/20261031_0009_autopilot_foundation.py",
+      "backend/alembic/versions/20261031_0010_autopilot_interval_compat.py"
+    ]
+  },
+  {
+    "base": "feature/autopilot-foundation-20261031",
+    "draft": true,
+    "head": "feature/tambola-15-card-rules-20261104",
+    "html_url": "https://github.com/MR-P3Y/dabarna/pull/12",
+    "number": 12,
+    "sha": "c8f514e7c1b5edc862e3445d0808a982aff1320d",
+    "title": "feat: introduce gated 3x9 / 15-number Dabarna card rules (V2)",
+    "ancestor_of_deployed_release": true,
+    "review_base": "03220fa47b7fb1d402714fe675d869ccd63797bb",
+    "changed_files": [
+      "backend/alembic/versions/20261104_0011_game_rule_card_layout.py",
+      "backend/app/core/config.py",
+      "backend/app/models/game.py",
+      "backend/app/models/game_autopilot.py",
+      "backend/app/routers/admin_autopilot_router.py",
+      "backend/app/routers/admin_reports_router.py",
+      "backend/app/routers/admin_users_router.py",
+      "backend/app/routers/bot_router.py",
+      "backend/app/routers/game_router.py",
+      "backend/app/routers/mini_router.py",
+      "backend/app/routers/tg_router.py",
+      "backend/app/schemas/game.py",
+      "backend/app/schemas/mini.py",
+      "backend/app/services/game_auto_draw_service.py",
+      "backend/app/services/game_autopilot_config_service.py",
+      "backend/app/services/game_service.py",
+      "backend/app/static/mini/app.js",
+      "backend/app/static/mini/styles.css",
+      "backend/app/utils/bingo_v2.py",
+      "backend/app/utils/card_render.py",
+      "backend/tests/test_bingo_v2.py",
+      "backend/tests/test_game_auto_draw.py",
+      "backend/tests/test_game_commission.py",
+      "backend/tests/test_game_v2_dispatch.py",
+      "davarna-bot/bot/routers/admin_games.py",
+      "davarna-bot/bot/routers/game.py",
+      "davarna-bot/bot/services/card_render.py",
+      "davarna-bot/bot/workers/notifier.py",
+      "docs/tambola-v2-rollout-fa.md"
+    ],
+    "unique_patch_commits": [],
+    "migration_files": [
+      "backend/alembic/versions/20261104_0011_game_rule_card_layout.py"
+    ],
+    "sensitive_paths": [
+      "backend/alembic/versions/20261104_0011_game_rule_card_layout.py"
+    ]
+  },
+  {
+    "base": "feature/ui-ux-refresh-tambola-v2-20261106",
+    "draft": true,
+    "head": "ops/game84-refund-guard-20261107",
+    "html_url": "https://github.com/MR-P3Y/dabarna/pull/17",
+    "number": 17,
+    "sha": "0622f0c51649fb8fa41f3e61038687757c297593",
+    "title": "ops(finance): guarded Game 84 cancellation and 36,000 wallet refund",
+    "ancestor_of_deployed_release": false,
+    "review_base": "59cfd47c2abae9fe946b6ff989c7a765ad567a8f",
+    "changed_files": [
+      "backend/tests/mysql_finance_smoke.py",
+      "dev/ops/cancel-game84-verified.py",
+      "dev/ops/notify-game84-refund-once.py",
+      "dev/ops/rehearse-game84-cancel.sh",
+      "dev/ops/run-game84-refund-notice.sh"
+    ],
+    "unique_patch_commits": [
+      {
+        "sha": "90f4e300b75363464fc337e12d1cb34425664d8f",
+        "subject": "test(finance): rehearse six-card two-purchase one-wallet lobby refund on isolated MySQL"
+      },
+      {
+        "sha": "016328e593a10dfdb8340cbe6e76e6afd36bdd5a",
+        "subject": "ops(finance): transaction-guarded Game 84 cancel/refund preflight, commit and ledger verification"
+      },
+      {
+        "sha": "9431ef44647a2d812c7a0b5865ab124221bb3500",
+        "subject": "fix(ops): capture refund IDs before session expiry and avoid misleading post-commit failure note"
+      },
+      {
+        "sha": "d39663e6c60296a9b48df810e7c7f91315f4296b",
+        "subject": "ops(finance): add isolated MySQL rehearsal runner for precise game84 refund pattern"
+      },
+      {
+        "sha": "dc7713f06460ea9cafade3156ba9c47011224b50",
+        "subject": "ops(telegram): send verified Game 84 refund DM once using durable notification marker"
+      },
+      {
+        "sha": "a7b51ad9359f95fa6102336459305d21c54d46c2",
+        "subject": "ops(telegram): add secure one-shot Game84 refund notice runner with bot identity guard"
+      },
+      {
+        "sha": "0499b742c94d12be7b5ca61b628dd1a2bdfcd8c8",
+        "subject": "ops(finance): pin verified refund ledger IDs 338/339 and internal recipient #4 before DM"
+      },
+      {
+        "sha": "4bf5b15b88d29643452db153a55487f732f1102d",
+        "subject": "ops(telegram): add read-only dry-run before single-send claimed notification"
+      },
+      {
+        "sha": "0622f0c51649fb8fa41f3e61038687757c297593",
+        "subject": "ops(telegram): require read-only refund validation before one-shot private DM"
+      }
+    ],
+    "migration_files": [],
+    "sensitive_paths": [
+      "backend/tests/mysql_finance_smoke.py",
+      "dev/ops/notify-game84-refund-once.py",
+      "dev/ops/run-game84-refund-notice.sh"
+    ]
+  },
+  {
+    "base": "feature/ui-ux-refresh-tambola-v2-20261106",
+    "draft": true,
+    "head": "release/combined-forum-mini-candidate-20261107",
+    "html_url": "https://github.com/MR-P3Y/dabarna/pull/20",
+    "number": 20,
+    "sha": "22ddf0f60e5eb0e56462503597679d0541efe229",
+    "title": "release(dry-run): stage combined forum + Mini App images without Production changes",
+    "ancestor_of_deployed_release": true,
+    "review_base": "4b4150b6e5b2a9c3b5ad8ff7f0c2e4dd2d61baf9",
+    "changed_files": [
+      "backend/alembic/versions/20261108_0012_deposit_rejection_reason.py",
+      "backend/app/models/finance.py",
+      "backend/app/routers/mini_router.py",
+      "backend/app/schemas/mini.py",
+      "backend/app/static/mini/app.js",
+      "backend/app/static/mini/index.html",
+      "backend/app/static/mini/styles.css",
+      "backend/tests/mysql_mini_deposit_rejection_reason.py",
+      "backend/tests/test_mini_deposit_rejection_reason.py",
+      "backend/tests/test_mini_superadmin_ui_contract.py",
+      "backend/tests/test_withdraw_rejection_reason.py",
+      "dev/ops/prepare-low-and-publish-forum-guide-20261108.sh",
+      "dev/release/activate-low-one-round-20261108.sh",
+      "dev/release/close-low-one-round-20261108.sh",
+      "dev/release/deploy-combined-forum-mini-20261107.sh",
+      "dev/release/stage-combined-forum-mini-20261107.sh",
+      "dev/release/test-low-autopilot-isolated-20261108.sh",
+      "dev/release/test-low-autopilot-stage2-isolated-20261108.sh",
+      "dev/release/test-mini-finance-reject-reasons-20261108.sh",
+      "docs/audits/user-forum-game-lifecycle-copy-fa-20261108.md"
+    ],
+    "unique_patch_commits": [],
+    "migration_files": [
+      "backend/alembic/versions/20261108_0012_deposit_rejection_reason.py"
+    ],
+    "sensitive_paths": [
+      "backend/alembic/versions/20261108_0012_deposit_rejection_reason.py",
+      "backend/app/models/finance.py",
+      "dev/release/test-mini-finance-reject-reasons-20261108.sh"
+    ]
+  },
+  {
+    "base": "release/combined-forum-mini-candidate-20261107",
+    "draft": true,
+    "head": "feature/roadmap-crypto-rules-ui-20261108",
+    "html_url": "https://github.com/MR-P3Y/dabarna/pull/32",
+    "number": 32,
+    "sha": "5d03acada4418a8340ad9df67176e895cf7ce79c",
+    "title": "chore(start): initialize #30 crypto rotation safety and #25/#27/#29 + #22-24/#28 work streams",
+    "ancestor_of_deployed_release": false,
+    "review_base": "22ddf0f60e5eb0e56462503597679d0541efe229",
+    "changed_files": [
+      "backend/alembic/versions/20261109_0013_crypto_destination_versions.py",
+      "backend/alembic/versions/20261109_0014_crypto_destination_confirmation.py",
+      "backend/alembic/versions/20261109_0015_crypto_late_payment_cases.py",
+      "backend/app/models/__init__.py",
+      "backend/app/models/crypto_destination_challenge.py",
+      "backend/app/models/crypto_destination_version.py",
+      "backend/app/models/crypto_late_payment_case.py",
+      "backend/app/routers/mini_router.py",
+      "backend/app/services/crypto_address_rotation_validation.py",
+      "backend/app/services/crypto_chain_service.py",
+      "backend/app/services/crypto_deposit_service.py",
+      "backend/app/services/crypto_destination_confirmation_service.py",
+      "backend/app/services/crypto_destination_draft_service.py",
+      "backend/app/services/crypto_late_payment_queue_service.py",
+      "backend/app/services/crypto_late_payment_review_service.py",
+      "backend/app/services/crypto_worker.py",
+      "backend/app/static/mini/app.js",
+      "backend/app/static/mini/index.html",
+      "backend/tests/mysql_crypto_destination_challenges.py",
+      "backend/tests/mysql_crypto_destination_race.py",
+      "backend/tests/mysql_crypto_destination_versions.py",
+      "backend/tests/mysql_crypto_late_payment_queue.py",
+      "backend/tests/mysql_crypto_settlement_integration.py",
+      "backend/tests/test_crypto_address_rotation_validation.py",
+      "backend/tests/test_crypto_chain_pagination.py",
+      "backend/tests/test_crypto_destination_confirmations.py",
+      "backend/tests/test_crypto_destination_drafts.py",
+      "backend/tests/test_crypto_invoice_expiry_safety.py",
+      "backend/tests/test_crypto_late_payment_queue.py",
+      "backend/tests/test_crypto_late_payment_review.py",
+      "backend/tests/test_crypto_rotation_multi_address.py",
+      "backend/tests/test_crypto_rotation_ui_contract.py",
+      "backend/tests/test_crypto_worker_scan_recovery.py",
+      "davarna-bot/bot/keyboards/super_admin.py",
+      "dev/audit/game_rule_message_inventory.py",
+      "dev/plans/roadmap-issues-22-30-20261108.md",
+      "dev/release/test-crypto-30-final-gate-20261109.sh",
+      "dev/release/test-crypto-challenge-mysql-20261109.sh",
+      "dev/release/test-crypto-destinations-mysql-20261109.sh",
+      "dev/release/test-crypto-drafts-mysql-race-20261109.sh",
+      "dev/release/test-crypto-late-queue-mysql-20261109.sh",
+      "dev/release/test-crypto-settlement-mysql-20261109.sh"
+    ],
+    "unique_patch_commits": [
+      {
+        "sha": "98a34623ebed66c32f6b820117a0444d27b79bd0",
+        "subject": "feat(crypto): introduce side-effect-free strict TRON/TON address validation for rotation design"
+      },
+      {
+        "sha": "dd06f987934c97d7e4bd0c81d62cf26a4c8f5942",
+        "subject": "fix(crypto): handle malformed TON Base64 padding reliably"
+      },
+      {
+        "sha": "bbb516034a5384228e942c68ed98cb0d55f41305",
+        "subject": "test(crypto): cover checksum, network tags, canonicalization and invalid destinations"
+      },
+      {
+        "sha": "24c9e367194920e364ed2d3e5afceb9130903859",
+        "subject": "docs(roadmap): initialize four coordinated tracks and critical crypto scanner safety gates"
+      },
+      {
+        "sha": "c11b64168ef11eb16f1ffb9ba85c817c17334673",
+        "subject": "test(crypto): correct byte literal escaping in generated checksum fixtures"
+      },
+      {
+        "sha": "866ee99f63966f34f1fbb63b12760b7c90eae642",
+        "subject": "feat(crypto): enable fail-closed scanning of explicit old and active destination addresses"
+      },
+      {
+        "sha": "00b845a32b1aaf6acf4e38cb203a1c8dc8ae2365",
+        "subject": "feat(crypto): monitor every open invoice's pinned destination address in worker"
+      },
+      {
+        "sha": "06ff2b83a901c92ea645b1c4fac6bf62c251f3fe",
+        "subject": "fix(crypto): match transfers only to their pinned invoice destination"
+      },
+      {
+        "sha": "06ae3e9d1389b15ae75baa31134e092ec496439d",
+        "subject": "test(crypto): old/new destinations, scanner failures and cross-address credit safety"
+      },
+      {
+        "sha": "6d0f7f83b8047024972499abd263785c8fbe1bab",
+        "subject": "fix(crypto): reject oversized Base58 payloads with safe validation error"
+      },
+      {
+        "sha": "f3ce38a0b33b51a669f9d504de2c88cbad2717b0",
+        "subject": "audit(game): add read-only source inventory for rules, notifications and topic routing (#25 #27 #29)"
+      },
+      {
+        "sha": "0d421e4c08db927b7cfa5265ddd03ff1c00a190d",
+        "subject": "feat(crypto): add inert versioned destination table migration (#30)"
+      },
+      {
+        "sha": "ac68e762fd63aaea29ed4680905ffe67b31ad827",
+        "subject": "feat(crypto): add ORM model for inert versioned deposit destinations"
+      },
+      {
+        "sha": "ff445b5197f2b44ef676410d003cab172b71bf3a",
+        "subject": "fix(crypto): register versioned destination ORM model for Alembic metadata"
+      },
+      {
+        "sha": "4a59ad46f133ce01dd467092ca575d85b031eb32",
+        "subject": "test(crypto): add isolated real MySQL migration and uniqueness contract for #30"
+      },
+      {
+        "sha": "48b17259ee82a1cee48ce5b009462d65468aab3c",
+        "subject": "test(crypto): guarded MySQL migration on fresh named database with restricted temporary account"
+      },
+      {
+        "sha": "e631d2c29888b458a385ea105d8d13c111e81c99",
+        "subject": "fix(test): allow intended bash parameter expansion in guarded migration runner"
+      },
+      {
+        "sha": "9133d533a0f707d422c5b5b9f51ef83db7fe855c",
+        "subject": "feat(crypto): add superadmin-only destination preview, auditable draft and cancellation service without activation"
+      },
+      {
+        "sha": "c6bbdedab9963280b7bc98414fd958b03100e973",
+        "subject": "feat(crypto): owner-guarded preview, auditable draft, cancel and history routes; activation deliberately absent"
+      },
+      {
+        "sha": "0c9012536a175a5235da28d18a12443e31ac2ef6",
+        "subject": "test(crypto): isolated real SQLite preview/draft/cancel, idempotency, invoice protection and superadmin route contracts"
+      },
+      {
+        "sha": "b116f4c859b259657376c84f49bebe6d73cbf4ce",
+        "subject": "fix(test): remove invalid unused TON raw-address fixture"
+      },
+      {
+        "sha": "4adde97f707900e667322412c5a82f5ff22997c1",
+        "subject": "test(crypto): enforce owner-only superadmin identity for draft endpoints"
+      },
+      {
+        "sha": "9a298393c6a4b946de7e5b521ca2dca4c2b0f987",
+        "subject": "test(crypto): avoid deprecated naive utcnow in synthetic invoice fixture"
+      },
+      {
+        "sha": "3015b361e4bd7f6f3a1892cb0e97116def336d4f",
+        "subject": "test(crypto): real MySQL dual-writer race and idempotent draft replay in isolated schema"
+      },
+      {
+        "sha": "8254c381e7778603793e2925100f687a4f5c7093",
+        "subject": "fix(crypto): convert InnoDB deadlock and lock timeout into safe draft 409 conflicts"
+      },
+      {
+        "sha": "1d2e35f34d95ffc9d14e18979c0e0b334674e88d",
+        "subject": "test(crypto): guarded real MySQL concurrency runner on new restricted test database"
+      },
+      {
+        "sha": "6e0f0de2beb32f5669436089544fafd3025d371a",
+        "subject": "feat(crypto): add old-address snapshot and non-operational one-time confirmation records"
+      },
+      {
+        "sha": "9cecfc0e1d0ea02850ac0d5340ccfd3c3e7ceb74",
+        "subject": "feat(crypto): persist original address alongside each proposed destination"
+      },
+      {
+        "sha": "a062012071c1358e7923f3f780ae7191871fecce",
+        "subject": "feat(crypto): map single-use challenge records for safe review-only confirmation"
+      },
+      {
+        "sha": "b71c5ffcfd19d47f2c070c940dffbcbaeab27fde",
+        "subject": "feat(crypto): register confirmation challenge ORM for Alembic metadata"
+      },
+      {
+        "sha": "5103b7b2b108a8b1a15a5076a13cc70002aadf87",
+        "subject": "fix(crypto): capture immutable prior destination during draft proposal"
+      },
+      {
+        "sha": "af81625f6d2e3ab3123f1847fd68d8d3fea3c58a",
+        "subject": "feat(crypto): add expiring single-use human verification challenge without address activation"
+      },
+      {
+        "sha": "98497aea3ad4957942583a025b1a366bbc1d8601",
+        "subject": "feat(crypto): expose owner-only one-time review confirmation endpoints, no activate route"
+      },
+      {
+        "sha": "ca07f1bc7df01499c2e03a22167bb924b6d5735f",
+        "subject": "test(crypto): verify one-time owner-bound review challenge, expiry, replay, drift and no activation"
+      },
+      {
+        "sha": "a1bf3b08b6daca4816348b6fd5d0f0759817bad2",
+        "subject": "test(crypto): include snapshot/challenge migration when rerunning MySQL race regression"
+      },
+      {
+        "sha": "ffac89dae03b0b478e9d32e6da8b49fe74ff0674",
+        "subject": "test(crypto): MySQL isolated confirmation schema and one-time review smoke test"
+      },
+      {
+        "sha": "e400ae99681991cd5a321c943daa5a4928e8198b",
+        "subject": "test(crypto): guarded isolated MySQL runner for one-time review challenge"
+      },
+      {
+        "sha": "d719208b53b2e2ca6697b2662d3a5447d67ab46e",
+        "subject": "fix(crypto): use current locking reads for challenge uniqueness under MySQL repeatable-read"
+      },
+      {
+        "sha": "ea2c8d714d4e7ab249a1dfa38e2fb88ae411af6f",
+        "subject": "fix(crypto): paginate TRON fingerprints and TON offsets, fail closed on truncation, repeated or invalid pages"
+      },
+      {
+        "sha": "e8f2bc5dba3c61cf71658bb0a1e9697af99904d0",
+        "subject": "test(crypto): fake-provider TRON fingerprint, TON offset, truncated, repeated and malformed pages"
+      },
+      {
+        "sha": "6a9195dd6f6f72da34bed377eecd3c897efb85e5",
+        "subject": "fix(crypto): defer invoice expiry on incomplete scans and keep earliest open invoice in lookback"
+      },
+      {
+        "sha": "309f71edb7c5dad3daabf94db1e81cee1e78ee44",
+        "subject": "test(crypto): verify provider failures defer expiry and long-open invoices retain full lookback"
+      },
+      {
+        "sha": "3e51d6f26dded3fa33a0c96c2098966899be9c2c",
+        "subject": "fix(crypto): compare TON destination account identities across bounceable and raw aliases"
+      },
+      {
+        "sha": "6d2c822aa6ebe1e795c4c31537f8b5378c48ab7f",
+        "subject": "fix(crypto): do not expire observed or claimed deposits; match equivalent TON account encodings"
+      },
+      {
+        "sha": "9bdf72e2acc618ab23139d55f27c7f160d5457c8",
+        "subject": "refactor(crypto): reuse shared safe account comparison in draft drift guard"
+      },
+      {
+        "sha": "dc884c0afaddd36f1cc75c2f45f4e443333d494f",
+        "subject": "test(crypto): preserve confirming and claimed invoices on expiry, verify restart/grace window boundaries"
+      },
+      {
+        "sha": "6cb6dff181fdb2dd42346d746560610bc9bf7dc0",
+        "subject": "fix(crypto): recheck TON history head after offset pagination to fail closed on live shifts"
+      },
+      {
+        "sha": "442cec0a507edcea3804fa037ed1394ffd0c3c45",
+        "subject": "test(crypto): expect TON head verification and reject offsets when chain head shifts"
+      },
+      {
+        "sha": "b276e532efd8913a592dc9d778a3c24cb8e7d614",
+        "subject": "test(crypto): equate TON bounceable/nonbounceable account when matching historical invoices"
+      },
+      {
+        "sha": "2d2105e6970e20d933c1deb63dacbf2476214219",
+        "subject": "test(crypto): isolated real MySQL invoice-to-ledger reconciliation, replay and rollback regression"
+      },
+      {
+        "sha": "f7a6ba1c4e21653c4da8e097b43b10bea5d80413",
+        "subject": "test(crypto): guarded MySQL ledger integration with restricted disposable test schema"
+      },
+      {
+        "sha": "c8fde27232cf56dde4ba2be05ecb4234a2a28be0",
+        "subject": "test(crypto): assert underpayment and overpayment go to review without wallet credit"
+      },
+      {
+        "sha": "ae94fbc463b5dfb0d042ea52b40364909ef6400e",
+        "subject": "docs(test): clarify test ledger writes are restricted to isolated MySQL schema"
+      },
+      {
+        "sha": "3a69e120121bb7efc76aec070267e9cdae6dad45",
+        "subject": "feat(crypto): add fail-closed read-only historical invoice payment triage, no wallet credit"
+      },
+      {
+        "sha": "a639490abd42db092d7dc698b560141833f60631",
+        "subject": "refactor(crypto): use explicit config import in historical payment time-window classification"
+      },
+      {
+        "sha": "fba428789329c411047b54bf6c5fe22da5bbd467",
+        "subject": "feat(crypto): add owner-guarded read-only historical payment review endpoint"
+      },
+      {
+        "sha": "604cde840b2fe53c052d9a09bf5ef78432839966",
+        "subject": "test(crypto): historical late-payment report is owner-only, unambiguous or review-only and never credits wallets"
+      },
+      {
+        "sha": "d87d17989e5ca93211243dc6ce0a04f4fbd3b2cb",
+        "subject": "fix(crypto): cap historical review scan fanout and convert provider outages into fail-closed errors"
+      },
+      {
+        "sha": "ed03ed4a61fbe2fe80c3e9cf7d307d92763c7500",
+        "subject": "fix(crypto): rate-limit privileged historical chain scans"
+      },
+      {
+        "sha": "7f96a9ba23d1fa2c1869139f35f8054c38c75a3e",
+        "subject": "test(crypto): block unsafe historical address scan fanout before any provider request"
+      },
+      {
+        "sha": "dadbc94c2aed6b74f1bd60488663344e8d46355f",
+        "subject": "feat(crypto): inert durable review-only queue migration for historical transfers"
+      },
+      {
+        "sha": "a76b97f41a8e3133524df735806327c1a6a7d5cf",
+        "subject": "feat(crypto): ORM model for immutable non-settling historical payment review cases"
+      },
+      {
+        "sha": "392036b7ea0de3badce2958761aabfc0f669ea2f",
+        "subject": "feat(crypto): include late payment case ORM in Alembic metadata"
+      },
+      {
+        "sha": "0934d02378ab7f41d9dcb08169074341712116f2",
+        "subject": "feat(crypto): persist owner-initiated historical cases with unique hashes and atomic audit only"
+      },
+      {
+        "sha": "1e7c104953f7b5ff4cacc393a5afa96654c534c2",
+        "subject": "feat(crypto): owner-only deliberate capture/list queue endpoints, with atomic audit commit"
+      },
+      {
+        "sha": "6e28ab5ddb438990da3c5d7ef2a36d1bb297fce9",
+        "subject": "test(crypto): audit-linked queue import idempotency, rollback, linked-hash exclusion and no-credit invariants"
+      },
+      {
+        "sha": "f7359bce51b8e0c545993c62439db88fa792b7ea",
+        "subject": "test(crypto): MySQL queue migration and real auditable duplicate-safe capture, no wallet tables"
+      },
+      {
+        "sha": "70db37d61b33785b7b5d635dd21bc16327157915",
+        "subject": "test(crypto): guarded restricted MySQL runner for immutable historical review queue"
+      },
+      {
+        "sha": "cab882d2f8fa2f645115e32c9504e4d16de6801c",
+        "subject": "feat(crypto-ui): compact Mini App address preview, draft and review-only confirmation panel"
+      },
+      {
+        "sha": "2607eae3e6adbd3cd3129d35ceb44085bee80824",
+        "subject": "feat(crypto-ui): wire owner-only preview/draft/confirm/cancel/version actions without live activation"
+      },
+      {
+        "sha": "8722e232bed996f61fd96ea40642963c0893b452",
+        "subject": "feat(crypto-bot): link superadmin wallet draft workflow to authenticated Mini App"
+      },
+      {
+        "sha": "305db139de5df027a219bbc2926d7c80d49fcb0a",
+        "subject": "fix(crypto-ui): accept raw TON input while submitting canonical preview address"
+      },
+      {
+        "sha": "420cff1975af85b0bdb8586af97413eedbbbc65b",
+        "subject": "test(crypto-ui): verify wired owner review UI, Bot Mini entry and no activation route"
+      },
+      {
+        "sha": "83551a0ec97fe11e264c23fa1ecb5dc9ae5eec45",
+        "subject": "feat(crypto): show persisted review confirmation in masked version history"
+      },
+      {
+        "sha": "96b67686af92b2ed06e22a6b14e0beb3ead72524",
+        "subject": "test(crypto): create confirmation table in isolated version-history fixtures"
+      },
+      {
+        "sha": "5b6235f81020d0cd186223a87d7c2ca20db73e6c",
+        "subject": "feat(crypto-ui): distinguish reviewed drafts from live activated destinations"
+      },
+      {
+        "sha": "5d03acada4418a8340ad9df67176e895cf7ce79c",
+        "subject": "test(crypto): one-command final isolated gate for review UI, queue, RBAC and MySQL audit"
+      }
+    ],
+    "migration_files": [
+      "backend/alembic/versions/20261109_0013_crypto_destination_versions.py",
+      "backend/alembic/versions/20261109_0014_crypto_destination_confirmation.py",
+      "backend/alembic/versions/20261109_0015_crypto_late_payment_cases.py"
+    ],
+    "sensitive_paths": [
+      "backend/alembic/versions/20261109_0013_crypto_destination_versions.py",
+      "backend/alembic/versions/20261109_0014_crypto_destination_confirmation.py",
+      "backend/alembic/versions/20261109_0015_crypto_late_payment_cases.py",
+      "backend/app/models/crypto_destination_challenge.py",
+      "backend/app/models/crypto_destination_version.py",
+      "backend/app/models/crypto_late_payment_case.py",
+      "backend/app/services/crypto_address_rotation_validation.py",
+      "backend/app/services/crypto_chain_service.py",
+      "backend/app/services/crypto_deposit_service.py",
+      "backend/app/services/crypto_destination_confirmation_service.py",
+      "backend/app/services/crypto_destination_draft_service.py",
+      "backend/app/services/crypto_late_payment_queue_service.py",
+      "backend/app/services/crypto_late_payment_review_service.py",
+      "backend/app/services/crypto_worker.py",
+      "backend/tests/mysql_crypto_destination_challenges.py",
+      "backend/tests/mysql_crypto_destination_race.py",
+      "backend/tests/mysql_crypto_destination_versions.py",
+      "backend/tests/mysql_crypto_late_payment_queue.py",
+      "backend/tests/mysql_crypto_settlement_integration.py",
+      "backend/tests/test_crypto_address_rotation_validation.py",
+      "backend/tests/test_crypto_chain_pagination.py",
+      "backend/tests/test_crypto_destination_confirmations.py",
+      "backend/tests/test_crypto_destination_drafts.py",
+      "backend/tests/test_crypto_invoice_expiry_safety.py",
+      "backend/tests/test_crypto_late_payment_queue.py",
+      "backend/tests/test_crypto_late_payment_review.py",
+      "backend/tests/test_crypto_rotation_multi_address.py",
+      "backend/tests/test_crypto_rotation_ui_contract.py",
+      "backend/tests/test_crypto_worker_scan_recovery.py",
+      "dev/release/test-crypto-30-final-gate-20261109.sh",
+      "dev/release/test-crypto-challenge-mysql-20261109.sh",
+      "dev/release/test-crypto-destinations-mysql-20261109.sh",
+      "dev/release/test-crypto-drafts-mysql-race-20261109.sh",
+      "dev/release/test-crypto-late-queue-mysql-20261109.sh",
+      "dev/release/test-crypto-settlement-mysql-20261109.sh"
+    ]
+  },
+  {
+    "base": "release/combined-forum-mini-candidate-20261107",
+    "draft": true,
+    "head": "fix/game-forum-notices-rule-routing-20261109",
+    "html_url": "https://github.com/MR-P3Y/dabarna/pull/33",
+    "number": 33,
+    "sha": "779507df2b2870376848df5872a7660f5ae53638",
+    "title": "fix(telegram): align game lifecycle notices with stored rules and opt-in start topic (#25 #27 #29)",
+    "ancestor_of_deployed_release": true,
+    "review_base": "22ddf0f60e5eb0e56462503597679d0541efe229",
+    "changed_files": [
+      "backend/app/routers/mini_router.py",
+      "backend/tests/test_game_forum_lifecycle_contract.py",
+      "davarna-bot/bot/config.py",
+      "davarna-bot/bot/services/user_forum_navigation.py",
+      "davarna-bot/bot/services/user_topics.py",
+      "davarna-bot/bot/workers/notifier.py",
+      "dev/audit/game_lifecycle_rules_matrix_20261109.md"
+    ],
+    "unique_patch_commits": [],
+    "migration_files": [],
+    "sensitive_paths": []
+  },
+  {
+    "base": "fix/game-forum-notices-rule-routing-20261109",
+    "draft": true,
+    "head": "fix/telegram-lifecycle-delivery-ack-20261109",
+    "html_url": "https://github.com/MR-P3Y/dabarna/pull/34",
+    "number": 34,
+    "sha": "a7785d63473d0160aa5e807bb7477e8089f5ab60",
+    "title": "fix(telegram): persist delivery ACKs for GAME_CREATED/STARTED/ENDED with retry on failure",
+    "ancestor_of_deployed_release": false,
+    "review_base": "779507df2b2870376848df5872a7660f5ae53638",
+    "changed_files": [
+      "davarna-bot/bot/services/lifecycle_delivery.py",
+      "davarna-bot/bot/services/notify_store.py",
+      "davarna-bot/bot/workers/notifier.py",
+      "davarna-bot/tests/test_lifecycle_delivery_ack.py",
+      "dev/release/check-v1-readiness-20261109.sh",
+      "dev/release/telegram-33-34-one-pass-release-gate-20261109.md",
+      "dev/release/test-telegram-lifecycle-ack-20261109.sh"
+    ],
+    "unique_patch_commits": [
+      {
+        "sha": "a7785d63473d0160aa5e807bb7477e8089f5ab60",
+        "subject": "chore(v1): single read-only operational readiness audit for game/forum candidate"
+      }
+    ],
+    "migration_files": [],
+    "sensitive_paths": []
+  },
+  {
+    "base": "release/combined-forum-mini-candidate-20261107",
+    "draft": true,
+    "head": "release/v1.0-rc-20261109",
+    "html_url": "https://github.com/MR-P3Y/dabarna/pull/35",
+    "number": 35,
+    "sha": "bda139f36eb36a4d4c83cacde48f750c6064827c",
+    "title": "release: Davarna v1.0 release candidate — game rules and Telegram delivery",
+    "ancestor_of_deployed_release": false,
+    "review_base": "22ddf0f60e5eb0e56462503597679d0541efe229",
+    "changed_files": [
+      "backend/app/routers/mini_router.py",
+      "backend/tests/test_game_forum_lifecycle_contract.py",
+      "davarna-bot/bot/config.py",
+      "davarna-bot/bot/services/lifecycle_delivery.py",
+      "davarna-bot/bot/services/notify_store.py",
+      "davarna-bot/bot/services/user_forum_navigation.py",
+      "davarna-bot/bot/services/user_topics.py",
+      "davarna-bot/bot/workers/notifier.py",
+      "davarna-bot/tests/test_lifecycle_delivery_ack.py",
+      "dev/audit/game_lifecycle_rules_matrix_20261109.md",
+      "dev/release/davarna-v1-rc-readonly-gate-20261109.sh",
+      "dev/release/davarna-v1-release-scope-20261109.md",
+      "dev/release/telegram-33-34-one-pass-release-gate-20261109.md",
+      "dev/release/test-telegram-lifecycle-ack-20261109.sh"
+    ],
+    "unique_patch_commits": [
+      {
+        "sha": "bd12bfb0c3f3936ef8145597733577fbbd2c82e6",
+        "subject": "test(release): one read-only gate for v1.0 RC bot delivery, game rules, V2 cards and host health"
+      },
+      {
+        "sha": "bda139f36eb36a4d4c83cacde48f750c6064827c",
+        "subject": "docs(release): freeze Davarna v1.0 scope and track deferred UX, crypto and Telegram limitations"
+      }
+    ],
+    "migration_files": [],
+    "sensitive_paths": []
+  },
+  {
+    "base": "release/combined-forum-mini-candidate-20261107",
+    "draft": true,
+    "head": "release/v1.0.0-rc1-20261109",
+    "html_url": "https://github.com/MR-P3Y/dabarna/pull/36",
+    "number": 36,
+    "sha": "edccb499c402e1b224aa1eff2db2977b07f3acea",
+    "title": "release(v1.0.0-rc1): frozen game rules + Telegram lifecycle reliability, no crypto rollout",
+    "ancestor_of_deployed_release": false,
+    "review_base": "22ddf0f60e5eb0e56462503597679d0541efe229",
+    "changed_files": [
+      "backend/app/routers/mini_router.py",
+      "backend/tests/test_game_forum_lifecycle_contract.py",
+      "davarna-bot/bot/config.py",
+      "davarna-bot/bot/services/lifecycle_delivery.py",
+      "davarna-bot/bot/services/notify_store.py",
+      "davarna-bot/bot/services/user_forum_navigation.py",
+      "davarna-bot/bot/services/user_topics.py",
+      "davarna-bot/bot/workers/notifier.py",
+      "davarna-bot/tests/test_lifecycle_delivery_ack.py",
+      "dev/audit/game_lifecycle_rules_matrix_20261109.md",
+      "dev/release/telegram-33-34-one-pass-release-gate-20261109.md",
+      "dev/release/test-telegram-lifecycle-ack-20261109.sh",
+      "dev/release/v1-rc-preflight-readonly-20261109.sh",
+      "dev/release/v1.0.0-rc1-freeze-20261109.md"
+    ],
+    "unique_patch_commits": [
+      {
+        "sha": "ccf1e571565bef80fce9c7791dd5f4cea7b6fe3f",
+        "subject": "docs(release): freeze v1.0 RC scope, evidence and independent Production release gate"
+      },
+      {
+        "sha": "9427f0aed5c2a5b409a60afca39184f8fdc9cac1",
+        "subject": "chore(release): add one short read-only NODE2 preflight for frozen v1 RC"
+      },
+      {
+        "sha": "edccb499c402e1b224aa1eff2db2977b07f3acea",
+        "subject": "fix(release): pin preflight base commit so NODE2 need not have a local release branch"
+      }
+    ],
+    "migration_files": [],
+    "sensitive_paths": []
+  },
+  {
+    "base": "release/combined-forum-mini-candidate-20261107",
+    "draft": true,
+    "head": "release/davarna-v1-candidate-20261109",
+    "html_url": "https://github.com/MR-P3Y/dabarna/pull/37",
+    "number": 37,
+    "sha": "98fcce1dd2e127366367b378d47150530bb9b850",
+    "title": "release(v1.0): frozen core game + Telegram lifecycle candidate (#33 + #34, no finance changes)",
+    "ancestor_of_deployed_release": true,
+    "review_base": "22ddf0f60e5eb0e56462503597679d0541efe229",
+    "changed_files": [
+      "backend/alembic/versions/20260219_0001_initial_schema.py",
+      "backend/app/routers/bot_router.py",
+      "backend/app/routers/game_router.py",
+      "backend/app/routers/mini_router.py",
+      "backend/app/routers/tg_router.py",
+      "backend/app/schemas/game.py",
+      "backend/app/schemas/mini.py",
+      "backend/app/services/game_autopilot_worker.py",
+      "backend/app/services/game_service.py",
+      "backend/app/static/mini/app.js",
+      "backend/app/static/mini/index.html",
+      "backend/app/static/mini/ux-v2.css",
+      "backend/app/utils/card_render.py",
+      "backend/app/utils/game_messages.py",
+      "backend/app/utils/messages.py",
+      "backend/tests/js/test_autopilot_start_countdown_v1.mjs",
+      "backend/tests/js/test_navigation_regressions_wave5.mjs",
+      "backend/tests/js/test_payment_visibility_admin_ux.mjs",
+      "backend/tests/js/test_superadmin_dashboard_v11.mjs",
+      "backend/tests/js/test_superadmin_sections_v13.mjs",
+      "backend/tests/test_auto_start_worker_disabled_guard.py",
+      "backend/tests/test_autopilot_countdown_contract.py",
+      "backend/tests/test_bot_wallet_rule_metadata.py",
+      "backend/tests/test_compatibility_game_copy.py",
+      "backend/tests/test_countdown_integration.py",
+      "backend/tests/test_fresh_migrations_mysql.py",
+      "backend/tests/test_game_forum_lifecycle_contract.py",
+      "backend/tests/test_game_prize_replay_isolated_20261110.py",
+      "backend/tests/test_mini_deposit_rejection_reason.py",
+      "backend/tests/test_mini_light_theme_css.py",
+      "backend/tests/test_mini_ops_dashboard_mysql_isolated.py",
+      "backend/tests/test_mini_ops_dashboard_rbac_http.py",
+      "backend/tests/test_mini_wallet_rule_metadata.py",
+      "backend/tests/test_withdraw_rejection_reason.py",
+      "davarna-bot/bot/config.py",
+      "davarna-bot/bot/keyboards/active_games.py",
+      "davarna-bot/bot/keyboards/admin_games.py",
+      "davarna-bot/bot/keyboards/games.py",
+      "davarna-bot/bot/keyboards/purchase.py",
+      "davarna-bot/bot/routers/admin_games.py",
+      "davarna-bot/bot/routers/cards.py",
+      "davarna-bot/bot/routers/game.py",
+      "davarna-bot/bot/routers/help.py",
+      "davarna-bot/bot/routers/join_gate.py",
+      "davarna-bot/bot/routers/purchase.py",
+      "davarna-bot/bot/routers/start.py",
+      "davarna-bot/bot/routers/wallet.py",
+      "davarna-bot/bot/services/api_client.py",
+      "davarna-bot/bot/services/card_render.py",
+      "davarna-bot/bot/services/game_rules.py",
+      "davarna-bot/bot/services/lifecycle_delivery.py",
+      "davarna-bot/bot/services/notify_store.py",
+      "davarna-bot/bot/services/user_forum_navigation.py",
+      "davarna-bot/bot/services/user_topics.py",
+      "davarna-bot/bot/workers/notifier.py",
+      "davarna-bot/tests/test_autopilot_countdown_notice.py",
+      "davarna-bot/tests/test_bot_rule_copy_20261110.py",
+      "davarna-bot/tests/test_card_layout_v2.py",
+      "davarna-bot/tests/test_integrated_prizes_archive.py",
+      "davarna-bot/tests/test_lifecycle_delivery_ack.py",
+      "davarna-bot/tests/test_notification_rule_consistency.py",
+      "davarna-bot/tests/test_public_forum_notices.py",
+      "davarna-bot/tests/test_purchase_entrypoints_release.py",
+      "davarna-bot/tests/test_user_forum_navigation.py",
+      "davarna-bot/tests/test_winner_archive_ux_v2.py",
+      "dev/audit/game_lifecycle_rules_matrix_20261109.md",
+      "dev/audit/integration-20261111/changed-files.txt",
+      "dev/audit/integration-20261111/prs.md",
+      "dev/audit/integration-20261111/release-images.json",
+      "dev/audit/integration-20261111/report.md",
+      "dev/audit/integration-20261111/screenshots/games-mobile.png",
+      "dev/audit/integration-20261111/screenshots/superadmin-desktop.png",
+      "dev/audit/integration-20261111/text-inventory.md",
+      "dev/release/build-superadmin-ui-v12-20261110.sh",
+      "dev/release/build-superadmin-v11-candidate-20261109.sh",
+      "dev/release/davarna-v1-rc-scope-and-release-decision-20261109.md",
+      "dev/release/deploy-superadmin-ui-v12-20261110.sh",
+      "dev/release/smoke-integration-browser.mjs",
+      "dev/release/telegram-33-34-one-pass-release-gate-20261109.md",
+      "dev/release/test-davarna-v1-rc-offline-20261109.sh",
+      "dev/release/test-superadmin-v11-20261109.sh",
+      "dev/release/test-telegram-lifecycle-ack-20261109.sh"
+    ],
+    "unique_patch_commits": [],
+    "migration_files": [
+      "backend/alembic/versions/20260219_0001_initial_schema.py"
+    ],
+    "sensitive_paths": [
+      "backend/alembic/versions/20260219_0001_initial_schema.py",
+      "backend/tests/test_bot_wallet_rule_metadata.py",
+      "backend/tests/test_fresh_migrations_mysql.py",
+      "backend/tests/test_mini_wallet_rule_metadata.py",
+      "davarna-bot/bot/routers/wallet.py"
+    ]
+  },
+  {
+    "base": "release/combined-forum-mini-candidate-20261107",
+    "draft": true,
+    "head": "release/v1.0-readiness-20261109",
+    "html_url": "https://github.com/MR-P3Y/dabarna/pull/38",
+    "number": 38,
+    "sha": "2b23083e8dd7fb1c60151ff602a3f6144421b2be",
+    "title": "release(v1.0): combined forum rules + Telegram delivery ACK, read-only readiness gate",
+    "ancestor_of_deployed_release": false,
+    "review_base": "22ddf0f60e5eb0e56462503597679d0541efe229",
+    "changed_files": [
+      "backend/app/routers/mini_router.py",
+      "backend/tests/test_game_forum_lifecycle_contract.py",
+      "davarna-bot/bot/config.py",
+      "davarna-bot/bot/services/lifecycle_delivery.py",
+      "davarna-bot/bot/services/notify_store.py",
+      "davarna-bot/bot/services/user_forum_navigation.py",
+      "davarna-bot/bot/services/user_topics.py",
+      "davarna-bot/bot/workers/notifier.py",
+      "davarna-bot/tests/test_lifecycle_delivery_ack.py",
+      "dev/audit/game_lifecycle_rules_matrix_20261109.md",
+      "dev/release/telegram-33-34-one-pass-release-gate-20261109.md",
+      "dev/release/test-telegram-lifecycle-ack-20261109.sh",
+      "dev/release/v1-freeze-readme-20261109.md",
+      "dev/release/v1-readiness-only-20261109.sh"
+    ],
+    "unique_patch_commits": [
+      {
+        "sha": "9445e01fa2a7418f97c69def8010a4025ba128ce",
+        "subject": "chore(release): add single safe read-only v1.0 NODE2 readiness inspection"
+      },
+      {
+        "sha": "2b23083e8dd7fb1c60151ff602a3f6144421b2be",
+        "subject": "docs(release): freeze v1.0 scope, financial safeguards and explicit go/no-go gate"
+      }
+    ],
+    "migration_files": [],
+    "sensitive_paths": []
+  },
+  {
+    "base": "feature/superadmin-live-dashboard-v11-20261109",
+    "draft": true,
+    "head": "feature/superadmin-command-center-v12-20261110",
+    "html_url": "https://github.com/MR-P3Y/dabarna/pull/41",
+    "number": 41,
+    "sha": "f0a98a4cd8aff51c22d9509402a4ab8d53815cdf",
+    "title": "feat: Superadmin V1.2 + gated TON/TRON production rotation candidate",
+    "ancestor_of_deployed_release": false,
+    "review_base": "c6e2c5a7a237729becc8effc1a3a4c47fa96695c",
+    "changed_files": [
+      "backend/alembic/versions/20260219_0001_initial_schema.py",
+      "backend/alembic/versions/20260916_0007_locked_draw_mode.py",
+      "backend/alembic/versions/20261009_0008_withdraw_rejection_reason.py",
+      "backend/alembic/versions/20261031_0009_autopilot_foundation.py",
+      "backend/alembic/versions/20261104_0011_game_rule_card_layout.py",
+      "backend/alembic/versions/20261108_0012_deposit_rejection_reason.py",
+      "backend/app/routers/bot_router.py",
+      "backend/app/routers/mini_router.py",
+      "backend/app/services/crypto_address_change.py",
+      "backend/app/services/crypto_chain_service.py",
+      "backend/app/services/crypto_deposit_service.py",
+      "backend/app/services/crypto_destination_state.py",
+      "backend/app/services/crypto_late_transfer_review.py",
+      "backend/app/services/crypto_rotation_readiness.py",
+      "backend/app/services/crypto_scan_observation.py",
+      "backend/app/services/crypto_worker.py",
+      "backend/app/static/mini/app.js",
+      "backend/app/static/mini/index.html",
+      "backend/app/static/mini/ux-v2.css",
+      "backend/tests/js/test_superadmin_dashboard_v11.mjs",
+      "backend/tests/test_crypto_destination_match_isolated.py",
+      "backend/tests/test_crypto_destination_mysql_concurrency.py",
+      "backend/tests/test_crypto_destination_version_proto.py",
+      "backend/tests/test_crypto_historical_scan_gap_isolated.py",
+      "backend/tests/test_crypto_late_replay_guard_isolated.py",
+      "backend/tests/test_crypto_late_transfer_inbox_isolated.py",
+      "backend/tests/test_crypto_multi_address_provider_contracts.py",
+      "backend/tests/test_crypto_multi_address_worker_isolated.py",
+      "backend/tests/test_crypto_production_rotation_gate_isolated.py",
+      "backend/tests/test_crypto_rotation_readiness_isolated.py",
+      "backend/tests/test_crypto_rotation_readiness_scan_isolated.py",
+      "backend/tests/test_crypto_rotation_ton_memo_guard_isolated.py",
+      "backend/tests/test_crypto_scan_observation_isolated.py",
+      "backend/tests/test_crypto_scan_pagination_isolated.py",
+      "backend/tests/test_mini_crypto_address_proposals.py",
+      "davarna-bot/bot/keyboards/super_admin.py",
+      "davarna-bot/bot/routers/super_admin.py",
+      "dev/release/audit-crypto-chain-history-readonly-20261110.py",
+      "dev/release/audit-crypto-invoices-detail-readonly-20261110.sql",
+      "dev/release/audit-crypto-test-history-readonly-20261110.sql",
+      "dev/release/audit-financial-reset-pending-readonly-20261110.sql",
+      "dev/release/audit-full-financial-reset-readonly-20261110.sql",
+      "dev/release/bootstrap-zero-km-owner-20261110.sh",
+      "dev/release/build-zero-km-v12-v13-candidate-20261110.sh",
+      "dev/release/cleanup-crypto-test-invoices-guarded-20261110.sh",
+      "dev/release/preflight-zero-km-cutover-readonly-20261110.sh",
+      "dev/release/prepare-zero-km-persistent-mysql-20261110.sh",
+      "dev/release/stage-zero-km-new-crypto-addresses-20261110.sh",
+      "dev/release/start-zero-km-isolated-backend-preview-20261110.sh",
+      "dev/release/test-clean-launch-fresh-db-20261110.sh",
+      "dev/release/test-superadmin-command-v12-20261110.sh",
+      "dev/release/test-wallet-rotation-mysql-disposable-20261110.sh",
+      "dev/release/verify-crypto-test-cleanup-readonly-20261110.sql",
+      "dev/release/verify-wallet-release-image-readonly-20261110.sh",
+      "dev/release/verify-wallet-rotation-release-candidate-20261110.sh",
+      "docs/clean-launch-zero-km-20261110.md",
+      "docs/superadmin-command-center-v12.md"
+    ],
+    "unique_patch_commits": [
+      {
+        "sha": "2669da52cf14d832a2983c836838361536aaa25e",
+        "subject": "feat(admin): make monitoring KPI cards actionable and service status inspectable"
+      },
+      {
+        "sha": "91bc698adea3756568f3543bd3a39f7e2762ab21",
+        "subject": "feat(admin): clarify command center navigation and add accessible service inspector"
+      },
+      {
+        "sha": "5feabab61daca3730796f97d87789142a05e699f",
+        "subject": "style(admin): upgrade command-center interaction, focus and mobile touch targets"
+      },
+      {
+        "sha": "e7e3c2d095f4d9e8d17c08aa9fb318d9447c996c",
+        "subject": "feat(crypto): validate proposed destination addresses without changing active wallets"
+      },
+      {
+        "sha": "051beb40058f8a5ab730a8796104ac9befc772a5",
+        "subject": "feat(superadmin): accept owner-only audited wallet address proposals without activation"
+      },
+      {
+        "sha": "0730cf8383c2cfc863b1f483b83a04ddd54a3d6c",
+        "subject": "feat(superadmin): add protected crypto destination proposal form with explicit non-activation notice"
+      },
+      {
+        "sha": "d4dddfd32b3ef5c2f8bc149c139b0657c117a903",
+        "subject": "feat(superadmin): wire wallet change requests and pending review display to audited API"
+      },
+      {
+        "sha": "bd9d31562fc8403afc1ddd85c364d332fdadcf8d",
+        "subject": "test(admin): cover actionable monitoring and wallet proposal UI in V1.2"
+      },
+      {
+        "sha": "271857292be1442f84532e074c524f56e2f7f5c2",
+        "subject": "feat(ui): organize superadmin settings as navigable operations workspace"
+      },
+      {
+        "sha": "0cf1aac230750160ff37dbb194c4be4ee51dd3d6",
+        "subject": "feat(ui): navigate superadmin crypto, bank and role panels directly"
+      },
+      {
+        "sha": "a8296a37a5e4a42f3f38434e77a2b267016cad72",
+        "subject": "style(ui): add superadmin workspace layout and mobile shortcuts"
+      },
+      {
+        "sha": "172c43f6085384218b78f39b7a99bee3255cbfe8",
+        "subject": "test(crypto): verify staged wallet changes, validation, permissions and no active side effects"
+      },
+      {
+        "sha": "bf236a9a9e90e5ffab321f2d6ebe1183f71a05f7",
+        "subject": "docs: record V1.2 feature scope and mandatory wallet-activation safety gates"
+      },
+      {
+        "sha": "5a1e8a3e49b45d4d0ac929d03c528e4f1c2f540d",
+        "subject": "fix(ui): show exact scoped active game count from API"
+      },
+      {
+        "sha": "91535b5d48044ce6ea2395ac341e1006e0c042c3",
+        "subject": "test(monitoring): catch undercount caused by six-game preview cap"
+      },
+      {
+        "sha": "d5a7ead51c8e149a1a26aad85515a087889046f1",
+        "subject": "test(release): pinned isolated V1.2 JS and Python safety checks"
+      },
+      {
+        "sha": "7dbec79a722b88bb84292eab85b7234ffe162768",
+        "subject": "test(release): restrict isolated test harness to the two relevant suites"
+      },
+      {
+        "sha": "6ff11f8944765a937402703031a0b84e93a49ccd",
+        "subject": "fix(crypto): restrict raw TON proposals to supported workchains"
+      },
+      {
+        "sha": "d7d88c08a6fbd6c83a5c6320312a00432c7143e2",
+        "subject": "security(crypto): rate-limit owner-only wallet address proposals"
+      },
+      {
+        "sha": "e45364c22e19f768c3c5a05c266d7b7e64bb57a1",
+        "subject": "test(crypto): isolate proposal rate-limiter from Redis"
+      },
+      {
+        "sha": "9e4685044a2ed20371164cd4542da54e25ec802d",
+        "subject": "fix(crypto): bind transfer matching to immutable invoice destination address across claims and memos"
+      },
+      {
+        "sha": "1206b5a96f61d637103656a5bf03cbaffb285b54",
+        "subject": "test(crypto): prevent matching chain transfers to invoices for different wallet destinations"
+      },
+      {
+        "sha": "c8e45e51058f22d42530f717cddb93bf8d0499c5",
+        "subject": "test(release): include wrong-wallet matching regression suite in isolated checks"
+      },
+      {
+        "sha": "3732e23d3821d6a83c8fecb41ec4b8fee0c542d1",
+        "subject": "feat(crypto): allow explicit per-address TRON and TON scans while retaining default env wallet behavior"
+      },
+      {
+        "sha": "b7973ad0cbbc06089d237d1414f9d6153a676d8b",
+        "subject": "feat(crypto): scan all distinct destinations of outstanding invoices, preserving old-wallet monitoring"
+      },
+      {
+        "sha": "a54b61dce664d91666de67c3df583754aeac2e2d",
+        "subject": "test(crypto): verify old/new destination scans, partial provider failures and backward compatibility"
+      },
+      {
+        "sha": "0bcb12e52e233e4f6fde515146194aca28860dc1",
+        "subject": "test(release): include no-network multi-address worker regression tests"
+      },
+      {
+        "sha": "f897f979a073a2622f838bfb581885562209d10f",
+        "subject": "test(crypto): mock TronGrid and TON Center multi-address scanning and provider failures"
+      },
+      {
+        "sha": "ab477e1d45f252bf5cba38b418deac9403a60ab0",
+        "subject": "test(release): include mocked TronGrid and TON Center contract tests"
+      },
+      {
+        "sha": "2458ca9ee42bc06f3377df6e04cda1b168afd60d",
+        "subject": "feat(crypto): read-only wallet rotation readiness assessment including expired and review invoices"
+      },
+      {
+        "sha": "23b5ade38c0df142f9942fda68228392bb8ebd16",
+        "subject": "feat(superadmin): expose read-only crypto rotation readiness and unresolved invoice counts"
+      },
+      {
+        "sha": "e4b2d251a2b50cbef0b3cd4668b43254206d2cf0",
+        "subject": "test(crypto): verify read-only rotation blockers and payment expiry/grace windows"
+      },
+      {
+        "sha": "580b12dc2b6ef08ea3e957dd8bf93671f241e4c4",
+        "subject": "test(release): run mocked provider, expiry and rotation-readiness suites in isolated container"
+      },
+      {
+        "sha": "e3c251f7717fbd628a381c28e538e3bfbc55db92",
+        "subject": "feat(superadmin): inspect read-only wallet rotation blockers from pending proposal cards"
+      },
+      {
+        "sha": "f40b2fc16b35db2c38cae40d2bcfa0dd914202b9",
+        "subject": "test(crypto): assert rotation readiness API respects owner authorization and cannot activate wallets"
+      },
+      {
+        "sha": "cbd2f416336a192aecfcff2c995c0775cbdd00d6",
+        "subject": "docs: record mocked provider coverage, readiness gate and atomic activation blockers"
+      },
+      {
+        "sha": "4c2656825fbd03baec0642aa45598909605418d1",
+        "subject": "feat(crypto): add opt-in disposable-only locked wallet revision state for atomic switch prototypes"
+      },
+      {
+        "sha": "25824e2c76152317ce2763a53368bd7d76db9167",
+        "subject": "feat(crypto): share persistent destination row lock between invoice creation and experimental rotation"
+      },
+      {
+        "sha": "59840538cf55f63f85ea87a56b79dcf89e475ae5",
+        "subject": "security(crypto): hard-bind experimental wallet rotation to named disposable MySQL database"
+      },
+      {
+        "sha": "b59a6229b5b9f10c1a3fdeecf5b60a9791c02d07",
+        "subject": "test(crypto): serial versioned wallet rotation, revert, stale revision and production gate denial"
+      },
+      {
+        "sha": "d9b0757b59153223414b4a10307876659f1f5acd",
+        "subject": "test(release): add fail-closed experimental destination revision prototype tests"
+      },
+      {
+        "sha": "32e5f823ab4acfff0f07c96f321bed8987233967",
+        "subject": "test(crypto): add opt-in disposable MySQL concurrency and stale-activation regression checks"
+      },
+      {
+        "sha": "8af7f04b1f4da6107d8f992f1019350579adec2d",
+        "subject": "docs: record experimental atomic revision design, isolated database boundary and remaining safety gates"
+      },
+      {
+        "sha": "cb17e451bddb618dfbeff5a74721968a18433426",
+        "subject": "test(crypto): synchronize MySQL concurrency reader start to avoid false positive"
+      },
+      {
+        "sha": "6f3ea9a6ae88ad6c27e9cf0abf402b7aa5ebff47",
+        "subject": "test(release): isolated disposable MySQL real row-lock concurrency harness"
+      },
+      {
+        "sha": "c2c4c7ce2446362d7babdc9012148e7432369548",
+        "subject": "fix(test): enable isolated MySQL 8.4 native auth for dedicated disposable test user"
+      },
+      {
+        "sha": "c01521b730f1590b7a4de5cb2e643c9b1bf471db",
+        "subject": "test(crypto): persist concurrent invoice destination snapshots across MySQL rotation and rollback"
+      },
+      {
+        "sha": "d4dff3d1bdf3097d7526635c90a064d9e415fb61",
+        "subject": "test(crypto): verify no auto-credit on closed invoices or reused hashes and guard replay mismatches"
+      },
+      {
+        "sha": "8859440776b49831086205e4f955feaef116da14",
+        "subject": "test(release): include late-payment and ledger replay guard regression suite"
+      },
+      {
+        "sha": "77f1ed265027898006e4a0bf2188e2437e589131",
+        "subject": "docs(crypto): mark invoice snapshot and late payment regression scope and unimplemented reconciliation"
+      },
+      {
+        "sha": "d0012d43fb49871e004fe1c0048ae1cfb8320cc2",
+        "subject": "fix(test): assert MySQL lock outcome without scheduler-dependent post-commit event order"
+      },
+      {
+        "sha": "88c3c3cf6f25fc2fc02eb7ec09f12ec55ddd8539",
+        "subject": "test(crypto): exercise real invoice issuance, MySQL persisted destination and rotation concurrency"
+      },
+      {
+        "sha": "92338e229e0a319d4b66a326a36a06df4b3fceae",
+        "subject": "test(crypto): real MySQL wallet ledger replay remains single credit across fresh sessions"
+      },
+      {
+        "sha": "d74838d7e7d611afbc196509a318e7c6949fd3e4",
+        "subject": "docs: define real MySQL invoice and replay integration tests and outstanding settlement gaps"
+      },
+      {
+        "sha": "0cbcb32df3f7a6f18ebe2e8e082980438aa5bf8f",
+        "subject": "feat(wallet): owner-only versioned activation rehearsal endpoint gated to disposable MySQL with audited CAS and historical invoice veto"
+      },
+      {
+        "sha": "2dd14daed4a1830e4de283887002849a1f021461",
+        "subject": "feat(wallet): add disposable-only idempotent review inbox for late payments to historic crypto destinations"
+      },
+      {
+        "sha": "5afd1dde39cb911336f5491c2ac15e82afcad794",
+        "subject": "feat(wallet): scan historical invoice destinations in disposable rotation mode and quarantine unmatched late transfers without credit"
+      },
+      {
+        "sha": "5c1d98943c2584982b107fccaf4d585784d293b1",
+        "subject": "feat(wallet): expose owner-only experimental historical-transfer manual review inbox read-only"
+      },
+      {
+        "sha": "fdb695e70dc0f1658f1909e67f217446631ef724",
+        "subject": "test(wallet): verify late-transfer inbox never auto-credits, duplicate hashes suppressed and prod gate fails closed"
+      },
+      {
+        "sha": "d22fc49e00c335994138c9c0eb4dfd523ea65bfa",
+        "subject": "test(wallet): include late-transfer no-credit review suite in existing single disposable MySQL release gate"
+      },
+      {
+        "sha": "9d92ced8ce64e2c38780af55e41b30fea2a9987d",
+        "subject": "fix(crypto): paginate TRON and TON destination scans with fail-closed bounds"
+      },
+      {
+        "sha": "19966a4fb1a3e8bc5af344a5e93b66ec274962f8",
+        "subject": "test(crypto): cover multi-page TRON and TON scans and incomplete-provider failures"
+      },
+      {
+        "sha": "92d3280f9606e492e6f95e9a30a3a13d40084b2f",
+        "subject": "test(release): include crypto pagination and late-transfer inbox regressions in isolated gate"
+      },
+      {
+        "sha": "deecb5aedbd17a89711a0414127c92137b76e49f",
+        "subject": "docs(crypto): record pagination safety work and remaining production blockers"
+      },
+      {
+        "sha": "35b33b398ce4ede9691845bd15dcc4bc878b218a",
+        "subject": "fix(crypto): reject TON amount-only attribution in experimental wallet rotation"
+      },
+      {
+        "sha": "b19d647620f05fd536dccec914f730c245f2e9a7",
+        "subject": "fix(crypto): require nonempty matching TON invoice memo for claimed hash"
+      },
+      {
+        "sha": "38a1d8aa21daed774833b02b43cae1d2a5017381",
+        "subject": "test(crypto): enforce strict TON memos only during experimental rotation"
+      },
+      {
+        "sha": "2de84bf0226372e4536189aa5f953d4e8ea47e85",
+        "subject": "test(release): run strict TON memo regression with wallet rotation safety gate"
+      },
+      {
+        "sha": "8a379c30fad881bcbef8d33d737e9078966da136",
+        "subject": "docs(crypto): record strict TON rotation attribution and production release blockers"
+      },
+      {
+        "sha": "ea212d2930351f3854e0aa3312b43a31d373dfd7",
+        "subject": "fix(crypto): explicitly surface historical scan gaps without dropping recent invoice scans"
+      },
+      {
+        "sha": "d8533096370e037354928878086be9032e3a7659",
+        "subject": "test(crypto): verify old-destination scan gaps are flagged without changing live scan semantics"
+      },
+      {
+        "sha": "2e9e0d93336951700fd753a23e053525ed7d1209",
+        "subject": "test(release): run historical scan gap alarm regression in isolated safety suite"
+      },
+      {
+        "sha": "6470089d0bd80dbfb40369d192d03526f4f225c6",
+        "subject": "docs(crypto): document historical scan coverage alarms and remaining backfill work"
+      },
+      {
+        "sha": "5866c275a671da5728d81c27a023281603d8e347",
+        "subject": "feat(crypto): record guarded scan observations without asserting historical backfill"
+      },
+      {
+        "sha": "ea8fb48bee2040322701748aaddabdcd88ead9fa",
+        "subject": "feat(crypto): persist experimental per-address scan attempts and failures"
+      },
+      {
+        "sha": "3aca4baf380a8f1ec0a719c12d33a16dc1fa5d12",
+        "subject": "test(crypto): ensure persisted scan observation is never proof of backfill"
+      },
+      {
+        "sha": "2f229d4db9120bf70c0e569e69386a2cfaf293a3",
+        "subject": "test(release): include persisted scan observation guards in isolated test gate"
+      },
+      {
+        "sha": "3bbedf4a965a1cbdaa763a1904c813acd4219612",
+        "subject": "docs(crypto): document per-address scan diagnostics and explicitly unverified backfill"
+      },
+      {
+        "sha": "17aadec8eedbb113316de2c43d177ccf575c9f61",
+        "subject": "fix(crypto): include rejected historical invoices in manual late-transfer monitoring"
+      },
+      {
+        "sha": "17b07a02cbf50f131a042fe84d12546542790ca3",
+        "subject": "feat(crypto): expose fail-closed scan diagnostics in experimental rotation readiness"
+      },
+      {
+        "sha": "5a05c99d2e7c1278acc7325b30207ad4b61a3b20",
+        "subject": "test(crypto): readiness never trusts scan observations as activation evidence"
+      },
+      {
+        "sha": "7b87a26f18d5925ee19b432aed5e8be3451356a0",
+        "subject": "test(release): include rejected-invoice and fail-closed readiness regressions"
+      },
+      {
+        "sha": "ed8c150b97d2e6597a2e25fcc0f8eff0d2b35c44",
+        "subject": "docs(crypto): record rejected late transfers and conservative scan readiness"
+      },
+      {
+        "sha": "361792735b7b8e2809780e62f78853192d10b55d",
+        "subject": "ops(crypto): add read-only history and ledger dependency audit before any test cleanup"
+      },
+      {
+        "sha": "bbd6360ca9654b9d28107fdfc9910f90341b409d",
+        "subject": "docs(crypto): narrow historical migration requirement for verified test-only data without permitting blind deletion"
+      },
+      {
+        "sha": "a13c9baa47cc80f270d87e1c76fe75c5ef4550b2",
+        "subject": "ops(crypto): add read-only final test-history cleanup eligibility checks"
+      },
+      {
+        "sha": "44ba51143b3be77271d19c8d51eaca47cb3485af",
+        "subject": "ops(crypto): stage backup-first guarded cleanup runbook (execution intentionally blocked pending atomic guard)"
+      },
+      {
+        "sha": "5eed29058df8a726fef3aa848ba594ea02e768c5",
+        "subject": "fix(ops): make crypto cleanup preparation strictly read-only with full database backup"
+      },
+      {
+        "sha": "8e9779097bcf3570194831feab15b3b3eca8a713",
+        "subject": "ops(finance): add read-only full-wallet reset dependency census before any production reset"
+      },
+      {
+        "sha": "7163bc382815bfb2581a01a57dccaa094b8190ee",
+        "subject": "ops(finance): audit pending payment requests and game 91 before reset"
+      },
+      {
+        "sha": "2b1b859c94d5fbea31eea00ad83038adb5e8ece3",
+        "subject": "fix(crypto): bind proposal/readiness to current versioned destination in disposable rotation mode"
+      },
+      {
+        "sha": "58728ff5398eaae4638f9b8695767fe4d8661c73",
+        "subject": "test(crypto): regress second rotation, stale proposals and production address isolation"
+      },
+      {
+        "sha": "e7f64c6a54cdbaeefdd6873396edca2e76708810",
+        "subject": "feat(crypto): expose current version only in disposable rotation proposal review"
+      },
+      {
+        "sha": "dd6ccc4a4af05b2696c2d01c8fed1ab288978e10",
+        "subject": "feat(mini): add gated disposable-only crypto rotation confirmation to superadmin panel"
+      },
+      {
+        "sha": "88da119f4e2a581a072e97dd21ee335d837a39be",
+        "subject": "test(crypto): enforce experimental-only version reveal and production activation denial"
+      },
+      {
+        "sha": "a763e5d7ba7adca27b8907337d5771fc3737a950",
+        "subject": "docs(release): focus TON/TRON rotation and describe staged experimental UI and remaining gates"
+      },
+      {
+        "sha": "f4a0ccfd53cd873c74f06204274d7a23de584262",
+        "subject": "feat(crypto): surface historical invoice blocker in rotation readiness report"
+      },
+      {
+        "sha": "411e8e6e2c334f18711fece6238a45b87b850c75",
+        "subject": "ui(crypto): show historical invoice blocker before superadmin rotation review"
+      },
+      {
+        "sha": "3ca9d6a7fb2fbbee43314ad93a1eb488b5d4cebb",
+        "subject": "test(crypto): include historical invoice count in read-only readiness contract"
+      },
+      {
+        "sha": "7362654d6470b1c5476837743df4e2186e61d377",
+        "subject": "feat(crypto): add default-off explicitly pinned production rotation mode without weakening disposable gate"
+      },
+      {
+        "sha": "9e6deac00f30c378777ba8f23b5b7185fe26c9d3",
+        "subject": "fix(crypto): keep experimental activation strictly disposable with production gate introduced"
+      },
+      {
+        "sha": "bf55ed358c1d647982c925ed544d9012b541d9a5",
+        "subject": "feat(crypto): implement gated owner-only frozen-runtime production address preparation and atomic CAS activation"
+      },
+      {
+        "sha": "d24ab10224687a6f91c809262f2a91b8dc3a2baa",
+        "subject": "fix(crypto): show frozen production bootstrap state without allowing unseeded invoices"
+      },
+      {
+        "sha": "8d6dea41dca4d1882b5554ec71e7970e69f3e847",
+        "subject": "feat(crypto): expose frozen production bootstrap/version metadata in owner panel"
+      },
+      {
+        "sha": "cb80f239c57024860ae39dfd29e8a24378751db9",
+        "subject": "feat(mini): owner-only versioned wallet bootstrap UI when crypto deposits are frozen"
+      },
+      {
+        "sha": "5e22098656b4b1af4a4bac58db3954ca45853bfa",
+        "subject": "feat(mini): double-confirmed owner-only production address activation UI with read-only invoice gate"
+      },
+      {
+        "sha": "c67cc3379b2d45071e34e68e70b08fc8e0cbbcaa",
+        "subject": "test(crypto): refuse unauthorized, unfrozen, historical and stale production activation"
+      },
+      {
+        "sha": "80601966a4206de4f1a66a2e3ac6a9dce6f61831",
+        "subject": "test(crypto): verify fail-closed default and independent production/database rotation gate"
+      },
+      {
+        "sha": "757bab8764c06e14db3c891e13522560b1a0d4f7",
+        "subject": "test(release): include fail-closed production rotation env gate regression in pinned V1.2 suite"
+      },
+      {
+        "sha": "47de7d97a71b96def2301d224382e95507f517ad",
+        "subject": "feat(bot): expose superadmin TON/TRON destination status entry in crypto menu"
+      },
+      {
+        "sha": "b0b6b782d44e7326d9991827ccf0be79d800530e",
+        "subject": "feat(bot): add read-only owner wallet address overview with Mini App-only activation boundary"
+      },
+      {
+        "sha": "d83bbd8f7498acc851f4bf8d025afaa86cdf9674",
+        "subject": "fix(bot-finance): serialize bot crypto runtime toggle with production destination rotation lock"
+      },
+      {
+        "sha": "dd960f3e4ffde5010976cd40e0dbee44c9f5aab6",
+        "subject": "test(crypto): verify successful production CAS handler remains frozen and audits proposal state"
+      },
+      {
+        "sha": "8b525f77ed4973a4ba2fd087d3d8454c6a218356",
+        "subject": "fix(bot): render proper newlines in owner wallet destination overview"
+      },
+      {
+        "sha": "0ee54c8e1ded18408a5008d4f0fffc3409af029a",
+        "subject": "fix(crypto): consistent runtime-before-destination lock order and isolate experimental review endpoint"
+      },
+      {
+        "sha": "8d187c6ac5c28e5439c7c29629706088f1fbed5a",
+        "subject": "fix(bot): align crypto runtime and address locks to prevent production switch deadlock"
+      },
+      {
+        "sha": "47cabd7a5d11b68dd4413ad474a4c8b6fc748384",
+        "subject": "feat(crypto): fail closed if TON/TRON provider cannot scan proposed production address"
+      },
+      {
+        "sha": "43fd0584d7eaa09b71ddb2ffd702754cdb05c73f",
+        "subject": "test(crypto): mock production provider preflight in isolated successful activation test"
+      },
+      {
+        "sha": "5c7059395db4256a742ddab8cb1422cc6f28b2e1",
+        "subject": "test(crypto): ensure provider query failure blocks production activation before version update"
+      },
+      {
+        "sha": "ddcd418b09edba168b6a2775c0ff2bcab9bf0bc3",
+        "subject": "feat(crypto): add owner-only production historical transfer observation inbox without credit actions"
+      },
+      {
+        "sha": "8a5535554ac3a3e83c0f21452176ac22cf1d0512",
+        "subject": "test(release): compile pinned bot package and backend before crypto regression runs"
+      },
+      {
+        "sha": "82859048e55dcb601898749d56cc01d4647f3f1f",
+        "subject": "test(crypto): align experimental proposal listing test with strict disposable gate"
+      },
+      {
+        "sha": "937b2357b2d9bbdef97f519e14ea5831b06dbe4c",
+        "subject": "test(release): add one pinned disposable-only wallet candidate verification runner"
+      },
+      {
+        "sha": "706365d82c64f03ec70f346cbaaee2876a265bfd",
+        "subject": "docs(release): document gated production rotation candidate, owner workflow, and history blockers"
+      },
+      {
+        "sha": "ac0400389ffd42abbb4cfcd6ca81817d3b703d7a",
+        "subject": "docs(crypto): clarify explicit gated version bootstrap for frozen production"
+      },
+      {
+        "sha": "98c16a25aa27431a48dbd8ffe2e6f3c35361248a",
+        "subject": "audit(crypto): add read-only detailed historical TON/TRON invoice reconciliation report"
+      },
+      {
+        "sha": "0dc406b81d311c818d4c3776bbde145ae42a5992",
+        "subject": "audit(crypto): add read-only bounded TON/TRON historical chain scan for retired destinations"
+      },
+      {
+        "sha": "9ce69a9968b3798f709097dc89847a2aeb3ce735",
+        "subject": "fix(audit): match live chain service API and verify historical configured addresses before scanning"
+      },
+      {
+        "sha": "f207f1e6106f53f536b5238da9b42843175d199b",
+        "subject": "test(clean-launch): validate fresh full MySQL migrations and seed in disposable network with zero finance rows"
+      },
+      {
+        "sha": "3aa942e70c40379388fdba659f986f1370689ddc",
+        "subject": "docs(clean-launch): plan zero-km clean DB cutover with separate stack, preserved rollback and fund gates"
+      },
+      {
+        "sha": "68dfef3d633663c324f36368b0915940cbd71e42",
+        "subject": "test(release): fail candidate image when crypto or Mini App file differs from pinned Git source"
+      },
+      {
+        "sha": "1083ff64988d302642c37ba8d1581723a5183a8e",
+        "subject": "fix(clean-launch): point receipt storage to disposable writable tmpfs during read-only migration test"
+      },
+      {
+        "sha": "d6ee463853b3c144e453266570d8e1d84e6a35af",
+        "subject": "fix(clean-launch): enable trigger creation only on ephemeral test MySQL for migration 0007"
+      },
+      {
+        "sha": "3dfc192d1d1c1be5d8fce2f44690281fe337cdf7",
+        "subject": "fix(migrations): make locked draw mode schema additions converge on fresh DB"
+      },
+      {
+        "sha": "ded3fdf5919eb4191bbc902c5b02d1fc2c737740",
+        "subject": "fix(clean-launch): reconcile historical migration with modern initial schema — 20260219_0001_initial_schema.py"
+      },
+      {
+        "sha": "872965555918e9a11368abc48c62d38238357d54",
+        "subject": "fix(clean-launch): reconcile historical migration with modern initial schema — 20261009_0008_withdraw_rejection_reason.py"
+      },
+      {
+        "sha": "5eb698729a7fa6a558072ff070dc523c5ca086cd",
+        "subject": "fix(clean-launch): reconcile historical migration with modern initial schema — 20261031_0009_autopilot_foundation.py"
+      },
+      {
+        "sha": "5721bb2a198d8d8d212f6e1cd80a7688af34d5a6",
+        "subject": "fix(clean-launch): reconcile historical migration with modern initial schema — 20261104_0011_game_rule_card_layout.py"
+      },
+      {
+        "sha": "e16e9a61f1e2ec837d72045b05aefb8a1b9d2f89",
+        "subject": "fix(clean-launch): reconcile historical migration with modern initial schema — 20261108_0012_deposit_rejection_reason.py"
+      },
+      {
+        "sha": "e13e3b19fbc94ab7211c926a2272d707dd2f1a7b",
+        "subject": "ops(clean-launch): add non-destructive production cutover preflight with counts, flags and volume mapping"
+      },
+      {
+        "sha": "84ad024f128dc5a58ea35252332563cc0105c2ae",
+        "subject": "ops(clean-launch): prepare independent persistent empty MySQL with strict non-production guards and migration assertions"
+      },
+      {
+        "sha": "604f32e9aa631b3edd82096628ff466152f15b0e",
+        "subject": "build(zero-km): safely combine V1.2 wallet backend with V1.3 Superadmin UI in nondeployed candidate"
+      },
+      {
+        "sha": "062cd58647d9e2832c2bed73479efdb31315348a",
+        "subject": "fix(zero-km build): deterministic V1.3 panel integration preserving V1.2 wallet proposal UI instead of brittle git patch"
+      },
+      {
+        "sha": "ef643780d3628e1cb64b8e60e51f04f5a9d27592",
+        "subject": "ops(zero-km): verify combined image via no-bot no-payments private backend preview on independent persistent DB"
+      },
+      {
+        "sha": "6eda9b5654e50b0ebfd0dc5c5bb7b7cb8e2d8b8a",
+        "subject": "fix(zero-km preview): pipe stdin to Python verification inside isolated backend"
+      },
+      {
+        "sha": "b7c6d797a714d4ad6e7477dbc69d97c762a0df30",
+        "subject": "fix(zero-km preview): allow Redis image startup chown on isolated tmpfs; expose Redis logs on failure"
+      },
+      {
+        "sha": "392f4035b61a91c26321f09b434b6ccfb7dbc57b",
+        "subject": "ops(zero-km): securely bootstrap verified Telegram owner as sole new user without copying historical funds"
+      },
+      {
+        "sha": "89a80929a27762bc1eaefc7ed104b6f1b3df8dd9",
+        "subject": "fix(zero-km owner bootstrap): use stdin-enabled Docker exec for validated live owner lookup"
+      },
+      {
+        "sha": "f0a98a4cd8aff51c22d9509402a4ab8d53815cdf",
+        "subject": "ops(zero-km): privately stage validated new TON and TRON receive addresses without activating payments"
+      }
+    ],
+    "migration_files": [
+      "backend/alembic/versions/20260219_0001_initial_schema.py",
+      "backend/alembic/versions/20260916_0007_locked_draw_mode.py",
+      "backend/alembic/versions/20261009_0008_withdraw_rejection_reason.py",
+      "backend/alembic/versions/20261031_0009_autopilot_foundation.py",
+      "backend/alembic/versions/20261104_0011_game_rule_card_layout.py",
+      "backend/alembic/versions/20261108_0012_deposit_rejection_reason.py"
+    ],
+    "sensitive_paths": [
+      "backend/alembic/versions/20260219_0001_initial_schema.py",
+      "backend/alembic/versions/20260916_0007_locked_draw_mode.py",
+      "backend/alembic/versions/20261009_0008_withdraw_rejection_reason.py",
+      "backend/alembic/versions/20261031_0009_autopilot_foundation.py",
+      "backend/alembic/versions/20261104_0011_game_rule_card_layout.py",
+      "backend/alembic/versions/20261108_0012_deposit_rejection_reason.py",
+      "backend/app/services/crypto_address_change.py",
+      "backend/app/services/crypto_chain_service.py",
+      "backend/app/services/crypto_deposit_service.py",
+      "backend/app/services/crypto_destination_state.py",
+      "backend/app/services/crypto_late_transfer_review.py",
+      "backend/app/services/crypto_rotation_readiness.py",
+      "backend/app/services/crypto_scan_observation.py",
+      "backend/app/services/crypto_worker.py",
+      "backend/tests/test_crypto_destination_match_isolated.py",
+      "backend/tests/test_crypto_destination_mysql_concurrency.py",
+      "backend/tests/test_crypto_destination_version_proto.py",
+      "backend/tests/test_crypto_historical_scan_gap_isolated.py",
+      "backend/tests/test_crypto_late_replay_guard_isolated.py",
+      "backend/tests/test_crypto_late_transfer_inbox_isolated.py",
+      "backend/tests/test_crypto_multi_address_provider_contracts.py",
+      "backend/tests/test_crypto_multi_address_worker_isolated.py",
+      "backend/tests/test_crypto_production_rotation_gate_isolated.py",
+      "backend/tests/test_crypto_rotation_readiness_isolated.py",
+      "backend/tests/test_crypto_rotation_readiness_scan_isolated.py",
+      "backend/tests/test_crypto_rotation_ton_memo_guard_isolated.py",
+      "backend/tests/test_crypto_scan_observation_isolated.py",
+      "backend/tests/test_crypto_scan_pagination_isolated.py",
+      "backend/tests/test_mini_crypto_address_proposals.py",
+      "dev/release/audit-crypto-chain-history-readonly-20261110.py",
+      "dev/release/audit-crypto-invoices-detail-readonly-20261110.sql",
+      "dev/release/audit-crypto-test-history-readonly-20261110.sql",
+      "dev/release/cleanup-crypto-test-invoices-guarded-20261110.sh",
+      "dev/release/stage-zero-km-new-crypto-addresses-20261110.sh",
+      "dev/release/test-wallet-rotation-mysql-disposable-20261110.sh",
+      "dev/release/verify-crypto-test-cleanup-readonly-20261110.sql",
+      "dev/release/verify-wallet-release-image-readonly-20261110.sh",
+      "dev/release/verify-wallet-rotation-release-candidate-20261110.sh"
+    ]
+  },
+  {
+    "base": "release/superadmin-command-ui-v12-20261110",
+    "draft": true,
+    "head": "hotfix/auto-draw-worker-start-guard-20261110",
+    "html_url": "https://github.com/MR-P3Y/dabarna/pull/43",
+    "number": 43,
+    "sha": "cf0317c5a6adf94be8656df3f2a06f86cc876678",
+    "title": "Fix stalled automatic number drawing and add live system-game countdown dashboard",
+    "ancestor_of_deployed_release": false,
+    "review_base": "e54475af9d83582943730f3f65fa4ad1726bf31b",
+    "changed_files": [
+      "backend/app/routers/mini_router.py",
+      "backend/app/services/game_service.py",
+      "backend/app/static/mini/app.js",
+      "backend/app/static/mini/index.html",
+      "backend/app/static/mini/ux-v2.css",
+      "backend/tests/test_auto_start_worker_disabled_guard.py",
+      "dev/release/close-stalled-auto-86-87-20261110.py",
+      "dev/release/deploy-auto-clock-ui-20261110.sh",
+      "dev/release/recover-auto-draw-production-20261110.sh"
+    ],
+    "unique_patch_commits": [
+      {
+        "sha": "df4a82e89bc6d1561a22f19e74737a90a5970b61",
+        "subject": "fix(game): reject starting AUTO round if number-draw worker is disabled"
+      },
+      {
+        "sha": "a48d1f5b231285a99121fd4e55d8af9668a2ed49",
+        "subject": "fix(ops): atomic compensated close for stalled AUTO games 86/87 with full purchase/ledger checks"
+      },
+      {
+        "sha": "6842d72fd2925b16b6203e408f7ed66629f1c0ae",
+        "subject": "ops: pinned compensated close 86/87 and isolated auto draw worker activation with backup and config invariant"
+      },
+      {
+        "sha": "69a4209c7b1e5f6cdbe770008a41c193b6da49f0",
+        "subject": "safety(ops): prevent backend image drift and revert worker overlay if health verification fails"
+      },
+      {
+        "sha": "6a0c9cc4b436054efaa44c278aaf2eb233d08303",
+        "subject": "test(game): guard disabled auto number worker without blocking manual mode"
+      },
+      {
+        "sha": "8340d1e158e8fc8aa2e4edcbc87339a97983fc46",
+        "subject": "test(release): gate recovery on isolated auto-start safety regression and close-script syntax"
+      },
+      {
+        "sha": "afb74fb4444c4b6c7894bc92d47adf7d3f4c3654",
+        "subject": "feat(mini): add system-only live game countdown dashboard"
+      },
+      {
+        "sha": "b85aab11b5de6314370a75dd07f3c82263d2c218",
+        "subject": "feat(mini): show live system game countdown states with periodic server resync, no client gameplay actions"
+      },
+      {
+        "sha": "ef2a04e73d354e2cde945de2e8e9b259c2b7e695",
+        "subject": "feat(mini): expose role-limited runtime state for system-game countdown accuracy"
+      },
+      {
+        "sha": "77b979cb4393a92603c74cffc5202f3906c93e10",
+        "subject": "style(mini): polished RTL system-game countdown cards with reduced-motion accessibility"
+      },
+      {
+        "sha": "487d9448055f2301a3ac9448638bfaf36c9cc300",
+        "subject": "feat(mini): provide UTC clock anchor for accurate system-game countdown"
+      },
+      {
+        "sha": "3b38318c0aaac7681988e9d6af8b6000c29583b8",
+        "subject": "fix(mini): anchor countdown to server time and prevent false active timer when scheduler disabled"
+      },
+      {
+        "sha": "fa1b8b6d09392bce955b66486abb6a3c19589578",
+        "subject": "fix(mini): bust JS/CSS cache for system game live countdown"
+      },
+      {
+        "sha": "103c3989a74178d76681607ab1b587d84e2c6495",
+        "subject": "test(recovery): validate countdown JS and dashboard markup before any prod refunds"
+      },
+      {
+        "sha": "157d989bd9462c15e50b24dc9b102e69c5499184",
+        "subject": "security(recovery): purge Compose secret-bearing snapshots even on failed preflight"
+      },
+      {
+        "sha": "0369e51c47efaaee3a43fca810ffa3de1d719e51",
+        "subject": "fix(mini): never claim automatic number calling while backend auto draw worker is disabled"
+      },
+      {
+        "sha": "d35857b6d9a60ba523803f6249c16572e72615bf",
+        "subject": "fix(recovery): route read-only isolated regression receipts to tmpfs"
+      },
+      {
+        "sha": "ff2d07b6f3674bb93db7120959a80306c3788531",
+        "subject": "fix(recovery): resolve immutable Compose image vars from live backend and bot image IDs"
+      },
+      {
+        "sha": "2ac2499e7d67d75cc3300f6fedd07f5e575d201e",
+        "subject": "fix(mini): use actual per-level countdown duration instead of guessed progress percentage"
+      },
+      {
+        "sha": "41cd482ddc75855f969af5e795154213a5abad67",
+        "subject": "deploy(mini): immutable backend overlay patch for system clock UI and auto-start guard"
+      },
+      {
+        "sha": "e5fde2a9353fe00857da4e6c6180360fdc30b09f",
+        "subject": "fix(deploy): remove misleading Docker exec without piped stdin"
+      },
+      {
+        "sha": "cf0317c5a6adf94be8656df3f2a06f86cc876678",
+        "subject": "fix(deploy): avoid pipefail SIGPIPE during full index response cache-bust verification"
+      }
+    ],
+    "migration_files": [],
+    "sensitive_paths": []
+  },
+  {
+    "base": "hotfix/auto-draw-worker-start-guard-20261110",
+    "draft": true,
+    "head": "feature/autopilot-readiness-system-games-20261110",
+    "html_url": "https://github.com/MR-P3Y/dabarna/pull/44",
+    "number": 44,
+    "sha": "f6a8de5f616ce18e979f35ef8378e540d073467e",
+    "title": "System game autopilot: readiness per level and live dashboard blockers",
+    "ancestor_of_deployed_release": false,
+    "review_base": "cf0317c5a6adf94be8656df3f2a06f86cc876678",
+    "changed_files": [
+      "backend/app/routers/mini_router.py",
+      "backend/app/static/mini/app.js",
+      "backend/app/static/mini/index.html",
+      "backend/tests/test_game_prize_replay_isolated_20261110.py",
+      "davarna-bot/tests/test_notification_rule_consistency.py",
+      "davarna-bot/tests/test_public_forum_notices.py",
+      "dev/audit/github-project-status-20261110.md",
+      "dev/audit/rules-telegram-release-matrix-20261110.md",
+      "dev/release/activate-high-autopilot-20261110.sh",
+      "dev/release/activate-low-only-autopilot-20261110.sh",
+      "dev/release/activate-medium-autopilot-20261110.sh",
+      "dev/release/audit-autopilot-health-readonly-20261110.sh",
+      "dev/release/audit-game88-prize-replay-20261110.sh",
+      "dev/release/audit-rules-telegram-cross-surface-20261110.sh",
+      "dev/release/autopilot-monitor-20261110.py",
+      "dev/release/autopilot-monitor-runbook-20261110.md",
+      "dev/release/install-autopilot-monitor-20261110.sh",
+      "dev/release/test-autopilot-monitor-20261110.py"
+    ],
+    "unique_patch_commits": [
+      {
+        "sha": "df4a82e89bc6d1561a22f19e74737a90a5970b61",
+        "subject": "fix(game): reject starting AUTO round if number-draw worker is disabled"
+      },
+      {
+        "sha": "a48d1f5b231285a99121fd4e55d8af9668a2ed49",
+        "subject": "fix(ops): atomic compensated close for stalled AUTO games 86/87 with full purchase/ledger checks"
+      },
+      {
+        "sha": "6842d72fd2925b16b6203e408f7ed66629f1c0ae",
+        "subject": "ops: pinned compensated close 86/87 and isolated auto draw worker activation with backup and config invariant"
+      },
+      {
+        "sha": "69a4209c7b1e5f6cdbe770008a41c193b6da49f0",
+        "subject": "safety(ops): prevent backend image drift and revert worker overlay if health verification fails"
+      },
+      {
+        "sha": "6a0c9cc4b436054efaa44c278aaf2eb233d08303",
+        "subject": "test(game): guard disabled auto number worker without blocking manual mode"
+      },
+      {
+        "sha": "8340d1e158e8fc8aa2e4edcbc87339a97983fc46",
+        "subject": "test(release): gate recovery on isolated auto-start safety regression and close-script syntax"
+      },
+      {
+        "sha": "afb74fb4444c4b6c7894bc92d47adf7d3f4c3654",
+        "subject": "feat(mini): add system-only live game countdown dashboard"
+      },
+      {
+        "sha": "b85aab11b5de6314370a75dd07f3c82263d2c218",
+        "subject": "feat(mini): show live system game countdown states with periodic server resync, no client gameplay actions"
+      },
+      {
+        "sha": "ef2a04e73d354e2cde945de2e8e9b259c2b7e695",
+        "subject": "feat(mini): expose role-limited runtime state for system-game countdown accuracy"
+      },
+      {
+        "sha": "77b979cb4393a92603c74cffc5202f3906c93e10",
+        "subject": "style(mini): polished RTL system-game countdown cards with reduced-motion accessibility"
+      },
+      {
+        "sha": "487d9448055f2301a3ac9448638bfaf36c9cc300",
+        "subject": "feat(mini): provide UTC clock anchor for accurate system-game countdown"
+      },
+      {
+        "sha": "3b38318c0aaac7681988e9d6af8b6000c29583b8",
+        "subject": "fix(mini): anchor countdown to server time and prevent false active timer when scheduler disabled"
+      },
+      {
+        "sha": "fa1b8b6d09392bce955b66486abb6a3c19589578",
+        "subject": "fix(mini): bust JS/CSS cache for system game live countdown"
+      },
+      {
+        "sha": "103c3989a74178d76681607ab1b587d84e2c6495",
+        "subject": "test(recovery): validate countdown JS and dashboard markup before any prod refunds"
+      },
+      {
+        "sha": "157d989bd9462c15e50b24dc9b102e69c5499184",
+        "subject": "security(recovery): purge Compose secret-bearing snapshots even on failed preflight"
+      },
+      {
+        "sha": "0369e51c47efaaee3a43fca810ffa3de1d719e51",
+        "subject": "fix(mini): never claim automatic number calling while backend auto draw worker is disabled"
+      },
+      {
+        "sha": "d35857b6d9a60ba523803f6249c16572e72615bf",
+        "subject": "fix(recovery): route read-only isolated regression receipts to tmpfs"
+      },
+      {
+        "sha": "ff2d07b6f3674bb93db7120959a80306c3788531",
+        "subject": "fix(recovery): resolve immutable Compose image vars from live backend and bot image IDs"
+      },
+      {
+        "sha": "2ac2499e7d67d75cc3300f6fedd07f5e575d201e",
+        "subject": "fix(mini): use actual per-level countdown duration instead of guessed progress percentage"
+      },
+      {
+        "sha": "41cd482ddc75855f969af5e795154213a5abad67",
+        "subject": "deploy(mini): immutable backend overlay patch for system clock UI and auto-start guard"
+      },
+      {
+        "sha": "e5fde2a9353fe00857da4e6c6180360fdc30b09f",
+        "subject": "fix(deploy): remove misleading Docker exec without piped stdin"
+      },
+      {
+        "sha": "cf0317c5a6adf94be8656df3f2a06f86cc876678",
+        "subject": "fix(deploy): avoid pipefail SIGPIPE during full index response cache-bust verification"
+      },
+      {
+        "sha": "60fc60c882c9721cd719e05fc42d2059449cc27e",
+        "subject": "feat(autopilot): add read-only per-level readiness, blocker, and active game diagnostics"
+      },
+      {
+        "sha": "b7ab961ae583a89e690a19c57b5dcb69a723ea6f",
+        "subject": "feat(mini): display per-level autopilot blockers above countdowns"
+      },
+      {
+        "sha": "6eb163a0da2d52578b9d8be2bcc984e31c010615",
+        "subject": "feat(mini): render readiness and blocker checklist for LOW/MEDIUM/HIGH system-generated games"
+      },
+      {
+        "sha": "acfc29b86b4c77b4d0e55c9121c65b5f6dbdc125",
+        "subject": "fix(autopilot): import SQLAlchemy boolean operators for read-only active game diagnostics"
+      },
+      {
+        "sha": "0a8858338f28e2ee352f346be7f3b7193cf2d8be",
+        "subject": "fix(autopilot): mark per-level readiness blocked when a manual admin game holds the lane"
+      },
+      {
+        "sha": "d3326690550a6e1dd5cf9fccf0f17a54f538fcd1",
+        "subject": "fix(autopilot): distinguish ready-to-generate from already-running system game"
+      },
+      {
+        "sha": "92471d0132b46957c00788227947e9e39dbd59be",
+        "subject": "fix(mini): distinguish active system game from ready to create next round"
+      },
+      {
+        "sha": "fa315d3712d362827269392ae39601812444a2d8",
+        "subject": "ops: guarded LOW-only production autopilot activation preserving other lanes disabled"
+      },
+      {
+        "sha": "89dce0c1972b52acc6b2fb53e928c720966b2ce7",
+        "subject": "safety(autopilot): verify exact approved Telegram group before creating LOW system game"
+      },
+      {
+        "sha": "2f6927a73b1985b0732831a414e87ea7869ac1f4",
+        "subject": "fix(mini-auth): fail closed without signed Telegram initData and show official Web App launch guidance"
+      },
+      {
+        "sha": "4b75f286839fa1f2e41481fe1242060b9c9f8649",
+        "subject": "test(game): disposable payout replay idempotency and conflicting amount rejection for game 88 patterns"
+      },
+      {
+        "sha": "d0bfa7809562f805cea8f908b210ff6601a6e3b9",
+        "subject": "test(game): adapt disposable SQLite BigInteger PK and create referenced user tables"
+      },
+      {
+        "sha": "a53489ef4b38c0b9a066af278304e6709cbecd79",
+        "subject": "ops(game): read-only winner wallet ownership audit plus offline idempotent payout replay regression"
+      },
+      {
+        "sha": "4e5a1bb0fcdbe64ec24c3967ff2ca44dc9e6fd18",
+        "subject": "ops: guarded one-lane MEDIUM activation with atomic switch and live game verification"
+      },
+      {
+        "sha": "ba163920e86e301b738c19ece4d29c77b16611e6",
+        "subject": "ops: guarded HIGH-only enablement after verified MEDIUM payout with live-system game verification"
+      },
+      {
+        "sha": "a29436cb20048dcea5a4a909d63b5de7383792fc",
+        "subject": "ops(autopilot): add safe read-only tri-lane health snapshot and worker error counters"
+      },
+      {
+        "sha": "e293e0cbd42d91c2546be1be561b7bb20d8c8322",
+        "subject": "ops(monitor): detect overdue system round creation after configured cooldown with grace"
+      },
+      {
+        "sha": "8ffe687165e4e2ca8d0eac52e01414e48abab7f2",
+        "subject": "ops: host polling monitor with durable alert dedup history and bot-managed Telegram alerts"
+      },
+      {
+        "sha": "3172f2571dbf63fadb3f730b02b4e4c1123247c2",
+        "subject": "ops(monitor): retry undelivered recovery notices without acknowledging failed Telegram messages"
+      },
+      {
+        "sha": "561a2588c8cbdda0ea36a8e513add51f516cf473",
+        "subject": "test(ops): no-network polling monitor dedup, stale round, false positive and recovery contract"
+      },
+      {
+        "sha": "818674ab5d2d6a5da7c96e4d772ec1ff781abadb",
+        "subject": "ops(monitor): add explicit one-shot admin alerts channel delivery test for safe install gate"
+      },
+      {
+        "sha": "f2905fd6859b986a3073bb12627dfea2631e67ac",
+        "subject": "ops: opt-in pinned cron 5-minute monitor install with no-write smoke and Telegram delivery gate"
+      },
+      {
+        "sha": "9a87f98090c4931b8e3f4e8a8a736cc7d56fb4bb",
+        "subject": "fix(ops): pass stdin to admin channel preflight so Python assertions actually run"
+      },
+      {
+        "sha": "9678142319e6148ee74f67625aa2980d0607347f",
+        "subject": "ops(monitor): promote newly logged game ERROR and tamper events to alerts"
+      },
+      {
+        "sha": "dbc06b775da01c273af9911a172a7ebc4aaf21f5",
+        "subject": "ops(monitor): keep distinct stable alert identities for duplicate LOW MEDIUM HIGH lanes"
+      },
+      {
+        "sha": "2cc3fea3a847fc4cb324890b06fa1588607907f3",
+        "subject": "fix(monitor): correct Python raw regex for per-lane duplicate alert key"
+      },
+      {
+        "sha": "e153bccedeba9d564ec1883eab0f640e9e326926",
+        "subject": "ops(monitor): register cron only after successful first persistent health check and alert delivery"
+      },
+      {
+        "sha": "e17f1072101a62fe445310c9a2a85a0f71f2fd3b",
+        "subject": "test(monitor): assert separate LOW and MEDIUM duplicate alerts retain distinct identities"
+      },
+      {
+        "sha": "5290a9299b0761746464c6af927ed5ebc6437d28",
+        "subject": "fix(test): use actual newline escapes in multi-lane alert report fixture"
+      },
+      {
+        "sha": "fdf724faaeec5bc1e4ac2dab756811774f978876",
+        "subject": "docs(ops): monitor runbook, alert semantics, read-only scope and reversible cron disable"
+      },
+      {
+        "sha": "3535e67cf35b5058545635328d654c424ba5130e",
+        "subject": "fix(monitor): format Telegram test notification with an actual line break"
+      },
+      {
+        "sha": "2f263eef9af71c3e3d9d708103262971a3818210",
+        "subject": "docs(audit): reconcile GitHub draft PR stack with verified NODE2 game and monitoring milestones"
+      },
+      {
+        "sha": "1682ef3ae3923e8952ad6aebbce854a9e7b57a12",
+        "subject": "test(release): offline cross-surface rules Telegram ACK gate plus read-only live game and notifier provenance"
+      },
+      {
+        "sha": "6d699a8ce965e6972a7ac9e0f03af89956ca121d",
+        "subject": "fix(release-gate): isolate individual unittest discovery without tests Python package requirement"
+      },
+      {
+        "sha": "165449c38764d034fa5fd67c3ac676bf8bb38bca",
+        "subject": "docs(audit): cross-surface V2 rules and Telegram lifecycle source matrix with explicit Production verification gates"
+      },
+      {
+        "sha": "e856f32daf77e48202054e798647a49ffd9af408",
+        "subject": "ops(telegram): compare deployed bot notifier ACK and routing file hashes against pinned GitHub candidate"
+      },
+      {
+        "sha": "3253fbe2b2476d5fb9025ad1527e7bc3418d7645",
+        "subject": "ops(telegram): report actual dedicated game-start topic configuration and fallback without sending"
+      },
+      {
+        "sha": "6d5a482dbcd5ad2aa6aa5711f9bd135d06c8f66c",
+        "subject": "fix(audit): handle legacy production bot without optional game start route instead of crashing"
+      },
+      {
+        "sha": "a6f8f62e9371b95d44f7ab7f144f1ba408b1c223",
+        "subject": "fix(release-gate): redirect backend import-time receipts folder to isolated tmpfs under read-only Docker"
+      },
+      {
+        "sha": "9824951a169c2b9e6349bb56dc0b209bc04901d8",
+        "subject": "test(bot): align LINE rule assertions with actual grammatical Persian notices"
+      },
+      {
+        "sha": "f6a8de5f616ce18e979f35ef8378e540d073467e",
+        "subject": "test(bot): allow concise 357-char creation notice within 400-char contract"
+      }
+    ],
+    "migration_files": [],
+    "sensitive_paths": []
+  },
+  {
+    "base": "release/davarna-v1-candidate-20261109",
+    "draft": false,
+    "head": "ops/deploy-superadmin-v13-20261110",
+    "html_url": "https://github.com/MR-P3Y/dabarna/pull/46",
+    "number": 46,
+    "sha": "254192d8b5a733931e1b29ac37a48f82363e34e5",
+    "title": "ops(release): guarded Superadmin V1.3 deployment with rollback",
+    "ancestor_of_deployed_release": false,
+    "review_base": "13467120109c941bc1f4a5b4e88be1fdabddb479",
+    "changed_files": [
+      "dev/release/deploy-superadmin-v13-20261110.sh"
+    ],
+    "unique_patch_commits": [
+      {
+        "sha": "31561251af264f815f48ef4c14c65ac6d7a1b366",
+        "subject": "ops(release): add guarded Superadmin V1.3 UI-only deploy with rollback"
+      },
+      {
+        "sha": "f58f21ca6a41dfd16ae44383f2866824e0bc9969",
+        "subject": "fix(release): preserve shell parameter expansion in V1.3 deploy script"
+      },
+      {
+        "sha": "254192d8b5a733931e1b29ac37a48f82363e34e5",
+        "subject": "fix(release): preserve active Autopilot flags during UI-only V1.3 deployment"
+      }
+    ],
+    "migration_files": [],
+    "sensitive_paths": []
+  },
+  {
+    "base": "feature/autopilot-readiness-system-games-20261110",
+    "draft": true,
+    "head": "feature/autopilot-game-start-countdown-20261110",
+    "html_url": "https://github.com/MR-P3Y/dabarna/pull/47",
+    "number": 47,
+    "sha": "55a55027d9dd1b50e63d53112b2c45eff2ae9f7e",
+    "title": "feat: 30-second Autopilot start countdown across Mini App and game forum topics",
+    "ancestor_of_deployed_release": false,
+    "review_base": "f6a8de5f616ce18e979f35ef8378e540d073467e",
+    "changed_files": [
+      "backend/app/routers/bot_router.py",
+      "backend/app/routers/mini_router.py",
+      "backend/app/schemas/mini.py",
+      "backend/app/static/mini/app.js",
+      "backend/app/static/mini/index.html",
+      "backend/app/static/mini/ux-v2.css",
+      "backend/tests/js/test_autopilot_start_countdown_v1.mjs",
+      "backend/tests/test_autopilot_countdown_contract.py",
+      "davarna-bot/bot/workers/notifier.py",
+      "davarna-bot/tests/test_autopilot_countdown_notice.py"
+    ],
+    "unique_patch_commits": [
+      {
+        "sha": "df4a82e89bc6d1561a22f19e74737a90a5970b61",
+        "subject": "fix(game): reject starting AUTO round if number-draw worker is disabled"
+      },
+      {
+        "sha": "a48d1f5b231285a99121fd4e55d8af9668a2ed49",
+        "subject": "fix(ops): atomic compensated close for stalled AUTO games 86/87 with full purchase/ledger checks"
+      },
+      {
+        "sha": "6842d72fd2925b16b6203e408f7ed66629f1c0ae",
+        "subject": "ops: pinned compensated close 86/87 and isolated auto draw worker activation with backup and config invariant"
+      },
+      {
+        "sha": "69a4209c7b1e5f6cdbe770008a41c193b6da49f0",
+        "subject": "safety(ops): prevent backend image drift and revert worker overlay if health verification fails"
+      },
+      {
+        "sha": "6a0c9cc4b436054efaa44c278aaf2eb233d08303",
+        "subject": "test(game): guard disabled auto number worker without blocking manual mode"
+      },
+      {
+        "sha": "8340d1e158e8fc8aa2e4edcbc87339a97983fc46",
+        "subject": "test(release): gate recovery on isolated auto-start safety regression and close-script syntax"
+      },
+      {
+        "sha": "afb74fb4444c4b6c7894bc92d47adf7d3f4c3654",
+        "subject": "feat(mini): add system-only live game countdown dashboard"
+      },
+      {
+        "sha": "b85aab11b5de6314370a75dd07f3c82263d2c218",
+        "subject": "feat(mini): show live system game countdown states with periodic server resync, no client gameplay actions"
+      },
+      {
+        "sha": "ef2a04e73d354e2cde945de2e8e9b259c2b7e695",
+        "subject": "feat(mini): expose role-limited runtime state for system-game countdown accuracy"
+      },
+      {
+        "sha": "77b979cb4393a92603c74cffc5202f3906c93e10",
+        "subject": "style(mini): polished RTL system-game countdown cards with reduced-motion accessibility"
+      },
+      {
+        "sha": "487d9448055f2301a3ac9448638bfaf36c9cc300",
+        "subject": "feat(mini): provide UTC clock anchor for accurate system-game countdown"
+      },
+      {
+        "sha": "3b38318c0aaac7681988e9d6af8b6000c29583b8",
+        "subject": "fix(mini): anchor countdown to server time and prevent false active timer when scheduler disabled"
+      },
+      {
+        "sha": "fa1b8b6d09392bce955b66486abb6a3c19589578",
+        "subject": "fix(mini): bust JS/CSS cache for system game live countdown"
+      },
+      {
+        "sha": "103c3989a74178d76681607ab1b587d84e2c6495",
+        "subject": "test(recovery): validate countdown JS and dashboard markup before any prod refunds"
+      },
+      {
+        "sha": "157d989bd9462c15e50b24dc9b102e69c5499184",
+        "subject": "security(recovery): purge Compose secret-bearing snapshots even on failed preflight"
+      },
+      {
+        "sha": "0369e51c47efaaee3a43fca810ffa3de1d719e51",
+        "subject": "fix(mini): never claim automatic number calling while backend auto draw worker is disabled"
+      },
+      {
+        "sha": "d35857b6d9a60ba523803f6249c16572e72615bf",
+        "subject": "fix(recovery): route read-only isolated regression receipts to tmpfs"
+      },
+      {
+        "sha": "ff2d07b6f3674bb93db7120959a80306c3788531",
+        "subject": "fix(recovery): resolve immutable Compose image vars from live backend and bot image IDs"
+      },
+      {
+        "sha": "2ac2499e7d67d75cc3300f6fedd07f5e575d201e",
+        "subject": "fix(mini): use actual per-level countdown duration instead of guessed progress percentage"
+      },
+      {
+        "sha": "41cd482ddc75855f969af5e795154213a5abad67",
+        "subject": "deploy(mini): immutable backend overlay patch for system clock UI and auto-start guard"
+      },
+      {
+        "sha": "e5fde2a9353fe00857da4e6c6180360fdc30b09f",
+        "subject": "fix(deploy): remove misleading Docker exec without piped stdin"
+      },
+      {
+        "sha": "cf0317c5a6adf94be8656df3f2a06f86cc876678",
+        "subject": "fix(deploy): avoid pipefail SIGPIPE during full index response cache-bust verification"
+      },
+      {
+        "sha": "60fc60c882c9721cd719e05fc42d2059449cc27e",
+        "subject": "feat(autopilot): add read-only per-level readiness, blocker, and active game diagnostics"
+      },
+      {
+        "sha": "b7ab961ae583a89e690a19c57b5dcb69a723ea6f",
+        "subject": "feat(mini): display per-level autopilot blockers above countdowns"
+      },
+      {
+        "sha": "6eb163a0da2d52578b9d8be2bcc984e31c010615",
+        "subject": "feat(mini): render readiness and blocker checklist for LOW/MEDIUM/HIGH system-generated games"
+      },
+      {
+        "sha": "acfc29b86b4c77b4d0e55c9121c65b5f6dbdc125",
+        "subject": "fix(autopilot): import SQLAlchemy boolean operators for read-only active game diagnostics"
+      },
+      {
+        "sha": "0a8858338f28e2ee352f346be7f3b7193cf2d8be",
+        "subject": "fix(autopilot): mark per-level readiness blocked when a manual admin game holds the lane"
+      },
+      {
+        "sha": "d3326690550a6e1dd5cf9fccf0f17a54f538fcd1",
+        "subject": "fix(autopilot): distinguish ready-to-generate from already-running system game"
+      },
+      {
+        "sha": "92471d0132b46957c00788227947e9e39dbd59be",
+        "subject": "fix(mini): distinguish active system game from ready to create next round"
+      },
+      {
+        "sha": "fa315d3712d362827269392ae39601812444a2d8",
+        "subject": "ops: guarded LOW-only production autopilot activation preserving other lanes disabled"
+      },
+      {
+        "sha": "89dce0c1972b52acc6b2fb53e928c720966b2ce7",
+        "subject": "safety(autopilot): verify exact approved Telegram group before creating LOW system game"
+      },
+      {
+        "sha": "2f6927a73b1985b0732831a414e87ea7869ac1f4",
+        "subject": "fix(mini-auth): fail closed without signed Telegram initData and show official Web App launch guidance"
+      },
+      {
+        "sha": "4b75f286839fa1f2e41481fe1242060b9c9f8649",
+        "subject": "test(game): disposable payout replay idempotency and conflicting amount rejection for game 88 patterns"
+      },
+      {
+        "sha": "d0bfa7809562f805cea8f908b210ff6601a6e3b9",
+        "subject": "test(game): adapt disposable SQLite BigInteger PK and create referenced user tables"
+      },
+      {
+        "sha": "a53489ef4b38c0b9a066af278304e6709cbecd79",
+        "subject": "ops(game): read-only winner wallet ownership audit plus offline idempotent payout replay regression"
+      },
+      {
+        "sha": "4e5a1bb0fcdbe64ec24c3967ff2ca44dc9e6fd18",
+        "subject": "ops: guarded one-lane MEDIUM activation with atomic switch and live game verification"
+      },
+      {
+        "sha": "ba163920e86e301b738c19ece4d29c77b16611e6",
+        "subject": "ops: guarded HIGH-only enablement after verified MEDIUM payout with live-system game verification"
+      },
+      {
+        "sha": "a29436cb20048dcea5a4a909d63b5de7383792fc",
+        "subject": "ops(autopilot): add safe read-only tri-lane health snapshot and worker error counters"
+      },
+      {
+        "sha": "e293e0cbd42d91c2546be1be561b7bb20d8c8322",
+        "subject": "ops(monitor): detect overdue system round creation after configured cooldown with grace"
+      },
+      {
+        "sha": "8ffe687165e4e2ca8d0eac52e01414e48abab7f2",
+        "subject": "ops: host polling monitor with durable alert dedup history and bot-managed Telegram alerts"
+      },
+      {
+        "sha": "3172f2571dbf63fadb3f730b02b4e4c1123247c2",
+        "subject": "ops(monitor): retry undelivered recovery notices without acknowledging failed Telegram messages"
+      },
+      {
+        "sha": "561a2588c8cbdda0ea36a8e513add51f516cf473",
+        "subject": "test(ops): no-network polling monitor dedup, stale round, false positive and recovery contract"
+      },
+      {
+        "sha": "818674ab5d2d6a5da7c96e4d772ec1ff781abadb",
+        "subject": "ops(monitor): add explicit one-shot admin alerts channel delivery test for safe install gate"
+      },
+      {
+        "sha": "f2905fd6859b986a3073bb12627dfea2631e67ac",
+        "subject": "ops: opt-in pinned cron 5-minute monitor install with no-write smoke and Telegram delivery gate"
+      },
+      {
+        "sha": "9a87f98090c4931b8e3f4e8a8a736cc7d56fb4bb",
+        "subject": "fix(ops): pass stdin to admin channel preflight so Python assertions actually run"
+      },
+      {
+        "sha": "9678142319e6148ee74f67625aa2980d0607347f",
+        "subject": "ops(monitor): promote newly logged game ERROR and tamper events to alerts"
+      },
+      {
+        "sha": "dbc06b775da01c273af9911a172a7ebc4aaf21f5",
+        "subject": "ops(monitor): keep distinct stable alert identities for duplicate LOW MEDIUM HIGH lanes"
+      },
+      {
+        "sha": "2cc3fea3a847fc4cb324890b06fa1588607907f3",
+        "subject": "fix(monitor): correct Python raw regex for per-lane duplicate alert key"
+      },
+      {
+        "sha": "e153bccedeba9d564ec1883eab0f640e9e326926",
+        "subject": "ops(monitor): register cron only after successful first persistent health check and alert delivery"
+      },
+      {
+        "sha": "e17f1072101a62fe445310c9a2a85a0f71f2fd3b",
+        "subject": "test(monitor): assert separate LOW and MEDIUM duplicate alerts retain distinct identities"
+      },
+      {
+        "sha": "5290a9299b0761746464c6af927ed5ebc6437d28",
+        "subject": "fix(test): use actual newline escapes in multi-lane alert report fixture"
+      },
+      {
+        "sha": "fdf724faaeec5bc1e4ac2dab756811774f978876",
+        "subject": "docs(ops): monitor runbook, alert semantics, read-only scope and reversible cron disable"
+      },
+      {
+        "sha": "3535e67cf35b5058545635328d654c424ba5130e",
+        "subject": "fix(monitor): format Telegram test notification with an actual line break"
+      },
+      {
+        "sha": "2f263eef9af71c3e3d9d708103262971a3818210",
+        "subject": "docs(audit): reconcile GitHub draft PR stack with verified NODE2 game and monitoring milestones"
+      },
+      {
+        "sha": "1682ef3ae3923e8952ad6aebbce854a9e7b57a12",
+        "subject": "test(release): offline cross-surface rules Telegram ACK gate plus read-only live game and notifier provenance"
+      },
+      {
+        "sha": "6d699a8ce965e6972a7ac9e0f03af89956ca121d",
+        "subject": "fix(release-gate): isolate individual unittest discovery without tests Python package requirement"
+      },
+      {
+        "sha": "165449c38764d034fa5fd67c3ac676bf8bb38bca",
+        "subject": "docs(audit): cross-surface V2 rules and Telegram lifecycle source matrix with explicit Production verification gates"
+      },
+      {
+        "sha": "e856f32daf77e48202054e798647a49ffd9af408",
+        "subject": "ops(telegram): compare deployed bot notifier ACK and routing file hashes against pinned GitHub candidate"
+      },
+      {
+        "sha": "3253fbe2b2476d5fb9025ad1527e7bc3418d7645",
+        "subject": "ops(telegram): report actual dedicated game-start topic configuration and fallback without sending"
+      },
+      {
+        "sha": "6d5a482dbcd5ad2aa6aa5711f9bd135d06c8f66c",
+        "subject": "fix(audit): handle legacy production bot without optional game start route instead of crashing"
+      },
+      {
+        "sha": "a6f8f62e9371b95d44f7ab7f144f1ba408b1c223",
+        "subject": "fix(release-gate): redirect backend import-time receipts folder to isolated tmpfs under read-only Docker"
+      },
+      {
+        "sha": "9824951a169c2b9e6349bb56dc0b209bc04901d8",
+        "subject": "test(bot): align LINE rule assertions with actual grammatical Persian notices"
+      },
+      {
+        "sha": "f6a8de5f616ce18e979f35ef8378e540d073467e",
+        "subject": "test(bot): allow concise 357-char creation notice within 400-char contract"
+      },
+      {
+        "sha": "fe3c9416cac526677c46b3e6cdd62d9ad6d1397e",
+        "subject": "feat(mini): expose read-only Autopilot timer fields in game list schema"
+      },
+      {
+        "sha": "5ecfc356ae54aea76b52961835f725a9bd64366b",
+        "subject": "feat(mini): bind public game countdown to live Autopilot settings and server time"
+      },
+      {
+        "sha": "0c3c647700d0916c3b438813a645c040aae85988",
+        "subject": "feat(bot-api): include authoritative Autopilot schedule and draw mode in game reports"
+      },
+      {
+        "sha": "153fbab77f7ea342b5073256d678b7f19a2178ca",
+        "subject": "feat(bot): send single Autopilot countdown and start notices to corresponding game topics"
+      },
+      {
+        "sha": "4009d6cd88043e83aadb9db09ccb28e9b48deb6a",
+        "subject": "feat(mini): expose draw mode with server countdown game metadata"
+      },
+      {
+        "sha": "308ca6daba1e4454b2c5177e1e59a610443ad6f0",
+        "subject": "feat(mini): serialize draw mode for game start countdown"
+      },
+      {
+        "sha": "1f03de27bda593e15e640b9a74777ff0f4a79929",
+        "subject": "feat(mini): live Autopilot countdown cards with sound, haptics and highlighting"
+      },
+      {
+        "sha": "37f2a5f47194102a3b01a05875e3e192f63245ad",
+        "subject": "style(mini): prominent accessible circular Autopilot countdown in game list"
+      },
+      {
+        "sha": "47d0542a5eafe115c7f4316376ed20f95f1e0e89",
+        "subject": "chore(mini): cache bust countdown UI assets"
+      },
+      {
+        "sha": "1217a24b1368653fead8a67e10d80a38ae781353",
+        "subject": "test(mini): cover countdown timing, eligibility, pending state, and UI assets"
+      },
+      {
+        "sha": "c13aebdbac5b6bafb4f40cfea5a258717ce3f402",
+        "subject": "test(bot): verify Autopilot countdown lane routing, ACK and real-start notice"
+      },
+      {
+        "sha": "666dc6abb23ce433714d4bf3fd303f5629d413ee",
+        "subject": "fix(mini): honor Autopilot minimum-player gate before displaying start countdown"
+      },
+      {
+        "sha": "be54d6e5b5cfe543f25a47b180267caf28e8340c",
+        "subject": "fix(bot-api): gate countdown notices on live Autopilot readiness and distinct players"
+      },
+      {
+        "sha": "559405fe937c03763aadb7469ccee0172a799846",
+        "subject": "fix(bot): respect countdown readiness and isolate Telegram send failures"
+      },
+      {
+        "sha": "4a15cd533eade814f517f7d4bc223dd9c9aa6d73",
+        "subject": "test(bot): require server-authorized countdown readiness"
+      },
+      {
+        "sha": "628f41b9c0c56d820bc62209603d325057bd8f96",
+        "subject": "fix(mini): prevent overlapping countdown beeps across multiple game lanes"
+      },
+      {
+        "sha": "58f8be5b167cfb59466696a9d913cf70024c2975",
+        "subject": "feat(bot): announce Autopilot countdown once in both public and per-game topics"
+      },
+      {
+        "sha": "ea47c6e541bf4f8fa96cd8a3e848b22b6f4ab14c",
+        "subject": "test(bot): verify independent countdown delivery to announcements and game lanes"
+      },
+      {
+        "sha": "55a55027d9dd1b50e63d53112b2c45eff2ae9f7e",
+        "subject": "test(backend): assert Autopilot countdown contract and authorization gates"
+      }
+    ],
+    "migration_files": [],
+    "sensitive_paths": []
+  },
+  {
+    "base": "feature/autopilot-game-start-countdown-20261110",
+    "draft": true,
+    "head": "feature/bot-rule-copy-card-layout-20261110",
+    "html_url": "https://github.com/MR-P3Y/dabarna/pull/48",
+    "number": 48,
+    "sha": "384be238c40246f72096b9720bd2cfe7bda9b9fe",
+    "title": "fix(bot): unify game and card copy with stored LINE/FULL_CARD/LEGACY rules",
+    "ancestor_of_deployed_release": false,
+    "review_base": "55a55027d9dd1b50e63d53112b2c45eff2ae9f7e",
+    "changed_files": [
+      "backend/app/routers/bot_router.py",
+      "backend/app/schemas/game.py",
+      "backend/app/services/game_service.py",
+      "davarna-bot/bot/keyboards/active_games.py",
+      "davarna-bot/bot/keyboards/games.py",
+      "davarna-bot/bot/keyboards/purchase.py",
+      "davarna-bot/bot/routers/cards.py",
+      "davarna-bot/bot/routers/game.py",
+      "davarna-bot/bot/routers/purchase.py",
+      "davarna-bot/bot/services/card_render.py",
+      "davarna-bot/bot/services/game_rules.py",
+      "davarna-bot/tests/test_bot_rule_copy_20261110.py"
+    ],
+    "unique_patch_commits": [
+      {
+        "sha": "df4a82e89bc6d1561a22f19e74737a90a5970b61",
+        "subject": "fix(game): reject starting AUTO round if number-draw worker is disabled"
+      },
+      {
+        "sha": "a48d1f5b231285a99121fd4e55d8af9668a2ed49",
+        "subject": "fix(ops): atomic compensated close for stalled AUTO games 86/87 with full purchase/ledger checks"
+      },
+      {
+        "sha": "6842d72fd2925b16b6203e408f7ed66629f1c0ae",
+        "subject": "ops: pinned compensated close 86/87 and isolated auto draw worker activation with backup and config invariant"
+      },
+      {
+        "sha": "69a4209c7b1e5f6cdbe770008a41c193b6da49f0",
+        "subject": "safety(ops): prevent backend image drift and revert worker overlay if health verification fails"
+      },
+      {
+        "sha": "6a0c9cc4b436054efaa44c278aaf2eb233d08303",
+        "subject": "test(game): guard disabled auto number worker without blocking manual mode"
+      },
+      {
+        "sha": "8340d1e158e8fc8aa2e4edcbc87339a97983fc46",
+        "subject": "test(release): gate recovery on isolated auto-start safety regression and close-script syntax"
+      },
+      {
+        "sha": "afb74fb4444c4b6c7894bc92d47adf7d3f4c3654",
+        "subject": "feat(mini): add system-only live game countdown dashboard"
+      },
+      {
+        "sha": "b85aab11b5de6314370a75dd07f3c82263d2c218",
+        "subject": "feat(mini): show live system game countdown states with periodic server resync, no client gameplay actions"
+      },
+      {
+        "sha": "ef2a04e73d354e2cde945de2e8e9b259c2b7e695",
+        "subject": "feat(mini): expose role-limited runtime state for system-game countdown accuracy"
+      },
+      {
+        "sha": "77b979cb4393a92603c74cffc5202f3906c93e10",
+        "subject": "style(mini): polished RTL system-game countdown cards with reduced-motion accessibility"
+      },
+      {
+        "sha": "487d9448055f2301a3ac9448638bfaf36c9cc300",
+        "subject": "feat(mini): provide UTC clock anchor for accurate system-game countdown"
+      },
+      {
+        "sha": "3b38318c0aaac7681988e9d6af8b6000c29583b8",
+        "subject": "fix(mini): anchor countdown to server time and prevent false active timer when scheduler disabled"
+      },
+      {
+        "sha": "fa1b8b6d09392bce955b66486abb6a3c19589578",
+        "subject": "fix(mini): bust JS/CSS cache for system game live countdown"
+      },
+      {
+        "sha": "103c3989a74178d76681607ab1b587d84e2c6495",
+        "subject": "test(recovery): validate countdown JS and dashboard markup before any prod refunds"
+      },
+      {
+        "sha": "157d989bd9462c15e50b24dc9b102e69c5499184",
+        "subject": "security(recovery): purge Compose secret-bearing snapshots even on failed preflight"
+      },
+      {
+        "sha": "0369e51c47efaaee3a43fca810ffa3de1d719e51",
+        "subject": "fix(mini): never claim automatic number calling while backend auto draw worker is disabled"
+      },
+      {
+        "sha": "d35857b6d9a60ba523803f6249c16572e72615bf",
+        "subject": "fix(recovery): route read-only isolated regression receipts to tmpfs"
+      },
+      {
+        "sha": "ff2d07b6f3674bb93db7120959a80306c3788531",
+        "subject": "fix(recovery): resolve immutable Compose image vars from live backend and bot image IDs"
+      },
+      {
+        "sha": "2ac2499e7d67d75cc3300f6fedd07f5e575d201e",
+        "subject": "fix(mini): use actual per-level countdown duration instead of guessed progress percentage"
+      },
+      {
+        "sha": "41cd482ddc75855f969af5e795154213a5abad67",
+        "subject": "deploy(mini): immutable backend overlay patch for system clock UI and auto-start guard"
+      },
+      {
+        "sha": "e5fde2a9353fe00857da4e6c6180360fdc30b09f",
+        "subject": "fix(deploy): remove misleading Docker exec without piped stdin"
+      },
+      {
+        "sha": "cf0317c5a6adf94be8656df3f2a06f86cc876678",
+        "subject": "fix(deploy): avoid pipefail SIGPIPE during full index response cache-bust verification"
+      },
+      {
+        "sha": "60fc60c882c9721cd719e05fc42d2059449cc27e",
+        "subject": "feat(autopilot): add read-only per-level readiness, blocker, and active game diagnostics"
+      },
+      {
+        "sha": "b7ab961ae583a89e690a19c57b5dcb69a723ea6f",
+        "subject": "feat(mini): display per-level autopilot blockers above countdowns"
+      },
+      {
+        "sha": "6eb163a0da2d52578b9d8be2bcc984e31c010615",
+        "subject": "feat(mini): render readiness and blocker checklist for LOW/MEDIUM/HIGH system-generated games"
+      },
+      {
+        "sha": "acfc29b86b4c77b4d0e55c9121c65b5f6dbdc125",
+        "subject": "fix(autopilot): import SQLAlchemy boolean operators for read-only active game diagnostics"
+      },
+      {
+        "sha": "0a8858338f28e2ee352f346be7f3b7193cf2d8be",
+        "subject": "fix(autopilot): mark per-level readiness blocked when a manual admin game holds the lane"
+      },
+      {
+        "sha": "d3326690550a6e1dd5cf9fccf0f17a54f538fcd1",
+        "subject": "fix(autopilot): distinguish ready-to-generate from already-running system game"
+      },
+      {
+        "sha": "92471d0132b46957c00788227947e9e39dbd59be",
+        "subject": "fix(mini): distinguish active system game from ready to create next round"
+      },
+      {
+        "sha": "fa315d3712d362827269392ae39601812444a2d8",
+        "subject": "ops: guarded LOW-only production autopilot activation preserving other lanes disabled"
+      },
+      {
+        "sha": "89dce0c1972b52acc6b2fb53e928c720966b2ce7",
+        "subject": "safety(autopilot): verify exact approved Telegram group before creating LOW system game"
+      },
+      {
+        "sha": "2f6927a73b1985b0732831a414e87ea7869ac1f4",
+        "subject": "fix(mini-auth): fail closed without signed Telegram initData and show official Web App launch guidance"
+      },
+      {
+        "sha": "4b75f286839fa1f2e41481fe1242060b9c9f8649",
+        "subject": "test(game): disposable payout replay idempotency and conflicting amount rejection for game 88 patterns"
+      },
+      {
+        "sha": "d0bfa7809562f805cea8f908b210ff6601a6e3b9",
+        "subject": "test(game): adapt disposable SQLite BigInteger PK and create referenced user tables"
+      },
+      {
+        "sha": "a53489ef4b38c0b9a066af278304e6709cbecd79",
+        "subject": "ops(game): read-only winner wallet ownership audit plus offline idempotent payout replay regression"
+      },
+      {
+        "sha": "4e5a1bb0fcdbe64ec24c3967ff2ca44dc9e6fd18",
+        "subject": "ops: guarded one-lane MEDIUM activation with atomic switch and live game verification"
+      },
+      {
+        "sha": "ba163920e86e301b738c19ece4d29c77b16611e6",
+        "subject": "ops: guarded HIGH-only enablement after verified MEDIUM payout with live-system game verification"
+      },
+      {
+        "sha": "a29436cb20048dcea5a4a909d63b5de7383792fc",
+        "subject": "ops(autopilot): add safe read-only tri-lane health snapshot and worker error counters"
+      },
+      {
+        "sha": "e293e0cbd42d91c2546be1be561b7bb20d8c8322",
+        "subject": "ops(monitor): detect overdue system round creation after configured cooldown with grace"
+      },
+      {
+        "sha": "8ffe687165e4e2ca8d0eac52e01414e48abab7f2",
+        "subject": "ops: host polling monitor with durable alert dedup history and bot-managed Telegram alerts"
+      },
+      {
+        "sha": "3172f2571dbf63fadb3f730b02b4e4c1123247c2",
+        "subject": "ops(monitor): retry undelivered recovery notices without acknowledging failed Telegram messages"
+      },
+      {
+        "sha": "561a2588c8cbdda0ea36a8e513add51f516cf473",
+        "subject": "test(ops): no-network polling monitor dedup, stale round, false positive and recovery contract"
+      },
+      {
+        "sha": "818674ab5d2d6a5da7c96e4d772ec1ff781abadb",
+        "subject": "ops(monitor): add explicit one-shot admin alerts channel delivery test for safe install gate"
+      },
+      {
+        "sha": "f2905fd6859b986a3073bb12627dfea2631e67ac",
+        "subject": "ops: opt-in pinned cron 5-minute monitor install with no-write smoke and Telegram delivery gate"
+      },
+      {
+        "sha": "9a87f98090c4931b8e3f4e8a8a736cc7d56fb4bb",
+        "subject": "fix(ops): pass stdin to admin channel preflight so Python assertions actually run"
+      },
+      {
+        "sha": "9678142319e6148ee74f67625aa2980d0607347f",
+        "subject": "ops(monitor): promote newly logged game ERROR and tamper events to alerts"
+      },
+      {
+        "sha": "dbc06b775da01c273af9911a172a7ebc4aaf21f5",
+        "subject": "ops(monitor): keep distinct stable alert identities for duplicate LOW MEDIUM HIGH lanes"
+      },
+      {
+        "sha": "2cc3fea3a847fc4cb324890b06fa1588607907f3",
+        "subject": "fix(monitor): correct Python raw regex for per-lane duplicate alert key"
+      },
+      {
+        "sha": "e153bccedeba9d564ec1883eab0f640e9e326926",
+        "subject": "ops(monitor): register cron only after successful first persistent health check and alert delivery"
+      },
+      {
+        "sha": "e17f1072101a62fe445310c9a2a85a0f71f2fd3b",
+        "subject": "test(monitor): assert separate LOW and MEDIUM duplicate alerts retain distinct identities"
+      },
+      {
+        "sha": "5290a9299b0761746464c6af927ed5ebc6437d28",
+        "subject": "fix(test): use actual newline escapes in multi-lane alert report fixture"
+      },
+      {
+        "sha": "fdf724faaeec5bc1e4ac2dab756811774f978876",
+        "subject": "docs(ops): monitor runbook, alert semantics, read-only scope and reversible cron disable"
+      },
+      {
+        "sha": "3535e67cf35b5058545635328d654c424ba5130e",
+        "subject": "fix(monitor): format Telegram test notification with an actual line break"
+      },
+      {
+        "sha": "2f263eef9af71c3e3d9d708103262971a3818210",
+        "subject": "docs(audit): reconcile GitHub draft PR stack with verified NODE2 game and monitoring milestones"
+      },
+      {
+        "sha": "1682ef3ae3923e8952ad6aebbce854a9e7b57a12",
+        "subject": "test(release): offline cross-surface rules Telegram ACK gate plus read-only live game and notifier provenance"
+      },
+      {
+        "sha": "6d699a8ce965e6972a7ac9e0f03af89956ca121d",
+        "subject": "fix(release-gate): isolate individual unittest discovery without tests Python package requirement"
+      },
+      {
+        "sha": "165449c38764d034fa5fd67c3ac676bf8bb38bca",
+        "subject": "docs(audit): cross-surface V2 rules and Telegram lifecycle source matrix with explicit Production verification gates"
+      },
+      {
+        "sha": "e856f32daf77e48202054e798647a49ffd9af408",
+        "subject": "ops(telegram): compare deployed bot notifier ACK and routing file hashes against pinned GitHub candidate"
+      },
+      {
+        "sha": "3253fbe2b2476d5fb9025ad1527e7bc3418d7645",
+        "subject": "ops(telegram): report actual dedicated game-start topic configuration and fallback without sending"
+      },
+      {
+        "sha": "6d5a482dbcd5ad2aa6aa5711f9bd135d06c8f66c",
+        "subject": "fix(audit): handle legacy production bot without optional game start route instead of crashing"
+      },
+      {
+        "sha": "a6f8f62e9371b95d44f7ab7f144f1ba408b1c223",
+        "subject": "fix(release-gate): redirect backend import-time receipts folder to isolated tmpfs under read-only Docker"
+      },
+      {
+        "sha": "9824951a169c2b9e6349bb56dc0b209bc04901d8",
+        "subject": "test(bot): align LINE rule assertions with actual grammatical Persian notices"
+      },
+      {
+        "sha": "f6a8de5f616ce18e979f35ef8378e540d073467e",
+        "subject": "test(bot): allow concise 357-char creation notice within 400-char contract"
+      },
+      {
+        "sha": "fe3c9416cac526677c46b3e6cdd62d9ad6d1397e",
+        "subject": "feat(mini): expose read-only Autopilot timer fields in game list schema"
+      },
+      {
+        "sha": "5ecfc356ae54aea76b52961835f725a9bd64366b",
+        "subject": "feat(mini): bind public game countdown to live Autopilot settings and server time"
+      },
+      {
+        "sha": "0c3c647700d0916c3b438813a645c040aae85988",
+        "subject": "feat(bot-api): include authoritative Autopilot schedule and draw mode in game reports"
+      },
+      {
+        "sha": "153fbab77f7ea342b5073256d678b7f19a2178ca",
+        "subject": "feat(bot): send single Autopilot countdown and start notices to corresponding game topics"
+      },
+      {
+        "sha": "4009d6cd88043e83aadb9db09ccb28e9b48deb6a",
+        "subject": "feat(mini): expose draw mode with server countdown game metadata"
+      },
+      {
+        "sha": "308ca6daba1e4454b2c5177e1e59a610443ad6f0",
+        "subject": "feat(mini): serialize draw mode for game start countdown"
+      },
+      {
+        "sha": "1f03de27bda593e15e640b9a74777ff0f4a79929",
+        "subject": "feat(mini): live Autopilot countdown cards with sound, haptics and highlighting"
+      },
+      {
+        "sha": "37f2a5f47194102a3b01a05875e3e192f63245ad",
+        "subject": "style(mini): prominent accessible circular Autopilot countdown in game list"
+      },
+      {
+        "sha": "47d0542a5eafe115c7f4316376ed20f95f1e0e89",
+        "subject": "chore(mini): cache bust countdown UI assets"
+      },
+      {
+        "sha": "1217a24b1368653fead8a67e10d80a38ae781353",
+        "subject": "test(mini): cover countdown timing, eligibility, pending state, and UI assets"
+      },
+      {
+        "sha": "c13aebdbac5b6bafb4f40cfea5a258717ce3f402",
+        "subject": "test(bot): verify Autopilot countdown lane routing, ACK and real-start notice"
+      },
+      {
+        "sha": "666dc6abb23ce433714d4bf3fd303f5629d413ee",
+        "subject": "fix(mini): honor Autopilot minimum-player gate before displaying start countdown"
+      },
+      {
+        "sha": "be54d6e5b5cfe543f25a47b180267caf28e8340c",
+        "subject": "fix(bot-api): gate countdown notices on live Autopilot readiness and distinct players"
+      },
+      {
+        "sha": "559405fe937c03763aadb7469ccee0172a799846",
+        "subject": "fix(bot): respect countdown readiness and isolate Telegram send failures"
+      },
+      {
+        "sha": "4a15cd533eade814f517f7d4bc223dd9c9aa6d73",
+        "subject": "test(bot): require server-authorized countdown readiness"
+      },
+      {
+        "sha": "628f41b9c0c56d820bc62209603d325057bd8f96",
+        "subject": "fix(mini): prevent overlapping countdown beeps across multiple game lanes"
+      },
+      {
+        "sha": "58f8be5b167cfb59466696a9d913cf70024c2975",
+        "subject": "feat(bot): announce Autopilot countdown once in both public and per-game topics"
+      },
+      {
+        "sha": "ea47c6e541bf4f8fa96cd8a3e848b22b6f4ab14c",
+        "subject": "test(bot): verify independent countdown delivery to announcements and game lanes"
+      },
+      {
+        "sha": "55a55027d9dd1b50e63d53112b2c45eff2ae9f7e",
+        "subject": "test(backend): assert Autopilot countdown contract and authorization gates"
+      },
+      {
+        "sha": "d9babf4401bfa6c748fe6de0a5102f73101aed40",
+        "subject": "feat(bot): centralize copy for saved LINE, FULL_CARD and LEGACY game rules"
+      },
+      {
+        "sha": "1d788d48f54fc48bf26e8871a1b76551d8fc04f7",
+        "subject": "feat(bot-api): expose stored game rule and card layout in public game listings"
+      },
+      {
+        "sha": "731f70b79667855b0ac8f8c023b682c862e168f6",
+        "subject": "feat(bot): stable-width 3x9 and 4x5 marked card grids"
+      },
+      {
+        "sha": "9ebc04a557f43388e539091c2cb42e620716640b",
+        "subject": "feat(bot): consistent rule-aware card detail for list, refresh and private messages"
+      },
+      {
+        "sha": "b910b72299368cad3e33bfcc595ccf081314dfa9",
+        "subject": "fix(bot): correct card message line breaks and eliminate redundant old grid rendering"
+      },
+      {
+        "sha": "16bc9229b19d4071af31e499968839302f716863",
+        "subject": "feat(backend): expose read-only number drawing mode on game state"
+      },
+      {
+        "sha": "05ba0a0039b59e17a70be9dba9b134691377da56",
+        "subject": "feat(backend): include stored draw mode in user game snapshots without state changes"
+      },
+      {
+        "sha": "2ca26aa46bb3604a22686e931b6f269bbf565227",
+        "subject": "feat(bot): show stored game rule and toman units in game selection"
+      },
+      {
+        "sha": "e846110488b40afdae6b7f20de5db2c686a0e7a4",
+        "subject": "feat(bot): show stored game rule and toman units in game selection"
+      },
+      {
+        "sha": "9fbb98a763e59c5c1f181ab344d18d5e3f6da271",
+        "subject": "feat(bot): show stored game rule and toman units in game selection"
+      },
+      {
+        "sha": "f823389d138a4da01f747ebf7481e96060ec3b47",
+        "subject": "feat(bot): label my-cards game picker using each game stored rule"
+      },
+      {
+        "sha": "dea3ae3a7679fe6e7a9dfb9db69639c14a64767b",
+        "subject": "feat(bot): explain game-specific card rules before purchase without changing transaction logic"
+      },
+      {
+        "sha": "5b8e90468601de866eb8d59cb5993bfacd434da2",
+        "subject": "feat(bot): make game details rule-accurate, include modes and clarify pending payouts"
+      },
+      {
+        "sha": "ca2b49352ef989e8d31b4ce75b5069f9e77a2147",
+        "subject": "refactor(bot): remove duplicate fixed-column fallbacks and avoid stale card progress"
+      },
+      {
+        "sha": "384be238c40246f72096b9720bd2cfe7bda9b9fe",
+        "subject": "test(bot): cover stored rules, 3x9 card grids, 4x5 legacy and shared copy"
+      }
+    ],
+    "migration_files": [],
+    "sensitive_paths": []
+  },
+  {
+    "base": "feature/superadmin-command-center-v12-20261110",
+    "draft": true,
+    "head": "feature/owner-ton-tron-edit-bot-mini-20261110",
+    "html_url": "https://github.com/MR-P3Y/dabarna/pull/49",
+    "number": 49,
+    "sha": "e421157c003c6f76a3bba6e600d7c5e9afb4b596",
+    "title": "feat(owner): manage TON & USDT-TRC20 receiving addresses in both Telegram Bot and Mini App",
+    "ancestor_of_deployed_release": false,
+    "review_base": "f0a98a4cd8aff51c22d9509402a4ab8d53815cdf",
+    "changed_files": [
+      "backend/app/routers/bot_router.py",
+      "backend/app/routers/mini_router.py",
+      "backend/app/services/crypto_deposit_service.py",
+      "backend/app/services/crypto_destination_state.py",
+      "backend/app/static/mini/app.js",
+      "backend/app/static/mini/index.html",
+      "backend/tests/test_crypto_production_rotation_gate_isolated.py",
+      "backend/tests/test_owner_crypto_wallet_manager.py",
+      "backend/tests/test_owner_crypto_wallet_mysql_disposable.py",
+      "davarna-bot/bot/keyboards/super_admin.py",
+      "davarna-bot/bot/routers/super_admin.py",
+      "davarna-bot/bot/services/api_client.py",
+      "davarna-bot/bot/states/super_admin.py",
+      "davarna-bot/tests/test_crypto_wallet_owner_ui.py",
+      "dev/release/build-owner-wallet-bot-mini-candidate-20261110.sh",
+      "dev/release/test-owner-crypto-wallet-bot-mini-isolated-20261110.sh",
+      "dev/release/test-owner-wallet-staging-private-20261110.sh",
+      "dev/release/test-wallet-rotation-mysql-disposable-20261110.sh"
+    ],
+    "unique_patch_commits": [
+      {
+        "sha": "2669da52cf14d832a2983c836838361536aaa25e",
+        "subject": "feat(admin): make monitoring KPI cards actionable and service status inspectable"
+      },
+      {
+        "sha": "91bc698adea3756568f3543bd3a39f7e2762ab21",
+        "subject": "feat(admin): clarify command center navigation and add accessible service inspector"
+      },
+      {
+        "sha": "5feabab61daca3730796f97d87789142a05e699f",
+        "subject": "style(admin): upgrade command-center interaction, focus and mobile touch targets"
+      },
+      {
+        "sha": "e7e3c2d095f4d9e8d17c08aa9fb318d9447c996c",
+        "subject": "feat(crypto): validate proposed destination addresses without changing active wallets"
+      },
+      {
+        "sha": "051beb40058f8a5ab730a8796104ac9befc772a5",
+        "subject": "feat(superadmin): accept owner-only audited wallet address proposals without activation"
+      },
+      {
+        "sha": "0730cf8383c2cfc863b1f483b83a04ddd54a3d6c",
+        "subject": "feat(superadmin): add protected crypto destination proposal form with explicit non-activation notice"
+      },
+      {
+        "sha": "d4dddfd32b3ef5c2f8bc149c139b0657c117a903",
+        "subject": "feat(superadmin): wire wallet change requests and pending review display to audited API"
+      },
+      {
+        "sha": "bd9d31562fc8403afc1ddd85c364d332fdadcf8d",
+        "subject": "test(admin): cover actionable monitoring and wallet proposal UI in V1.2"
+      },
+      {
+        "sha": "271857292be1442f84532e074c524f56e2f7f5c2",
+        "subject": "feat(ui): organize superadmin settings as navigable operations workspace"
+      },
+      {
+        "sha": "0cf1aac230750160ff37dbb194c4be4ee51dd3d6",
+        "subject": "feat(ui): navigate superadmin crypto, bank and role panels directly"
+      },
+      {
+        "sha": "a8296a37a5e4a42f3f38434e77a2b267016cad72",
+        "subject": "style(ui): add superadmin workspace layout and mobile shortcuts"
+      },
+      {
+        "sha": "172c43f6085384218b78f39b7a99bee3255cbfe8",
+        "subject": "test(crypto): verify staged wallet changes, validation, permissions and no active side effects"
+      },
+      {
+        "sha": "bf236a9a9e90e5ffab321f2d6ebe1183f71a05f7",
+        "subject": "docs: record V1.2 feature scope and mandatory wallet-activation safety gates"
+      },
+      {
+        "sha": "5a1e8a3e49b45d4d0ac929d03c528e4f1c2f540d",
+        "subject": "fix(ui): show exact scoped active game count from API"
+      },
+      {
+        "sha": "91535b5d48044ce6ea2395ac341e1006e0c042c3",
+        "subject": "test(monitoring): catch undercount caused by six-game preview cap"
+      },
+      {
+        "sha": "d5a7ead51c8e149a1a26aad85515a087889046f1",
+        "subject": "test(release): pinned isolated V1.2 JS and Python safety checks"
+      },
+      {
+        "sha": "7dbec79a722b88bb84292eab85b7234ffe162768",
+        "subject": "test(release): restrict isolated test harness to the two relevant suites"
+      },
+      {
+        "sha": "6ff11f8944765a937402703031a0b84e93a49ccd",
+        "subject": "fix(crypto): restrict raw TON proposals to supported workchains"
+      },
+      {
+        "sha": "d7d88c08a6fbd6c83a5c6320312a00432c7143e2",
+        "subject": "security(crypto): rate-limit owner-only wallet address proposals"
+      },
+      {
+        "sha": "e45364c22e19f768c3c5a05c266d7b7e64bb57a1",
+        "subject": "test(crypto): isolate proposal rate-limiter from Redis"
+      },
+      {
+        "sha": "9e4685044a2ed20371164cd4542da54e25ec802d",
+        "subject": "fix(crypto): bind transfer matching to immutable invoice destination address across claims and memos"
+      },
+      {
+        "sha": "1206b5a96f61d637103656a5bf03cbaffb285b54",
+        "subject": "test(crypto): prevent matching chain transfers to invoices for different wallet destinations"
+      },
+      {
+        "sha": "c8e45e51058f22d42530f717cddb93bf8d0499c5",
+        "subject": "test(release): include wrong-wallet matching regression suite in isolated checks"
+      },
+      {
+        "sha": "3732e23d3821d6a83c8fecb41ec4b8fee0c542d1",
+        "subject": "feat(crypto): allow explicit per-address TRON and TON scans while retaining default env wallet behavior"
+      },
+      {
+        "sha": "b7973ad0cbbc06089d237d1414f9d6153a676d8b",
+        "subject": "feat(crypto): scan all distinct destinations of outstanding invoices, preserving old-wallet monitoring"
+      },
+      {
+        "sha": "a54b61dce664d91666de67c3df583754aeac2e2d",
+        "subject": "test(crypto): verify old/new destination scans, partial provider failures and backward compatibility"
+      },
+      {
+        "sha": "0bcb12e52e233e4f6fde515146194aca28860dc1",
+        "subject": "test(release): include no-network multi-address worker regression tests"
+      },
+      {
+        "sha": "f897f979a073a2622f838bfb581885562209d10f",
+        "subject": "test(crypto): mock TronGrid and TON Center multi-address scanning and provider failures"
+      },
+      {
+        "sha": "ab477e1d45f252bf5cba38b418deac9403a60ab0",
+        "subject": "test(release): include mocked TronGrid and TON Center contract tests"
+      },
+      {
+        "sha": "2458ca9ee42bc06f3377df6e04cda1b168afd60d",
+        "subject": "feat(crypto): read-only wallet rotation readiness assessment including expired and review invoices"
+      },
+      {
+        "sha": "23b5ade38c0df142f9942fda68228392bb8ebd16",
+        "subject": "feat(superadmin): expose read-only crypto rotation readiness and unresolved invoice counts"
+      },
+      {
+        "sha": "e4b2d251a2b50cbef0b3cd4668b43254206d2cf0",
+        "subject": "test(crypto): verify read-only rotation blockers and payment expiry/grace windows"
+      },
+      {
+        "sha": "580b12dc2b6ef08ea3e957dd8bf93671f241e4c4",
+        "subject": "test(release): run mocked provider, expiry and rotation-readiness suites in isolated container"
+      },
+      {
+        "sha": "e3c251f7717fbd628a381c28e538e3bfbc55db92",
+        "subject": "feat(superadmin): inspect read-only wallet rotation blockers from pending proposal cards"
+      },
+      {
+        "sha": "f40b2fc16b35db2c38cae40d2bcfa0dd914202b9",
+        "subject": "test(crypto): assert rotation readiness API respects owner authorization and cannot activate wallets"
+      },
+      {
+        "sha": "cbd2f416336a192aecfcff2c995c0775cbdd00d6",
+        "subject": "docs: record mocked provider coverage, readiness gate and atomic activation blockers"
+      },
+      {
+        "sha": "4c2656825fbd03baec0642aa45598909605418d1",
+        "subject": "feat(crypto): add opt-in disposable-only locked wallet revision state for atomic switch prototypes"
+      },
+      {
+        "sha": "25824e2c76152317ce2763a53368bd7d76db9167",
+        "subject": "feat(crypto): share persistent destination row lock between invoice creation and experimental rotation"
+      },
+      {
+        "sha": "59840538cf55f63f85ea87a56b79dcf89e475ae5",
+        "subject": "security(crypto): hard-bind experimental wallet rotation to named disposable MySQL database"
+      },
+      {
+        "sha": "b59a6229b5b9f10c1a3fdeecf5b60a9791c02d07",
+        "subject": "test(crypto): serial versioned wallet rotation, revert, stale revision and production gate denial"
+      },
+      {
+        "sha": "d9b0757b59153223414b4a10307876659f1f5acd",
+        "subject": "test(release): add fail-closed experimental destination revision prototype tests"
+      },
+      {
+        "sha": "32e5f823ab4acfff0f07c96f321bed8987233967",
+        "subject": "test(crypto): add opt-in disposable MySQL concurrency and stale-activation regression checks"
+      },
+      {
+        "sha": "8af7f04b1f4da6107d8f992f1019350579adec2d",
+        "subject": "docs: record experimental atomic revision design, isolated database boundary and remaining safety gates"
+      },
+      {
+        "sha": "cb17e451bddb618dfbeff5a74721968a18433426",
+        "subject": "test(crypto): synchronize MySQL concurrency reader start to avoid false positive"
+      },
+      {
+        "sha": "6f3ea9a6ae88ad6c27e9cf0abf402b7aa5ebff47",
+        "subject": "test(release): isolated disposable MySQL real row-lock concurrency harness"
+      },
+      {
+        "sha": "c2c4c7ce2446362d7babdc9012148e7432369548",
+        "subject": "fix(test): enable isolated MySQL 8.4 native auth for dedicated disposable test user"
+      },
+      {
+        "sha": "c01521b730f1590b7a4de5cb2e643c9b1bf471db",
+        "subject": "test(crypto): persist concurrent invoice destination snapshots across MySQL rotation and rollback"
+      },
+      {
+        "sha": "d4dff3d1bdf3097d7526635c90a064d9e415fb61",
+        "subject": "test(crypto): verify no auto-credit on closed invoices or reused hashes and guard replay mismatches"
+      },
+      {
+        "sha": "8859440776b49831086205e4f955feaef116da14",
+        "subject": "test(release): include late-payment and ledger replay guard regression suite"
+      },
+      {
+        "sha": "77f1ed265027898006e4a0bf2188e2437e589131",
+        "subject": "docs(crypto): mark invoice snapshot and late payment regression scope and unimplemented reconciliation"
+      },
+      {
+        "sha": "d0012d43fb49871e004fe1c0048ae1cfb8320cc2",
+        "subject": "fix(test): assert MySQL lock outcome without scheduler-dependent post-commit event order"
+      },
+      {
+        "sha": "88c3c3cf6f25fc2fc02eb7ec09f12ec55ddd8539",
+        "subject": "test(crypto): exercise real invoice issuance, MySQL persisted destination and rotation concurrency"
+      },
+      {
+        "sha": "92338e229e0a319d4b66a326a36a06df4b3fceae",
+        "subject": "test(crypto): real MySQL wallet ledger replay remains single credit across fresh sessions"
+      },
+      {
+        "sha": "d74838d7e7d611afbc196509a318e7c6949fd3e4",
+        "subject": "docs: define real MySQL invoice and replay integration tests and outstanding settlement gaps"
+      },
+      {
+        "sha": "0cbcb32df3f7a6f18ebe2e8e082980438aa5bf8f",
+        "subject": "feat(wallet): owner-only versioned activation rehearsal endpoint gated to disposable MySQL with audited CAS and historical invoice veto"
+      },
+      {
+        "sha": "2dd14daed4a1830e4de283887002849a1f021461",
+        "subject": "feat(wallet): add disposable-only idempotent review inbox for late payments to historic crypto destinations"
+      },
+      {
+        "sha": "5afd1dde39cb911336f5491c2ac15e82afcad794",
+        "subject": "feat(wallet): scan historical invoice destinations in disposable rotation mode and quarantine unmatched late transfers without credit"
+      },
+      {
+        "sha": "5c1d98943c2584982b107fccaf4d585784d293b1",
+        "subject": "feat(wallet): expose owner-only experimental historical-transfer manual review inbox read-only"
+      },
+      {
+        "sha": "fdb695e70dc0f1658f1909e67f217446631ef724",
+        "subject": "test(wallet): verify late-transfer inbox never auto-credits, duplicate hashes suppressed and prod gate fails closed"
+      },
+      {
+        "sha": "d22fc49e00c335994138c9c0eb4dfd523ea65bfa",
+        "subject": "test(wallet): include late-transfer no-credit review suite in existing single disposable MySQL release gate"
+      },
+      {
+        "sha": "9d92ced8ce64e2c38780af55e41b30fea2a9987d",
+        "subject": "fix(crypto): paginate TRON and TON destination scans with fail-closed bounds"
+      },
+      {
+        "sha": "19966a4fb1a3e8bc5af344a5e93b66ec274962f8",
+        "subject": "test(crypto): cover multi-page TRON and TON scans and incomplete-provider failures"
+      },
+      {
+        "sha": "92d3280f9606e492e6f95e9a30a3a13d40084b2f",
+        "subject": "test(release): include crypto pagination and late-transfer inbox regressions in isolated gate"
+      },
+      {
+        "sha": "deecb5aedbd17a89711a0414127c92137b76e49f",
+        "subject": "docs(crypto): record pagination safety work and remaining production blockers"
+      },
+      {
+        "sha": "35b33b398ce4ede9691845bd15dcc4bc878b218a",
+        "subject": "fix(crypto): reject TON amount-only attribution in experimental wallet rotation"
+      },
+      {
+        "sha": "b19d647620f05fd536dccec914f730c245f2e9a7",
+        "subject": "fix(crypto): require nonempty matching TON invoice memo for claimed hash"
+      },
+      {
+        "sha": "38a1d8aa21daed774833b02b43cae1d2a5017381",
+        "subject": "test(crypto): enforce strict TON memos only during experimental rotation"
+      },
+      {
+        "sha": "2de84bf0226372e4536189aa5f953d4e8ea47e85",
+        "subject": "test(release): run strict TON memo regression with wallet rotation safety gate"
+      },
+      {
+        "sha": "8a379c30fad881bcbef8d33d737e9078966da136",
+        "subject": "docs(crypto): record strict TON rotation attribution and production release blockers"
+      },
+      {
+        "sha": "ea212d2930351f3854e0aa3312b43a31d373dfd7",
+        "subject": "fix(crypto): explicitly surface historical scan gaps without dropping recent invoice scans"
+      },
+      {
+        "sha": "d8533096370e037354928878086be9032e3a7659",
+        "subject": "test(crypto): verify old-destination scan gaps are flagged without changing live scan semantics"
+      },
+      {
+        "sha": "2e9e0d93336951700fd753a23e053525ed7d1209",
+        "subject": "test(release): run historical scan gap alarm regression in isolated safety suite"
+      },
+      {
+        "sha": "6470089d0bd80dbfb40369d192d03526f4f225c6",
+        "subject": "docs(crypto): document historical scan coverage alarms and remaining backfill work"
+      },
+      {
+        "sha": "5866c275a671da5728d81c27a023281603d8e347",
+        "subject": "feat(crypto): record guarded scan observations without asserting historical backfill"
+      },
+      {
+        "sha": "ea8fb48bee2040322701748aaddabdcd88ead9fa",
+        "subject": "feat(crypto): persist experimental per-address scan attempts and failures"
+      },
+      {
+        "sha": "3aca4baf380a8f1ec0a719c12d33a16dc1fa5d12",
+        "subject": "test(crypto): ensure persisted scan observation is never proof of backfill"
+      },
+      {
+        "sha": "2f229d4db9120bf70c0e569e69386a2cfaf293a3",
+        "subject": "test(release): include persisted scan observation guards in isolated test gate"
+      },
+      {
+        "sha": "3bbedf4a965a1cbdaa763a1904c813acd4219612",
+        "subject": "docs(crypto): document per-address scan diagnostics and explicitly unverified backfill"
+      },
+      {
+        "sha": "17aadec8eedbb113316de2c43d177ccf575c9f61",
+        "subject": "fix(crypto): include rejected historical invoices in manual late-transfer monitoring"
+      },
+      {
+        "sha": "17b07a02cbf50f131a042fe84d12546542790ca3",
+        "subject": "feat(crypto): expose fail-closed scan diagnostics in experimental rotation readiness"
+      },
+      {
+        "sha": "5a05c99d2e7c1278acc7325b30207ad4b61a3b20",
+        "subject": "test(crypto): readiness never trusts scan observations as activation evidence"
+      },
+      {
+        "sha": "7b87a26f18d5925ee19b432aed5e8be3451356a0",
+        "subject": "test(release): include rejected-invoice and fail-closed readiness regressions"
+      },
+      {
+        "sha": "ed8c150b97d2e6597a2e25fcc0f8eff0d2b35c44",
+        "subject": "docs(crypto): record rejected late transfers and conservative scan readiness"
+      },
+      {
+        "sha": "361792735b7b8e2809780e62f78853192d10b55d",
+        "subject": "ops(crypto): add read-only history and ledger dependency audit before any test cleanup"
+      },
+      {
+        "sha": "bbd6360ca9654b9d28107fdfc9910f90341b409d",
+        "subject": "docs(crypto): narrow historical migration requirement for verified test-only data without permitting blind deletion"
+      },
+      {
+        "sha": "a13c9baa47cc80f270d87e1c76fe75c5ef4550b2",
+        "subject": "ops(crypto): add read-only final test-history cleanup eligibility checks"
+      },
+      {
+        "sha": "44ba51143b3be77271d19c8d51eaca47cb3485af",
+        "subject": "ops(crypto): stage backup-first guarded cleanup runbook (execution intentionally blocked pending atomic guard)"
+      },
+      {
+        "sha": "5eed29058df8a726fef3aa848ba594ea02e768c5",
+        "subject": "fix(ops): make crypto cleanup preparation strictly read-only with full database backup"
+      },
+      {
+        "sha": "8e9779097bcf3570194831feab15b3b3eca8a713",
+        "subject": "ops(finance): add read-only full-wallet reset dependency census before any production reset"
+      },
+      {
+        "sha": "7163bc382815bfb2581a01a57dccaa094b8190ee",
+        "subject": "ops(finance): audit pending payment requests and game 91 before reset"
+      },
+      {
+        "sha": "2b1b859c94d5fbea31eea00ad83038adb5e8ece3",
+        "subject": "fix(crypto): bind proposal/readiness to current versioned destination in disposable rotation mode"
+      },
+      {
+        "sha": "58728ff5398eaae4638f9b8695767fe4d8661c73",
+        "subject": "test(crypto): regress second rotation, stale proposals and production address isolation"
+      },
+      {
+        "sha": "e7f64c6a54cdbaeefdd6873396edca2e76708810",
+        "subject": "feat(crypto): expose current version only in disposable rotation proposal review"
+      },
+      {
+        "sha": "dd6ccc4a4af05b2696c2d01c8fed1ab288978e10",
+        "subject": "feat(mini): add gated disposable-only crypto rotation confirmation to superadmin panel"
+      },
+      {
+        "sha": "88da119f4e2a581a072e97dd21ee335d837a39be",
+        "subject": "test(crypto): enforce experimental-only version reveal and production activation denial"
+      },
+      {
+        "sha": "a763e5d7ba7adca27b8907337d5771fc3737a950",
+        "subject": "docs(release): focus TON/TRON rotation and describe staged experimental UI and remaining gates"
+      },
+      {
+        "sha": "f4a0ccfd53cd873c74f06204274d7a23de584262",
+        "subject": "feat(crypto): surface historical invoice blocker in rotation readiness report"
+      },
+      {
+        "sha": "411e8e6e2c334f18711fece6238a45b87b850c75",
+        "subject": "ui(crypto): show historical invoice blocker before superadmin rotation review"
+      },
+      {
+        "sha": "3ca9d6a7fb2fbbee43314ad93a1eb488b5d4cebb",
+        "subject": "test(crypto): include historical invoice count in read-only readiness contract"
+      },
+      {
+        "sha": "7362654d6470b1c5476837743df4e2186e61d377",
+        "subject": "feat(crypto): add default-off explicitly pinned production rotation mode without weakening disposable gate"
+      },
+      {
+        "sha": "9e6deac00f30c378777ba8f23b5b7185fe26c9d3",
+        "subject": "fix(crypto): keep experimental activation strictly disposable with production gate introduced"
+      },
+      {
+        "sha": "bf55ed358c1d647982c925ed544d9012b541d9a5",
+        "subject": "feat(crypto): implement gated owner-only frozen-runtime production address preparation and atomic CAS activation"
+      },
+      {
+        "sha": "d24ab10224687a6f91c809262f2a91b8dc3a2baa",
+        "subject": "fix(crypto): show frozen production bootstrap state without allowing unseeded invoices"
+      },
+      {
+        "sha": "8d6dea41dca4d1882b5554ec71e7970e69f3e847",
+        "subject": "feat(crypto): expose frozen production bootstrap/version metadata in owner panel"
+      },
+      {
+        "sha": "cb80f239c57024860ae39dfd29e8a24378751db9",
+        "subject": "feat(mini): owner-only versioned wallet bootstrap UI when crypto deposits are frozen"
+      },
+      {
+        "sha": "5e22098656b4b1af4a4bac58db3954ca45853bfa",
+        "subject": "feat(mini): double-confirmed owner-only production address activation UI with read-only invoice gate"
+      },
+      {
+        "sha": "c67cc3379b2d45071e34e68e70b08fc8e0cbbcaa",
+        "subject": "test(crypto): refuse unauthorized, unfrozen, historical and stale production activation"
+      },
+      {
+        "sha": "80601966a4206de4f1a66a2e3ac6a9dce6f61831",
+        "subject": "test(crypto): verify fail-closed default and independent production/database rotation gate"
+      },
+      {
+        "sha": "757bab8764c06e14db3c891e13522560b1a0d4f7",
+        "subject": "test(release): include fail-closed production rotation env gate regression in pinned V1.2 suite"
+      },
+      {
+        "sha": "47de7d97a71b96def2301d224382e95507f517ad",
+        "subject": "feat(bot): expose superadmin TON/TRON destination status entry in crypto menu"
+      },
+      {
+        "sha": "b0b6b782d44e7326d9991827ccf0be79d800530e",
+        "subject": "feat(bot): add read-only owner wallet address overview with Mini App-only activation boundary"
+      },
+      {
+        "sha": "d83bbd8f7498acc851f4bf8d025afaa86cdf9674",
+        "subject": "fix(bot-finance): serialize bot crypto runtime toggle with production destination rotation lock"
+      },
+      {
+        "sha": "dd960f3e4ffde5010976cd40e0dbee44c9f5aab6",
+        "subject": "test(crypto): verify successful production CAS handler remains frozen and audits proposal state"
+      },
+      {
+        "sha": "8b525f77ed4973a4ba2fd087d3d8454c6a218356",
+        "subject": "fix(bot): render proper newlines in owner wallet destination overview"
+      },
+      {
+        "sha": "0ee54c8e1ded18408a5008d4f0fffc3409af029a",
+        "subject": "fix(crypto): consistent runtime-before-destination lock order and isolate experimental review endpoint"
+      },
+      {
+        "sha": "8d187c6ac5c28e5439c7c29629706088f1fbed5a",
+        "subject": "fix(bot): align crypto runtime and address locks to prevent production switch deadlock"
+      },
+      {
+        "sha": "47cabd7a5d11b68dd4413ad474a4c8b6fc748384",
+        "subject": "feat(crypto): fail closed if TON/TRON provider cannot scan proposed production address"
+      },
+      {
+        "sha": "43fd0584d7eaa09b71ddb2ffd702754cdb05c73f",
+        "subject": "test(crypto): mock production provider preflight in isolated successful activation test"
+      },
+      {
+        "sha": "5c7059395db4256a742ddab8cb1422cc6f28b2e1",
+        "subject": "test(crypto): ensure provider query failure blocks production activation before version update"
+      },
+      {
+        "sha": "ddcd418b09edba168b6a2775c0ff2bcab9bf0bc3",
+        "subject": "feat(crypto): add owner-only production historical transfer observation inbox without credit actions"
+      },
+      {
+        "sha": "8a5535554ac3a3e83c0f21452176ac22cf1d0512",
+        "subject": "test(release): compile pinned bot package and backend before crypto regression runs"
+      },
+      {
+        "sha": "82859048e55dcb601898749d56cc01d4647f3f1f",
+        "subject": "test(crypto): align experimental proposal listing test with strict disposable gate"
+      },
+      {
+        "sha": "937b2357b2d9bbdef97f519e14ea5831b06dbe4c",
+        "subject": "test(release): add one pinned disposable-only wallet candidate verification runner"
+      },
+      {
+        "sha": "706365d82c64f03ec70f346cbaaee2876a265bfd",
+        "subject": "docs(release): document gated production rotation candidate, owner workflow, and history blockers"
+      },
+      {
+        "sha": "ac0400389ffd42abbb4cfcd6ca81817d3b703d7a",
+        "subject": "docs(crypto): clarify explicit gated version bootstrap for frozen production"
+      },
+      {
+        "sha": "98c16a25aa27431a48dbd8ffe2e6f3c35361248a",
+        "subject": "audit(crypto): add read-only detailed historical TON/TRON invoice reconciliation report"
+      },
+      {
+        "sha": "0dc406b81d311c818d4c3776bbde145ae42a5992",
+        "subject": "audit(crypto): add read-only bounded TON/TRON historical chain scan for retired destinations"
+      },
+      {
+        "sha": "9ce69a9968b3798f709097dc89847a2aeb3ce735",
+        "subject": "fix(audit): match live chain service API and verify historical configured addresses before scanning"
+      },
+      {
+        "sha": "f207f1e6106f53f536b5238da9b42843175d199b",
+        "subject": "test(clean-launch): validate fresh full MySQL migrations and seed in disposable network with zero finance rows"
+      },
+      {
+        "sha": "3aa942e70c40379388fdba659f986f1370689ddc",
+        "subject": "docs(clean-launch): plan zero-km clean DB cutover with separate stack, preserved rollback and fund gates"
+      },
+      {
+        "sha": "68dfef3d633663c324f36368b0915940cbd71e42",
+        "subject": "test(release): fail candidate image when crypto or Mini App file differs from pinned Git source"
+      },
+      {
+        "sha": "1083ff64988d302642c37ba8d1581723a5183a8e",
+        "subject": "fix(clean-launch): point receipt storage to disposable writable tmpfs during read-only migration test"
+      },
+      {
+        "sha": "d6ee463853b3c144e453266570d8e1d84e6a35af",
+        "subject": "fix(clean-launch): enable trigger creation only on ephemeral test MySQL for migration 0007"
+      },
+      {
+        "sha": "3dfc192d1d1c1be5d8fce2f44690281fe337cdf7",
+        "subject": "fix(migrations): make locked draw mode schema additions converge on fresh DB"
+      },
+      {
+        "sha": "ded3fdf5919eb4191bbc902c5b02d1fc2c737740",
+        "subject": "fix(clean-launch): reconcile historical migration with modern initial schema — 20260219_0001_initial_schema.py"
+      },
+      {
+        "sha": "872965555918e9a11368abc48c62d38238357d54",
+        "subject": "fix(clean-launch): reconcile historical migration with modern initial schema — 20261009_0008_withdraw_rejection_reason.py"
+      },
+      {
+        "sha": "5eb698729a7fa6a558072ff070dc523c5ca086cd",
+        "subject": "fix(clean-launch): reconcile historical migration with modern initial schema — 20261031_0009_autopilot_foundation.py"
+      },
+      {
+        "sha": "5721bb2a198d8d8d212f6e1cd80a7688af34d5a6",
+        "subject": "fix(clean-launch): reconcile historical migration with modern initial schema — 20261104_0011_game_rule_card_layout.py"
+      },
+      {
+        "sha": "e16e9a61f1e2ec837d72045b05aefb8a1b9d2f89",
+        "subject": "fix(clean-launch): reconcile historical migration with modern initial schema — 20261108_0012_deposit_rejection_reason.py"
+      },
+      {
+        "sha": "e13e3b19fbc94ab7211c926a2272d707dd2f1a7b",
+        "subject": "ops(clean-launch): add non-destructive production cutover preflight with counts, flags and volume mapping"
+      },
+      {
+        "sha": "84ad024f128dc5a58ea35252332563cc0105c2ae",
+        "subject": "ops(clean-launch): prepare independent persistent empty MySQL with strict non-production guards and migration assertions"
+      },
+      {
+        "sha": "604f32e9aa631b3edd82096628ff466152f15b0e",
+        "subject": "build(zero-km): safely combine V1.2 wallet backend with V1.3 Superadmin UI in nondeployed candidate"
+      },
+      {
+        "sha": "062cd58647d9e2832c2bed73479efdb31315348a",
+        "subject": "fix(zero-km build): deterministic V1.3 panel integration preserving V1.2 wallet proposal UI instead of brittle git patch"
+      },
+      {
+        "sha": "ef643780d3628e1cb64b8e60e51f04f5a9d27592",
+        "subject": "ops(zero-km): verify combined image via no-bot no-payments private backend preview on independent persistent DB"
+      },
+      {
+        "sha": "6eda9b5654e50b0ebfd0dc5c5bb7b7cb8e2d8b8a",
+        "subject": "fix(zero-km preview): pipe stdin to Python verification inside isolated backend"
+      },
+      {
+        "sha": "b7c6d797a714d4ad6e7477dbc69d97c762a0df30",
+        "subject": "fix(zero-km preview): allow Redis image startup chown on isolated tmpfs; expose Redis logs on failure"
+      },
+      {
+        "sha": "392f4035b61a91c26321f09b434b6ccfb7dbc57b",
+        "subject": "ops(zero-km): securely bootstrap verified Telegram owner as sole new user without copying historical funds"
+      },
+      {
+        "sha": "89a80929a27762bc1eaefc7ed104b6f1b3df8dd9",
+        "subject": "fix(zero-km owner bootstrap): use stdin-enabled Docker exec for validated live owner lookup"
+      },
+      {
+        "sha": "f0a98a4cd8aff51c22d9509402a4ab8d53815cdf",
+        "subject": "ops(zero-km): privately stage validated new TON and TRON receive addresses without activating payments"
+      },
+      {
+        "sha": "c98ba18266da081d67f1cde678e7bd3ff54820a2",
+        "subject": "feat(wallet): support explicit pinned clean-launch DB host for owner wallet management gate"
+      },
+      {
+        "sha": "8ee16d61c54fba2f4fb3e076e284479440c80c85",
+        "subject": "feat(wallet): dynamically resolve owner-added TON/TRON destinations from versioned DB for invoices and scanner"
+      },
+      {
+        "sha": "9c5209774637e4f1d0df356f1a120a527fbb24cd",
+        "subject": "feat(wallet): add owner-only first destination setup to Mini API, guarded by frozen runtime, live provider validation, audit and DB gate"
+      },
+      {
+        "sha": "7de5dd7287d890bdebf61acc7f45eface7d1c8ac",
+        "subject": "feat(bot api): connect owner-only Telegram wallet actions to the same atomic Mini App destination API"
+      },
+      {
+        "sha": "274bcab969e9b0d87ef9c1a265f961ef8f68851b",
+        "subject": "feat(bot): API client for owner TON/TRC20 list, add, propose, readiness and activation"
+      },
+      {
+        "sha": "43196d5daad1107a899514022d971547025181c9",
+        "subject": "feat(bot UI): owner wallet add/edit/activate navigation with confirmation keyboard"
+      },
+      {
+        "sha": "f40c8f877186181c2a3510926e19f7eb6d99086f",
+        "subject": "feat(bot): FSM states for wallet destination edits and explicit activation confirmation"
+      },
+      {
+        "sha": "62bd71dde57a7ba314f06e246a5b640fc313f236",
+        "subject": "feat(bot): full owner wallet add, change, bootstrap and confirmed activation flows in Telegram"
+      },
+      {
+        "sha": "bb3daefb1bcc6aaa3cd2b643dfd9099f04b3d942",
+        "subject": "fix(bot): render real newline characters in owner wallet message flows"
+      },
+      {
+        "sha": "d29dfdec3c0529f97d3d392a09d0185c57addabb",
+        "subject": "feat(mini): add and edit crypto destination from Superadmin while retaining approval and payment freeze"
+      },
+      {
+        "sha": "6279b8e19b6dfa11bd300a5eb9c89f57d96e9610",
+        "subject": "feat(mini UI): explicitly label owner-managed TON and TRC20 address addition and change"
+      },
+      {
+        "sha": "b9c1676302fc8baa2fd819b361cee976490f3498",
+        "subject": "fix(wallet): lock active versioned destinations when re-enabling crypto payments in both admin APIs"
+      },
+      {
+        "sha": "ddaae585742de7e2be645a0f69fa02c885af87cb",
+        "subject": "fix(wallet): lock active versioned destinations when re-enabling crypto payments in both admin APIs"
+      },
+      {
+        "sha": "e2a558f0d9b2cbfb697886a10a21243f623d23fd",
+        "subject": "fix(wallet): bootstrap an explicit OFF payment lock row on a truly blank DB before first owner address"
+      },
+      {
+        "sha": "b797e4ed5afbd0038e564306b919903ec00bad9d",
+        "subject": "test(wallet): isolated HTTP add/update, owner auth, stale version and blocked invoices across Bot and Mini APIs"
+      },
+      {
+        "sha": "de72a6d2e54042b7f4948b855e6b44434e2437ad",
+        "subject": "test(wallet): pinned non-destructive backend and bot syntax plus isolated owner add/edit/auth regression suite"
+      },
+      {
+        "sha": "9dfa9261cd2a386c83283e931de367011a248c1f",
+        "subject": "fix(bot api): align proposal-created HTTP 201 status with shared Mini App API"
+      },
+      {
+        "sha": "4e267a10a1956ed9d2c1f4ad66983ae317d783c2",
+        "subject": "test(bot): validate owner TON/TRON add/edit/activate keyboard and confirmation-state contract"
+      },
+      {
+        "sha": "95f0a41f06af6192c819583b4ec1458659bfed7c",
+        "subject": "test(wallet): run real Aiogram keyboard/state tests in installed Bot image without polling or tokens"
+      },
+      {
+        "sha": "2faee1cc2bfd937e36d2dbb7ffd4eb6ffdbdd70c",
+        "subject": "test(wallet): require exact isolated clean DB host + schema and reject arbitrary hosts"
+      },
+      {
+        "sha": "4b4de7d73b3ec88e86188104c2797494a1d62b8b",
+        "subject": "ops(owner wallet): build matched V1.3 Mini backend and Telegram bot candidates without changing production"
+      },
+      {
+        "sha": "788f09d28a4a6570d5cb99f66816deadc2997843",
+        "subject": "ops(wallet): private end-to-end HTTP staging of matched Bot+Mini owner wallet images; no payment, bot, or live writes"
+      },
+      {
+        "sha": "f89597a98fde1e6ecf3b3529545434c2e80d42a3",
+        "subject": "test(wallet): end-to-end owner TON/TRON add and rotation in disposable real MySQL via Bot and Mini APIs"
+      },
+      {
+        "sha": "4794e556474edea9cc8a093437ed9ac1aca371af",
+        "subject": "test(wallet): run cross-surface real-MySQL add/rotation HTTP tests before existing atomic/concurrent/late-transfer suites"
+      },
+      {
+        "sha": "e421157c003c6f76a3bba6e600d7c5e9afb4b596",
+        "subject": "test(wallet): pass the parsed URL to the disposable MySQL engine"
+      }
+    ],
+    "migration_files": [],
+    "sensitive_paths": [
+      "backend/app/services/crypto_deposit_service.py",
+      "backend/app/services/crypto_destination_state.py",
+      "backend/tests/test_crypto_production_rotation_gate_isolated.py",
+      "backend/tests/test_owner_crypto_wallet_manager.py",
+      "backend/tests/test_owner_crypto_wallet_mysql_disposable.py",
+      "davarna-bot/tests/test_crypto_wallet_owner_ui.py",
+      "dev/release/build-owner-wallet-bot-mini-candidate-20261110.sh",
+      "dev/release/test-owner-crypto-wallet-bot-mini-isolated-20261110.sh",
+      "dev/release/test-owner-wallet-staging-private-20261110.sh",
+      "dev/release/test-wallet-rotation-mysql-disposable-20261110.sh"
+    ]
+  },
+  {
+    "base": "release/davarna-v1-candidate-20261109",
+    "draft": false,
+    "head": "test/pr50-deployment-verification",
+    "html_url": "https://github.com/MR-P3Y/dabarna/pull/51",
+    "number": 51,
+    "sha": "6161849a4238abc15c98479b4b692cd1169bc652",
+    "title": "test: verify level-topic ACK and record approved PR50 deployment",
+    "ancestor_of_deployed_release": false,
+    "review_base": "98fcce1dd2e127366367b378d47150530bb9b850",
+    "changed_files": [
+      "davarna-bot/tests/test_lifecycle_delivery_ack.py",
+      "dev/audit/integration-20261111/deployment.md",
+      "dev/audit/integration-20261111/release-images.json"
+    ],
+    "unique_patch_commits": [
+      {
+        "sha": "6161849a4238abc15c98479b4b692cd1169bc652",
+        "subject": "test: verify level-topic ACK and record approved PR50 deployment"
+      }
+    ],
+    "migration_files": [],
+    "sensitive_paths": []
+  }
+]
