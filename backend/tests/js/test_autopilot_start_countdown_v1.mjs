@@ -67,8 +67,8 @@ assert.ok(source.includes('gameStartCountdownFeedback.get(key) !== view.seconds'
 assert.ok(!source.slice(begin, end).includes('apiFetch('), "countdown must not trigger backend writes");
 assert.ok(css.includes("Autopilot game-start countdown v1"));
 assert.ok(css.includes("prefers-reduced-motion"));
-assert.ok(html.includes("ux-v2.css?v=autopilot-start-countdown-v1"));
-assert.ok(html.includes("app.js?v=autopilot-start-countdown-v1"));
+assert.ok(html.includes("ux-v2.css?v=remaining-ux-v1"));
+assert.ok(html.includes("app.js?v=remaining-ux-v1"));
 
 // Exercise the real ticker with two simultaneously urgent games.
 const noOp = () => {};

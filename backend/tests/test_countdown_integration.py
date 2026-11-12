@@ -55,6 +55,7 @@ class CountdownIntegrationTests(unittest.TestCase):
         report = get_bot_admin_game_report(game_id=91, events_limit=20, db=self.db,
                                           admin=AdminIdentity(AdminScope.SUPER_ADMIN, "isolated"))
         self.assertIsNotNone(mini.server_time_utc)
+        self.assertEqual(report.game.announce_before_seconds, int(self.lane.announce_before_seconds) if seconds is not None else None)
         for game in (mini.items[0], report.game):
             self.assertEqual(game.countdown_enabled, seconds is not None)
             self.assertEqual(game.countdown_seconds, seconds)

@@ -881,6 +881,7 @@ class BotAdminGameReportGameOut(BaseModel):
     game_level: str | None = None
     countdown_enabled: bool = False
     countdown_seconds: int | None = None
+    announce_before_seconds: int | None = None
     execution_source: str = "ADMIN"
     scheduled_start_at: str | None = None
     draw_mode: str | None = None
@@ -2793,10 +2794,16 @@ def get_bot_admin_game_report(
     ).mappings().all()
 
     countdown_seconds = None
+    announce_before_seconds = None
     if game["status"] == "LOBBY" and game["execution_source"] == "SYSTEM" and game["scheduled_start_at"]:
         countdown_seconds = GameAutopilotWorker.countdowns_for_games(
             db, {int(game_id): game["game_level"]}
         ).get(int(game_id))
+        if countdown_seconds is not None:
+            from app.models.game_autopilot import GameAutopilotConfig
+            lane = db.get(GameAutopilotConfig, game["game_level"])
+            if lane is not None:
+                announce_before_seconds = int(lane.announce_before_seconds)
 
     return BotAdminReportOut(
         game=BotAdminGameReportGameOut(
@@ -2809,6 +2816,7 @@ def get_bot_admin_game_report(
             game_level=str(game["game_level"]) if game["game_level"] is not None else None,
             countdown_enabled=countdown_seconds is not None,
             countdown_seconds=countdown_seconds,
+            announce_before_seconds=announce_before_seconds,
             execution_source=str(game["execution_source"] or "ADMIN"),
             scheduled_start_at=_as_str_datetime(game["scheduled_start_at"]) if game["scheduled_start_at"] is not None else None,
             draw_mode=str(game["draw_mode"]) if game["draw_mode"] is not None else None,

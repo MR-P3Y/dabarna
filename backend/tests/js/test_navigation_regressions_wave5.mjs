@@ -114,11 +114,11 @@ assert.equal(visited.at(-1).view, "games", "Unknown notification must not land i
 assert.equal(walletRefreshes, 1, "Unknown notification must not refresh financial data");
 assert.ok(js.includes('switchToView("cards", { skipCardsRefresh: true });\n  await refreshCards({ silent: true });'));
 assert.ok(
-  js.includes('openNotificationRoute(item)\n        .then(() => markRead())'),
+  /await openNotificationRoute\(item\);[\s\S]*?state\.notificationReadIds\.add\(String\(item\.id\)\)/.test(js),
   "Notifications must not be marked read before a successful route"
 );
 assert.ok(
-  js.includes('openReceiptModal(String(btn.getAttribute("data-kind") || ""), Number(btn.getAttribute("data-id") || 0))\n        .then(() => markRead())'),
+  /await openReceiptModal\(route\.receiptKind, route\.receiptId\);[\s\S]*?state\.notificationReadIds\.add\(String\(item\.id\)\)/.test(js),
   "Receipts must not be marked read before their modal opens"
 );
 console.log("PASS: card navigation avoids duplicate loads; finance, win, and unknown notification routes are correct.");
