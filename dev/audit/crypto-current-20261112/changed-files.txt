@@ -34,5 +34,7 @@ M	davarna-bot/bot/routers/super_admin.py
 M	davarna-bot/bot/services/api_client.py
 M	davarna-bot/bot/states/super_admin.py
 A	davarna-bot/tests/test_crypto_wallet_owner_ui.py
+A	dev/audit/crypto-current-20261112/changed-files.txt
+A	dev/audit/crypto-current-20261112/report.md
 A	dev/audit/crypto-current-20261112/screenshots/owner-crypto-mobile.png
 A	dev/qa/crypto-wallet-browser.mjs
