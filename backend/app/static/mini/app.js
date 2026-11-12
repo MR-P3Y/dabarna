@@ -7352,6 +7352,8 @@ async function refreshSuperCryptoProposals() {
       liveButton.textContent = "فعال‌سازی واقعی آدرس جدید";
       liveButton.disabled = Boolean(state.admin.cryptoSettings?.runtime_enabled);
       liveButton.addEventListener("click", async () => {
+        liveButton.disabled = true;
+        try {
         const network = String(item.network || "");
         const previous = String(item.expected_current_address || "");
         const proposed = String(item.address || "");
@@ -7369,8 +7371,6 @@ async function refreshSuperCryptoProposals() {
           " از " + previous + " به " + proposed + "؟ واریز باید خاموش باشد.")) return;
         if (window.prompt("عبارت ACTIVATE " + network + " را وارد کنید:") !==
             "ACTIVATE " + network) return;
-        liveButton.disabled = true;
-        try {
           await apiFetch("/mini-api/admin/super/crypto-address-activate-production", {
             method: "POST",
             body: {
@@ -7386,7 +7386,8 @@ async function refreshSuperCryptoProposals() {
             "آدرس تغییر کرد و واریز همچنان غیرفعال مانده است.");
         } catch (e) {
           setLocalError("superCryptoProposalHint", e);
-          liveButton.disabled = false;
+        } finally {
+          liveButton.disabled = Boolean(state.admin.cryptoSettings?.runtime_enabled);
         }
       });
       box.append(liveButton);
