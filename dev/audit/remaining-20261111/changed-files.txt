@@ -1,4 +1,3 @@
-Runtime/test baseline: Release 98fcce1 -> current nonfinancial candidate. Final audit-only files are additionally in this directory.
 M	backend/app/routers/bot_router.py
 M	backend/app/static/mini/app.js
 A	backend/app/static/mini/experience.mjs
@@ -17,8 +16,13 @@ M	davarna-bot/tests/test_autopilot_countdown_notice.py
 M	davarna-bot/tests/test_lifecycle_delivery_ack.py
 A	dev/audit/integration-20261111/deployment.md
 M	dev/audit/integration-20261111/release-images.json
+A	dev/audit/remaining-20261111/candidate-images.json
+A	dev/audit/remaining-20261111/changed-files.txt
 A	dev/audit/remaining-20261111/pr-evidence.json
 A	dev/audit/remaining-20261111/production-inventory.json
+A	dev/audit/remaining-20261111/prs.md
+A	dev/audit/remaining-20261111/release-plan.md
+A	dev/audit/remaining-20261111/report.md
 A	dev/audit/remaining-20261111/screenshots/admin-winner-desktop-light.png
 A	dev/audit/remaining-20261111/screenshots/admin-winner-mobile.png
 A	dev/audit/remaining-20261111/screenshots/inbox-desktop-light.png
