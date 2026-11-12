@@ -25,7 +25,7 @@ await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
 const origin=`http://127.0.0.1:${server.address().port}`;
 const browser=await chromium.launch({headless:true,...(process.env.CHROME_PATH?{executablePath:process.env.CHROME_PATH}:{})});
 const errors=[],writes=[];
-let failNotifications=false, failReceipts=false, notificationCalls=0, receiptCalls=0;
+let failNotifications=false, failGames=false, failReceipts=false, notificationCalls=0, receiptCalls=0;
 const games=[
  {id:91,status:'LOBBY',game_level:'LOW',game_rule:'LINE',card_layout_version:2,card_price:5000,created_at:'2026-11-11T10:00:00Z',scheduled_start_at:'2026-11-11T11:00:00Z'},
  {id:92,status:'RUNNING',game_level:'HIGH',game_rule:'FULL_CARD',card_layout_version:2,card_price:10000,created_at:'2026-11-11T09:00:00Z'},
@@ -42,7 +42,7 @@ await page.route('**/*',async route=>{
  if(route.request().method()!=='GET')writes.push(url.pathname);
  let body={};let status=200;
  if(url.pathname.endsWith('/notifications')){notificationCalls++;body={items:notifications};if(failNotifications)status=503;}
- else if(url.pathname.endsWith('/games'))body={items:games};
+ else if(url.pathname.endsWith('/games')){body={items:games};if(failGames)status=403;}
  else if(url.pathname.includes('/receipts/')){receiptCalls++;if(failReceipts)status=503;body={title:'رسید آزمایشی',kind:'prize',status:'DONE',amount:70,direction:'CREDIT',items:[]};}
  else if(url.pathname.includes('/snapshot'))body={game:games[1],state:{game_rule:'FULL_CARD',card_layout_version:2,status:'ENDED',called_numbers:[],row_winner_card_ids:[101,102]},events:[]};
  else if(url.pathname.includes('/admin/games/')&&url.pathname.includes('/cards/'))body={card_id:101,numbers:[1,0,20,0,40,0,60,0,80,2,0,21,0,41,0,61,0,81,3,0,22,0,42,0,62,0,82],user:{user_id:8,display_name:'بازیکن آزمایشی'}};
@@ -58,6 +58,11 @@ try {
  assert.equal(await page.locator('.inbox-card').count(),5);
  assert.equal(await page.evaluate(()=>Boolean(window.xss)),false);
  assert.equal(await page.locator('#notificationList img').count(),0);
+ const focusable=page.locator('#notificationCenter [role="dialog"] button:visible:not(:disabled)');
+ await focusable.last().focus();await page.keyboard.press('Tab');
+ assert.equal(await focusable.first().evaluate(el=>el===document.activeElement),true,'Tab wraps within modal');
+ await page.keyboard.press('Shift+Tab');
+ assert.equal(await focusable.last().evaluate(el=>el===document.activeElement),true,'reverse Tab wraps within modal');
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
  await page.screenshot({path:path.join(output,'inbox-mobile-dark.png'),fullPage:true});
  await page.locator('[data-filter="game"]').click();assert.equal(await page.locator('.inbox-card').count(),3);
@@ -77,6 +82,11 @@ try {
  assert.equal(await page.locator('#notificationSyncStatus').getAttribute('data-state'),'error');
  assert.equal(await page.locator('.inbox-card').count(),1,'failure retains snapshot');
  failNotifications=false;
+ failGames=true; notifications.push({id:'deposit:new',kind:'deposit',title:'واریز تازه',body:'۲۰ تومان',created_at:'2026-11-11T13:00:00Z'});
+ await page.evaluate(()=>qa.refreshNotifications());
+ assert.equal(await page.locator('.inbox-card').count(),2,'game access failure must not hide fresh financial notifications');
+ assert.equal(await page.evaluate(()=>qa.inboxUi.partial),true);
+ notifications.pop();failGames=false;
  await page.locator('#notificationRefreshBtn').click();await page.waitForFunction(()=>!qa.inboxUi.loading&&!qa.inboxUi.error);
  await page.keyboard.press('Escape');assert.equal(await page.evaluate(()=>document.activeElement.id),'notificationsBtn');
  assert.equal(await page.evaluate(()=>qa.inboxUi.timer),null,'close releases refresh timer');
@@ -105,6 +115,14 @@ try {
  await page.keyboard.press('Escape');
  await page.evaluate(event=>qa.showAdminWinnerPopup(event),event);
  assert.equal(await page.locator('#adminWinnerModal').getAttribute('aria-hidden'),'true','seen event must not reopen');
+ for (const [id,rule,layout,kind,label] of [[410,'LINE',2,'PRIZE_COL','۳ عدد'],[411,'LINE',2,'PRIZE_ROW','۵ عدد'],[412,'LEGACY',1,'PRIZE_COL','۴عددی'],[413,'LEGACY',1,'PRIZE_ROW','۵عددی']]) {
+   await page.evaluate(({event,id,rule,layout,kind})=>qa.openWinnerModal({...event,id,kind,payload:{...event.payload,game_rule:rule,card_layout_version:layout}}),{event,id,rule,layout,kind});
+   assert.ok((await page.locator('#winnerModalKind').innerText()).includes(label));
+   assert.match(await page.locator('#winnerModalAmount').innerText(),/۷۰/);
+   await page.keyboard.press('Escape');
+ }
+ await page.evaluate(event=>qa.openWinnerModal({...event,id:414,payload:{...event.payload,winner_user_ids:[18,18,19]}}),event);
+ assert.equal(await page.locator('#winnerModal').getAttribute('aria-hidden'),'true','other user prize must not open personal popup');
  await page.evaluate(()=>{qa.state.currentUserId=9;qa.openNotificationCenter();});await page.waitForFunction(()=>!qa.inboxUi.loading);
  assert.equal(await page.evaluate(()=>qa.state.notificationReadIds.has('deposit:1')),false,'read state scoped to account');
  await page.locator('[data-filter="all"]').click();
