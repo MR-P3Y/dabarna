@@ -6571,8 +6571,8 @@ def mini_super_crypto_address_initialize_production(
             since=datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=5),
             include_pending=False,
         )
-    except Exception:
-        log.exception("first destination provider preflight failed: network=%s", network)
+    except Exception as exc:
+        log.warning("first destination provider preflight failed: network=%s error_type=%s", network, type(exc).__name__)
         raise HTTPException(status_code=503, detail="بررسی شبکه برای این آدرس موفق نبود؛ تغییری ثبت نشد.") from None
     record = seed_destination_state(db, network=network, address=address)
     AdminAuditService.record(
@@ -6643,8 +6643,8 @@ def mini_super_crypto_address_activate_production(
             destination_address=proposed,
             include_pending=False,
         )
-    except Exception:
-        log.exception("crypto destination provider preflight failed: network=%s", network)
+    except Exception as exc:
+        log.warning("crypto destination provider preflight failed: network=%s error_type=%s", network, type(exc).__name__)
         raise HTTPException(
             status_code=503,
             detail="بررسی سرویس بلاک‌چین برای آدرس جدید ناموفق بود؛ آدرس تغییر نکرد.",

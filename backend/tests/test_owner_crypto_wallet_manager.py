@@ -193,6 +193,17 @@ class OwnerCryptoWalletManagerTest(unittest.TestCase):
         with patch.object(mini, "production_rotation_enabled", return_value=False):
             self.assertEqual(self.add_initial().status_code, 409)
 
+    def test_provider_failure_redacts_details_and_never_saves_destination(self):
+        marker = "SYNTHETIC_PROVIDER_CREDENTIAL_DO_NOT_LOG"
+        with patch.object(mini.CryptoChainService, "list_incoming", side_effect=RuntimeError(marker)):
+            with self.assertLogs(mini.log, level="WARNING") as captured:
+                response = self.add_initial()
+        self.assertEqual(response.status_code, 503, response.text)
+        self.assertNotIn(marker, response.text + "\n".join(captured.output))
+        self.assertIn("RuntimeError", "\n".join(captured.output))
+        with Session(self.engine) as db:
+            self.assertIsNone(db.get(AppSetting, "crypto_destination_v1:TRON"))
+
 
 if __name__ == "__main__":
     unittest.main()
