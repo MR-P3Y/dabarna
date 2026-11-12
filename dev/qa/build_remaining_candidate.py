@@ -23,10 +23,14 @@ with tempfile.TemporaryDirectory(prefix='dabarna-committed-build-') as tmp:
     with tarfile.open(fileobj=io.BytesIO(archive)) as stream:
         stream.extractall(root, filter='data')
     for service, parent in parents.items():
+        parent_tag = f'dabarna-{service}:rc-850a6db'
+        actual_parent = run('docker', 'image', 'inspect', '--format', '{{.Id}}', parent_tag, text=True).strip()
+        if actual_parent != parent:
+            raise RuntimeError('Candidate parent image identity changed')
         context = 'backend/app' if service == 'backend' else 'davarna-bot/bot'
         destination = '/app/app' if service == 'backend' else '/app/bot'
         dockerfile = root / ('Dockerfile.' + service)
-        dockerfile.write_text(f'FROM {parent}\nLABEL org.opencontainers.image.revision="{revision}"\nCOPY {context} {destination}\n')
+        dockerfile.write_text(f'FROM {parent_tag}\nLABEL org.opencontainers.image.revision="{revision}"\nCOPY {context} {destination}\n')
         tag = f'dabarna-{service}:remaining-{revision[:7]}'
         subprocess.run(['docker', 'build', '--network', 'none', '--pull=false', '-f', str(dockerfile), '-t', tag, str(root)], check=True)
         expected = {str(path.relative_to(root / context)).replace('\\', '/'):hashlib.sha256(path.read_bytes()).hexdigest()
