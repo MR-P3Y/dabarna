@@ -1,4 +1,5 @@
 from __future__ import annotations
+from app.services.crypto_destination_state import production_rotation_enabled, lock_destination_state
 
 from app.utils.messages import stored_rule
 from fastapi import APIRouter, Depends, HTTPException, Header, Query, Request # type: ignore
@@ -2208,7 +2209,22 @@ def admin_update_crypto_settings(
     if bool(payload.enabled) and (not bool(current.get("master_enabled")) or not bool(current.get("configured"))):
         raise HTTPException(status_code=409, detail="crypto payments are not configured")
     previous = bool(current.get("runtime_enabled"))
-    _setting_set_json(db, "crypto_payments_runtime_enabled", bool(payload.enabled))
+    # Lock ordering matches owner production rotation: runtime row first,
+    # then all configured destination versions, to avoid MySQL deadlock.
+    row = db.execute(
+        select(AppSetting).where(
+            AppSetting.k == "crypto_payments_runtime_enabled"
+        ).with_for_update()
+    ).scalar_one_or_none()
+    if production_rotation_enabled() and payload.enabled:
+        # Shared versioned lock must be available before new invoices.
+        for spec in current["networks"]:
+            lock_destination_state(db, str(spec["network"]))
+    if row is None:
+        db.add(AppSetting(k="crypto_payments_runtime_enabled", v_json=bool(payload.enabled)))
+    else:
+        row.v_json = bool(payload.enabled)
+        db.add(row)
     db.commit()
     out = _admin_crypto_runtime_status(db)
     out["changed"] = bool(previous != bool(out.get("runtime_enabled")))
@@ -3807,3 +3823,118 @@ def admin_get_deposit_receipt(
 
     # FileResponse خودش content-type رو حدس می‌زنه
     return FileResponse(dr.receipt_path, filename=os.path.basename(dr.receipt_path))
+
+
+from app.routers.mini_router import (
+    MiniAdminIdentity,
+    MiniSuperCryptoProductionInitialAddressIn,
+    MiniSuperCryptoAddressProposalIn,
+    MiniSuperCryptoProductionActivateIn,
+    MiniSuperCryptoProductionSeedIn,
+    MiniSuperCryptoCancelProposalIn,
+    mini_super_cancel_crypto_proposal,
+    mini_super_crypto_address_initialize_production,
+    mini_super_propose_crypto_address,
+    mini_super_crypto_address_activate_production,
+    mini_super_crypto_address_prepare_production,
+    mini_super_crypto_address_readiness,
+    mini_super_crypto_address_proposals,
+    mini_super_crypto_settings,
+)
+
+
+def _owner_mini_identity_for_bot(admin: AdminIdentity, db: Session) -> MiniAdminIdentity:
+    owner_id = _require_super_admin_owner(admin)
+    user = db.get(User, owner_id)
+    if user is None or not user.tg_user_id:
+        raise HTTPException(status_code=409, detail="Owner user is not initialized.")
+    return MiniAdminIdentity(
+        user_id=owner_id, tg_user_id=int(user.tg_user_id),
+        roles=["SUPER_ADMIN", "ADMIN"],
+    )
+
+
+@router.get("/admin/crypto-wallets")
+def bot_owner_crypto_wallets(
+    db: Session = Depends(get_db),
+    admin: AdminIdentity = Depends(get_admin_identity),
+):
+    identity = _owner_mini_identity_for_bot(admin, db)
+    status = mini_super_crypto_settings(ident=identity, db=db)
+    proposals = mini_super_crypto_address_proposals(ident=identity, db=db)
+    return {**status, "proposals": proposals["items"]}
+
+
+@router.get("/admin/crypto-wallets/readiness")
+def bot_owner_crypto_wallet_readiness(
+    network: str,
+    db: Session = Depends(get_db),
+    admin: AdminIdentity = Depends(get_admin_identity),
+):
+    identity = _owner_mini_identity_for_bot(admin, db)
+    if network not in {"TRON", "TON"}:
+        raise HTTPException(status_code=422, detail="Invalid network")
+    return mini_super_crypto_address_readiness(network=network, ident=identity, db=db)
+
+
+@router.post("/admin/crypto-wallets/add")
+def bot_owner_crypto_wallet_add(
+    payload: MiniSuperCryptoProductionInitialAddressIn,
+    request: Request,
+    db: Session = Depends(get_db),
+    admin: AdminIdentity = Depends(get_admin_identity),
+):
+    identity = _owner_mini_identity_for_bot(admin, db)
+    return mini_super_crypto_address_initialize_production(
+        payload=payload, request=request, ident=identity, db=db,
+    )
+
+
+@router.post("/admin/crypto-wallets/prepare")
+def bot_owner_crypto_wallet_prepare(
+    payload: MiniSuperCryptoProductionSeedIn,
+    request: Request,
+    db: Session = Depends(get_db),
+    admin: AdminIdentity = Depends(get_admin_identity),
+):
+    identity = _owner_mini_identity_for_bot(admin, db)
+    return mini_super_crypto_address_prepare_production(
+        payload=payload, request=request, ident=identity, db=db,
+    )
+
+
+@router.post("/admin/crypto-wallets/propose", status_code=201)
+def bot_owner_crypto_wallet_propose(
+    payload: MiniSuperCryptoAddressProposalIn,
+    request: Request,
+    db: Session = Depends(get_db),
+    admin: AdminIdentity = Depends(get_admin_identity),
+):
+    identity = _owner_mini_identity_for_bot(admin, db)
+    return mini_super_propose_crypto_address(
+        payload=payload, request=request, ident=identity, db=db,
+    )
+
+
+@router.post("/admin/crypto-wallets/activate")
+def bot_owner_crypto_wallet_activate(
+    payload: MiniSuperCryptoProductionActivateIn,
+    request: Request,
+    db: Session = Depends(get_db),
+    admin: AdminIdentity = Depends(get_admin_identity),
+):
+    identity = _owner_mini_identity_for_bot(admin, db)
+    return mini_super_crypto_address_activate_production(
+        payload=payload, request=request, ident=identity, db=db,
+    )
+
+
+@router.post("/admin/crypto-wallets/cancel")
+def bot_owner_crypto_wallet_cancel(
+    payload: MiniSuperCryptoCancelProposalIn,
+    request: Request,
+    db: Session = Depends(get_db),
+    admin: AdminIdentity = Depends(get_admin_identity),
+):
+    identity = _owner_mini_identity_for_bot(admin, db)
+    return mini_super_cancel_crypto_proposal(payload=payload, request=request, ident=identity, db=db)

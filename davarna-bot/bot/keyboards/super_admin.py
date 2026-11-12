@@ -151,10 +151,45 @@ def super_admin_crypto_settings_kb(*, runtime_enabled: bool, can_enable: bool) -
     else:
         text = "🟢 روشن کردن پرداخت رمزارزی" if can_enable else "🟢 روشن کردن پرداخت رمزارزی (نیازمند تنظیمات)"
         kb.button(text=text, callback_data="super:crypto:settings:toggle")
+    kb.button(text="💼 آدرس‌های TON/TRON", callback_data="super:crypto:addresses")
     kb.button(text="🧾 واریزهای نیازمند بررسی", callback_data="admin:crypto:pending")
     kb.button(text="🩺 سلامت سرویس‌ها", callback_data="super:crypto:health")
     kb.button(text="🧮 تطبیق ۲۴ ساعت اخیر", callback_data="super:crypto:reconcile")
     kb.button(text="🔄 تازه‌سازی", callback_data="super:crypto:settings")
     kb.button(text="⬅️ پنل سوپرادمین", callback_data="super:admin:panel")
-    kb.adjust(1, 1, 2, 1, 1)
+    kb.adjust(1, 1, 1, 2, 1, 1)
+    return kb.as_markup()
+
+
+def super_admin_crypto_wallets_kb(
+    *, networks: list[dict], proposals: list[dict], runtime_enabled: bool,
+) -> InlineKeyboardMarkup:
+    """Owner wallet menu: no address ever appears in callback_data."""
+    kb = InlineKeyboardBuilder()
+    by_network = {str(row.get("network") or ""): row for row in networks if isinstance(row, dict)}
+    by_proposal = {str(row.get("network") or ""): row for row in proposals if isinstance(row, dict)}
+    for network in ("TRON", "TON"):
+        item = by_network.get(network) or {}
+        address = str(item.get("address") or "")
+        if not address:
+            kb.button(text=f"➕ افزودن آدرس {network}", callback_data=f"super:crypto:wallet:edit:{network}")
+        else:
+            kb.button(text=f"✏️ تغییر آدرس {network}", callback_data=f"super:crypto:wallet:edit:{network}")
+            if item.get("requires_bootstrap"):
+                kb.button(text=f"🛡 آماده‌سازی {network}", callback_data=f"super:crypto:wallet:prepare:{network}")
+        if network in by_proposal:
+            text = "⏸ پرداخت فعال است؛ ابتدا خاموش کنید" if runtime_enabled else f"✅ تأیید تغییر {network}"
+            kb.button(text=text, callback_data=f"super:crypto:wallet:activate:{network}")
+            kb.button(text=f"لغو درخواست تغییر {network}", callback_data=f"super:crypto:wallet:cancel:{network}")
+    kb.button(text="🔄 تازه‌سازی آدرس‌ها", callback_data="super:crypto:addresses")
+    kb.button(text="⬅️ تنظیمات رمزارز", callback_data="super:crypto:settings")
+    kb.adjust(1)
+    return kb.as_markup()
+
+
+def super_admin_crypto_wallet_confirm_kb() -> InlineKeyboardMarkup:
+    kb = InlineKeyboardBuilder()
+    kb.button(text="✅ ثبت آدرس", callback_data="super:crypto:wallet:save")
+    kb.button(text="❌ انصراف", callback_data="super:crypto:addresses")
+    kb.adjust(1)
     return kb.as_markup()

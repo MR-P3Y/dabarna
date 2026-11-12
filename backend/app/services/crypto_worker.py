@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import hashlib
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import func, select
@@ -12,6 +13,11 @@ from app.core.redis_client import RedisLock
 from app.models.crypto import CryptoDepositRequest
 from app.services.crypto_chain_service import CryptoChainService
 from app.services.crypto_deposit_service import CryptoDepositService, OPEN_STATUSES
+from app.services.crypto_destination_state import rotation_enabled
+from app.services.crypto_scan_observation import record_scan_observation
+from app.services.crypto_late_transfer_review import (
+    HISTORICAL_STATUSES, record_unmatched_historical_transfer,
+)
 
 log = logging.getLogger(__name__)
 
@@ -23,7 +29,7 @@ def _utcnow() -> datetime:
 class CryptoDepositWorker:
     @staticmethod
     def run_once() -> dict[str, int]:
-        stats = {"transfers": 0, "matched": 0, "credited": 0, "review": 0, "expired": 0}
+        stats = {"transfers": 0, "matched": 0, "credited": 0, "review": 0, "expired": 0, "late_review": 0}
         lock = RedisLock(
             "davarna:crypto-deposit-worker",
             ttl_ms=max(30_000, int(cfg.CRYPTO_CONFIRM_INTERVAL_SEC) * 3_000),
@@ -50,36 +56,59 @@ class CryptoDepositWorker:
     @staticmethod
     def _process_cycle(stats: dict[str, int]) -> dict[str, int]:
         for network in ("TRON", "TON"):
-            if not CryptoDepositWorker._network_has_open_invoices(network):
+            # Invoice destinations are immutable snapshots. A wallet rotation must
+            # keep monitoring every outstanding invoice destination, not just env.
+            destinations = CryptoDepositWorker._network_open_destinations(network)
+            if not destinations:
                 continue
-            since = CryptoDepositWorker._network_scan_since(network)
-            try:
-                transfers = CryptoChainService.list_incoming(network=network, since=since)
-            except Exception as exc:
-                log.warning("crypto chain scan failed: network=%s error=%s", network, exc)
-                continue
-            stats["transfers"] += len(transfers)
-            for transfer in transfers:
-                with SessionLocal() as db:
-                    try:
-                        invoice = CryptoDepositService.process_transfer(db, transfer)
-                        if invoice is None:
+            for address in destinations:
+                gaps_before = stats.get("historical_gaps", 0)
+                since = CryptoDepositWorker._network_scan_since(network, destination_address=address, coverage_stats=stats)
+                historical_gap = stats.get("historical_gaps", 0) > gaps_before
+                try:
+                    transfers = CryptoChainService.list_incoming(
+                        network=network, since=since, destination_address=address
+                    )
+                except Exception as exc:
+                    log.warning("crypto chain scan failed: network=%s address_hash=%s error=%s",
+                                network, hashlib.sha256(address.encode()).hexdigest()[:12], exc)
+                    CryptoDepositWorker._record_scan(network, address, since,
+                        pages_complete=False, processing_complete=False,
+                        historical_gap=historical_gap, transfer_count=0)
+                    continue
+                stats["transfers"] += len(transfers)
+                processing_complete = True
+                for transfer in transfers:
+                    with SessionLocal() as db:
+                        try:
+                            invoice = CryptoDepositService.process_transfer(db, transfer)
+                            if invoice is None:
+                                if record_unmatched_historical_transfer(db, transfer):
+                                    db.commit()
+                                    stats["late_review"] += 1
+                                else:
+                                    db.rollback()
+                                continue
+                            db.commit()
+                            stats["matched"] += 1
+                            if invoice.status == "CREDITED":
+                                stats["credited"] += 1
+                            elif invoice.status == "NEEDS_REVIEW":
+                                stats["review"] += 1
+                        except Exception as exc:
+                            processing_complete = False
                             db.rollback()
-                            continue
-                        db.commit()
-                        stats["matched"] += 1
-                        if invoice.status == "CREDITED":
-                            stats["credited"] += 1
-                        elif invoice.status == "NEEDS_REVIEW":
-                            stats["review"] += 1
-                    except Exception as exc:
-                        db.rollback()
-                        log.exception(
-                            "crypto transfer processing failed: network=%s tx_hash=%s error=%s",
-                            transfer.network,
-                            transfer.tx_hash,
-                            exc,
-                        )
+                            log.exception(
+                                "crypto transfer processing failed: network=%s tx_hash=%s error=%s",
+                                transfer.network,
+                                transfer.tx_hash,
+                                exc,
+                            )
+                CryptoDepositWorker._record_scan(
+                    network, address, since,
+                    pages_complete=True, processing_complete=processing_complete,
+                    historical_gap=historical_gap, transfer_count=len(transfers),
+                )
 
         with SessionLocal() as db:
             try:
@@ -89,6 +118,48 @@ class CryptoDepositWorker:
                 db.rollback()
                 log.exception("crypto invoice expiration failed")
         return stats
+
+    @staticmethod
+    def _record_scan(
+        network: str, address: str, since: datetime, *,
+        pages_complete: bool, processing_complete: bool,
+        historical_gap: bool, transfer_count: int,
+    ) -> None:
+        if not rotation_enabled():
+            return
+        try:
+            with SessionLocal() as db:
+                record_scan_observation(
+                    db, network=network, address=address, since=since,
+                    pages_complete=pages_complete,
+                    processing_complete=processing_complete,
+                    historical_gap=historical_gap,
+                    transfer_count=transfer_count,
+                )
+                db.commit()
+        except Exception:
+            # Never make a monitoring failure a reason to skip processing a
+            # different deposit address. Lack of an observation blocks any
+            # future claim that historical coverage has been verified.
+            log.exception(
+                "crypto scan observation persistence failed: network=%s address_hash=%s",
+                network, hashlib.sha256(address.encode()).hexdigest()[:12],
+            )
+
+    @staticmethod
+    def _network_open_destinations(network: str) -> list[str]:
+        """All distinct destinations with unsettled invoices for the network."""
+        with SessionLocal() as db:
+            watched_statuses = tuple(OPEN_STATUSES) + (
+                HISTORICAL_STATUSES if rotation_enabled() else ()
+            )
+            rows = db.execute(
+                select(CryptoDepositRequest.destination_address).where(
+                    CryptoDepositRequest.network == network,
+                    CryptoDepositRequest.status.in_(watched_statuses),
+                ).distinct()
+            ).scalars().all()
+        return sorted({str(value).strip() for value in rows if str(value or "").strip()})
 
     @staticmethod
     def _network_has_open_invoices(network: str) -> bool:
@@ -102,15 +173,37 @@ class CryptoDepositWorker:
             return int(count or 0) > 0
 
     @staticmethod
-    def _network_scan_since(network: str) -> datetime:
+    def _network_scan_since(
+        network: str, *, destination_address: str | None = None,
+        coverage_stats: dict[str, int] | None = None,
+    ) -> datetime:
         floor = _utcnow() - timedelta(hours=int(cfg.CRYPTO_SCAN_LOOKBACK_HOURS))
         with SessionLocal() as db:
+            watched_statuses = tuple(OPEN_STATUSES) + (
+                HISTORICAL_STATUSES if rotation_enabled() else ()
+            )
             earliest = db.execute(
                 select(func.min(CryptoDepositRequest.created_at)).where(
                     CryptoDepositRequest.network == network,
-                    CryptoDepositRequest.status.in_(OPEN_STATUSES),
+                    CryptoDepositRequest.status.in_(watched_statuses),
+                    *([CryptoDepositRequest.destination_address == destination_address]
+                      if destination_address is not None else []),
                 )
             ).scalar_one_or_none()
+        if isinstance(earliest, datetime) and earliest < floor and rotation_enabled():
+            # A bounded recent scan is NOT proof of historical completeness.
+            # Preserve recent matching but surface the unscanned interval.
+            # Never claim the old address is fully reconciled or clear the
+            # rotation activation blockers from this scan.
+            if coverage_stats is not None:
+                coverage_stats["historical_gaps"] = coverage_stats.get("historical_gaps", 0) + 1
+            log.error(
+                "CRYPTO_HISTORICAL_SCAN_GAP network=%s address_hash=%s earliest_invoice=%s scan_floor=%s",
+                network,
+                hashlib.sha256(str(destination_address or "").encode()).hexdigest()[:12],
+                earliest.isoformat(),
+                floor.isoformat(),
+            )
         if isinstance(earliest, datetime) and earliest > floor:
             return earliest - timedelta(minutes=2)
         return floor

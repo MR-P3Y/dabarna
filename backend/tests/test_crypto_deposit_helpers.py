@@ -191,7 +191,7 @@ class CryptoDepositHelperTests(unittest.TestCase):
         self.assertEqual(raised.exception.status_code, 429)
 
     def test_transfer_before_invoice_is_not_accepted(self):
-        invoice = SimpleNamespace(
+        invoice = SimpleNamespace(destination_address="TReceiver",
             created_at=datetime(2026, 6, 24, 12, 0, 0),
             expires_at=datetime(2026, 6, 24, 12, 15, 0),
         )
@@ -209,7 +209,7 @@ class CryptoDepositHelperTests(unittest.TestCase):
         )
 
     def test_confirmed_transfer_credits_wallet_once(self):
-        invoice = SimpleNamespace(
+        invoice = SimpleNamespace(destination_address="TReceiver",
             id=25,
             user_id=10,
             network="TRON",
@@ -272,7 +272,7 @@ class CryptoDepositHelperTests(unittest.TestCase):
         repeated_credit.assert_not_called()
 
     def test_unconfirmed_transfer_moves_invoice_to_confirming_without_credit(self):
-        invoice = SimpleNamespace(
+        invoice = SimpleNamespace(destination_address="TReceiver",
             id=28,
             user_id=10,
             network="TRON",
@@ -325,7 +325,7 @@ class CryptoDepositHelperTests(unittest.TestCase):
         credit.assert_not_called()
 
     def test_user_can_cancel_only_untouched_waiting_invoice(self):
-        invoice = SimpleNamespace(
+        invoice = SimpleNamespace(destination_address="TReceiver",
             id=29,
             user_id=10,
             status="WAITING_PAYMENT",
@@ -348,7 +348,7 @@ class CryptoDepositHelperTests(unittest.TestCase):
         self.assertIsNotNone(invoice.cancelled_at)
 
     def test_expired_confirming_invoice_releases_active_invoice_slot(self):
-        invoice = SimpleNamespace(
+        invoice = SimpleNamespace(destination_address="TReceiver",
             status="CONFIRMING",
             active_user_id=10,
             failure_reason=None,
@@ -364,7 +364,7 @@ class CryptoDepositHelperTests(unittest.TestCase):
         self.assertIsNone(invoice.active_user_id)
 
     def test_failed_wallet_event_reopens_direct_payment(self):
-        invoice = SimpleNamespace(
+        invoice = SimpleNamespace(destination_address="TReceiver",
             id=31,
             user_id=10,
             status="WAITING_PAYMENT",
@@ -387,7 +387,7 @@ class CryptoDepositHelperTests(unittest.TestCase):
         self.assertIsNone(invoice.payment_requested_at)
 
     def test_payment_requested_invoice_cannot_be_cancelled(self):
-        invoice = SimpleNamespace(
+        invoice = SimpleNamespace(destination_address="TReceiver",
             id=32,
             user_id=10,
             status="WAITING_PAYMENT",
@@ -432,7 +432,7 @@ class CryptoDepositHelperTests(unittest.TestCase):
         self.assertEqual(raised.exception.status_code, 409)
 
     def test_underpayment_is_sent_to_review(self):
-        invoice = SimpleNamespace(
+        invoice = SimpleNamespace(destination_address="TReceiver",
             id=26,
             user_id=10,
             network="TRON",
@@ -479,7 +479,7 @@ class CryptoDepositHelperTests(unittest.TestCase):
         self.assertEqual(invoice.variance_amount_crypto, Decimal("0.25"))
 
     def test_overpayment_requires_review_and_records_variance(self):
-        invoice = SimpleNamespace(
+        invoice = SimpleNamespace(destination_address="TReceiver",
             id=27,
             user_id=10,
             network="TRON",

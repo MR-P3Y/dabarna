@@ -124,11 +124,8 @@ class ApiClient:
     async def get_game(self, game_id: int) -> dict:
         return await self._request("GET", f"/games/{game_id}")
 
-    async def get_game_state(self, game_id: int, last_n: int = 12, *, include_counts: bool = False) -> dict:
-        params = {"last_n": last_n}
-        if include_counts:
-            params["include_counts"] = "true"
-        return await self._request("GET", f"/games/{game_id}/state", params=params)
+    async def get_game_state(self, game_id: int, last_n: int = 12) -> dict:
+        return await self._request("GET", f"/games/{game_id}/state", params={"last_n": last_n})
 
     async def get_active_game_for_group(self, tg_group_id: int, *, tg_topic_id: int | None = None) -> dict:
         params: dict[str, int] | None = None
@@ -325,6 +322,82 @@ class ApiClient:
             headers=self.super_admin_headers(),
         )
         return data if isinstance(data, dict) else {}
+
+    async def super_admin_crypto_wallets(self) -> dict:
+        data = await self._request(
+            "GET", "/bot/admin/crypto-wallets",
+            headers=self.super_admin_headers(),
+        )
+        return data if isinstance(data, dict) else {"networks": [], "proposals": []}
+
+    async def super_admin_crypto_wallet_readiness(self, network: str) -> dict:
+        data = await self._request(
+            "GET", "/bot/admin/crypto-wallets/readiness",
+            params={"network": str(network).upper()},
+            headers=self.super_admin_headers(),
+        )
+        return data if isinstance(data, dict) else {}
+
+    async def super_admin_crypto_wallet_add(self, *, network: str, address: str) -> dict:
+        return await self._request(
+            "POST", "/bot/admin/crypto-wallets/add",
+            json={
+                "network": str(network).upper(), "address": str(address),
+                "confirmation": "ADD_NEW_CRYPTO_DESTINATION_WITH_PAYMENTS_OFF",
+            },
+            headers=self.super_admin_headers(), timeout_sec=30.0,
+        )
+
+    async def super_admin_crypto_wallet_prepare(self, *, network: str, expected_address: str) -> dict:
+        return await self._request(
+            "POST", "/bot/admin/crypto-wallets/prepare",
+            json={
+                "network": str(network).upper(),
+                "expected_current_address": str(expected_address),
+                "confirmation": "PREPARE_PRODUCTION_CRYPTO_DESTINATION",
+            },
+            headers=self.super_admin_headers(),
+        )
+
+    async def super_admin_crypto_wallet_propose(
+        self, *, network: str, address: str, expected_address: str,
+    ) -> dict:
+        return await self._request(
+            "POST", "/bot/admin/crypto-wallets/propose",
+            json={
+                "network": str(network).upper(), "address": str(address),
+                "expected_current_address": str(expected_address),
+                "confirmation": "REQUEST_ADDRESS_CHANGE",
+            },
+            headers=self.super_admin_headers(),
+        )
+
+    async def super_admin_crypto_wallet_cancel(
+        self, *, network: str, address: str, created_at: str,
+    ) -> dict:
+        return await self._request(
+            "POST", "/bot/admin/crypto-wallets/cancel",
+            json={"network": network, "expected_address": address,
+                  "expected_created_at": created_at,
+                  "confirmation": "CANCEL_PENDING_CRYPTO_ADDRESS"},
+            headers=self.super_admin_headers(),
+        )
+
+    async def super_admin_crypto_wallet_activate(
+        self, *, network: str, address: str,
+        expected_address: str, expected_version: int,
+    ) -> dict:
+        return await self._request(
+            "POST", "/bot/admin/crypto-wallets/activate",
+            json={
+                "network": str(network).upper(),
+                "proposed_address": str(address),
+                "expected_current_address": str(expected_address),
+                "expected_version": int(expected_version),
+                "confirmation": "ACTIVATE_PRODUCTION_CRYPTO_DESTINATION",
+            },
+            headers=self.super_admin_headers(), timeout_sec=30.0,
+        )
 
     async def super_admin_crypto_health(self) -> dict:
         data = await self._request(
@@ -806,13 +879,10 @@ class ApiClient:
         tg_username: str | None = None,
         *,
         status: str = "LOBBY|ACTIVE",
-        game_id: int | None = None,
         limit: int = 50,
         offset: int = 0,
     ) -> dict:
         params = {"status": status, "limit": limit, "offset": offset}
-        if game_id is not None:
-            params["game_id"] = game_id
         if settings.USER_FORUM_CHAT_ID is not None:
             params["tg_group_id"] = int(settings.USER_FORUM_CHAT_ID)
         elif settings.BOT_JOIN_GROUP_ID is not None:
