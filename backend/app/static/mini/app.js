@@ -1054,7 +1054,7 @@ function updateNotificationBadge() {
   }
 }
 
-const inboxUi = { filter: "all", loading: false, error: false, syncedAt: null, request: null, timer: null, owner: null };
+const inboxUi = { filter: "all", loading: false, error: false, partial: false, feed: [], games: [], syncedAt: null, request: null, timer: null, owner: null };
 const INBOX_CATEGORIES = { all: "همه", unread: "نخوانده", game: "بازی‌ها", win: "بردها", payment: "مالی", system: "سیستم" };
 
 function renderNotificationCenter() {
@@ -1070,7 +1070,7 @@ function renderNotificationCenter() {
   if (status) {
     status.dataset.state = inboxUi.error ? "error" : inboxUi.loading ? "loading" : "ready";
     status.textContent = inboxUi.error
-      ? `دریافت تازه انجام نشد؛ ${inboxUi.syncedAt ? "نمایش آخرین اطلاعات ذخیره‌شده" : "دوباره تلاش کنید"}`
+      ? inboxUi.partial ? "بخشی از اعلان‌ها به‌روز نشد؛ اطلاعات قبلی آن بخش حفظ شده است" : `دریافت تازه انجام نشد؛ ${inboxUi.syncedAt ? "نمایش آخرین اطلاعات ذخیره‌شده" : "دوباره تلاش کنید"}`
       : inboxUi.loading ? "در حال دریافت اعلان‌ها…"
       : inboxUi.syncedAt ? `آخرین دریافت: ${formatFaDateTime(inboxUi.syncedAt)} · خوانده‌شدن در همین دستگاه ذخیره می‌شود` : "هنوز همگام‌سازی نشده";
   }
@@ -1135,16 +1135,21 @@ async function refreshNotifications({ silent = true } = {}) {
   const owner = Number(state.currentUserId || 0);
   if (!owner) return;
   if (inboxUi.owner !== owner) {
-    inboxUi.owner = owner; state.notifications = []; inboxUi.syncedAt = null; inboxUi.error = false; loadNotificationReadIds();
+    inboxUi.owner = owner; state.notifications = []; inboxUi.feed = []; inboxUi.games = []; inboxUi.partial = false; inboxUi.syncedAt = null; inboxUi.error = false; loadNotificationReadIds();
   }
   if (inboxUi.request) return inboxUi.request;
   inboxUi.loading = true; renderNotificationCenter();
   inboxUi.request = (async () => {
     try {
-      const [out, games] = await Promise.all([apiFetch("/mini-api/me/notifications?limit=50"), apiFetch("/mini-api/games?status=LOBBY,RUNNING,ENDED&limit=30")]);
+      const [out, games] = await Promise.allSettled([apiFetch("/mini-api/me/notifications?limit=50"), apiFetch("/mini-api/games?status=LOBBY,RUNNING,ENDED&limit=30")]);
       if (Number(state.currentUserId || 0) !== owner) return;
-      state.notifications = experience.inboxItems(out?.items, games?.items);
-      inboxUi.syncedAt = new Date().toISOString(); inboxUi.error = false;
+      const feedOk = out.status === "fulfilled" && Array.isArray(out.value?.items);
+      const gamesOk = games.status === "fulfilled" && Array.isArray(games.value?.items);
+      if (feedOk) inboxUi.feed = out.value.items;
+      if (gamesOk) inboxUi.games = games.value.items;
+      state.notifications = experience.inboxItems(inboxUi.feed, inboxUi.games);
+      inboxUi.error = !feedOk || !gamesOk; inboxUi.partial = feedOk !== gamesOk;
+      if (feedOk && gamesOk) inboxUi.syncedAt = new Date().toISOString();
     } catch (error) {
       if (Number(state.currentUserId || 0) === owner) inboxUi.error = true;
       if (!silent) showToast("دریافت اعلان‌ها انجام نشد؛ دوباره تلاش کنید.", "error");
