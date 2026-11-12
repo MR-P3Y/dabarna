@@ -1,7 +1,8 @@
 // Presentation only: never authorizes a win, transfers money or starts a game.
-const positiveId = value => Number.isSafeInteger(Number(value)) && Number(value) > 0;
-const amountValue = value => value !== null && value !== undefined && value !== "" &&
-  Number.isSafeInteger(Number(value)) && Number(value) >= 0 ? Number(value) : null;
+const integerValue = value => typeof value === "number" ? value :
+  typeof value === "string" && /^\d+$/.test(value.trim()) ? Number(value.trim()) : NaN;
+const positiveId = value => Number.isSafeInteger(integerValue(value)) && integerValue(value) > 0;
+const amountValue = value => Number.isSafeInteger(integerValue(value)) && integerValue(value) >= 0 ? integerValue(value) : null;
 
 export function prizeRows(payload = {}) {
   const users = payload.winner_user_ids;
@@ -11,9 +12,9 @@ export function prizeRows(payload = {}) {
   let rows = [];
   if (Array.isArray(users) && Array.isArray(cards) && Array.isArray(amounts) &&
       users.length && users.length === cards.length && users.length === amounts.length) {
-    rows = users.map((id, i) => ({ userId: Number(id), cardId: Number(cards[i]), amount: amountValue(amounts[i]) }));
+    rows = users.map((id, i) => ({ userId: integerValue(id), cardId: integerValue(cards[i]), amount: amountValue(amounts[i]) }));
   } else if (Array.isArray(payload.winner_users) && payload.winner_users.length) {
-    rows = payload.winner_users.map(user => ({ userId: Number(user.user_id), cardId: Number(user.card_id), amount: amountValue(user.amount) }));
+    rows = payload.winner_users.map(user => ({ userId: integerValue(user.user_id), cardId: integerValue(user.card_id), amount: amountValue(user.amount) }));
   }
   if (!rows.length || rows.some(row => !positiveId(row.userId) || !positiveId(row.cardId) || row.amount === null) ||
       new Set(rows.map(row => row.cardId)).size !== rows.length) return [];
@@ -40,9 +41,9 @@ export function personalPrize(payload, userId) {
 
 export function ruleLabel(rule, layout) {
   const key = String(rule || "").toUpperCase();
-  if (key === "LINE" && Number(layout) === 2) return "خطی · ۱۵ عدد · ۳×۹";
-  if (key === "FULL_CARD" && Number(layout) === 2) return "پرکردنی · ۱۵ عدد · بدون تورنا";
-  if (key === "LEGACY" && Number(layout) === 1) return "قدیمی · ۲۰ عدد · ۴×۵";
+  if (key === "LINE" && integerValue(layout) === 2) return "خطی · ۱۵ عدد · ۳×۹";
+  if (key === "FULL_CARD" && integerValue(layout) === 2) return "پرکردنی · ۱۵ عدد · بدون تورنا";
+  if (key === "LEGACY" && integerValue(layout) === 1) return "قدیمی · ۲۰ عدد · ۴×۵";
   return "اطلاعات قانون بازی ناسازگار است";
 }
 

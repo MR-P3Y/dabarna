@@ -15,6 +15,12 @@ assert.equal(personalPrize({...shared,amounts_by_card:[30,40,Infinity]},8),null)
 assert.equal(personalPrize({...shared,winner_users:[{user_id:9,card_id:101,amount:120}]},8),null);
 assert.equal(personalPrize({winner_users:[{user_id:8,card_id:100,amount:0}]},8),0);
 assert.equal(prizeRows(shared).length,3);
+for (const invalid of [true,false,[],[1],{}," ","0x10"]) {
+  assert.equal(prizeRows({winner_user_ids:[8],winner_card_ids:[101],amounts_by_card:[invalid]}).length,0);
+  assert.equal(prizeRows({winner_user_ids:[invalid],winner_card_ids:[101],amounts_by_card:[1]}).length,0);
+  assert.equal(prizeRows({winner_user_ids:[8],winner_card_ids:[invalid],amounts_by_card:[1]}).length,0);
+}
+assert.match(ruleLabel("LEGACY",true),/ناسازگار/);
 for (const [rule,layout] of [["LINE",2],["FULL_CARD",2],["LEGACY",1]]) assert.ok(!ruleLabel(rule,layout).includes("ناسازگار"));
 assert.match(ruleLabel("LINE",1),/ناسازگار/);
 assert.match(prizeLabel("PRIZE_COL",{game_rule:"FULL_CARD",card_layout_version:2}),/ناسازگار/);
