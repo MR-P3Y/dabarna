@@ -8440,7 +8440,7 @@ function adminWinnerUserLabel(user) {
   if (name && username && name !== `@${username}`) return `${name} (@${username})`;
   if (name) return name;
   if (username) return `@${username}`;
-  return userId ? `user:${userId}` : "-";
+  return userId ? `شناسه ${toFaDigits(userId)}` : "نام ثبت نشده";
 }
 
 function closeAdminWinnerModal() {

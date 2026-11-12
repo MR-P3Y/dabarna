@@ -1,0 +1,363 @@
+{
+  "observed_at": "2026-11-12T15:23:09.022202+00:00",
+  "containers": [
+    {
+      "name": "davarna-backend",
+      "image": "sha256:e713ff8b7a43a800549b94048efba403ee6e7314a28ae72a1cd7a73e33cf7731",
+      "tag": "dabarna-backend:rc-850a6db",
+      "status": "running",
+      "health": "healthy",
+      "restarts": 0,
+      "mount_destinations": [
+        "/app/storage"
+      ]
+    },
+    {
+      "name": "davarna-bot",
+      "image": "sha256:9f2bad21e0f3884a7f31151accb3a06c5229991194afdc5685af22751fa1d47b",
+      "tag": "dabarna-bot:rc-850a6db",
+      "status": "running",
+      "health": "healthy",
+      "restarts": 0,
+      "mount_destinations": [
+        "/app/storage"
+      ]
+    },
+    {
+      "name": "davarna-mysql",
+      "image": "sha256:99d774bf02a48a1bb1c599920d2571946d31e5940b854b02737d5e95c184358f",
+      "tag": "mysql:8.0",
+      "status": "running",
+      "health": "healthy",
+      "restarts": 0,
+      "mount_destinations": [
+        "/var/lib/mysql"
+      ]
+    },
+    {
+      "name": "davarna-redis",
+      "image": "sha256:02f2cc4882f8bf87c79a220ac958f58c700bdec0dfb9b9ea61b62fb0e8f1bfcf",
+      "tag": "redis:7-alpine",
+      "status": "running",
+      "health": "healthy",
+      "restarts": 0,
+      "mount_destinations": [
+        "/data"
+      ]
+    }
+  ],
+  "images": [
+    {
+      "Repository": "dabarna-bot",
+      "Tag": "rc-850a6db",
+      "ID": "sha256:9f2bad21e0f3884a7f31151accb3a06c5229991194afdc5685af22751fa1d47b",
+      "Size": "229MB",
+      "CreatedAt": "2026-11-11 12:09:33 +0330 +0330"
+    },
+    {
+      "Repository": "dabarna-backend",
+      "Tag": "rc-850a6db",
+      "ID": "sha256:e713ff8b7a43a800549b94048efba403ee6e7314a28ae72a1cd7a73e33cf7731",
+      "Size": "316MB",
+      "CreatedAt": "2026-11-11 12:09:33 +0330 +0330"
+    },
+    {
+      "Repository": "davarna-bot",
+      "Tag": "owner-wallet-4b4de7d73b3e",
+      "ID": "sha256:1148b7b3f8ace313f17b1481c1cbd99614c60f53e4771b4d5b3428c453b15fc5",
+      "Size": "231MB",
+      "CreatedAt": "2026-11-10 22:34:33 +0330 +0330"
+    },
+    {
+      "Repository": "davarna-backend",
+      "Tag": "owner-wallet-v13-4b4de7d73b3e",
+      "ID": "sha256:95f75be4aea80fba19890281be89bab18744ff4c76fc9c76a1cdfc28bff4c107",
+      "Size": "314MB",
+      "CreatedAt": "2026-11-10 22:34:27 +0330 +0330"
+    },
+    {
+      "Repository": "davarna-backend",
+      "Tag": "zero-km-combined-4b4de7d73b3e",
+      "ID": "sha256:95f75be4aea80fba19890281be89bab18744ff4c76fc9c76a1cdfc28bff4c107",
+      "Size": "314MB",
+      "CreatedAt": "2026-11-10 22:34:27 +0330 +0330"
+    },
+    {
+      "Repository": "davarna-backend",
+      "Tag": "zero-km-combined-062cd58647d9",
+      "ID": "sha256:fc059ab62a9dde6a6f22447607fd13cd12f89cac0a7fd4a2b2949693bdbdccef",
+      "Size": "314MB",
+      "CreatedAt": "2026-11-10 18:45:24 +0330 +0330"
+    },
+    {
+      "Repository": "davarna-backend",
+      "Tag": "superadmin-v13-247c2be",
+      "ID": "sha256:4bfe2afa070fa9ca330f70e02ce2233bf2dcf33fb7aa21a1335fc3666cce04e3",
+      "Size": "326MB",
+      "CreatedAt": "2026-11-10 18:05:12 +0330 +0330"
+    },
+    {
+      "Repository": "davarna-backend",
+      "Tag": "superadmin-v13-test-247c2be",
+      "ID": "sha256:4bfe2afa070fa9ca330f70e02ce2233bf2dcf33fb7aa21a1335fc3666cce04e3",
+      "Size": "326MB",
+      "CreatedAt": "2026-11-10 18:05:12 +0330 +0330"
+    },
+    {
+      "Repository": "davarna-backend",
+      "Tag": "auto-clock-92471d0132b4",
+      "ID": "sha256:edaf8415a4d9dd148672fbb3a665a00626cada821fa6a478f178a349c70096e4",
+      "Size": "325MB",
+      "CreatedAt": "2026-11-10 13:14:16 +0330 +0330"
+    },
+    {
+      "Repository": "davarna-backend",
+      "Tag": "auto-clock-cf0317c5a6ad",
+      "ID": "sha256:37e143209801258429f6387a0cc922df9aa886d3ebe48e8e86bc7947838e57e9",
+      "Size": "324MB",
+      "CreatedAt": "2026-11-10 03:05:44 +0330 +0330"
+    },
+    {
+      "Repository": "davarna-backend",
+      "Tag": "superadmin-ui-v12-e54475a",
+      "ID": "sha256:a135393537c9d07a335bfdc3d1668f9ad5d5f805d7b1098428ef69bda58e5e53",
+      "Size": "323MB",
+      "CreatedAt": "2026-11-10 01:29:44 +0330 +0330"
+    },
+    {
+      "Repository": "davarna-backend",
+      "Tag": "superadmin-v11-rbac-7101e5c",
+      "ID": "sha256:42a77764a254d33f058fb1b606b4a274704975feadce717aa47bb336a3cb9d45",
+      "Size": "322MB",
+      "CreatedAt": "2026-11-09 23:57:47 +0330 +0330"
+    },
+    {
+      "Repository": "davarna-backend",
+      "Tag": "superadmin-v11-f48b124",
+      "ID": "sha256:66fb4c6215a3935dcd0487bb893fe811e3d2a6d20e151712b078f8956df3705b",
+      "Size": "321MB",
+      "CreatedAt": "2026-11-09 23:36:52 +0330 +0330"
+    },
+    {
+      "Repository": "davarna-bot",
+      "Tag": "v1-notices-9cb6876",
+      "ID": "sha256:2b22618bc4fd5fb2f6e430c501acaf11716c91bce158277895f18f38ba038b7a",
+      "Size": "229MB",
+      "CreatedAt": "2026-11-09 21:35:56 +0330 +0330"
+    },
+    {
+      "Repository": "davarna-backend",
+      "Tag": "v1-notices-9cb6876",
+      "ID": "sha256:9a6cfe162e759cf3f3956ea61efcccc4967097706303d1d1380197344ef1e76c",
+      "Size": "321MB",
+      "CreatedAt": "2026-11-09 21:35:54 +0330 +0330"
+    },
+    {
+      "Repository": "davarna-backend",
+      "Tag": "finance-pr31-90f6670",
+      "ID": "sha256:971e2306f6666af444a7a0365f43a4a9ae77da9e18cc119999d1345c9f1082ad",
+      "Size": "320MB",
+      "CreatedAt": "2026-11-08 19:51:09 +0330 +0330"
+    },
+    {
+      "Repository": "davarna-bot",
+      "Tag": "forum-mini-e7517922",
+      "ID": "sha256:d1a86d63213a7799149759becac2cb4f4529b57fe79e0c51dc60db7d3200c615",
+      "Size": "229MB",
+      "CreatedAt": "2026-11-07 23:23:58 +0330 +0330"
+    },
+    {
+      "Repository": "davarna-bot",
+      "Tag": "forum-mini-e7517922-stage2",
+      "ID": "sha256:dccabe74e0d5eaad8d2a2f7df8fc5d5b53a84cfe1d6f172475aaed8b93ca04e2",
+      "Size": "229MB",
+      "CreatedAt": "2026-11-07 23:23:58 +0330 +0330"
+    },
+    {
+      "Repository": "davarna-backend",
+      "Tag": "forum-mini-e7517922",
+      "ID": "sha256:7d80876ae35d99f60c977499f0a1de1749400023e8fa0d6ded4640fa078de797",
+      "Size": "319MB",
+      "CreatedAt": "2026-11-07 23:23:56 +0330 +0330"
+    },
+    {
+      "Repository": "davarna-backend",
+      "Tag": "forum-mini-e7517922-stage2",
+      "ID": "sha256:b6d2709c3f78ce946a90aeb1b2bd6774acfa6b72a88cd604c370842cc3824850",
+      "Size": "319MB",
+      "CreatedAt": "2026-11-07 23:23:56 +0330 +0330"
+    },
+    {
+      "Repository": "davarna-backend",
+      "Tag": "rbac-pr14-e087c40bd471",
+      "ID": "sha256:a3b5d79fa7c8d1c3394bef9728d89b33970b8f40d40fd93477804e30dad89a74",
+      "Size": "318MB",
+      "CreatedAt": "2026-11-06 23:09:48 +0330 +0330"
+    },
+    {
+      "Repository": "davarna-bot",
+      "Tag": "pr13-d9434cb10d71",
+      "ID": "sha256:9c4ee76c8c13a019e2092c1d2e748d084e43bb569b7728e86b275a11eed34779",
+      "Size": "229MB",
+      "CreatedAt": "2026-11-06 22:00:08 +0330 +0330"
+    },
+    {
+      "Repository": "davarna-backend",
+      "Tag": "pr13-d9434cb10d71",
+      "ID": "sha256:8fb946581b0a77b76feed7b899c0841ff630311571869dc5bf355dcacf505e87",
+      "Size": "318MB",
+      "CreatedAt": "2026-11-06 22:00:06 +0330 +0330"
+    },
+    {
+      "Repository": "davarna-backend",
+      "Tag": "rollback-rbac-pr14-e087c40bd471",
+      "ID": "sha256:8fb946581b0a77b76feed7b899c0841ff630311571869dc5bf355dcacf505e87",
+      "Size": "318MB",
+      "CreatedAt": "2026-11-06 22:00:06 +0330 +0330"
+    },
+    {
+      "Repository": "davarna-bot",
+      "Tag": "rollback-pr13-d9434cb10d71",
+      "ID": "sha256:3a6cb9bbbd1843d27ef246536f6b7210a0c7592bcac5c079e74f79fcfd27bb75",
+      "Size": "229MB",
+      "CreatedAt": "2026-11-06 20:24:22 +0330 +0330"
+    },
+    {
+      "Repository": "davarna-bot",
+      "Tag": "ux5-f3c649e22593",
+      "ID": "sha256:3a6cb9bbbd1843d27ef246536f6b7210a0c7592bcac5c079e74f79fcfd27bb75",
+      "Size": "229MB",
+      "CreatedAt": "2026-11-06 20:24:22 +0330 +0330"
+    },
+    {
+      "Repository": "davarna-backend",
+      "Tag": "rollback-pr13-d9434cb10d71",
+      "ID": "sha256:afbc17215c4d74f5049bf9ef4b3a10b474b119029394b428d3e167e39a163563",
+      "Size": "317MB",
+      "CreatedAt": "2026-11-06 20:24:20 +0330 +0330"
+    },
+    {
+      "Repository": "davarna-backend",
+      "Tag": "ux5-f3c649e22593",
+      "ID": "sha256:afbc17215c4d74f5049bf9ef4b3a10b474b119029394b428d3e167e39a163563",
+      "Size": "317MB",
+      "CreatedAt": "2026-11-06 20:24:20 +0330 +0330"
+    },
+    {
+      "Repository": "davarna-bot",
+      "Tag": "rollback-20261106-937ef711",
+      "ID": "sha256:f65138ec730a1c067ad390c37d971e50832d45960f6f3ccf7a74ec1f7fb6a797",
+      "Size": "228MB",
+      "CreatedAt": "2026-11-05 23:06:53 +0330 +0330"
+    },
+    {
+      "Repository": "davarna-bot",
+      "Tag": "v2-937ef711a9db",
+      "ID": "sha256:f65138ec730a1c067ad390c37d971e50832d45960f6f3ccf7a74ec1f7fb6a797",
+      "Size": "228MB",
+      "CreatedAt": "2026-11-05 23:06:53 +0330 +0330"
+    },
+    {
+      "Repository": "davarna-backend",
+      "Tag": "rollback-20261106-937ef711",
+      "ID": "sha256:08dac8f85c6a74a774230056ce1b89675e3a4cd5792c4231352f8d5f41f4b6eb",
+      "Size": "316MB",
+      "CreatedAt": "2026-11-05 23:06:51 +0330 +0330"
+    },
+    {
+      "Repository": "davarna-backend",
+      "Tag": "v2-937ef711a9db",
+      "ID": "sha256:08dac8f85c6a74a774230056ce1b89675e3a4cd5792c4231352f8d5f41f4b6eb",
+      "Size": "316MB",
+      "CreatedAt": "2026-11-05 23:06:51 +0330 +0330"
+    },
+    {
+      "Repository": "davarna-bot",
+      "Tag": "before-v2-20261105_230648",
+      "ID": "sha256:cf3e7805d1b7dba8b1798b924b98af29abcada8728f879fba17fd0175531d6d2",
+      "Size": "228MB",
+      "CreatedAt": "2026-11-05 22:45:10 +0330 +0330"
+    },
+    {
+      "Repository": "davarna-bot",
+      "Tag": "v2-87b755284990",
+      "ID": "sha256:cf3e7805d1b7dba8b1798b924b98af29abcada8728f879fba17fd0175531d6d2",
+      "Size": "228MB",
+      "CreatedAt": "2026-11-05 22:45:10 +0330 +0330"
+    },
+    {
+      "Repository": "davarna-backend",
+      "Tag": "before-v2-20261105_230648",
+      "ID": "sha256:8041e0685fb42174faae7c4dd5359cbbb1891315c5395b3fb2c76b6a29311255",
+      "Size": "316MB",
+      "CreatedAt": "2026-11-05 22:44:40 +0330 +0330"
+    },
+    {
+      "Repository": "davarna-backend",
+      "Tag": "v2-87b755284990",
+      "ID": "sha256:8041e0685fb42174faae7c4dd5359cbbb1891315c5395b3fb2c76b6a29311255",
+      "Size": "316MB",
+      "CreatedAt": "2026-11-05 22:44:40 +0330 +0330"
+    },
+    {
+      "Repository": "davarna-v2-migration",
+      "Tag": "20261104",
+      "ID": "sha256:591c45ccc95a879ded039a8f2a05c2f59a6330e7e10c23ff0daaedfe69cda4f1",
+      "Size": "321MB",
+      "CreatedAt": "2026-11-04 23:54:36 +0330 +0330"
+    },
+    {
+      "Repository": "davarna-backend",
+      "Tag": "before-v2-20261105_224412",
+      "ID": "sha256:acc2ec3d2dbcdd6722c10183abfa374cd7894abc49de278a025ecc118b2b1b58",
+      "Size": "334MB",
+      "CreatedAt": "2026-11-04 19:04:00 +0330 +0330"
+    },
+    {
+      "Repository": "davarna-bot",
+      "Tag": "before-v2-20261105_224412",
+      "ID": "sha256:d7699ae8085170d46d40fbe5c2f779ea7b7c1b05b386dcdf96865a28378d89a1",
+      "Size": "234MB",
+      "CreatedAt": "2026-11-04 19:04:00 +0330 +0330"
+    }
+  ],
+  "protected_roots": [
+    {
+      "path": "/opt/davarna-v2",
+      "allocated_kib": 6572,
+      "disposition": "PROTECTED: retain application, financial backups, receipts, ACK state and audit logs"
+    },
+    {
+      "path": "/opt/davarna",
+      "allocated_kib": 63424,
+      "disposition": "PROTECTED: retain application, financial backups, receipts, ACK state and audit logs"
+    },
+    {
+      "path": "/var/backups",
+      "allocated_kib": 2812,
+      "disposition": "PROTECTED: retain application, financial backups, receipts, ACK state and audit logs"
+    },
+    {
+      "path": "/var/log/davarna",
+      "allocated_kib": 136,
+      "disposition": "PROTECTED: retain application, financial backups, receipts, ACK state and audit logs"
+    },
+    {
+      "path": "/var/lib/davarna-autopilot-monitor",
+      "allocated_kib": 88,
+      "disposition": "PROTECTED: retain application, financial backups, receipts, ACK state and audit logs"
+    }
+  ],
+  "disk": [
+    "39037036",
+    "17458176",
+    "19934140",
+    "47%"
+  ],
+  "memory": [
+    "Mem:            3819        2682         268          17        1181        1137",
+    "Swap:           2047        1480         567"
+  ],
+  "deletions_performed": false,
+  "safe_to_delete_without_further_review": []
+}

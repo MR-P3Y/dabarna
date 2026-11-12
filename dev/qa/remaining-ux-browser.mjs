@@ -58,6 +58,11 @@ try {
  assert.equal(await page.locator('.inbox-card').count(),5);
  assert.equal(await page.evaluate(()=>Boolean(window.xss)),false);
  assert.equal(await page.locator('#notificationList img').count(),0);
+ const focusable=page.locator('#notificationCenter [role="dialog"] button:visible:not(:disabled)');
+ await focusable.last().focus();await page.keyboard.press('Tab');
+ assert.equal(await focusable.first().evaluate(el=>el===document.activeElement),true,'Tab wraps within modal');
+ await page.keyboard.press('Shift+Tab');
+ assert.equal(await focusable.last().evaluate(el=>el===document.activeElement),true,'reverse Tab wraps within modal');
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
  await page.screenshot({path:path.join(output,'inbox-mobile-dark.png'),fullPage:true});
  await page.locator('[data-filter="game"]').click();assert.equal(await page.locator('.inbox-card').count(),3);
@@ -110,6 +115,14 @@ try {
  await page.keyboard.press('Escape');
  await page.evaluate(event=>qa.showAdminWinnerPopup(event),event);
  assert.equal(await page.locator('#adminWinnerModal').getAttribute('aria-hidden'),'true','seen event must not reopen');
+ for (const [id,rule,layout,kind,label] of [[410,'LINE',2,'PRIZE_COL','۳ عدد'],[411,'LINE',2,'PRIZE_ROW','۵ عدد'],[412,'LEGACY',1,'PRIZE_COL','۴عددی'],[413,'LEGACY',1,'PRIZE_ROW','۵عددی']]) {
+   await page.evaluate(({event,id,rule,layout,kind})=>qa.openWinnerModal({...event,id,kind,payload:{...event.payload,game_rule:rule,card_layout_version:layout}}),{event,id,rule,layout,kind});
+   assert.ok((await page.locator('#winnerModalKind').innerText()).includes(label));
+   assert.match(await page.locator('#winnerModalAmount').innerText(),/۷۰/);
+   await page.keyboard.press('Escape');
+ }
+ await page.evaluate(event=>qa.openWinnerModal({...event,id:414,payload:{...event.payload,winner_user_ids:[18,18,19]}}),event);
+ assert.equal(await page.locator('#winnerModal').getAttribute('aria-hidden'),'true','other user prize must not open personal popup');
  await page.evaluate(()=>{qa.state.currentUserId=9;qa.openNotificationCenter();});await page.waitForFunction(()=>!qa.inboxUi.loading);
  assert.equal(await page.evaluate(()=>qa.state.notificationReadIds.has('deposit:1')),false,'read state scoped to account');
  await page.locator('[data-filter="all"]').click();
