@@ -7275,7 +7275,7 @@ async function refreshSuperCryptoProposals() {
           " | منقضی/لغوشده اخیر: " + toFaDigits(report.recent_closed_invoices || 0) +
           " | بررسی دستی: " + toFaDigits(report.needs_manual_review || 0) +
           " | کل فاکتورهای آدرس فعلی: " + toFaDigits(report.historical_invoices || 0) +
-          " | فعال‌سازی عملیاتی: غیرفعال تا تکمیل تست‌ها";
+          " | اعمال تغییر فقط پس از کنترل مجوز سرور، فاکتورها و تأیید نهایی انجام می‌شود";
         const previous = box.querySelector(".crypto-rotation-readiness");
         if (previous) previous.remove();
         summary.classList.add("crypto-rotation-readiness");
