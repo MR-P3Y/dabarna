@@ -31,6 +31,7 @@ class Game(Base):
     game_rule: Mapped[str] = mapped_column(String(16), nullable=False, server_default="LEGACY")
     execution_source: Mapped[str] = mapped_column(String(16), nullable=False, server_default="ADMIN")
     scheduled_start_at: Mapped[str | None] = mapped_column(TIMESTAMP, nullable=True)
+    autopilot_ready_at: Mapped[str | None] = mapped_column(TIMESTAMP, nullable=True)
 
     sold_amount: Mapped[int] = mapped_column(BigInteger, nullable=False, server_default="0")
     commission_rate: Mapped[str] = mapped_column(DECIMAL(5,4), nullable=False, server_default="0.1000")

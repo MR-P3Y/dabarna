@@ -122,11 +122,15 @@ class GameAutopilotWorker:
                 not game or levels_by_id.get(game.id) != level or game.tg_topic_id != topic_id
                 or game.status != "LOBBY" or game.execution_source != "SYSTEM"
                 or game.scheduled_start_at is None or game.draw_mode not in {"AUTO", "MANUAL"}
+                or getattr(game, 'autopilot_ready_at', None) is None
                 or (game.draw_mode == "AUTO" and not cfg.GAME_AUTO_DRAW_ENABLED)
             ):
                 continue
             if cls._unique_players(db, game.id) >= max(2, int(config.min_unique_players or 2)):
-                durations[game.id] = max(5, int(config.countdown_seconds or 30))
+                ready = _as_datetime(game.autopilot_ready_at)
+                scheduled = _as_datetime(game.scheduled_start_at)
+                if ready and scheduled and scheduled > ready:
+                    durations[game.id] = max(5, int((scheduled-ready).total_seconds()))
         return durations
 
     @staticmethod
@@ -178,6 +182,10 @@ class GameAutopilotWorker:
         )
 
         if str(config.start_mode or "MANUAL").upper() != "AUTO":
+            if getattr(game, 'autopilot_ready_at', None) is not None:
+                game.autopilot_ready_at = None
+                game.scheduled_start_at = None
+                db.flush()
             return "lobby_manual_start"
 
         if str(game.draw_mode or "").upper() == "AUTO" and not cfg.GAME_AUTO_DRAW_ENABLED:
@@ -186,10 +194,16 @@ class GameAutopilotWorker:
         players = GameAutopilotWorker._unique_players(db, int(game.id))
         minimum = max(2, int(config.min_unique_players or 2))
         if players < minimum:
+            # A past deadline cannot make a later second buyer start instantly.
+            if game.scheduled_start_at is not None or getattr(game, 'autopilot_ready_at', None) is not None:
+                game.scheduled_start_at = None
+                game.autopilot_ready_at = None
+                db.flush()
             return "waiting_players"
 
         scheduled = _as_datetime(game.scheduled_start_at)
-        if scheduled is None:
+        if scheduled is None or getattr(game, 'autopilot_ready_at', None) is None:
+            game.autopilot_ready_at = now
             game.scheduled_start_at = now + timedelta(
                 seconds=max(5, int(config.countdown_seconds or 30))
             )
@@ -267,7 +281,9 @@ class GameAutopilotWorker:
                 topic_id=int(topic_id),
             )
             if latest is not None:
-                ended_at = _as_datetime(latest.ended_at) or _as_datetime(latest.created_at)
+                ended_at = _as_datetime(latest.ended_at)
+                if ended_at is None:
+                    return "missing_end_time"
                 if ended_at is not None:
                     delay_seconds = max(
                         int(config.cooldown_seconds or 0),

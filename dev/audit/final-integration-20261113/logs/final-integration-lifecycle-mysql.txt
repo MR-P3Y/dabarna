@@ -1,0 +1,62 @@
+COMMAND -m alembic upgrade 20261113_0013
+
+
+COMMAND -m alembic upgrade 20261113_0013
+
+
+COMMAND -m unittest -v tests.mysql_autopilot_e2e tests.mysql_finance_smoke tests.mysql_finance_concurrency
+ISOLATED MYSQL ONLY: davarna_tambola_v2_test_20261104, migration 20261113_0013
+PASS: isolated MySQL FULL_CARD/4s start/draw/winner/payout/repeat; all changes rollback
+PASS: isolated MySQL FULL_CARD/3s start/draw/winner/payout/repeat; all changes rollback
+PASS: isolated MySQL FULL_CARD/2s start/draw/winner/payout/repeat; all changes rollback
+PASS: isolated MySQL LINE/8s start/draw/winner/payout/repeat; all changes rollback
+Connected to isolated DB: davarna_tambola_v2_test_20261104; migration: 20261113_0013
+Concurrent tests enabled only for davarna_tambola_v2_test_20261104 (20261113_0013)
+
+test_full_card_four_second_draws_and_next_round (tests.mysql_autopilot_e2e.MySQLAutopilotEndToEndTests.test_full_card_four_second_draws_and_next_round) ... ok
+test_full_card_three_second_draws_and_next_round (tests.mysql_autopilot_e2e.MySQLAutopilotEndToEndTests.test_full_card_three_second_draws_and_next_round) ... ok
+test_full_card_two_second_draws_and_next_round (tests.mysql_autopilot_e2e.MySQLAutopilotEndToEndTests.test_full_card_two_second_draws_and_next_round) ... ok
+test_two_player_autopilot_draw_payout_and_next_round (tests.mysql_autopilot_e2e.MySQLAutopilotEndToEndTests.test_two_player_autopilot_draw_payout_and_next_round) ... ok
+test_bot_admin_report_responds_with_v2_metadata (tests.mysql_finance_smoke.MySQLFinanceSmokeTests.test_bot_admin_report_responds_with_v2_metadata)
+Regression guard: game report's raw SQL must include V2 fields. ... /src/backend/app/routers/bot_router.py:682: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+  class BotUserOut(BaseModel):
+/src/backend/app/routers/bot_router.py:691: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+  class WalletTxOut(BaseModel):
+/src/backend/app/routers/bot_router.py:706: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+  class WalletOut(BaseModel):
+/src/backend/app/routers/bot_router.py:724: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+  class WithdrawRequestOut(BaseModel):
+/src/backend/app/routers/bot_router.py:767: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+  class DepositRequestOut(BaseModel):
+/src/backend/app/routers/bot_router.py:783: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+  class BotGameOut(BaseModel):
+/src/backend/app/routers/bot_router.py:803: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+  class BotAdminGameOut(BaseModel):
+/src/backend/app/routers/bot_router.py:976: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+  class BotPurchaseCardsOut(BaseModel):
+/src/backend/app/routers/bot_router.py:991: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+  class AdminDepositRequestOut(BaseModel):
+/src/backend/app/routers/bot_router.py:1013: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+  class AdminWithdrawRequestOut(BaseModel):
+/src/backend/app/routers/admin_users_router.py:49: PydanticDeprecatedSince20: Using extra keyword arguments on `Field` is deprecated and will be removed. Use `json_schema_extra` instead. (Extra keys: 'ne'). Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+  amount: int = Field(ne=0)
+ok
+test_buy_replay_and_refund_with_real_mysql_events (tests.mysql_finance_smoke.MySQLFinanceSmokeTests.test_buy_replay_and_refund_with_real_mysql_events) ... ok
+test_full_card_pays_only_after_fifteen (tests.mysql_finance_smoke.MySQLFinanceSmokeTests.test_full_card_pays_only_after_fifteen) ... ok
+test_line_tourna_then_final_exact_once (tests.mysql_finance_smoke.MySQLFinanceSmokeTests.test_line_tourna_then_final_exact_once) ... ok
+test_v2_snapshot_nearest_progress_with_full_ninety_calls (tests.mysql_finance_smoke.MySQLFinanceSmokeTests.test_v2_snapshot_nearest_progress_with_full_ninety_calls)
+The V2 preview must count 15 numbers, never 27 cells or just 50 calls. ... ok
+test_four_simultaneous_distinct_keys_all_count_once (tests.mysql_finance_concurrency.MySQLFinanceConcurrencyTests.test_four_simultaneous_distinct_keys_all_count_once) ... ok
+test_four_simultaneous_same_key_debit_once (tests.mysql_finance_concurrency.MySQLFinanceConcurrencyTests.test_four_simultaneous_same_key_debit_once) ... ok
+test_simultaneous_conflicting_quantities_reject_second (tests.mysql_finance_concurrency.MySQLFinanceConcurrencyTests.test_simultaneous_conflicting_quantities_reject_second) ... ok
+test_simultaneous_wallet_credit_same_key_once (tests.mysql_finance_concurrency.MySQLFinanceConcurrencyTests.test_simultaneous_wallet_credit_same_key_once) ... ok
+
+----------------------------------------------------------------------
+Ran 13 tests in 5.545s
+
+OK
+
+COMMAND -m alembic downgrade 20261108_0012
+
+
+COMMAND -m alembic upgrade 20261113_0013

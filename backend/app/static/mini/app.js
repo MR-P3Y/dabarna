@@ -1,4 +1,5 @@
 import * as experience from "./experience.mjs?v=remaining-ux-v1";
+import {automationClock} from "./automation-clocks.mjs?v=20261113";
 const tg = window.Telegram?.WebApp;
 
 const state = {
@@ -1998,6 +1999,44 @@ let gameStartCountdownTicker = null;
 let gameStartCountdownServerOffsetMs = 0;
 const gameStartCountdownFeedback = new Map();
 let gameStartCountdownLastFeedbackSecond = -1;
+let automationItems = [];
+let automationReceivedAt = 0;
+
+function renderAutomationTimeline() {
+  const games = getEl("gamesList");
+  if (!games) return;
+  let root = getEl("automationTimeline");
+  if (!root) {
+    root = document.createElement("div");
+    root.id = "automationTimeline";
+    root.className = "automation-timeline";
+    games.before(root);
+  }
+  root.innerHTML = automationItems.map((item, index) => {
+    const view = automationClock(item, Date.now() + gameStartCountdownServerOffsetMs, automationReceivedAt);
+    if (!view) return "";
+    return `<div class="automation-phase item" data-automation-index="${index}">
+      <strong>${safeText(autopilotLevelLabel(item.level))}</strong>
+      <span class="automation-label">${safeText(view.label)}</span>
+      <b class="automation-digits" role="timer" aria-live="off"></b>
+      <progress max="100" value="${view.progress}" aria-label="زمان باقی‌مانده"></progress>
+    </div>`;
+  }).join("");
+  tickAutomationTimeline();
+}
+
+function tickAutomationTimeline() {
+  document.querySelectorAll("[data-automation-index]").forEach((card) => {
+    const item = automationItems[Number(card.dataset.automationIndex)];
+    const view = automationClock(item, Date.now() + gameStartCountdownServerOffsetMs, automationReceivedAt);
+    if (!view) return;
+    card.querySelector(".automation-label").textContent = view.label;
+    card.querySelector(".automation-digits").textContent = view.seconds == null ? "—" :
+      toFaDigits(String(Math.floor(view.seconds/60)).padStart(2,"0")+":"+String(view.seconds%60).padStart(2,"0"));
+    card.querySelector("progress").value = view.progress;
+    card.classList.toggle("is-pending", view.pending);
+  });
+}
 
 function autopilotGameStartClock(game, nowMs = Date.now() + gameStartCountdownServerOffsetMs) {
   if (
@@ -2047,6 +2086,7 @@ function autopilotGameStartClockHtml(game, clock) {
 }
 
 function tickAutopilotGameStartClocks() {
+  tickAutomationTimeline();
   const root = getEl("gamesList");
   if (!root) return;
   const cards = root.querySelectorAll("[data-autopilot-clock]");
@@ -3173,11 +3213,43 @@ function startGlobalRefresh() {
     if (!state.authReady) return;
     refreshAutoTick().catch(() => {});
   }, GLOBAL_REFRESH_INTERVAL_MS);
+  if (!state.automationPollTimer) state.automationPollTimer = setInterval(refreshAutomationTimeline, 2000);
+}
+
+let automationRequestPending = false;
+async function refreshAutomationTimeline() {
+  if (automationRequestPending || !state.authReady || document.visibilityState === "hidden" ||
+      !getEl("view-games")?.classList.contains("active")) return;
+  automationRequestPending = true;
+  try {
+    const data = await apiFetch("/mini-api/automation/timeline");
+    const serverMs = Date.parse(String(data.server_time_utc || ""));
+    if (Array.isArray(data.automation) && Number.isFinite(serverMs)) {
+      gameStartCountdownServerOffsetMs = serverMs - Date.now();
+      automationReceivedAt = serverMs;
+      automationItems = data.automation;
+      // A fresh phase can revoke an older game-list countdown immediately.
+      state.gamesCache.forEach((game) => {
+        const phase = automationItems.find((item) => Number(item.game_id) === Number(game.id));
+        if (game.execution_source !== "SYSTEM" || game.status !== "LOBBY") return;
+        game.countdown_enabled = phase?.phase === "START";
+        if (game.countdown_enabled) {
+          game.scheduled_start_at = phase.deadline_utc;
+          game.countdown_seconds = phase.duration_seconds;
+        }
+      });
+      renderAutomationTimeline();
+      tickAutopilotGameStartClocks();
+    }
+  } catch (_) { tickAutomationTimeline(); }
+  finally { automationRequestPending = false; }
 }
 
 function stopGlobalRefresh() {
   if (state.globalRefreshTimer) clearInterval(state.globalRefreshTimer);
   state.globalRefreshTimer = null;
+  if (state.automationPollTimer) clearInterval(state.automationPollTimer);
+  state.automationPollTimer = null;
 }
 
 async function refreshGames() {
@@ -3198,6 +3270,11 @@ async function refreshGames() {
     const serverMs = Date.parse(String(gamesRes.server_time_utc || ""));
     if (Number.isFinite(serverMs)) gameStartCountdownServerOffsetMs = serverMs - Date.now();
     state.gamesCache = gamesRes.items;
+    if (Array.isArray(gamesRes.automation) && Number.isFinite(serverMs)) {
+      automationItems = gamesRes.automation;
+      automationReceivedAt = serverMs;
+      renderAutomationTimeline();
+    }
   }
 
   if (Array.isArray(cards)) {
@@ -7208,7 +7285,7 @@ function renderSuperCryptoSettings(payload) {
     if (!masterEnabled) {
       statusEl.textContent = "کلید اصلی سرور خاموش است؛ ابتدا .env.prod را تنظیم کنید.";
     } else if (!configured) {
-      statusEl.textContent = "آدرس معتبر TRON یا TON در .env.prod تنظیم نشده است.";
+      statusEl.textContent = "آدرس دریافت ثبت نشده؛ از بخش مقاصد واریز آن را اضافه کنید.";
     } else {
       statusEl.textContent = `${effectiveEnabled ? "فعال برای کاربران" : "غیرفعال برای کاربران"} | شبکه‌ها: ${networks.join("، ") || "-"}`;
     }
@@ -7231,6 +7308,268 @@ async function refreshSuperCryptoSettings() {
   if (!state.admin.enabled || !state.admin.canManageSuperSettings) return;
   const out = await apiFetch("/mini-api/admin/super/crypto-settings");
   renderSuperCryptoSettings(out);
+  await refreshSuperCryptoProposals();
+}
+
+let selectedCryptoProposalNetwork = "";
+let selectedCryptoCurrentAddress = "";
+
+async function refreshSuperCryptoProposals() {
+  const root = getEl("superCryptoProposalsList");
+  if (!root || !state.admin.canManageSuperSettings) return;
+  const payload = await apiFetch("/mini-api/admin/super/crypto-address-proposals");
+  root.replaceChildren();
+  const items = Array.isArray(payload?.items) ? payload.items : [];
+  if (!items.length) {
+    root.textContent = "درخواستی برای تغییر آدرس ثبت نشده است.";
+    return;
+  }
+  items.forEach((item) => {
+    const box = document.createElement("div");
+    box.className = "history-item";
+    const heading = document.createElement("strong");
+    heading.textContent = String(item.network) + " · در انتظار بررسی";
+    const address = document.createElement("code");
+    address.textContent = String(item.address || "");
+    address.className = "admin-crypto-address";
+    const detail = document.createElement("p");
+    detail.className = "hint";
+    detail.textContent = "صرفاً درخواست ثبت شده است؛ آدرس کاربران و اسکنر بدون تغییر هستند.";
+    const inspect = document.createElement("button");
+    inspect.type = "button";
+    inspect.className = "small-btn";
+    inspect.textContent = "بررسی آمادگی تغییر آدرس";
+    inspect.addEventListener("click", async () => {
+      inspect.disabled = true;
+      try {
+        const report = await apiFetch(
+          "/mini-api/admin/super/crypto-address-readiness?network=" +
+          encodeURIComponent(String(item.network || ""))
+        );
+        const summary = document.createElement("p");
+        summary.className = "hint";
+        summary.textContent = "فاکتور باز: " + toFaDigits(report.open_invoices || 0) +
+          " | منقضی/لغوشده اخیر: " + toFaDigits(report.recent_closed_invoices || 0) +
+          " | بررسی دستی: " + toFaDigits(report.needs_manual_review || 0) +
+          " | کل فاکتورهای آدرس فعلی: " + toFaDigits(report.historical_invoices || 0) +
+          " | اعمال تغییر فقط پس از کنترل مجوز سرور، فاکتورها و تأیید نهایی انجام می‌شود";
+        const previous = box.querySelector(".crypto-rotation-readiness");
+        if (previous) previous.remove();
+        summary.classList.add("crypto-rotation-readiness");
+        box.append(summary);
+      } catch (e) {
+        setLocalError("superCryptoProposalHint", e);
+      } finally {
+        inspect.disabled = false;
+      }
+    });
+    box.append(heading, address, detail, inspect);
+    const history = document.createElement("button");
+    history.type = "button";
+    history.className = "small-btn";
+    history.textContent = "بررسی سابقه بدون تغییر موجودی";
+    history.addEventListener("click", async () => {
+      history.disabled = true;
+      try {
+        const report = await apiFetch("/mini-api/admin/super/crypto-address-history-review?network=" +
+          encodeURIComponent(String(item.network || "")));
+        const summary = document.createElement("p");
+        summary.className = "hint crypto-history-review";
+        const status = report.status === "NO_HISTORY" ? "سابقه‌ای برای این آدرس ثبت نشده" :
+          report.status === "REVIEWED_NO_DISCREPANCY" ? "در پاسخ دریافت‌شده مغایرتی دیده نشد" :
+          "بررسی کامل نشد یا مورد حل‌نشده وجود دارد";
+        summary.textContent = status + " | فاکتورها: " + toFaDigits(report.historical_invoices || 0) +
+          " | تراکنش‌های بدون انتساب: " + toFaDigits(report.unassigned_transfers || 0) +
+          " | تأییدنشده: " + toFaDigits(report.unconfirmed_transfers || 0) +
+          " | این بررسی مجوز تغییر آدرس یا پرداخت نیست.";
+        const previous = box.querySelector(".crypto-history-review");
+        if (previous) previous.remove();
+        box.append(summary);
+      } catch (e) {
+        setLocalError("superCryptoProposalHint", e);
+      } finally {
+        history.disabled = false;
+      }
+    });
+    box.append(history);
+    const cancel = document.createElement("button");
+    cancel.type = "button";
+    cancel.className = "small-btn";
+    cancel.textContent = "لغو همین درخواست";
+    cancel.addEventListener("click", async () => {
+      if (!window.confirm("درخواست تغییر " + item.network + " به آدرس " + item.address + " لغو شود؟ آدرس فعال تغییری نمی‌کند.")) return;
+      cancel.disabled = true;
+      try {
+        await apiFetch("/mini-api/admin/super/crypto-address-proposals/cancel", {
+          method: "POST", body: {network: item.network, expected_address: item.address,
+            expected_created_at: item.created_at, confirmation: "CANCEL_PENDING_CRYPTO_ADDRESS"},
+        });
+        await refreshSuperCryptoProposals();
+        setHint("superCryptoProposalHint", "درخواست لغو شد؛ آدرس فعال تغییری نکرد.");
+      } catch (error) { setLocalError("superCryptoProposalHint", error); }
+      finally { cancel.disabled = false; }
+    });
+    box.append(cancel);
+    if (payload.activation_supported === true &&
+        Number.isInteger(item.expected_version) && item.expected_version >= 1 &&
+        item.expected_current_address) {
+      const activate = document.createElement("button");
+      activate.type = "button";
+      activate.className = "small-btn danger";
+      activate.textContent = "فعال‌سازی فقط در دیتابیس آزمایشی";
+      activate.addEventListener("click", async () => {
+        const network = String(item.network || "");
+        const proposedAddress = String(item.address || "");
+        const currentAddress = String(item.expected_current_address || "");
+        const version = Number(item.expected_version);
+        if (!window.confirm("فقط محیط آزمایشی مستقل: تغییر " + network +
+          " از نسخه " + version + " به آدرس جدید انجام شود؟")) return;
+        const typed = window.prompt("برای تأیید فعال‌سازی آزمایشی، عبارت TEST " +
+          network + " را وارد کنید.");
+        if (typed !== "TEST " + network) return;
+        activate.disabled = true;
+        try {
+          await apiFetch("/mini-api/admin/super/crypto-address-activate-experimental", {
+            method: "POST",
+            body: {
+              network,
+              expected_version: version,
+              expected_current_address: currentAddress,
+              proposed_address: proposedAddress,
+              confirmation: "ACTIVATE_CRYPTO_ADDRESS_DISPOSABLE_ONLY",
+            },
+          });
+          await refreshSuperCryptoSettings();
+          setHint("superCryptoProposalHint",
+            "تغییر آدرس فقط در دیتابیس آزمایشی ثبت شد؛ Production تغییری نکرد.");
+        } catch (e) {
+          setLocalError("superCryptoProposalHint", e);
+          activate.disabled = false;
+        }
+      });
+      box.append(activate);
+    }
+    if (payload.production_activation_supported === true &&
+        Number.isInteger(item.expected_version) && item.expected_current_address) {
+      const liveButton = document.createElement("button");
+      liveButton.type = "button";
+      liveButton.className = "small-btn danger";
+      liveButton.textContent = "فعال‌سازی واقعی آدرس جدید";
+      liveButton.disabled = Boolean(state.admin.cryptoSettings?.runtime_enabled);
+      liveButton.addEventListener("click", async () => {
+        liveButton.disabled = true;
+        try {
+        const network = String(item.network || "");
+        const previous = String(item.expected_current_address || "");
+        const proposed = String(item.address || "");
+        const report = await apiFetch(
+          "/mini-api/admin/super/crypto-address-readiness?network=" +
+          encodeURIComponent(network)
+        );
+        if (["open_invoices", "recent_closed_invoices", "needs_manual_review"].some(key => Number(report[key] || 0) > 0)) {
+          setHint("superCryptoProposalHint",
+            "تغییر مسدود است: فاکتور باز یا حل‌نشده روی آدرس فعلی وجود دارد.");
+          return;
+        }
+        if (!window.confirm("تغییر واقعی مقصد واریز " + network +
+          " از " + previous + " به " + proposed + "؟ واریز باید خاموش باشد.")) return;
+        if (window.prompt("عبارت ACTIVATE " + network + " را وارد کنید:") !==
+            "ACTIVATE " + network) return;
+          await apiFetch("/mini-api/admin/super/crypto-address-activate-production", {
+            method: "POST",
+            body: {
+              network,
+              expected_version: Number(item.expected_version),
+              expected_current_address: previous,
+              proposed_address: proposed,
+              confirmation: "ACTIVATE_PRODUCTION_CRYPTO_DESTINATION",
+            },
+          });
+          await refreshSuperCryptoSettings();
+          setHint("superCryptoProposalHint",
+            "آدرس تغییر کرد و واریز همچنان غیرفعال مانده است.");
+        } catch (e) {
+          setLocalError("superCryptoProposalHint", e);
+        } finally {
+          liveButton.disabled = Boolean(state.admin.cryptoSettings?.runtime_enabled);
+        }
+      });
+      box.append(liveButton);
+    }
+    root.append(box);
+  });
+}
+
+function openCryptoProposalEditor(network, currentAddress) {
+  if (!state.admin.canManageSuperSettings) return;
+  selectedCryptoProposalNetwork = String(network || "").toUpperCase();
+  selectedCryptoCurrentAddress = String(currentAddress || "").trim();
+  const editor = getEl("superCryptoProposalEditor");
+  if (!editor) return;
+  getEl("superCryptoWalletSection").open = true;
+  editor.classList.remove("hidden");
+  getEl("superCryptoProposalNetwork").textContent = "شبکه: " + selectedCryptoProposalNetwork +
+    (selectedCryptoCurrentAddress ? " | تغییر آدرس" : " | افزودن آدرس اولیه");
+  const input = getEl("superCryptoProposedAddress");
+  if (input) { input.value = ""; input.focus(); }
+}
+
+function closeCryptoProposalEditor() {
+  selectedCryptoProposalNetwork = "";
+  selectedCryptoCurrentAddress = "";
+  const editor = getEl("superCryptoProposalEditor");
+  editor?.classList.add("hidden");
+  const input = getEl("superCryptoProposedAddress");
+  if (input) input.value = "";
+}
+
+async function submitCryptoProposal() {
+  if (!state.admin.canManageSuperSettings) throw new Error("دسترسی سوپرادمین لازم است.");
+  if (!state.admin.cryptoSettings?.address_management_enabled)
+    throw new Error("مدیریت آدرس‌ها هنوز در Backend فعال نیست.");
+  const address = String(getVal("superCryptoProposedAddress") || "").trim();
+  const network = selectedCryptoProposalNetwork;
+  const previous = selectedCryptoCurrentAddress;
+  if (!network || !address) throw new Error("شبکه و آدرس را تکمیل کنید.");
+  if (previous && address === previous)
+    throw new Error("آدرس جدید نباید با آدرس فعلی یکسان باشد.");
+  const initial = !previous;
+  const action = initial
+    ? "افزودن آدرس اولیه " + network + " (پرداخت خاموش می‌ماند)"
+    : "ثبت درخواست تغییر آدرس " + network + " (هنوز فعال نمی‌شود)";
+  if (!window.confirm(action + "؟")) return;
+  const button = getEl("superCryptoProposalSubmitBtn");
+  if (button) button.disabled = true;
+  try {
+    if (initial) {
+      await apiFetch("/mini-api/admin/super/crypto-address-initialize-production", {
+        method: "POST",
+        body: {
+          network, address,
+          confirmation: "ADD_NEW_CRYPTO_DESTINATION_WITH_PAYMENTS_OFF",
+        },
+      });
+    } else {
+      await apiFetch("/mini-api/admin/super/crypto-address-proposals", {
+        method: "POST",
+        body: {
+          network, address, expected_current_address: previous,
+          confirmation: "REQUEST_ADDRESS_CHANGE",
+        },
+      });
+    }
+    closeCryptoProposalEditor();
+    await refreshSuperCryptoSettings();
+    setHint(
+      "superCryptoProposalHint",
+      initial
+        ? "آدرس اولیه ثبت شد؛ واریز رمزارزی همچنان خاموش است."
+        : "درخواست تغییر ثبت شد؛ برای اعمال واقعی ابتدا پرداخت را خاموش و تأیید نهایی را انجام دهید.",
+      "success"
+    );
+  } finally {
+    if (button) button.disabled = false;
+  }
 }
 
 
@@ -7254,7 +7593,49 @@ function renderSuperCryptoAddresses(payload) {
     const hint = document.createElement("div");
     hint.className = "history-meta";
     hint.textContent = "خوانده‌شده از تنظیمات سرور؛ تغییر از این صفحه فعلاً غیرفعال است تا فاکتورها و اسکنر بلاک‌چین ناسازگار نشوند.";
-    card.append(title, address, hint);
+    const requestBtn = document.createElement("button");
+    requestBtn.type = "button";
+    requestBtn.className = "small-btn";
+    requestBtn.textContent = network.address ? "✏️ تغییر آدرس" : "➕ افزودن آدرس";
+    requestBtn.disabled = !Boolean(payload?.address_management_enabled);
+    requestBtn.addEventListener("click", () =>
+      openCryptoProposalEditor(String(network.network || ""), String(network.address || ""))
+    );
+    hint.textContent = !payload?.address_management_enabled
+      ? "تغییر آدرس فعلاً قفل است؛ باید قابلیت مدیریت امن روی سرور فعال شود."
+      : !network.address
+      ? "آدرس اولیه را اضافه کنید؛ پرداخت تا تأیید جداگانه خاموش می‌ماند."
+      : network.requires_bootstrap
+      ? "ابتدا نسخه آدرس را آماده‌سازی کنید؛ آدرس فعال هنوز از سرور خوانده می‌شود."
+      : "تغییر آدرس نیازمند ثبت درخواست، خاموش‌بودن پرداخت و تأیید نهایی است.";
+    card.append(title, address, hint, requestBtn);
+    if (payload?.production_rotation_enabled && network.requires_bootstrap) {
+      const prep = document.createElement("button");
+      prep.type = "button";
+      prep.className = "small-btn";
+      prep.textContent = "آماده‌سازی نسخه آدرس بدون تغییر مقصد";
+      prep.disabled = Boolean(payload.runtime_enabled);
+      prep.addEventListener("click", async () => {
+        const net = String(network.network || "");
+        const address = String(network.address || "");
+        if (!window.confirm("آماده‌سازی آدرس " + net + "؟ واریز باید خاموش باشد.")) return;
+        prep.disabled = true;
+        try {
+          await apiFetch("/mini-api/admin/super/crypto-address-prepare-production", {
+            method: "POST",
+            body: {
+              network: net, expected_current_address: address,
+              confirmation: "PREPARE_PRODUCTION_CRYPTO_DESTINATION",
+            },
+          });
+          await refreshSuperCryptoSettings();
+        } catch (e) {
+          setLocalError("superCryptoProposalHint", e);
+          prep.disabled = false;
+        }
+      });
+      card.append(prep);
+    }
     root.append(card);
   });
 }
@@ -7868,17 +8249,40 @@ function restoreAdminGameMode() {
   setAdminGameMode(saved === "AUTO" ? "AUTO" : "MANUAL", { persist: false });
 }
 
+let adminAutopilotRefreshRequest = null;
+let adminAutopilotConfigEpoch = 0;
+
+function autopilotEditorSyncStatus(message = "") {
+  const root = getEl("adminAutopilotList");
+  if (!root) return;
+  let status = getEl("adminAutopilotSyncStatus");
+  if (!status) {
+    status = document.createElement("div");
+    status.id = "adminAutopilotSyncStatus";
+    status.className = "meta";
+    status.setAttribute("role", "status");
+    root.before(status);
+  }
+  status.textContent = message;
+  status.hidden = !message;
+}
+
 function renderAdminAutopilotConfig(payload) {
   const root = getEl("adminAutopilotList");
   if (!root) return;
   const items = Array.isArray(payload?.items) ? payload.items : [];
   const canEditCommission = Boolean(payload?.can_edit_commission);
   if (!items.length) {
-    root.innerHTML = '<div class="empty">تنظیمات بازی خودکار هنوز ایجاد نشده است.</div>';
+    if (!root.querySelector("[data-autopilot-level]")) {
+      root.innerHTML = '<div class="empty">تنظیمات بازی خودکار هنوز ایجاد نشده است.</div>';
+    } else {
+      autopilotEditorSyncStatus("تنظیمات تازه دریافت نشد؛ تغییرات واردشده شما حفظ شده است.");
+    }
     return;
   }
 
-  root.innerHTML = items
+  const staged = document.createElement("div");
+  staged.innerHTML = items
     .map((item) => {
       const level = String(item?.level || "").toUpperCase();
       const enabled = Boolean(item?.enabled);
@@ -7931,7 +8335,7 @@ function renderAdminAutopilotConfig(payload) {
               <div>
                 <label for="autopilotDrawInterval_${safeText(level)}">فاصله اعلام اعداد</label>
                 <select id="autopilotDrawInterval_${safeText(level)}">
-                  ${[5, 8, 10, 15].map((value) => `
+                  ${(item.game_rule === "FULL_CARD" ? [2, 3, 4, 5, 8, 10, 15] : [5, 8, 10, 15]).map((value) => `
                     <option value="${value}" ${drawInterval === value ? "selected" : ""}>${toFaDigits(value)} ثانیه</option>
                   `).join("")}
                 </select>
@@ -7941,7 +8345,7 @@ function renderAdminAutopilotConfig(payload) {
                 <label for="autopilotCountdown_${safeText(level)}">شمارش معکوس شروع</label>
                 <input id="autopilotCountdown_${safeText(level)}" type="text" inputmode="numeric"
                   value="${safeText(String(item?.countdown_seconds ?? 30))}" />
-                <small class="field-help">ثانیه پس از رسیدن به حداقل بازیکن</small>
+                <small class="field-help">۵ تا ۶۰۰ ثانیه پس از رسیدن به حداقل بازیکن؛ تغییر تنظیمات، تایمر آغازشده را جابه‌جا نمی‌کند.</small>
               </div>
 
               <div>
@@ -8002,11 +8406,39 @@ function renderAdminAutopilotConfig(payload) {
     })
     .join("");
 
+  // Reconcile by level. Polling must not replace a focused or unsaved form.
+  const previous = new Map([...root.querySelectorAll("[data-autopilot-level]")]
+    .map((card) => [card.dataset.autopilotLevel, card]));
+  const signatures = new Map(items.map((item) =>
+    [String(item.level || "").toUpperCase(), JSON.stringify([item, canEditCommission])]));
+  if (!previous.size) root.replaceChildren();
+  for (const next of [...staged.children]) {
+    next.dataset.serverSignature = signatures.get(next.dataset.autopilotLevel) || "";
+    const current = previous.get(next.dataset.autopilotLevel);
+    if (!current) { root.append(next); continue; }
+    if (current.dataset.dirty === "1" || current.dataset.saving === "1" ||
+        current.contains(document.activeElement) || current.dataset.serverSignature === next.dataset.serverSignature) {
+      // Preserve drafts without retaining a commission permission revoked by the server.
+      const save = current.querySelector("[data-autopilot-save]");
+      if (save) save.dataset.canEditCommission = canEditCommission ? "1" : "0";
+      const commission = current.querySelector('[id^="autopilotCommission_"]');
+      if (commission) commission.disabled = !canEditCommission;
+      continue;
+    }
+    next.open = current.open;
+    next.querySelector(".autopilot-advanced").open = current.querySelector(".autopilot-advanced").open;
+    current.replaceWith(next);
+  }
+  root.dataset.autopilotDirty = root.querySelector('[data-dirty="1"]') ? "1" : "0";
+
   if (!root.dataset.autopilotEditorBound) {
     root.dataset.autopilotEditorBound = "1";
 
     const markDirty = (ev) => {
-      if (!ev.target?.closest?.("[data-autopilot-level]")) return;
+      const card = ev.target?.closest?.("[data-autopilot-level]");
+      if (!card) return;
+      card.dataset.dirty = "1";
+      card.dataset.editRevision = String(Number(card.dataset.editRevision || 0) + 1);
       root.dataset.autopilotDirty = "1";
     };
     root.addEventListener("input", markDirty);
@@ -8046,7 +8478,7 @@ async function saveAdminAutopilotLevel(level, canEditCommission, button = null) 
   if (repeatInterval == null || repeatInterval < 60) throw new Error("فاصله ساخت بازی بعدی باید حداقل ۶۰ ثانیه باشد.");
   if (cooldown == null || cooldown < 0) throw new Error("زمان استراحت نامعتبر است.");
   if (announceBefore == null || announceBefore < 10) throw new Error("زمان اعلان باید حداقل ۱۰ ثانیه باشد.");
-  if (![5, 8, 10, 15].includes(drawInterval)) throw new Error("فاصله اعلام اعداد نامعتبر است.");
+  if (![2, 3, 4, 5, 8, 10, 15].includes(drawInterval)) throw new Error("فاصله اعلام اعداد نامعتبر است.");
 
   const payload = {
     enabled: Boolean(getEl(`autopilotEnabled_${key}`)?.checked),
@@ -8071,7 +8503,10 @@ async function saveAdminAutopilotLevel(level, canEditCommission, button = null) 
   }
 
   const hintId = `adminAutopilotHint_${key}`;
+  const card = getEl(`autopilotCountdown_${key}`)?.closest("[data-autopilot-level]");
+  const submittedRevision = card?.dataset.editRevision || "0";
   setHint(hintId, "در حال ذخیره...");
+  if (card) card.dataset.saving = "1";
   if (button) button.disabled = true;
 
   try {
@@ -8079,11 +8514,16 @@ async function saveAdminAutopilotLevel(level, canEditCommission, button = null) 
       method: "PUT",
       body: payload,
     });
-    setHint(hintId, "تنظیمات بازی خودکار ذخیره شد.", "success");
-    const root = getEl("adminAutopilotList");
-    if (root) root.dataset.autopilotDirty = "0";
-    await refreshAdminAutopilotConfig({ force: true });
+    adminAutopilotConfigEpoch += 1;
+    const editedWhileSaving = (card?.dataset.editRevision || "0") !== submittedRevision;
+    if (card) {
+      card.dataset.saving = "0";
+      if (!editedWhileSaving) card.dataset.dirty = "0";
+    }
+    await refreshAdminAutopilotConfig({ afterSave: true });
+    setHint(hintId, editedWhileSaving ? "تنظیمات ارسال‌شده ذخیره شد؛ تغییرات جدید شما هنوز ذخیره نشده است." : "تنظیمات بازی خودکار ذخیره شد.", "success");
   } finally {
+    if (card) card.dataset.saving = "0";
     if (button) button.disabled = false;
   }
 }
@@ -8091,17 +8531,28 @@ async function saveAdminAutopilotLevel(level, canEditCommission, button = null) 
 async function refreshAdminAutopilotConfig(options = {}) {
   if (!state.admin.enabled) return;
   const root = getEl("adminAutopilotList");
-  const force = Boolean(options?.force);
-  if (!force && root?.dataset?.autopilotDirty === "1") return;
-  try {
-    const out = await apiFetch("/mini-api/admin/autopilot/config");
-    renderAdminAutopilotConfig(out);
-  } catch (err) {
-    const msg = localizeApiError(err?.message || err || "");
-    if (root) {
-      root.innerHTML = `<div class="empty">این بخش برای مدیریت بازی و سوپرادمین در دسترس است.<br /><span class="meta">${safeText(msg)}</span></div>`;
-    }
+  if (adminAutopilotRefreshRequest) {
+    await adminAutopilotRefreshRequest;
+    if (options.afterSave) return refreshAdminAutopilotConfig();
+    return;
   }
+  const epoch = adminAutopilotConfigEpoch;
+  adminAutopilotRefreshRequest = (async () => {
+    try {
+      const out = await apiFetch("/mini-api/admin/autopilot/config");
+      if (epoch !== adminAutopilotConfigEpoch) return;
+      autopilotEditorSyncStatus();
+      renderAdminAutopilotConfig(out);
+    } catch (err) {
+      const msg = localizeApiError(err?.message || err || "");
+      autopilotEditorSyncStatus("بازخوانی انجام نشد؛ مقادیر واردشده حفظ شدند. " + msg);
+      if (root && !root.querySelector("[data-autopilot-level]")) {
+        root.innerHTML = '<div class="empty">دریافت تنظیمات ممکن نشد؛ دوباره بازخوانی کنید.</div>';
+      }
+    }
+  })();
+  try { await adminAutopilotRefreshRequest; }
+  finally { adminAutopilotRefreshRequest = null; }
 }
 
 async function refreshAdminPanel(options = {}) {
@@ -8644,6 +9095,9 @@ function renderAdminAutoDraw() {
   const remainingEl = getEl("adminAutoDrawRemaining");
   const countdownEl = getEl("adminAutoDrawCountdown");
   const intervalEl = getEl("adminAutoDrawInterval");
+  const allowedIntervals = Array.isArray(data.allowed_intervals) ? data.allowed_intervals :
+    (game?.game_rule === "FULL_CARD" && Number(game?.card_layout_version) === 2 ? [2,3,4,5,8,10,15] : [5,8,10,15]);
+  if (intervalEl) [...intervalEl.options].forEach(option => { option.disabled = !allowedIntervals.includes(Number(option.value)); });
   const modeEl = getEl("adminDrawModeLabel");
   const lockEl = getEl("adminDrawModeLock");
   const commitmentEl = getEl("adminDrawCommitment");
@@ -8681,7 +9135,8 @@ function renderAdminAutoDraw() {
   document.querySelectorAll("[data-admin-auto-interval]").forEach((chip) => {
     const value = Number(chip.dataset.adminAutoInterval || 0);
     const selected = value === interval;
-    const canChange = Boolean(gid && isLobby && !locked && drawMode === "AUTO");
+    const canChange = Boolean(gid && isLobby && !locked && drawMode === "AUTO" && allowedIntervals.includes(value));
+    chip.hidden = !allowedIntervals.includes(value);
     chip.classList.toggle("is-selected", selected);
     chip.disabled = !canChange;
     chip.onclick = () => {
@@ -9753,8 +10208,6 @@ async function boot() {
 
   bind("adminAutopilotRefreshBtn", "click", () =>
     runManualRefresh("adminAutopilotRefreshBtn", () => {
-      const root = getEl("adminAutopilotList");
-      if (root) root.dataset.autopilotDirty = "0";
       return refreshAdminAutopilotConfig({ force: true });
     }).catch(() => {})
   );
@@ -9805,6 +10258,8 @@ async function boot() {
   bind("superBankCardSaveBtn", "click", () => saveSuperBankDestination().catch((e) => setLocalError("superBankCardsHint", e)));
   bind("superBankCardDeleteBtn", "click", () => deleteSuperBankDestination().catch((e) => setLocalError("superBankCardsHint", e)));
   bind("superCryptoAddressesRefreshBtn", "click", () => refreshSuperCryptoSettings().catch((e) => setLocalError("superCryptoHint", e)));
+  bind("superCryptoProposalCancelBtn", "click", closeCryptoProposalEditor);
+  bind("superCryptoProposalSubmitBtn", "click", () => submitCryptoProposal().catch((e) => setLocalError("superCryptoProposalHint", e)));
   bind("superCryptoToggleBtn", "click", () => toggleSuperCryptoSettings().catch((e) => setLocalError("superCryptoHint", e)));
   bind("superBankDepositToggleBtn", "click", () => toggleSuperBankDepositSettings().catch((e) => setLocalError("superBankDepositHint", e)));
   bind("superCryptoHealthBtn", "click", () => checkSuperCryptoHealth().catch((e) => setLocalError("superCryptoHint", e)));

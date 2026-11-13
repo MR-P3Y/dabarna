@@ -1,0 +1,20 @@
+{
+  "result": "PASS",
+  "mockApiCalls": 18,
+  "mockedWrites": 2,
+  "realNetworkRequests": 0,
+  "javascriptErrors": 0,
+  "scenarios": [
+    "open and nested details",
+    "clean refresh",
+    "focus and caret",
+    "unsaved drafts",
+    "failed refresh",
+    "late GET after save",
+    "edits during save",
+    "per-level save",
+    "manual refresh",
+    "permission revocation",
+    "light and dark mobile/desktop"
+  ]
+}

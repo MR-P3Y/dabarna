@@ -965,6 +965,17 @@ html[data-theme="light"] .admin-ops-dashboard-v11 {
 .system-clock-urgent .system-clock-digits{color:#ffbb5d;animation:system-clock-pulse 1s ease-in-out infinite}
 .system-clock-running .system-clock-digits{font-size:1.5rem;color:#73e4c2}
 .system-clock-pending .system-clock-status{color:#f9d6a6}
+html[data-theme="light"] .system-game-clock-panel{background:linear-gradient(130deg,#f1f8ff,#f7f4ff);border-color:#c5d5e5;color:#173047}
+html[data-theme="light"] .system-clock-card{background:#fff;border-color:#c8d6e4;box-shadow:0 2px 8px rgba(23,48,71,.04);color:#173047}
+html[data-theme="light"] .system-game-clock-panel .meta,
+html[data-theme="light"] .system-clock-foot{color:#475e76;opacity:1}
+html[data-theme="light"] .system-clock-digits{color:#173047}
+html[data-theme="light"] .system-clock-status,
+html[data-theme="light"] .system-clock-pending .system-clock-status{color:#83530c}
+html[data-theme="light"] .system-clock-urgent .system-clock-digits{color:#985114}
+html[data-theme="light"] .system-clock-running .system-clock-digits{color:#146b54}
+html[data-theme="light"] .system-clock-track{background:#dce6ef}
+html[data-theme="light"] .system-clock-fill{background:linear-gradient(90deg,#2685ae,#3b70c4)}
 @keyframes system-clock-pulse{50%{opacity:.68}}
 @media(prefers-reduced-motion:reduce){.system-clock-urgent .system-clock-digits{animation:none}.system-clock-fill{transition:none}}
 /* Superadmin v1.3: five categorized workspaces. Existing controls and RBAC stay unchanged. */
@@ -1188,3 +1199,18 @@ html[data-theme="light"] .inbox-sync[data-state="error"] { color:#9b4b13; }
 @media(prefers-reduced-motion:reduce) {
   .notification-panel, .winner-modal-card, .admin-winner-dialog, .inbox-skeleton i, .winner-graphic, .winner-graphic * { animation:none!important; transition:none!important; }
 }
+/* Server-owned automation phases; no visual countdown implies a transition. */
+.automation-timeline { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px; margin:12px 0; }
+.automation-timeline .automation-phase { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:6px 12px; padding:14px; }
+.automation-phase .automation-label { grid-column:1; font-size:.85rem; opacity:.85; }
+.automation-phase .automation-digits { grid-column:2; grid-row:1/3; direction:ltr; font-variant-numeric:tabular-nums; font-size:1.35rem; }
+.automation-phase progress { grid-column:1/-1; width:100%; height:5px; accent-color:var(--accent,#19bcce); }
+.automation-phase.is-pending progress { opacity:.35; }
+.autopilot-level-body .admin-grid-two { display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:16px; }
+.autopilot-level-body .admin-grid-two > div { min-width:0; }
+.autopilot-level-body .admin-grid-two label { display:block; margin-bottom:7px; font-size:13px; }
+.autopilot-level-body .admin-grid-two input,
+.autopilot-level-body .admin-grid-two select { box-sizing:border-box; width:100%; min-height:44px; padding:10px 12px; border:1px solid #4d6585; border-radius:10px; background:#10223e; color:#edf4ff; font:inherit; }
+.autopilot-level-body .field-help { display:block; margin-top:7px; line-height:1.8; }
+.autopilot-level-body :is(input,select):focus-visible { outline:2px solid #6dd8d1; outline-offset:2px; }
+html[data-theme="light"] .autopilot-level-body .admin-grid-two :is(input,select) { background:#fff; color:#173047; border-color:#a7bdcf; }

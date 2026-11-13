@@ -12,7 +12,13 @@ from app.services.game_event_service import GameEventService
 
 
 AUTO_DRAW_INTERVALS = (5, 8, 10, 15)
+FULL_CARD_DRAW_INTERVALS = (2, 3, 4, 5, 8, 10, 15)
 AUTO_DRAW_STATUSES = {"ARMED", "RUNNING", "PAUSED", "STOPPED"}
+
+
+def allowed_draw_intervals(game) -> tuple[int, ...]:
+    return (FULL_CARD_DRAW_INTERVALS if getattr(game, 'game_rule', None) == 'FULL_CARD'
+            and getattr(game, 'card_layout_version', None) == 2 else AUTO_DRAW_INTERVALS)
 
 
 def _utcnow_naive() -> datetime:
@@ -92,7 +98,7 @@ class GameAutoDrawService:
             raise HTTPException(status_code=409, detail="select AUTO draw mode before game start")
 
         configured_interval = int(game.draw_interval_seconds or 0)
-        if configured_interval not in AUTO_DRAW_INTERVALS:
+        if configured_interval not in allowed_draw_intervals(game):
             raise HTTPException(
                 status_code=400,
                 detail="valid auto draw interval must be selected before game start",

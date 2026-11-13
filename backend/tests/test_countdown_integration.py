@@ -86,6 +86,7 @@ class CountdownIntegrationTests(unittest.TestCase):
     def test_ineligible_and_ended_games_have_no_countdown(self):
         self.add_card(3, 11)
         self.game.scheduled_start_at = datetime(2026, 11, 10, 12, 0)
+        self.game.autopilot_ready_at = self.game.scheduled_start_at - timedelta(seconds=30)
         self.assert_timer(30)
         for obj, field, value in (
             (self.game, "draw_mode", "AUTO"), (self.game, "execution_source", "ADMIN"),

@@ -44,6 +44,7 @@ class MiniGameListOut(BaseModel):
     offset: int
     items: list[MiniGameItemOut]
     server_time_utc: str | None = None
+    automation: list[dict] = Field(default_factory=list)
 
 
 class MiniEventOut(BaseModel):

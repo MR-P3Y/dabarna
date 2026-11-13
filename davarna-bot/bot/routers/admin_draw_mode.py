@@ -87,10 +87,11 @@ def _draw_keyboard(state: dict, *, status: str, offset: int):
     if game_status == "LOBBY":
         kb.button(text="✅ دستی" if mode == "MANUAL" else "👤 دستی", callback_data=f"drawmode:set:manual:{gid}:{status}:{offset}")
         rows.append(1)
-        for sec in (5, 8, 10, 15):
+        intervals = state.get('allowed_intervals') or [5, 8, 10, 15]
+        for sec in intervals:
             selected = mode == "AUTO" and interval == sec
             kb.button(text=f"✅ خودکار {sec}ث" if selected else f"🤖 خودکار {sec}ث", callback_data=f"drawmode:set:auto{sec}:{gid}:{status}:{offset}")
-        rows.extend([2, 2])
+        rows.extend([2] * (len(intervals) // 2) + ([1] if len(intervals) % 2 else []))
         if mode == "MANUAL":
             kb.button(text="🚀 شروع بازی با حالت دستی", callback_data=f"drawmode:start:{gid}:{status}:{offset}")
             rows.append(1)
