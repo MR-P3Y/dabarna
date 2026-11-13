@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app.utils.messages import stored_rule
 from fastapi import APIRouter, Depends, HTTPException, Header, Query, Request # type: ignore
 from sqlalchemy.orm import Session # type: ignore
 from sqlalchemy import select, text, func # type: ignore
@@ -35,6 +36,7 @@ from app.models.wallet import Wallet, WalletTx
 from app.models.finance import WithdrawRequest, DepositRequest
 from app.models.crypto import CryptoDepositRequest
 from app.models.game import Game, GameCalledNumber, GameCard, GamePurchase
+from app.services.game_autopilot_worker import GameAutopilotWorker
 from app.models.game_event import GameEvent
 from app.models.admin_audit import AdminAuditLog
 from app.models.settings import AppSetting
@@ -782,6 +784,11 @@ class BotGameOut(BaseModel):
     title: str
     status: str
     card_price: int
+    game_rule: str | None
+    card_layout_version: int | None
+    game_level: str | None = None
+    execution_source: str | None
+    draw_mode: str | None = None
     tg_group_id: int
     tg_topic_id: int | None = None
     prize_pool: int
@@ -871,6 +878,13 @@ class BotAdminGameReportGameOut(BaseModel):
     admin_user_id: int
     admin_tg_user_id: int | None = None
     status: str
+    game_level: str | None = None
+    countdown_enabled: bool = False
+    countdown_seconds: int | None = None
+    announce_before_seconds: int | None = None
+    execution_source: str = "ADMIN"
+    scheduled_start_at: str | None = None
+    draw_mode: str | None = None
     card_price: int
     card_layout_version: int = 1
     game_rule: str = "LEGACY"
@@ -1134,9 +1148,9 @@ def get_wallet(
     game_rules = {}
     if prize_game_ids:
         game_rules = {
-            int(game_id): str(rule or "LEGACY").upper()
-            for game_id, rule in db.execute(
-                select(Game.id, Game.game_rule).where(Game.id.in_(prize_game_ids))
+            int(game_id): stored_rule(rule, layout)
+            for game_id, rule, layout in db.execute(
+                select(Game.id, Game.game_rule, Game.card_layout_version).where(Game.id.in_(prize_game_ids))
             ).all()
         }
 
@@ -2280,6 +2294,7 @@ def list_bot_games(
     status: Optional[str] = "LOBBY|ACTIVE",
     tg_group_id: int | None = Query(default=None),
     tg_topic_id: int | None = Query(default=None),
+    game_id: int | None = None,
     limit: int = 50,
     offset: int = 0,
     user: User = Depends(get_bot_user),
@@ -2301,6 +2316,8 @@ def list_bot_games(
 
     statuses = _parse_bot_game_statuses(status)
     query = select(Game).where(Game.status.in_(statuses))
+    if game_id is not None:
+        query = query.where(Game.id == game_id)
     if tg_group_id is not None:
         query = query.where(Game.tg_group_id == int(tg_group_id))
     if tg_topic_id is not None:
@@ -2316,9 +2333,14 @@ def list_bot_games(
         out.append(
             BotGameOut(
                 id=g.id,
-                title=f"Game #{g.id}",
+                title=f"بازی شمارهٔ {g.id}",
                 status=bot_status,
                 card_price=g.card_price,
+                game_rule=g.game_rule,
+                card_layout_version=g.card_layout_version,
+                game_level=str(g.game_level) if g.game_level else None,
+                execution_source=g.execution_source,
+                draw_mode=str(g.draw_mode) if g.draw_mode else None,
                 tg_group_id=g.tg_group_id,
                 tg_topic_id=g.tg_topic_id,
                 prize_pool=g.prize_pool,
@@ -2673,7 +2695,8 @@ def get_bot_admin_game_report(
     game = db.execute(
         text("""
             SELECT
-              id, tg_group_id, tg_topic_id, admin_user_id, status,
+              id, tg_group_id, tg_topic_id, admin_user_id, status, game_level,
+              execution_source, scheduled_start_at, draw_mode,
               card_price, card_layout_version, game_rule, commission_rate,
               sold_amount, commission_amount, prize_pool,
               prize_locked, col_prize_amount, row_prize_amount,
@@ -2770,6 +2793,18 @@ def get_bot_admin_game_report(
         {"game_id": game_id, "lim": events_limit},
     ).mappings().all()
 
+    countdown_seconds = None
+    announce_before_seconds = None
+    if game["status"] == "LOBBY" and game["execution_source"] == "SYSTEM" and game["scheduled_start_at"]:
+        countdown_seconds = GameAutopilotWorker.countdowns_for_games(
+            db, {int(game_id): game["game_level"]}
+        ).get(int(game_id))
+        if countdown_seconds is not None:
+            from app.models.game_autopilot import GameAutopilotConfig
+            lane = db.get(GameAutopilotConfig, game["game_level"])
+            if lane is not None:
+                announce_before_seconds = int(lane.announce_before_seconds)
+
     return BotAdminReportOut(
         game=BotAdminGameReportGameOut(
             id=int(game["id"]),
@@ -2778,6 +2813,13 @@ def get_bot_admin_game_report(
             admin_user_id=int(game["admin_user_id"]),
             admin_tg_user_id=admin_tg_user_id,
             status=str(game["status"]),
+            game_level=str(game["game_level"]) if game["game_level"] is not None else None,
+            countdown_enabled=countdown_seconds is not None,
+            countdown_seconds=countdown_seconds,
+            announce_before_seconds=announce_before_seconds,
+            execution_source=str(game["execution_source"] or "ADMIN"),
+            scheduled_start_at=_as_str_datetime(game["scheduled_start_at"]) if game["scheduled_start_at"] is not None else None,
+            draw_mode=str(game["draw_mode"]) if game["draw_mode"] is not None else None,
             card_price=int(game["card_price"]),
             card_layout_version=int(game["card_layout_version"] or 1),
             game_rule=str(game["game_rule"] or "LEGACY"),

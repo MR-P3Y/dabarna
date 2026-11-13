@@ -1,5 +1,6 @@
 from aiogram.types import InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
+from bot.services.game_rules import level_title, rule_title
 
 
 def _fa_status(status: str | None) -> str:
@@ -34,7 +35,7 @@ def active_games_list_kb(
         status_fa = _fa_status(str(g.get("status") or ""))
         price = _fmt_int(g.get("card_price"))
         kb.button(
-            text=f"🎮 بازی #{gid} | {status_fa} | 💳 {price}",
+            text=f"🎮 #{gid} | {level_title(g)} | {rule_title(g)} | {status_fa} | {price} تومان",
             callback_data=f"games:view:{gid}:{offset}",
         )
 

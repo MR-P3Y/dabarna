@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import os
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -13,19 +15,48 @@ def _load() -> dict[str, Any]:
     try:
         data = json.loads(_STORE_PATH.read_text(encoding="utf-8"))
         if not isinstance(data, dict):
-            return {"subs": {}, "last": {}, "events": {}, "meta": {}}
-        data.setdefault("subs", {})
-        data.setdefault("last", {})
-        data.setdefault("events", {})
-        data.setdefault("meta", {})
+            raise ValueError("notification state must be a JSON object")
+        for section in ("subs", "last", "events", "meta"):
+            existing = data.setdefault(section, {})
+            if not isinstance(existing, dict):
+                raise ValueError(f"notification state section {section} is invalid")
         return data
-    except Exception:
-        return {"subs": {}, "last": {}, "events": {}, "meta": {}}
+    except (OSError, UnicodeError, ValueError, TypeError) as exc:
+        # Never silently reset persistent delivery ACKs when storage is
+        # unreadable or corrupted: that can cause widespread duplicate sends.
+        raise RuntimeError(
+            f"notification state unreadable or corrupt: {_STORE_PATH}"
+        ) from exc
 
 
 def _save(data: dict[str, Any]) -> None:
+    """Replace the notification state atomically so a crash cannot truncate it.
+
+    Storage is mounted on the bot's persistent host volume. A failed write
+    propagates to the notifier and MUST NOT be treated as a successful ACK.
+    """
     _STORE_PATH.parent.mkdir(parents=True, exist_ok=True)
-    _STORE_PATH.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    fd, tmp_path = tempfile.mkstemp(
+        prefix=f".{_STORE_PATH.name}.",
+        suffix=".tmp",
+        dir=str(_STORE_PATH.parent),
+    )
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as stream:
+            json.dump(data, stream, ensure_ascii=False, indent=2)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(tmp_path, _STORE_PATH)
+        # Make rename durable when the underlying volume supports dir fsync.
+        if hasattr(os, "O_DIRECTORY"):
+            dir_fd = os.open(str(_STORE_PATH.parent), os.O_RDONLY | os.O_DIRECTORY)
+            try:
+                os.fsync(dir_fd)
+            finally:
+                os.close(dir_fd)
+    finally:
+        if os.path.exists(tmp_path):
+            os.unlink(tmp_path)
 
 
 def subscribe(tg_user_id: int, game_id: int) -> None:

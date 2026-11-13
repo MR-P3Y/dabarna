@@ -49,6 +49,9 @@ class Settings(BaseSettings):
     ADMIN_CRYPTO_RECONCILIATION_HOUR_LOCAL: int = 16
     USER_FORUM_CHAT_ID: int | None = None
     USER_TOPIC_ANNOUNCE_ID: int | None = None
+    # Optional separate thread for GAME_STARTED (defaults to existing announcements).
+    # Only configure after verifying the actual Telegram topic ID; no topic is auto-created.
+    USER_TOPIC_GAME_START_ID: int | None = None
     USER_TOPIC_GAME_LOW_ID: int | None = None
     USER_TOPIC_GAME_MEDIUM_ID: int | None = None
     USER_TOPIC_GAME_HIGH_ID: int | None = None

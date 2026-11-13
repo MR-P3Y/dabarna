@@ -59,11 +59,15 @@ def navigation_keyboard(
 
 def group_guide_text() -> str:
     """One clearly labeled entrypoint; absent topics have no dead links."""
+    dedicated_start = getattr(settings, "USER_TOPIC_GAME_START_ID", None)
     topics = [
-        ("📢 اعلان‌ها", settings.USER_TOPIC_ANNOUNCE_ID, "خبرهای مهم و شروع بازی"),
-        ("🎯 بازی ۱ | خطی", settings.USER_TOPIC_GAME_LOW_ID, "پیگیری بازی سطح یک"),
-        ("🎯 بازی ۲ | خطی", settings.USER_TOPIC_GAME_MEDIUM_ID, "پیگیری بازی سطح دو"),
-        ("🏆 بازی ۳ | پرکردنی", settings.USER_TOPIC_GAME_HIGH_ID, "پیگیری بازی سطح سه"),
+        ("📢 اعلان‌ها", settings.USER_TOPIC_ANNOUNCE_ID,
+         "خبرهای مهم و بازشدن خرید کارت" if dedicated_start else "خبرهای مهم و شروع بازی"),
+        *([("▶️ اطلاعیه شروع بازی", dedicated_start, "شروع واقعی بازی‌ها")]
+          if dedicated_start else []),
+        ("🎯 بازی سطح پایین", settings.USER_TOPIC_GAME_LOW_ID, "پیگیری بازی سطح یک"),
+        ("🎯 بازی سطح متوسط", settings.USER_TOPIC_GAME_MEDIUM_ID, "پیگیری بازی سطح دو"),
+        ("🏆 بازی سطح بالا", settings.USER_TOPIC_GAME_HIGH_ID, "پیگیری بازی سطح سه"),
         ("🔢 اعداد زنده", settings.USER_TOPIC_LIVE_NUMBERS_ID, "عددهای اعلام‌شده"),
         ("🏁 نتایج", settings.USER_TOPIC_RESULTS_ID, "پایان بازی و برندگان"),
         ("📖 قوانین و آموزش", settings.USER_TOPIC_RULES_ID, "روش بازی و پرسش‌های رایج"),

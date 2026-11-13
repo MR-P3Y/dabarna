@@ -13,11 +13,11 @@ from bot.services.tg_membership import is_member
 from bot.services.telegram_safe import safe_edit_or_send
 from bot.services.ui import panel
 from bot.services.numerals import normalize_digits
+from bot.services.game_rules import draw_mode_title, level_title, rule_kind, rule_title, rule_details
 
 router = Router()
 
 ACTIVE_GAMES_PAGE_LIMIT = 8
-RECENT_NUMBERS_LIMIT = 10
 STATE_LAST_N = 200
 
 
@@ -34,9 +34,9 @@ def _fa_status(status: str | None) -> str:
 
 def _fmt_int(value: int | str | None) -> str:
     try:
-        return f"{int(value or 0):,}"
-    except Exception:
-        return str(value or 0)
+        return f"{int(value):,}"
+    except (TypeError, ValueError):
+        return "نامشخص"
 
 
 def _as_int_list(values: object) -> list[int]:
@@ -49,16 +49,6 @@ def _as_int_list(values: object) -> list[int]:
         except Exception:
             continue
     return out
-
-
-def _recent_numbers_text(called_numbers: list[int], *, limit: int = RECENT_NUMBERS_LIMIT) -> str:
-    if not called_numbers:
-        return "—"
-    tail = called_numbers[-limit:]
-    if len(tail) == 1:
-        return f"<b>{tail[0]}</b>"
-    head = "، ".join(str(n) for n in tail[:-1])
-    return f"{head}، <b>{tail[-1]}</b>"
 
 
 def _winner_snapshot(state: dict) -> dict[str, int]:
@@ -88,54 +78,68 @@ def _build_game_flow_body(game_id: int, state: dict) -> str:
 
     winners = _winner_snapshot(state)
     buy_state = "باز" if status_raw == "LOBBY" else "بسته"
-    col_paid = bool(int(state.get("col_paid") or 0))
-    row_paid = bool(int(state.get("row_paid") or 0))
-    game_rule = str(state.get("game_rule") or "LEGACY").upper()
-    if game_rule == "FULL_CARD":
-        win_rule = "پرکردنی: تکمیل هر ۱۵ عدد کارت"
-        intermediate = "بدون تورنا"
-    elif game_rule == "LINE":
-        win_rule = "خطی: تکمیل ۵ عدد یک ردیف"
-        intermediate = "تورنا: هر ۳ عدد یک ردیف"
-    else:
-        win_rule = "تمام: ردیف ۵ عددی"
-        intermediate = "تورنا: ستون ۴ عددی"
-    commission_raw = state.get("commission_rate")
+    kind = rule_kind(state)
+    rule_line = rule_details(state)
+    source = {"SYSTEM": "سیستمی", "ADMIN": "دستی (ادمین)"}.get(state.get("execution_source"), "نامشخص")
+    number_mode = draw_mode_title(state)
     try:
-        commission_percent = float(0.10 if commission_raw is None else commission_raw) * 100.0
-    except Exception:
-        commission_percent = 10.0
+        rate = float(state["commission_rate"])
+        commission_text = f"{rate * 100:g}%" if 0 <= rate < 1 else "نامشخص"
+    except (KeyError, TypeError, ValueError):
+        commission_text = "نامشخص"
 
-    if game_rule == "FULL_CARD":
+    def payout(bucket: str) -> str:
+        if bucket == "col" and state.get("col_absorbed_into_row"):
+            return "در جایزهٔ نهایی منظور شد"
+        paid = state.get(f"{bucket}_paid")
+        if paid == 0:
+            return "هنوز ثبت نشده"
+        if paid != 1:
+            return "وضعیت پرداخت نامشخص است"
+        amount = state.get(f"{bucket}_payout_total")
+        return f"ثبت شده ({amount:,} تومان)" if isinstance(amount, int) and amount > 0 else "ثبت شده"
+
+    if kind == "FULL_CARD":
         winner_stats = f"پرکردنی: <b>{winners['row_users']}</b> نفر"
-        payout_status = f"پرکردنی {'✅' if row_paid else '❌'} | تورنا: ندارد"
-    elif game_rule == "LINE":
+        payout_status = f"پرکردنی: {payout('row')}"
+    elif kind == "LINE":
         winner_stats = f"تورنا: <b>{winners['col_users']}</b> نفر | خطی: <b>{winners['row_users']}</b> نفر"
-        payout_status = f"تورنا {'✅' if col_paid else '❌'} | خطی {'✅' if row_paid else '❌'}"
+        payout_status = f"تورنا: {payout('col')} | خطی: {payout('row')}"
+    elif kind == "LEGACY":
+        winner_stats = f"تورنا: <b>{winners['col_users']}</b> نفر | نهایی: <b>{winners['row_users']}</b> نفر"
+        payout_status = f"تورنا: {payout('col')} | نهایی: {payout('row')}"
     else:
-        winner_stats = f"تورنا: <b>{winners['col_users']}</b> نفر | تمام: <b>{winners['row_users']}</b> نفر"
-        payout_status = f"تورنا {'✅' if col_paid else '❌'} | تمام {'✅' if row_paid else '❌'}"
-
+        winner_stats = "قانون بازی در حال بررسی است."
+        payout_status = "نامشخص"
+    if state.get("col_absorbed_into_row") and kind in ("LINE", "LEGACY"):
+        winner_stats = f"برندگان نهایی: <b>{winners['row_users']}</b> نفر"
     lines = [
-        f"🎮 بازی: <b>#{game_id}</b>",
+        f"🎮 بازی <b>#{game_id}</b> | {level_title(state)}",
         f"وضعیت بازی: <b>{status_fa}</b>",
         f"👥 تعداد برندگان: <b>{winners['users_total']}</b> نفر",
         f"🪪 کارت‌های برنده: <b>{winners['cards_total']}</b>",
         winner_stats,
         "",
-        f"📋 قانون: <b>{win_rule}</b> | {intermediate}",
-        f"💳 قیمت کارت: <b>{_fmt_int(state.get('card_price'))}</b>",
-        f"🧾 کمیسیون بازی: <b>{commission_percent:g}%</b>",
-        f"🎁 جایزه کل: <b>{_fmt_int(state.get('prize_pool'))}</b>",
-        f"💵 فروش کارت: <b>{_fmt_int(state.get('sold_amount'))}</b>",
+        f"📋 نوع بازی: <b>{rule_title(state)}</b>",
+        rule_line,
+        f"🧭 مدیریت بازی: <b>{source}</b> | اعلام عدد: <b>{number_mode}</b>",
+        f"💳 قیمت هر کارت: <b>{_fmt_int(state.get('card_price'))} تومان</b>",
+        f"🧾 کمیسیون همین بازی: <b>{commission_text}</b>",
+        f"🏆 صندوق جایزه: <b>{_fmt_int(state.get('prize_pool'))} تومان</b>",
+        f"💵 فروش کارت‌ها: <b>{_fmt_int(state.get('sold_amount'))} تومان</b>",
         "",
         f"🔢 آخرین عدد: <b>{last_number if last_number is not None else '—'}</b>",
-        f"🧾 اعداد اخیر (تا ۱۰ عدد): {_recent_numbers_text(called_numbers)}",
+        f"🧾 اعداد اعلام‌شده: {'، '.join(map(str, called_numbers)) or 'هنوز عددی اعلام نشده'}",
         f"📊 تعداد اعداد اعلام‌شده: <b>{len(called_numbers)}</b>",
         "",
         f"🧭 وضعیت خرید کارت: <b>{buy_state}</b>",
-        f"🏁 وضعیت پرداخت: {payout_status}",
+        f"🏁 وضعیت ثبت پرداخت جایزه: {payout_status}",
     ]
+
+    for field, label in (("participants_count", "شرکت‌کنندگان"), ("cards_count", "کارت‌ها")):
+        count = state.get(field)
+        if isinstance(count, int) and count >= 0:
+            lines.append(f"{label}: <b>{count:,}</b>")
 
     if status_raw == "ENDED":
         lines += ["", "🛑 این بازی پایان‌یافته است."]
@@ -192,7 +196,7 @@ async def _render_active_games_list(
 
 
 async def _render_game_flow(cq: CallbackQuery, api: ApiClient, *, game_id: int, offset: int) -> None:
-    state = await api.get_game_state(game_id, last_n=STATE_LAST_N)
+    state = await api.get_game_state(game_id, last_n=STATE_LAST_N, include_counts=True)
     await safe_edit_or_send(
         cq.message,
         panel("جریانات بازی", _build_game_flow_body(game_id, state)),
@@ -327,7 +331,7 @@ async def cmd_game(m: Message, api: ApiClient):
 
     game_id = int(parts[1])
     try:
-        state = await api.get_game_state(game_id, last_n=STATE_LAST_N)
+        state = await api.get_game_state(game_id, last_n=STATE_LAST_N, include_counts=True)
         await m.answer(
             panel("جریانات بازی", _build_game_flow_body(game_id, state)),
             parse_mode="HTML",

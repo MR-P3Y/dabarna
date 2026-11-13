@@ -1,3 +1,4 @@
+import * as experience from "./experience.mjs?v=remaining-ux-v1";
 const tg = window.Telegram?.WebApp;
 
 const state = {
@@ -66,6 +67,7 @@ const state = {
   adminNotifyCurrent: null,
   audioCtx: null,
   soundEnabled: false,
+  countdownVibration: false,
   receiptPreviewUrl: null,
   depositReceiptObjectUrl: null,
   splashHidden: false,
@@ -545,8 +547,25 @@ function toggleSound() {
   updateSoundButton();
 }
 
+function updateCountdownVibrationButton() {
+  const button = getEl("countdownVibrationBtn");
+  if (!button) return;
+  button.setAttribute("aria-pressed", String(state.countdownVibration));
+  button.classList.toggle("is-on", state.countdownVibration);
+}
+
+function toggleCountdownVibration() {
+  state.countdownVibration = !state.countdownVibration;
+  try { localStorage.setItem("davarna_countdown_vibration", state.countdownVibration ? "1" : "0"); } catch (_) {}
+  updateCountdownVibrationButton();
+}
+
 function initSoundPreference() {
-  try { state.soundEnabled = localStorage.getItem("davarna_sound_enabled") === "1"; } catch (_) {}
+  try {
+    state.soundEnabled = localStorage.getItem("davarna_sound_enabled") === "1";
+    state.countdownVibration = localStorage.getItem("davarna_countdown_vibration") === "1";
+  } catch (_) {}
+  updateCountdownVibrationButton();
   updateSoundButton();
 }
 
@@ -980,7 +999,7 @@ function walletReasonLabel(reason, gameRule = "LEGACY") {
 
 function loadNotificationReadIds() {
   try {
-    const raw = localStorage.getItem(NOTIFICATION_READ_STORAGE_KEY);
+    const raw = localStorage.getItem(`${NOTIFICATION_READ_STORAGE_KEY}:${state.currentUserId || "guest"}`);
     const parsed = raw ? JSON.parse(raw) : [];
     state.notificationReadIds = new Set(Array.isArray(parsed) ? parsed.map((x) => String(x)) : []);
   } catch (_) {
@@ -991,7 +1010,7 @@ function loadNotificationReadIds() {
 function saveNotificationReadIds() {
   try {
     localStorage.setItem(
-      NOTIFICATION_READ_STORAGE_KEY,
+      `${NOTIFICATION_READ_STORAGE_KEY}:${state.currentUserId || "guest"}`,
       JSON.stringify([...state.notificationReadIds].slice(-300))
     );
   } catch (_) {}
@@ -1035,105 +1054,133 @@ function updateNotificationBadge() {
   }
 }
 
+const inboxUi = { filter: "all", loading: false, error: false, partial: false, feed: [], games: [], syncedAt: null, request: null, timer: null, owner: null };
+const INBOX_CATEGORIES = { all: "همه", unread: "نخوانده", game: "بازی‌ها", win: "بردها", payment: "مالی", system: "سیستم" };
+
 function renderNotificationCenter() {
   const root = getEl("notificationList");
   if (!root) return;
-  const items = Array.isArray(state.notifications) ? state.notifications : [];
-  if (!items.length) {
-    root.innerHTML = '<div class="empty">اعلان جدیدی وجود ندارد.</div>';
-    updateNotificationBadge();
-    return;
+  const previousScroll = root.scrollTop;
+  const focused = document.activeElement;
+  const focusId = focused?.closest?.(".notification-item")?.dataset.id;
+  const focusAction = focused?.dataset?.inboxAction;
+  const all = Array.isArray(state.notifications) ? state.notifications : [];
+  const items = experience.filterInbox(all, inboxUi.filter, state.notificationReadIds);
+  const status = getEl("notificationSyncStatus");
+  if (status) {
+    status.dataset.state = inboxUi.error ? "error" : inboxUi.loading ? "loading" : "ready";
+    status.textContent = inboxUi.error
+      ? inboxUi.partial ? "بخشی از اعلان‌ها به‌روز نشد؛ اطلاعات قبلی آن بخش حفظ شده است" : `دریافت تازه انجام نشد؛ ${inboxUi.syncedAt ? "نمایش آخرین اطلاعات ذخیره‌شده" : "دوباره تلاش کنید"}`
+      : inboxUi.loading ? "در حال دریافت اعلان‌ها…"
+      : inboxUi.syncedAt ? `آخرین دریافت: ${formatFaDateTime(inboxUi.syncedAt)} · خوانده‌شدن در همین دستگاه ذخیره می‌شود` : "هنوز همگام‌سازی نشده";
   }
-  root.innerHTML = items
-    .map((item, idx) => {
-      const id = String(item?.id || "");
-      const read = state.notificationReadIds.has(id);
-      const severity = String(item?.severity || "info").toLowerCase();
-      const receiptKind = String(item?.receipt_kind || "");
-      const receiptId = Number(item?.receipt_id || 0);
-      const receiptBtn = receiptKind && receiptId
-        ? `<button class="small-btn notification-receipt-btn" data-kind="${safeText(receiptKind)}" data-id="${safeText(receiptId)}" type="button">رسید</button>`
-        : "";
-      return `
-        <div class="notification-item ${read ? "is-read" : "is-unread"}" data-id="${safeText(id)}" data-index="${safeText(String(idx))}">
-          <div class="notification-item-main">
-            <span class="notification-status ${safeText(severity)}">${safeText(read ? "خوانده شد" : "در انتظار")}</span>
-            <strong>${safeText(item?.title || "اعلان")}</strong>
-            <p>${safeText(item?.body || "")}</p>
-            <small>${safeText(formatFaDateTime(item?.created_at))} | ${safeText(notificationSeverityLabel(severity))}</small>
-          </div>
-          <div class="notification-item-actions">
-            ${receiptBtn}
-            <button class="small-btn notification-open-btn" type="button">مشاهده</button>
-          </div>
-        </div>
-      `;
-    })
-    .join("");
-
-  root.querySelectorAll(".notification-item").forEach((row) => {
-    const markRead = () => {
-      const id = String(row.getAttribute("data-id") || "");
-      if (id) state.notificationReadIds.add(id);
-      saveNotificationReadIds();
-      updateNotificationBadge();
-      row.classList.remove("is-unread");
-      row.classList.add("is-read");
-    };
-    row.querySelector(".notification-open-btn")?.addEventListener("click", () => {
-      const idx = Number(row.getAttribute("data-index") || "-1");
-      const item = Array.isArray(state.notifications) ? state.notifications[idx] : null;
-      closeNotificationCenter();
-      openNotificationRoute(item)
-        .then(() => markRead())
-        .catch((e) => showToast(localizeApiError(e?.message || e), "error"));
-    });
-    row.querySelector(".notification-receipt-btn")?.addEventListener("click", (ev) => {
-      ev.stopPropagation();
-      const btn = ev.currentTarget;
-      openReceiptModal(String(btn.getAttribute("data-kind") || ""), Number(btn.getAttribute("data-id") || 0))
-        .then(() => markRead())
-        .catch((e) => showToast(localizeApiError(e?.message || e), "error"));
-    });
-  });
+  getEl("notificationRefreshBtn")?.toggleAttribute("disabled", inboxUi.loading);
+  getEl("notificationMarkAllBtn")?.toggleAttribute("disabled", !all.some(item => !state.notificationReadIds.has(String(item.id))));
+  root.setAttribute("aria-busy", String(inboxUi.loading));
+  getEl("notificationFilters")?.querySelectorAll("button").forEach(button => button.setAttribute("aria-pressed", String(button.dataset.filter === inboxUi.filter)));
+  if (!items.length) {
+    root.innerHTML = inboxUi.loading && !all.length
+      ? '<div class="inbox-skeleton" aria-label="در حال دریافت"><i></i><i></i><i></i></div>'
+      : `<div class="inbox-empty"><span aria-hidden="true">◇</span><strong>${inboxUi.error && !all.length ? "ارتباط برقرار نشد" : inboxUi.filter === "unread" ? "همه اعلان‌ها را دیده‌اید" : "اعلانی در این بخش نیست"}</strong><p>${inboxUi.error ? "با دکمه به‌روزرسانی دوباره تلاش کنید." : "اعلان‌های مرتبط پس از ثبت در این بخش نمایش داده می‌شوند."}</p></div>`;
+    updateNotificationBadge(); return;
+  }
+  root.innerHTML = items.map(item => {
+    const id = String(item.id);
+    const read = state.notificationReadIds.has(id);
+    const category = experience.notificationCategory(item);
+    const severity = ["success", "danger", "error", "pending"].includes(item.severity) ? item.severity : "info";
+    const route = notificationRoute(item);
+    const game = item.game;
+    const gameStatus = game ? statusLabel(game.status) : "";
+    const action = category === "game" ? (game.status === "LOBBY" ? "مشاهده بازی و کارت‌ها" : game.status === "ENDED" ? "مشاهده نتیجه بازی" : "ورود به بازی") : category === "win" ? "مشاهده کارت برنده" : "مشاهده جزئیات";
+    const level = ({ LOW: "سطح پایین", MEDIUM: "سطح متوسط", HIGH: "سطح بالا" })[game?.game_level] || "سطح ثبت نشده";
+    return `<article class="notification-item inbox-card ${read ? "is-read" : "is-unread"} category-${category}" data-id="${safeText(id)}">
+      <div class="inbox-card-top"><span class="inbox-type">${safeText(INBOX_CATEGORIES[category])}</span><span class="notification-status ${severity}">${safeText(read ? "خوانده‌شده" : "خوانده‌نشده")}</span></div>
+      <div class="notification-item-main"><strong>${safeText(item.title || "اعلان")}</strong><p>${safeText(item.body || "")}</p>
+      ${game ? `<div class="inbox-game-facts"><span>${safeText(gameStatus)}</span><span>${safeText(level)}</span><span>هر کارت ${safeText(toman(game.card_price))}</span></div><p class="inbox-game-time">${game.scheduled_start_at ? `زمان برنامه‌ریزی‌شده: ${safeText(formatFaDateTime(game.scheduled_start_at))}؛ شروع منوط به تأیید سرور` : "زمان شروع قطعی ثبت نشده"}</p>` : ""}
+      <small>${safeText(formatFaDateTime(item.created_at))}</small></div>
+      <div class="notification-item-actions">
+      ${route.receiptKind && route.receiptId ? '<button class="small-btn" data-inbox-action="receipt" type="button">رسید</button>' : ""}
+      <button class="small-btn primary" data-inbox-action="open" type="button">${action}</button>
+      ${read ? "" : '<button class="small-btn inbox-read-btn" data-inbox-action="read" type="button">خواندم</button>'}</div></article>`;
+  }).join("");
+  root.querySelectorAll("[data-inbox-action]").forEach(button => button.addEventListener("click", async () => {
+    const item = items.find(item => String(item.id) === button.closest(".notification-item").dataset.id);
+    if (!item || button.disabled) return;
+    button.disabled = true;
+    try {
+      const route = notificationRoute(item);
+      if (button.dataset.inboxAction === "receipt") await openReceiptModal(route.receiptKind, route.receiptId);
+      else if (button.dataset.inboxAction === "open") {
+        if (item.game) { switchToView("games"); await openLiveGame(item.game.id, { announce: false }); }
+        else await openNotificationRoute(item);
+        closeNotificationCenter();
+      }
+      state.notificationReadIds.add(String(item.id)); saveNotificationReadIds();
+      if (button.dataset.inboxAction === "receipt") {
+        const row = button.closest(".notification-item");
+        row.classList.replace("is-unread", "is-read");
+        row.querySelector(".notification-status").textContent = "خوانده‌شده";
+        updateNotificationBadge();
+      } else renderNotificationCenter();
+    } catch (error) { showToast(localizeApiError(error?.message || error), "error"); }
+    finally { button.disabled = false; }
+  }));
+  root.scrollTop = previousScroll;
+  if (focusId && focusAction) [...root.querySelectorAll(".notification-item")].find(row => row.dataset.id === focusId)?.querySelector(`[data-inbox-action="${focusAction}"]`)?.focus({ preventScroll: true });
   updateNotificationBadge();
 }
 
 async function refreshNotifications({ silent = true } = {}) {
-  try {
-    const out = await apiFetch("/mini-api/me/notifications?limit=50");
-    state.notifications = Array.isArray(out?.items) ? out.items : [];
-    renderNotificationCenter();
-  } catch (error) {
-    if (!silent) showToast(localizeApiError(error?.message || error), "error");
+  const owner = Number(state.currentUserId || 0);
+  if (!owner) return;
+  if (inboxUi.owner !== owner) {
+    inboxUi.owner = owner; state.notifications = []; inboxUi.feed = []; inboxUi.games = []; inboxUi.partial = false; inboxUi.syncedAt = null; inboxUi.error = false; loadNotificationReadIds();
   }
+  if (inboxUi.request) return inboxUi.request;
+  inboxUi.loading = true; renderNotificationCenter();
+  inboxUi.request = (async () => {
+    try {
+      const [out, games] = await Promise.allSettled([apiFetch("/mini-api/me/notifications?limit=50"), apiFetch("/mini-api/games?status=LOBBY,RUNNING,ENDED&limit=30")]);
+      if (Number(state.currentUserId || 0) !== owner) return;
+      const feedOk = out.status === "fulfilled" && Array.isArray(out.value?.items);
+      const gamesOk = games.status === "fulfilled" && Array.isArray(games.value?.items);
+      if (feedOk) inboxUi.feed = out.value.items;
+      if (gamesOk) inboxUi.games = games.value.items;
+      state.notifications = experience.inboxItems(inboxUi.feed, inboxUi.games);
+      inboxUi.error = !feedOk || !gamesOk; inboxUi.partial = feedOk !== gamesOk;
+      if (feedOk && gamesOk) inboxUi.syncedAt = new Date().toISOString();
+    } catch (error) {
+      if (Number(state.currentUserId || 0) === owner) inboxUi.error = true;
+      if (!silent) showToast("دریافت اعلان‌ها انجام نشد؛ دوباره تلاش کنید.", "error");
+    } finally {
+      inboxUi.loading = false; inboxUi.request = null; renderNotificationCenter();
+    }
+  })();
+  return inboxUi.request;
 }
 
 function openNotificationCenter() {
   state.notificationsOpen = true;
   const modal = getEl("notificationCenter");
   if (!modal) return;
-  modal.classList.add("open");
-  modal.setAttribute("aria-hidden", "false");
+  experience.openDialog(modal, closeNotificationCenter);
   renderNotificationCenter();
   refreshNotifications({ silent: false }).catch(() => {});
+  if (!inboxUi.timer) inboxUi.timer = setInterval(() => {
+    if (state.notificationsOpen && !document.hidden && navigator.onLine !== false) refreshNotifications().catch(() => {});
+  }, 30000);
 }
 
 function closeNotificationCenter() {
   state.notificationsOpen = false;
-  const modal = getEl("notificationCenter");
-  if (!modal) return;
-  modal.classList.remove("open");
-  modal.setAttribute("aria-hidden", "true");
+  clearInterval(inboxUi.timer); inboxUi.timer = null;
+  experience.closeDialog(getEl("notificationCenter"));
 }
 
 function markAllNotificationsRead() {
-  (state.notifications || []).forEach((item) => {
-    const id = String(item?.id || "");
-    if (id) state.notificationReadIds.add(id);
-  });
-  saveNotificationReadIds();
-  renderNotificationCenter();
+  (state.notifications || []).forEach(item => state.notificationReadIds.add(String(item.id)));
+  saveNotificationReadIds(); renderNotificationCenter();
 }
 
 function receiptStatusLabel(kind, status) {
@@ -1205,18 +1252,21 @@ async function openReceiptModal(kind, id) {
   const body = getEl("receiptModalBody");
   if (body) body.innerHTML = '<div class="cards-skeleton"><div class="skeleton-line lg"></div><div class="skeleton-line"></div><div class="skeleton-line"></div></div>';
   if (modal) {
-    modal.classList.add("open");
-    modal.setAttribute("aria-hidden", "false");
+    experience.openDialog(modal, closeReceiptModal);
   }
-  const receipt = await apiFetch(`/mini-api/me/receipts/${encodeURIComponent(normalized)}/${itemId}`);
-  renderReceiptModal(receipt);
+  try {
+    const receipt = await apiFetch(`/mini-api/me/receipts/${encodeURIComponent(normalized)}/${itemId}`);
+    renderReceiptModal(receipt);
+  } catch (error) {
+    if (body) body.innerHTML = '<div class="inbox-empty"><strong>رسید دریافت نشد</strong><p>پنجره را ببندید و دوباره تلاش کنید.</p></div>';
+    throw error;
+  }
 }
 
 function closeReceiptModal() {
   const modal = getEl("receiptModal");
   if (!modal) return;
-  modal.classList.remove("open");
-  modal.setAttribute("aria-hidden", "true");
+  experience.closeDialog(modal);
 }
 
 const WIN_PATTERN_LABELS = {
@@ -1942,6 +1992,114 @@ function drawGamesOverview(items) {
   root.querySelector(".games-overview-cards")?.addEventListener("click", () => switchToView("cards"));
 }
 
+// Autopilot is the only authority for the deadline. This module only displays
+// the time supplied by /mini-api/games; it never triggers GameService.start_game.
+let gameStartCountdownTicker = null;
+let gameStartCountdownServerOffsetMs = 0;
+const gameStartCountdownFeedback = new Map();
+let gameStartCountdownLastFeedbackSecond = -1;
+
+function autopilotGameStartClock(game, nowMs = Date.now() + gameStartCountdownServerOffsetMs) {
+  if (
+    !game || !game.countdown_enabled || !game.scheduled_start_at ||
+    String(game.status || "").toUpperCase() !== "LOBBY" ||
+    String(game.execution_source || "ADMIN").toUpperCase() !== "SYSTEM"
+  ) return null;
+  const scheduledMs = parseApiDate(game.scheduled_start_at).getTime();
+  if (!Number.isFinite(scheduledMs)) return null;
+  const total = Math.max(5, Number(game.countdown_seconds || 30));
+  const seconds = Math.max(0, Math.ceil((scheduledMs - nowMs) / 1000));
+  return {
+    seconds,
+    scheduledMs,
+    total,
+    pending: seconds === 0,
+    urgent: seconds > 0 && seconds <= 10,
+    progress: Math.max(0, Math.min(100, seconds / total * 100)),
+    label: seconds === 0 ? "زمان شروع رسیده؛ در انتظار تأیید سرور" : "شروع بازی تا",
+    digits: toFaDigits(
+      String(Math.floor(seconds / 60)).padStart(2, "0") + ":" +
+      String(seconds % 60).padStart(2, "0")
+    ),
+  };
+}
+
+function autopilotGameStartClockHtml(game, clock) {
+  if (!clock) return "";
+  const mode = String(game.draw_mode || "").toUpperCase() === "AUTO"
+    ? "شماره‌خوان خودکار" : "شماره‌خوان دستی";
+  return `
+    <div class="autopilot-start-clock${clock.urgent ? " is-urgent" : ""}${clock.pending ? " is-pending" : ""}"
+      data-autopilot-clock="${safeText(Number(game.id || 0))}" style="--countdown-progress:${clock.progress.toFixed(1)}%">
+      <div class="autopilot-start-clock-ring" aria-hidden="true">
+        <div class="autopilot-start-clock-inner">⏱</div>
+      </div>
+      <div class="autopilot-start-clock-content">
+        <span class="autopilot-start-clock-caption">${safeText(clock.label)}</span>
+        <strong class="autopilot-start-clock-digits" role="timer" aria-live="off">${safeText(clock.digits)}</strong>
+        <span class="autopilot-start-clock-mode">⚡ هماهنگ با Autopilot • ${safeText(mode)}</span>
+      </div>
+      <div class="autopilot-start-clock-track" aria-hidden="true">
+        <div class="autopilot-start-clock-fill" style="width:${clock.progress.toFixed(1)}%"></div>
+      </div>
+    </div>
+  `;
+}
+
+function tickAutopilotGameStartClocks() {
+  const root = getEl("gamesList");
+  if (!root) return;
+  const cards = root.querySelectorAll("[data-autopilot-clock]");
+  if (gameStartCountdownFeedback.size > 128) gameStartCountdownFeedback.clear();
+  const enabledFeedback = getEl("view-games")?.classList.contains("active") &&
+    (typeof document.visibilityState === "undefined" || document.visibilityState === "visible");
+  let feedbackPlayedThisTick = false;
+  for (const card of cards) {
+    const gid = Number(card.getAttribute("data-autopilot-clock") || 0);
+    const game = state.gamesCache.find((item) => Number(item.id) === gid);
+    const view = autopilotGameStartClock(game);
+    if (!view) {
+      card.remove();
+      continue;
+    }
+    card.style.setProperty("--countdown-progress", view.progress.toFixed(1) + "%");
+    const digits = card.querySelector(".autopilot-start-clock-digits");
+    const caption = card.querySelector(".autopilot-start-clock-caption");
+    const fill = card.querySelector(".autopilot-start-clock-fill");
+    if (digits && digits.textContent !== view.digits) digits.textContent = view.digits;
+    if (caption && caption.textContent !== view.label) caption.textContent = view.label;
+    if (fill) fill.style.width = view.progress.toFixed(1) + "%";
+    card.classList.toggle("is-urgent", view.urgent);
+    card.classList.toggle("is-pending", view.pending);
+    card.closest(".game-hero-v2")?.classList.toggle("countdown-urgent", view.urgent);
+
+    // At most one gentle tick per second and per displayed game. Do not
+    // replay missed beats when a backgrounded Telegram Mini App resumes.
+    if (enabledFeedback && !feedbackPlayedThisTick && view.seconds >= 1 && view.seconds <= 3) {
+      const key = gid + ":" + view.scheduledMs;
+      const currentSecond = Math.floor(Date.now() / 1000);
+      if (gameStartCountdownFeedback.get(key) !== view.seconds &&
+          gameStartCountdownLastFeedbackSecond !== currentSecond) {
+        gameStartCountdownFeedback.set(key, view.seconds);
+        gameStartCountdownLastFeedbackSecond = currentSecond;
+        if (state.soundEnabled) playTone({ freq: 660 + (4 - view.seconds) * 120, duration: 0.085, gain: 0.024 });
+        if (state.countdownVibration) {
+          try {
+            if (tg?.HapticFeedback?.impactOccurred) tg.HapticFeedback.impactOccurred("light");
+            else navigator.vibrate?.(30);
+          } catch (_) {}
+        }
+        feedbackPlayedThisTick = true;
+      }
+    }
+  }
+}
+
+function startAutopilotGameStartClockTicker() {
+  if (gameStartCountdownTicker !== null) return;
+  gameStartCountdownTicker = setInterval(tickAutopilotGameStartClocks, 250);
+}
+
 function drawGames(items) {
   const root = getEl("gamesList");
   const hotBanner = getEl("hotGameBanner");
@@ -1968,7 +2126,8 @@ function drawGames(items) {
   }
 
   const sorted = [...games].sort((a, b) => {
-    const rank = (g) => String(g?.status || "").toUpperCase() === "LOBBY" ? 0 : 1;
+    const rank = (g) => autopilotGameStartClock(g) ? 0 :
+      String(g?.status || "").toUpperCase() === "LOBBY" ? 1 : 2;
     return rank(a) - rank(b) || Number(b?.id || 0) - Number(a?.id || 0);
   });
   root.innerHTML = sorted.map((g) => {
@@ -1978,6 +2137,7 @@ function drawGames(items) {
     const statusKey = String(g.status || "").toUpperCase();
     const isLobby = statusKey === "LOBBY";
     const isRunning = statusKey === "RUNNING";
+    const startClock = autopilotGameStartClock(g);
     const myCards = Number(state.myCardsByGame.get(gid) || 0);
     const soldCards = soldCardsCount(g, snap);
     const players = playersCount(g, snap);
@@ -1990,7 +2150,7 @@ function drawGames(items) {
       : "مشاهده اعداد زنده";
 
     return `
-      <article class="item game-hero game-hero-v2" data-game-id="${safeText(gid)}">
+      <article class="item game-hero game-hero-v2${startClock ? " countdown-soon" : ""}" data-game-id="${safeText(gid)}">
         <div class="item-row game-hero-top">
           <div class="game-identity">
             <span class="game-identity-overline">${safeText(ruleMeta.levelLabel)}</span>
@@ -1998,6 +2158,7 @@ function drawGames(items) {
           </div>
           <span class="game-state ${statusClass}">${safeText(statusLabel(statusKey))}</span>
         </div>
+        ${autopilotGameStartClockHtml(g, startClock)}
         <div class="rule-chip-v2 rule-chip-${safeText(ruleMeta.rule.toLowerCase())}">
           <strong>${safeText(ruleMeta.label)}</strong>
           <span>${safeText(ruleMeta.description)}</span>
@@ -2021,6 +2182,7 @@ function drawGames(items) {
       </article>
     `;
   }).join("");
+  tickAutopilotGameStartClocks();
 
   root.querySelectorAll(".open-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -2387,46 +2549,11 @@ function buildWinnerNoticeText(event) {
 }
 
 function resolveWinnerAmount(payload) {
-  const myId = Number(state.currentUserId || 0);
-  if (myId > 0) {
-    const users = normalizeIntList(payload?.winner_user_ids || []);
-    const amounts = Array.isArray(payload?.amounts_by_card)
-      ? payload.amounts_by_card.map((x) => Number(x || 0))
-      : [];
-    if (users.length && amounts.length) {
-      let mine = 0;
-      for (let i = 0; i < users.length && i < amounts.length; i += 1) {
-        if (users[i] === myId && Number.isFinite(amounts[i]) && amounts[i] > 0) {
-          mine += amounts[i];
-        }
-      }
-      if (mine > 0) return Math.trunc(mine);
-    }
-  }
-  const total = Number(payload?.amount_total || 0);
-  if (total > 0) return total;
-  const row = Number(payload?.row_payout_total || 0);
-  const col = Number(payload?.col_payout_total || 0);
-  if (row > 0 && col > 0) return row + col;
-  if (row > 0) return row;
-  if (col > 0) return col;
-  return 0;
+  return experience.personalPrize(payload, state.currentUserId);
 }
 
 function resolveWinnerKindLabel(kind, payload) {
-  const key = String(kind || "").toUpperCase();
-  const eventRule = String(payload?.game_rule || "LEGACY").toUpperCase();
-  if (key === "PRIZE_COL" || key === "PRIZE_ROW") return winnerKindLabelByReason(key, eventRule);
-  const myId = Number(state.currentUserId || 0);
-  const rowIds = normalizeIntList(payload?.row_winner_user_ids || []);
-  const colIds = normalizeIntList(payload?.col_winner_user_ids || []);
-  const rowByIds = myId > 0 && rowIds.includes(myId);
-  const colByIds = myId > 0 && colIds.includes(myId);
-  const rowByAmount = Number(payload?.row_payout_total || 0) > 0;
-  const colByAmount = Number(payload?.col_payout_total || 0) > 0;
-  const row = rowByIds || (!colByIds && rowByAmount);
-  const col = colByIds || (!rowByIds && colByAmount);
-  return winnerKindLabelByFlags({ row, col, rule: eventRule }) || winnerKindLabelByReason(key, eventRule);
+  return experience.prizeLabel(kind, payload);
 }
 
 function extractWinnerInfo(event) {
@@ -2443,83 +2570,63 @@ function extractWinnerInfo(event) {
   };
 }
 
+const winnerPopupQueue = [];
+let activeWinnerEvent = null;
+
 function closeWinnerModal() {
-  const modal = getEl("winnerModal");
-  if (!modal) return;
-  modal.classList.remove("open");
-  modal.setAttribute("aria-hidden", "true");
+  experience.closeDialog(getEl("winnerModal"));
+  activeWinnerEvent = null;
+  const next = winnerPopupQueue.shift();
+  if (next) openWinnerModal(next);
 }
 
 function openWinnerModal(event) {
   const modal = getEl("winnerModal");
-  if (!modal) return;
+  if (!modal || !isMyWinnerEvent(event) || hasSeenWinnerEvent(event)) return;
   const info = extractWinnerInfo(event);
-  if (state.lastWinnerModalKey === info.key) return;
+  if (activeWinnerEvent) {
+    if (extractWinnerInfo(activeWinnerEvent).key !== info.key && !winnerPopupQueue.some(item => extractWinnerInfo(item).key === info.key)) winnerPopupQueue.push(event);
+    return;
+  }
+  activeWinnerEvent = event;
+  rememberWinnerEventSeen(event);
   state.lastWinnerModalKey = info.key;
-  const kindEl = getEl("winnerModalKind");
-  const amountEl = getEl("winnerModalAmount");
-  const gameEl = getEl("winnerModalGame");
-  const statusEl = getEl("winnerModalStatus");
-  if (kindEl) kindEl.textContent = `نوع برد: ${info.kindLabel}`;
-  if (amountEl) amountEl.textContent = info.amount > 0 ? `مبلغ جایزه: ${toman(info.amount)}` : "مبلغ جایزه: در حال محاسبه / بررسی";
-  if (gameEl) gameEl.textContent = info.gameId > 0 ? `بازی #${info.gameId}` : "";
-  if (statusEl) statusEl.textContent = info.amount > 0 ? "جایزه در کیف پول شما قابل پیگیری است." : "اگر مبلغ نمایش داده نشد، وضعیت را از کیف پول یا مدیر پیگیری کنید.";
-  modal.classList.add("open");
-  modal.setAttribute("aria-hidden", "false");
-  try {
-    tg?.HapticFeedback?.notificationOccurred?.("success");
-    tg?.HapticFeedback?.impactOccurred?.("medium");
-  } catch (_) {}
-  try { if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") navigator.vibrate([45, 35, 65]); } catch (_) {}
+  const rows = experience.prizeRows(event.payload).filter(row => row.userId === Number(state.currentUserId));
+  getEl("winnerModalKind").textContent = info.kindLabel;
+  getEl("winnerModalAmount").textContent = info.amount !== null ? toman(info.amount) : "مبلغ اختصاصی هنوز قابل تأیید نیست";
+  getEl("winnerModalGame").textContent = `بازی #${info.gameId} · ${rows.length ? `${toFaDigits(rows.length)} کارت برنده` : "جزئیات کارت در حال بررسی"}`;
+  getEl("winnerModalStatus").textContent = "نتیجه بازی ثبت شده است؛ وضعیت پرداخت را از رسید کیف پول بررسی کنید.";
+  getEl("winnerCardDetails").innerHTML = rows.map(row => `<div class="winner-card-share"><span>کارت #${safeText(row.cardId)}</span><strong>${safeText(toman(row.amount))}</strong></div>`).join("");
+  getEl("winnerGameBtn").onclick = async () => {
+    try { await openLiveGame(info.gameId, { announce: false }); closeWinnerModal(); switchToView("games"); }
+    catch (error) { showToast(localizeApiError(error?.message || error), "error"); }
+  };
+  experience.openDialog(modal, closeWinnerModal);
+  if (state.countdownVibration && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    try { tg?.HapticFeedback?.notificationOccurred?.("success"); } catch (_) {}
+  }
   playWinnerSound();
 }
 
 function pushWinnerNotice(event) {
-  if (!event || !isMyWinnerEvent(event)) return;
-  if (hasSeenWinnerEvent(event)) return;
-  const eventId = Number(event.id || 0);
-  if (eventId > 0 && eventId <= Number(state.lastWinnerEventId || 0)) return;
-  if (eventId > 0) state.lastWinnerEventId = eventId;
-  rememberWinnerEventSeen(event);
+  if (!event || !isMyWinnerEvent(event) || hasSeenWinnerEvent(event)) return;
   setBadge("success", buildWinnerNoticeText(event));
   state.userFlags.recentWinner = true;
   updateHeaderStatus();
   openWinnerModal(event);
-  try { tg?.HapticFeedback?.notificationOccurred?.("success"); } catch (_) {}
 }
 
 function renderWinnerBannerFromState(gameId, st) {
   const host = getEl("liveWinnerBanner");
   if (!host) return;
   const myId = Number(state.currentUserId || 0);
-  if (!myId) { host.innerHTML = ""; return; }
-
-  const rowUsers = normalizeIntList(st?.row_winner_user_ids);
-  const colUsers = normalizeIntList(st?.col_winner_user_ids);
-  const rowMine = rowUsers.includes(myId);
-  const colMine = colUsers.includes(myId);
-
+  const rowMine = myId > 0 && normalizeIntList(st?.row_winner_user_ids).includes(myId);
+  const colMine = myId > 0 && normalizeIntList(st?.col_winner_user_ids).includes(myId);
   if (!rowMine && !colMine) { host.innerHTML = ""; return; }
-
   const notes = [];
-  const gameRule = String(st?.game_rule || "LEGACY").toUpperCase();
-  if (colMine) {
-    const colAmount = Number(st?.col_payout_total || 0);
-    const label = gameRule === "LINE" ? "تورنا (۳ عدد از یک ردیف)" : "تورنا";
-    notes.push(colAmount > 0 ? `برد ${label}: ${toman(colAmount)}` : `برد ${label} ثبت شد`);
-  }
-  if (rowMine) {
-    const rowAmount = Number(st?.row_payout_total || 0);
-    const label = gameRule === "FULL_CARD" ? "پرکردنی (۱۵ عدد)" : gameRule === "LINE" ? "خطی (۵ عدد)" : "تمام";
-    notes.push(rowAmount > 0 ? `برد ${label}: ${toman(rowAmount)}` : `برد ${label} ثبت شد`);
-  }
-
-  host.innerHTML = `
-    <div class="winner-banner">
-      <strong>تبریک! شما برنده این بازی شدید</strong>
-      <span>${safeText(notes.join(" | "))}</span>
-    </div>
-  `;
+  if (colMine) notes.push(experience.prizeLabel("PRIZE_COL", st));
+  if (rowMine) notes.push(experience.prizeLabel("PRIZE_ROW", st));
+  host.innerHTML = `<div class="winner-banner"><strong>نتیجه برد شما ثبت شده است</strong><span>${safeText(notes.join(" | "))}</span><span>سهم اختصاصی و وضعیت پرداخت را در رسید کیف پول ببینید.</span></div>`;
 }
 
 function renderGameTimeline(game, st) {
@@ -3087,6 +3194,9 @@ async function refreshGames() {
   const gameItems = Array.isArray(gamesRes?.items) ? gamesRes.items : (Array.isArray(state.gamesCache) ? state.gamesCache : []);
   const cards = Array.isArray(cardsRes?.items) ? cardsRes.items : null;
   if (Array.isArray(gamesRes?.items)) {
+    // Correct client clock drift using the same server clock used by Autopilot.
+    const serverMs = Date.parse(String(gamesRes.server_time_utc || ""));
+    if (Number.isFinite(serverMs)) gameStartCountdownServerOffsetMs = serverMs - Date.now();
     state.gamesCache = gamesRes.items;
   }
 
@@ -5514,11 +5624,16 @@ const ADMIN_QUICK_TARGETS_V2 = {
   adminAutopilotList: "AUTO",
   adminDepositsList: null,
   adminWithdrawsList: null,
+  adminCryptoDepositsList: null,
+  adminRiskAlertsList: null,
+  adminAuditLogsList: null,
+  superAdminSection: null,
 };
 
 function jumpToAdminSectionV2(id) {
   if (!state.admin.enabled) return;
   if (!Object.prototype.hasOwnProperty.call(ADMIN_QUICK_TARGETS_V2, id)) return;
+  if (id === "superAdminSection" && !state.admin.canManageSuperSettings) return;
   const mode = ADMIN_QUICK_TARGETS_V2[id];
   if (mode) setAdminGameMode(mode);
   const target = getEl(id);
@@ -5532,10 +5647,69 @@ function jumpToAdminSectionV2(id) {
   surface.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
+
+function showSuperAdminPanelV13(panelId, options = {}) {
+  if (!state.admin?.canManageSuperSettings) return false;
+  const root = getEl("superAdminSection");
+  if (!root) return false;
+  const tabs = Array.from(root.querySelectorAll("[data-super-panel-tab]"));
+  const panels = Array.from(root.querySelectorAll("[data-super-panel]"));
+  if (!panels.some((panel) => panel.id === panelId)) return false;
+  root.open = true;
+  for (const panel of panels) panel.hidden = panel.id !== panelId;
+  let selected = null;
+  for (const tab of tabs) {
+    const active = tab.getAttribute("data-super-panel-tab") === panelId;
+    tab.setAttribute("aria-selected", String(active));
+    tab.tabIndex = active ? 0 : -1;
+    if (active) selected = tab;
+  }
+  if (options.focusTab && selected) selected.focus();
+  return true;
+}
+
 function wireAdminQuickNavigationV2() {
   document.querySelectorAll("[data-admin-jump]").forEach((button) => {
     button.addEventListener("click", () => {
       jumpToAdminSectionV2(button.getAttribute("data-admin-jump") || "");
+    });
+  });
+  document.querySelectorAll("[data-super-panel-tab]").forEach((tab) => {
+    tab.addEventListener("click", () => {
+      showSuperAdminPanelV13(tab.getAttribute("data-super-panel-tab") || "");
+    });
+    tab.addEventListener("keydown", (event) => {
+      if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"].includes(event.key)) return;
+      const tabs = Array.from(document.querySelectorAll("[data-super-panel-tab]"));
+      const index = tabs.indexOf(tab);
+      if (index < 0) return;
+      event.preventDefault();
+      let next = index;
+      if (event.key === "Home") next = 0;
+      else if (event.key === "End") next = tabs.length - 1;
+      else next = (index + ((event.key === "ArrowLeft" || event.key === "ArrowDown") ? 1 : -1) + tabs.length) % tabs.length;
+      showSuperAdminPanelV13(tabs[next].getAttribute("data-super-panel-tab") || "", { focusTab: true });
+    });
+  });
+  document.querySelectorAll("[data-super-open]").forEach((button) => {
+    button.addEventListener("click", () => {
+      showSuperAdminPanelV13(button.getAttribute("data-super-open") || "");
+    });
+  });
+  document.querySelectorAll("[data-super-target]").forEach((button) => {
+    button.addEventListener("click", () => {
+      if (!state.admin?.canManageSuperSettings) return;
+      const id = button.getAttribute("data-super-target") || "";
+      if (!["superCryptoWalletSection", "superBankCardsSection", "superAdminFilterInput"].includes(id)) return;
+      const target = getEl(id);
+      if (!target) return;
+      const panel = target.closest("[data-super-panel]");
+      if (panel) showSuperAdminPanelV13(panel.id);
+      if (target.matches("details")) target.open = true;
+      const innerDetails = target.closest("details");
+      if (innerDetails) innerDetails.open = true;
+      target.scrollIntoView({ behavior: "smooth", block: "start" });
+      if (id === "superAdminFilterInput") target.focus();
     });
   });
 }
@@ -5654,6 +5828,7 @@ async function refreshAdminBootstrap() {
     if (roleEl) roleEl.textContent = adminRoleBadgeText();
     const superSection = getEl("superAdminSection");
     if (superSection) superSection.classList.toggle("hidden", !state.admin.canManageSuperSettings);
+    getEl("adminOpsSuperJump")?.classList.toggle("hidden", !state.admin.canManageSuperSettings);
     updateAdminCreateGroupVisibility();
     if (state.admin.enabled) {
       await Promise.allSettled([refreshAdminCreateOptions(), refreshAdminPanel()]);
@@ -5684,6 +5859,118 @@ async function refreshAdminBootstrap() {
     if (roleEl) roleEl.textContent = "دسترسی ادمین فعال نیست.";
     setAdminNavVisible(false);
     console.warn("[mini] admin bootstrap failed", err);
+  }
+}
+
+// System-generated game clocks use server-authored schedule values. The
+// client never starts/ends games or calls numbers when the timer reaches zero.
+let systemGameClockTicker = null;
+let systemGameClockLastSync = 0;
+let systemGameClockRows = [];
+let systemGameClockRuntimeReady = false;
+let systemGameDrawWorkerReady = false;
+let systemGameClockOffsetMs = 0;
+
+function systemGameClockView(game, now = Date.now() + systemGameClockOffsetMs) {
+  const status = String(game.status || "").toUpperCase();
+  const scheduled = parseApiDate(game.scheduled_start_at).getTime();
+  const interval = Math.max(0, Number(game.draw_interval_seconds || 0));
+  if (status === "RUNNING") {
+    if (game.draw_mode === "MANUAL") return { kind: "running", label: "شماره‌خوان دستی", secs: null };
+    if (!systemGameDrawWorkerReady) return { kind: "waiting", label: "شماره‌خوان سرور غیرفعال است", secs: null };
+    return { kind: "running", label: interval ? "در حال اعلام اعداد • هر " + toFaDigits(interval) + " ثانیه" : "بازی در حال اجرا", secs: null };
+  }
+  if (status !== "LOBBY") return { kind: "ended", label: "پایان یافته", secs: null };
+  if (!Number.isFinite(scheduled)) return { kind: "waiting", label: "در انتظار حداقل بازیکن", secs: null };
+  if (!systemGameClockRuntimeReady) return { kind: "waiting", label: "زمان‌بند خودکار غیرفعال است", secs: null };
+  if (!game.countdown_enabled) return { kind: "waiting", label: "در انتظار آمادگی بازی", secs: null };
+  const remaining = Math.max(0, Math.ceil((scheduled - now) / 1000));
+  return remaining > 0
+    ? { kind: remaining <= 10 ? "urgent" : "counting", label: "زمان تا شروع", secs: remaining }
+    : { kind: "pending", label: "زمان شروع رسیده • در انتظار تأیید سرور", secs: 0 };
+}
+
+function renderSystemGameClocks() {
+  const root = getEl("adminSystemGameClocks");
+  if (!root) return;
+  if (!systemGameClockRows.length) {
+    root.innerHTML = '<div class="empty">فعلاً بازی سیستمی فعالی وجود ندارد.</div>';
+    return;
+  }
+  root.innerHTML = systemGameClockRows.map((game) => {
+    const view = systemGameClockView(game);
+    const gid = Number(game.id || 0);
+    const total = Math.max(5, Number(game.countdown_seconds || 30));
+    const frac = view.secs == null ? 0 : Math.max(0, Math.min(100, view.secs / total * 100));
+    const digits = view.secs == null ? "—:—" :
+      toFaDigits(String(Math.floor(view.secs / 60)).padStart(2, "0") + ":" + String(view.secs % 60).padStart(2, "0"));
+    return '<div class="system-clock-card system-clock-' + view.kind + '">' +
+      '<div class="system-clock-card-head"><strong>' + safeText(autopilotLevelLabel(game.game_level)) + ' • بازی #' + safeText(toFaDigits(gid)) +
+      '</strong><span class="system-clock-status">' + safeText(view.label) + '</span></div>' +
+      '<div class="system-clock-digits" role="timer" aria-label="شمارش معکوس شروع">' + safeText(digits) + '</div>' +
+      '<div class="system-clock-track"><div class="system-clock-fill" style="width:' + frac.toFixed(1) + '%"></div></div>' +
+      '<div class="system-clock-foot"><span>قیمت کارت: ' + safeText(toman(game.card_price || 0)) + '</span>' +
+      '<span>' + (systemGameClockRuntimeReady ? "زمان‌بندی فعال" : "وضعیت زمان‌بند: غیرفعال یا نامشخص") + '</span></div></div>';
+  }).join("");
+}
+
+const autopilotCheckLabels = {
+  level_enabled: "فعال‌بودن سطح",
+  runtime_enabled: "فعال‌بودن زمان‌بند سیستم",
+  auto_draw_worker: "روشن‌بودن شماره‌خوان",
+  group_configured: "گروه تلگرام",
+  topic_configured: "تاپیک سطح",
+  system_user_valid: "حساب سیستمی معتبر",
+  card_price_valid: "قیمت کارت",
+  scheduler_auto: "ساخت خودکار",
+  start_auto: "شروع خودکار",
+  draw_auto: "اعلام اعداد خودکار",
+};
+
+function renderAutopilotReadiness(payload) {
+  const root = getEl("adminAutopilotReadiness");
+  if (!root) return;
+  const levels = Array.isArray(payload?.levels) ? payload.levels : [];
+  root.innerHTML = levels.map((item) => {
+    const checks = Object.entries(item.checks || {});
+    const missing = checks.filter(([, ok]) => !ok).map(([name]) => autopilotCheckLabels[name] || name);
+    const active = item.active_game_id
+      ? ' • بازی #' + safeText(toFaDigits(item.active_game_id)) + ' (' + safeText(statusLabel(item.active_game_status)) + ')' : '';
+    const blocked = item.blocked_by_manual_game ? " • بازی دستی این سطح را اشغال کرده است" : "";
+    return '<div class="system-clock-card">' +
+      '<strong>' + safeText(autopilotLevelLabel(item.level)) + '</strong>' +
+      '<div class="meta">' + (item.existing_system_game ? 'بازی سیستمی فعال؛ ساخت بازی بعدی پس از پایان این دور' : item.ready_to_generate ? 'آماده ساخت بازی' : 'نیازمند تنظیم یا منتظر آزادشدن سطح') +
+      active + blocked + '</div>' +
+      '<div class="meta">' + (missing.length ? 'موارد باقی‌مانده: ' + safeText(missing.join('، ')) : 'تمام کنترل‌های پایه تأیید شدند') +
+      '</div></div>';
+  }).join("") || '<div class="empty">اطلاعات آمادگی زمان‌بند موجود نیست.</div>';
+}
+
+async function refreshSystemGameClocks() {
+  if (!state.admin?.enabled) return;
+  const [games, runtime, readiness] = await Promise.all([
+    apiFetch("/mini-api/admin/games?status=LOBBY,RUNNING&limit=200"),
+    apiFetch("/mini-api/admin/autopilot/runtime").catch(() => null),
+    apiFetch("/mini-api/admin/autopilot/readiness").catch(() => null),
+  ]);
+  renderAutopilotReadiness(readiness);
+  const serverTime = parseApiDate(games?.server_now).getTime();
+  if (Number.isFinite(serverTime)) systemGameClockOffsetMs = serverTime - Date.now();
+  systemGameClockRows = (Array.isArray(games?.items) ? games.items : [])
+    .filter((game) => String(game.execution_source || "").toUpperCase() === "SYSTEM");
+  systemGameClockRuntimeReady = Boolean(runtime?.runtime_enabled);
+  systemGameDrawWorkerReady = Boolean(runtime?.auto_draw_enabled);
+  systemGameClockLastSync = Date.now();
+  renderSystemGameClocks();
+  if (systemGameClockTicker == null) {
+    systemGameClockTicker = setInterval(() => {
+      if (document.hidden) return;
+      renderSystemGameClocks();
+      if (Date.now() - systemGameClockLastSync >= 15000) {
+        systemGameClockLastSync = Date.now();
+        refreshSystemGameClocks().catch(() => {});
+      }
+    }, 1000);
   }
 }
 
@@ -7313,57 +7600,111 @@ function adminServiceStatusLabel(service) {
   return raw ? service.status : "در حال بررسی";
 }
 
+const ADMIN_OPS_POLL_INTERVAL_MS = 45_000;
+let adminOpsPollTimer = null;
+let adminOpsInFlight = null;
+let adminOpsLastSuccessAt = 0;
+
+function setAdminOpsDashboardStatus(status, message) {
+  const label = getEl("adminOpsStatus");
+  const updated = getEl("adminOpsUpdatedAt");
+  const root = getEl("adminOpsDashboard");
+  if (label) {
+    label.textContent = message;
+    label.dataset.state = status;
+  }
+  if (root) root.setAttribute("aria-busy", String(status === "loading"));
+  if (updated) {
+    updated.textContent = adminOpsLastSuccessAt
+      ? "آخرین دریافت: " + new Date(adminOpsLastSuccessAt).toLocaleTimeString("fa-IR", {hour: "2-digit", minute: "2-digit"})
+      : "هنوز به‌روزرسانی نشده";
+  }
+}
+
 function renderAdminOpsDashboard(payload) {
   const root = getEl("adminOpsDashboard");
   if (!root) return;
   const counts = payload?.counts || {};
   const services = Array.isArray(payload?.system?.services) ? payload.system.services : [];
   const games = Array.isArray(payload?.active_games) ? payload.active_games : [];
+  const pendingWithdraws = Number(counts.pending_withdraws || 0) + Number(counts.approved_withdraws || 0);
   const countCards = [
-    ["بازی فعال", games.length],
-    ["واریز در انتظار", counts.pending_deposits || 0],
-    ["برداشت فوری", (Number(counts.pending_withdraws || 0) + Number(counts.approved_withdraws || 0))],
-    ["کریپتو نیازمند بررسی", counts.crypto_needs_review || 0],
-    ["هشدار ریسک ۲۴ساعت", counts.risk_events_24h || 0],
+    ["بازی فعال", Number(payload?.active_games_total ?? games.length), "مشاهده و کنترل بازی‌ها", "adminGamesList", "🎲"],
+    ...(payload?.finance_visible === false ? [] : [
+      ["واریز در انتظار", Number(counts.pending_deposits || 0), "بازکردن صف رسیدها", "adminDepositsList", "↓"],
+      ["برداشت در صف", pendingWithdraws, "مشاهده درخواست‌ها", "adminWithdrawsList", "↑"],
+      ["کریپتو نیازمند بررسی", Number(counts.crypto_needs_review || 0), "بازکردن واریزهای رمزارز", "adminCryptoDepositsList", "◇"],
+      ["هشدار ریسک ۲۴ساعت", Number(counts.risk_events_24h || 0), "مشاهده هشدارها", "adminRiskAlertsList", "!"],
+    ]),
   ];
+  const countHtml = countCards.map(([label, value, hint, target, icon]) =>
+    '<button type="button" class="admin-ops-count admin-ops-count-v11 admin-ops-route-card" data-ops-target="' + safeText(target) + '" aria-label="' + safeText(label + "؛ " + hint) + '">' +
+      '<span class="admin-ops-route-icon" aria-hidden="true">' + safeText(icon) + '</span>' +
+      '<span>' + safeText(label) + '</span>' +
+      '<strong>' + safeText(toFaDigits(Number.isFinite(value) ? value : 0)) + '</strong>' +
+      '<small>' + safeText(hint) + ' <span aria-hidden="true">←</span></small>' +
+    '</button>'
+  ).join("");
+  const servicesHtml = services.length ? services.map((svc, index) =>
+    '<button type="button" class="admin-service-pill admin-ops-service-detail ' + adminServiceStatusClass(svc) +
+      '" data-ops-service="' + index + '" aria-label="جزئیات سرویس ' + safeText(svc.title || svc.key || "-") + '">' +
+      '<strong>' + safeText(svc.title || svc.key || "-") + '</strong>' +
+      '<span>' + safeText(adminServiceStatusLabel(svc)) + '</span>' +
+      '<small>مشاهده جزئیات ←</small>' +
+    '</button>'
+  ).join("") : '<div class="admin-ops-no-data-v11">اطلاعات وضعیت سرویس‌ها هنوز در دسترس نیست.</div>';
+  const gamesHtml = games.length ? games.map((g) =>
+    '<article class="admin-ops-game">' +
+      '<strong>بازی #' + safeText(toFaDigits(g.id)) + ' | ' + safeText(statusLabel(g.status)) + '</strong>' +
+      '<span>آخرین عدد: ' + safeText(g.last_number ?? "-") +
+        ' | اعلام: ' + safeText(g.called_count || 0) + '/۹۰</span>' +
+      '<span>کارت: ' + safeText(g.cards_count || 0) +
+        ' | بازیکن: ' + safeText(g.players_count || 0) +
+        ' | جایزه: ' + safeText(toman(g.prize_pool || 0)) + '</span>' +
+      '<button class="small-btn admin-ops-open-game" data-game-id="' + safeText(g.id) +
+        '" type="button">مشاهده بازی</button>' +
+    '</article>'
+  ).join("") : '<div class="admin-ops-no-data-v11">در حال حاضر بازی فعالی وجود ندارد. این وضعیت به معنی خطا نیست.</div>';
 
-  const activeGameHtml = games.length
-    ? games
-        .map((g) => `
-          <div class="admin-ops-game">
-            <strong>بازی #${safeText(g.id)} | ${safeText(statusLabel(g.status))}</strong>
-            <span>آخرین عدد: ${safeText(g.last_number ?? "-")} | اعلام: ${safeText(g.called_count || 0)}/۹۰</span>
-            <span>کارت: ${safeText(g.cards_count || 0)} | بازیکن: ${safeText(g.players_count || 0)} | جایزه: ${safeText(toman(g.prize_pool || 0))}</span>
-            <button class="small-btn admin-ops-open-game" data-game-id="${safeText(g.id)}" type="button">مشاهده بازی</button>
-          </div>
-        `)
-        .join("")
-    : '<div class="empty">بازی فعال برای مدیریت وجود ندارد.</div>';
+  root.innerHTML =
+    '<section class="admin-ops-group-v11" aria-label="شاخص‌های اصلی">' +
+      '<div class="admin-ops-section-title"><h4>شاخص‌های اصلی</h4><span>از اطلاعات سرور</span></div>' +
+      '<div class="admin-ops-counts">' + countHtml + '</div>' +
+    '</section>' +
+    '<section class="admin-ops-group-v11" aria-label="سلامت زیرساخت">' +
+      '<div class="admin-ops-section-title"><h4>وضعیت سرویس‌ها</h4><span>بر اساس گزارش API</span></div>' +
+      '<div class="admin-ops-services">' + servicesHtml + '</div>' +
+    '</section>' +
+    '<section class="admin-ops-group-v11" aria-label="بازی‌های فعال">' +
+      '<div class="admin-ops-section-title"><h4>بازی‌های فعال</h4><span>' +
+      safeText(toFaDigits(games.length)) + ' بازی</span></div>' +
+      '<div class="admin-ops-games">' + gamesHtml + '</div>' +
+    '</section>';
 
-  root.innerHTML = `
-    <div class="admin-ops-counts">
-      ${countCards
-        .map(([label, value]) => `
-          <div class="admin-ops-count">
-            <span>${safeText(label)}</span>
-            <strong>${safeText(String(value || 0))}</strong>
-          </div>
-        `)
-        .join("")}
-    </div>
-    <div class="admin-ops-services">
-      ${services
-        .map((svc) => `
-          <div class="admin-service-pill ${adminServiceStatusClass(svc)}">
-            <strong>${safeText(svc.title || svc.key || "-")}</strong>
-            <span>${safeText(adminServiceStatusLabel(svc))}</span>
-          </div>
-        `)
-        .join("")}
-    </div>
-    <div class="admin-ops-games">${activeGameHtml}</div>
-  `;
-
+  root.querySelectorAll(".admin-ops-route-card").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const target = btn.getAttribute("data-ops-target") || "";
+      jumpToAdminSectionV2(target);
+    });
+  });
+  root.querySelectorAll(".admin-ops-service-detail").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const index = Number(btn.getAttribute("data-ops-service"));
+      const svc = services[index];
+      const detail = getEl("adminOpsServiceDetail");
+      if (!svc || !detail) return;
+      detail.hidden = false;
+      detail.replaceChildren();
+      const title = document.createElement("strong");
+      title.textContent = String(svc.title || svc.key || "سرویس");
+      const state = document.createElement("p");
+      state.textContent = "وضعیت گزارش‌شده: " + String(adminServiceStatusLabel(svc));
+      const note = document.createElement("small");
+      note.textContent = "این نتیجه از پاسخ API دریافت شده است؛ برای تشخیص قطعی اختلال، لاگ سرور را بررسی کنید.";
+      detail.append(title, state, note);
+      detail.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    });
+  });
   root.querySelectorAll(".admin-ops-open-game").forEach((btn) => {
     btn.addEventListener("click", () => {
       const gid = Number(btn.getAttribute("data-game-id") || "0");
@@ -7377,8 +7718,39 @@ function renderAdminOpsDashboard(payload) {
 
 async function refreshAdminOpsDashboard() {
   if (!state.admin.enabled) return;
-  const out = await apiFetch("/mini-api/admin/ops-dashboard");
-  renderAdminOpsDashboard(out);
+  if (adminOpsInFlight) return adminOpsInFlight;
+  setAdminOpsDashboardStatus("loading", adminOpsLastSuccessAt ? "در حال دریافت اطلاعات تازه..." : "در حال بارگذاری داشبورد...");
+  const request = (async () => {
+    try {
+      const out = await apiFetch("/mini-api/admin/ops-dashboard");
+      if (!state.admin.enabled) return;
+      renderAdminOpsDashboard(out);
+      adminOpsLastSuccessAt = Date.now();
+      setAdminOpsDashboardStatus("fresh", "اطلاعات به‌روز است");
+    } catch (err) {
+      setAdminOpsDashboardStatus("error", "ارتباط برقرار نشد؛ برای تلاش دوباره تازه‌سازی کنید.");
+      const root = getEl("adminOpsDashboard");
+      if (root && !adminOpsLastSuccessAt) {
+        root.innerHTML = '<div class="admin-ops-error-v11" role="alert">نمایش داده‌ها موقتاً ممکن نیست. با دکمه تازه‌سازی دوباره تلاش کنید.</div>';
+      }
+      throw err;
+    }
+  })();
+  adminOpsInFlight = request;
+  try { await request; } finally { adminOpsInFlight = null; }
+}
+
+function startAdminOpsAutoRefresh() {
+  if (adminOpsPollTimer) return;
+  adminOpsPollTimer = setInterval(() => {
+    if (!state.admin.enabled || !isAdminViewActive() || document.visibilityState === "hidden") return;
+    refreshAdminOpsDashboard().catch(() => {});
+  }, ADMIN_OPS_POLL_INTERVAL_MS);
+}
+
+function stopAdminOpsAutoRefresh() {
+  if (adminOpsPollTimer) clearInterval(adminOpsPollTimer);
+  adminOpsPollTimer = null;
 }
 
 function renderAdminAuditLogs(payload) {
@@ -7736,8 +8108,9 @@ async function refreshAdminPanel(options = {}) {
   const silent = Boolean(options?.silent);
   if (!state.admin.enabled) return;
   await Promise.allSettled([
-    refreshAdminOpsDashboard(),
+    ...(!silent ? [refreshAdminOpsDashboard()] : []),
     refreshAdminAutopilotConfig(),
+    refreshSystemGameClocks(),
     refreshAdminCreateOptions(),
     refreshAdminGames(),
     refreshAdminRiskAlerts(),
@@ -8012,6 +8385,7 @@ function markAdminLastNumberFresh() {
 
 // ADMIN_WINNER_POPUP_V6_3_START
 const adminWinnerNoticeSeen = new Set();
+const adminWinnerQueue = [];
 const ADMIN_WINNER_SEEN_STORAGE_KEY = "davarna_admin_winner_seen_v1";
 
 function loadAdminWinnerSeenKeys() {
@@ -8052,33 +8426,11 @@ function adminWinnerAmountParts(payload) {
   const amounts = Array.isArray(payload?.amounts_by_card)
     ? payload.amounts_by_card.map((x) => Number(x || 0)).filter((x) => x > 0)
     : [];
-  return { total, amounts };
+  return { total: Number.isSafeInteger(total) && total >= 0 ? total : null, amounts };
 }
 
 function adminWinnerUsersFromPayload(payload) {
-  const richUsers = Array.isArray(payload?.winner_users) ? payload.winner_users : [];
-  if (richUsers.length) {
-    return richUsers.map((item) => ({
-      userId: Number(item?.user_id || 0),
-      tgUserId: Number(item?.tg_user_id || 0),
-      username: String(item?.username || "").trim(),
-      displayName: String(item?.display_name || item?.first_name || "").trim(),
-      cardId: Number(item?.card_id || 0),
-      amount: Number(item?.amount || 0),
-    }));
-  }
-
-  const userIds = normalizeIntList(payload?.winner_user_ids || []);
-  const cardIds = normalizeIntList(payload?.winner_card_ids || []);
-  const amounts = Array.isArray(payload?.amounts_by_card) ? payload.amounts_by_card.map((x) => Number(x || 0)) : [];
-  return userIds.map((uid, idx) => ({
-    userId: Number(uid || 0),
-    tgUserId: 0,
-    username: "",
-    displayName: `user:${uid}`,
-    cardId: Number(cardIds[idx] || 0),
-    amount: Number(amounts[idx] || 0),
-  }));
+  return experience.prizeRows(payload);
 }
 
 function adminWinnerUserLabel(user) {
@@ -8088,14 +8440,13 @@ function adminWinnerUserLabel(user) {
   if (name && username && name !== `@${username}`) return `${name} (@${username})`;
   if (name) return name;
   if (username) return `@${username}`;
-  return userId ? `user:${userId}` : "-";
+  return userId ? `شناسه ${toFaDigits(userId)}` : "نام ثبت نشده";
 }
 
 function closeAdminWinnerModal() {
-  const modal = getEl("adminWinnerModal");
-  if (!modal) return;
-  modal.classList.remove("open");
-  modal.setAttribute("aria-hidden", "true");
+  experience.closeDialog(getEl("adminWinnerModal"));
+  const next = adminWinnerQueue.shift();
+  if (next) showAdminWinnerPopup(next);
 }
 
 function hideAdminWinnerCardPanel() {
@@ -8136,10 +8487,7 @@ function ensureAdminWinnerModal() {
   document.body.appendChild(modal);
 
   modal.addEventListener("click", (ev) => {
-    if (ev.target === modal) {
-      closeAdminWinnerModal();
-      return;
-    }
+    // Winner details remain until an explicit close action or Escape.
 
     const btn = ev.target?.closest?.("[data-admin-winner-action]");
     if (!btn) return;
@@ -8153,9 +8501,9 @@ function ensureAdminWinnerModal() {
     if (action === "copy") {
       const text = modal.dataset.copyText || "";
       if (!text) return;
-      navigator.clipboard?.writeText(text)
-        .then(() => setAdminLocalHint("adminActionHint", "مشخصات برنده کپی شد.", "success"))
-        .catch(() => setAdminLocalHint("adminActionHint", text, "success"));
+      copyTextToClipboard(text)
+        .then(() => showToast("مشخصات برنده کپی شد.", "success"))
+        .catch(() => showToast("کپی انجام نشد؛ دوباره تلاش کنید.", "error"));
       return;
     }
 
@@ -8171,7 +8519,7 @@ function ensureAdminWinnerModal() {
 
     if (action === "open-card") {
       const gid = Number(modal.dataset.gameId || 0);
-      const cardId = Number(modal.dataset.cardId || 0);
+      const cardId = Number(btn.dataset.cardId || modal.dataset.cardId || 0);
       if (!gid || !cardId) {
         setAdminLocalHint("adminActionHint", "شناسه کارت برنده برای نمایش موجود نیست.", "error");
         return;
@@ -8189,8 +8537,12 @@ function showAdminWinnerPopup(event) {
   const kind = adminWinnerEventKind(event);
   if (!kind) return;
 
-  const key = adminWinnerEventKey(event);
+  const key = `${state.currentUserId}:${adminWinnerEventKey(event)}`;
   if (!key || adminWinnerNoticeSeen.has(key)) return;
+  if (getEl("adminWinnerModal")?.classList.contains("open")) {
+    if (!adminWinnerQueue.some(item => adminWinnerEventKey(item) === adminWinnerEventKey(event))) adminWinnerQueue.push(event);
+    return;
+  }
   rememberAdminWinnerSeenKey(key);
 
   const payload = event?.payload || {};
@@ -8198,7 +8550,7 @@ function showAdminWinnerPopup(event) {
   const callNumber = Number(payload?.call_number || 0);
   const { total } = adminWinnerAmountParts(payload);
   const winnerUsers = adminWinnerUsersFromPayload(payload);
-  const kindLabel = winnerKindLabelByReason(kind);
+  const kindLabel = experience.prizeLabel(kind, payload);
   const firstWinnerCardId = Number(
     winnerUsers.find((user) => Number(user?.cardId || 0) > 0)?.cardId ||
       normalizeIntList(payload?.winner_card_ids || [])[0] ||
@@ -8212,10 +8564,10 @@ function showAdminWinnerPopup(event) {
           const tgUserId = Number(user?.tgUserId || 0);
           const cardId = Number(user?.cardId || 0);
           const amount = Number(user?.amount || 0);
-          return `<div class="admin-winner-row"><strong>بازیکن: ${safeText(label)}</strong><span>شناسه: ${safeText(userId || "-")}</span>${tgUserId ? `<span>تلگرام: ${safeText(tgUserId)}</span>` : ""}<span>کارت: ${safeText(cardId || "-")}</span>${amount ? `<span>سهم: ${safeText(toman(amount))}</span>` : ""}</div>`;
+          return `<div class="admin-winner-row"><strong>بازیکن: ${safeText(label)}</strong><span>شناسه: ${safeText(userId || "-")}</span>${tgUserId ? `<span>تلگرام: ${safeText(tgUserId)}</span>` : ""}<span>کارت: ${safeText(cardId || "-")}</span>${Number.isSafeInteger(amount) && amount >= 0 ? `<span class="winner-share">سهم این کارت: ${safeText(toman(amount))}</span>` : ""}${cardId ? `<button class="small-btn" type="button" data-admin-winner-action="open-card" data-card-id="${safeText(cardId)}">مشاهده کارت #${safeText(cardId)}</button>` : ""}</div>`;
         })
         .join("")
-    : '<div class="admin-winner-row">مشخصات کاربر در payload موجود نیست.</div>';
+    : '<div class="admin-winner-row">مشخصات و سهم برندگان قابل تأیید نیست؛ جزئیات بازی را بررسی کنید.</div>';
 
   const modal = ensureAdminWinnerModal();
   const body = getEl("adminWinnerModalBody");
@@ -8227,7 +8579,7 @@ function showAdminWinnerPopup(event) {
         <div><span>عدد اعلامی</span><strong>${safeText(callNumber || "-")}</strong></div>
         <div><span>مبلغ کل</span><strong>${safeText(total ? toman(total) : "-")}</strong></div>
       </div>
-      <div class="admin-winner-list">${winnerRows}</div>
+      <p class="winner-settlement-note">مبالغ، سهم ثبت‌شده رویداد هستند؛ وضعیت تسویه از رسید مالی بررسی می‌شود.</p><div class="admin-winner-list">${winnerRows}</div>
       <div id="adminWinnerCardPanel" class="admin-winner-card-panel hidden"></div>`;
   }
 
@@ -8254,8 +8606,7 @@ function showAdminWinnerPopup(event) {
     ...winnerCopyLines,
   ].join("\n");
 
-  modal.classList.add("open");
-  modal.setAttribute("aria-hidden", "false");
+  experience.openDialog(modal, closeAdminWinnerModal);
 }
 
 function pushAdminWinnerNotice(event) {
@@ -9126,7 +9477,10 @@ function switchToView(target, { skipCardsRefresh = false } = {}) {
   }
 
   if (normalized === "admin" && state.admin.enabled) {
+    startAdminOpsAutoRefresh();
     refreshAdminPanel().catch((e) => setBadge("error", e.message));
+  } else {
+    stopAdminOpsAutoRefresh();
   }
 }
 
@@ -9360,11 +9714,16 @@ async function boot() {
   wireWalletDynamic();
   wireWalletUxHelpers();
   initSoundPreference();
+  startAutopilotGameStartClockTicker();
   wireAdminCreateUi();
   wireAdminAccordion();
   wireAdminNotify();
   wireCardsPullToRefresh();
   loadNotificationReadIds();
+  getEl("notificationFilters")?.addEventListener("click", event => {
+    const button = event.target.closest("[data-filter]");
+    if (button && INBOX_CATEGORIES[button.dataset.filter]) { inboxUi.filter = button.dataset.filter; renderNotificationCenter(); }
+  });
   updateNotificationBadge();
   updateBuyActionState({ statusKey: "", myCardsCount: 0 });
   renderLiveLink({});
@@ -9372,6 +9731,7 @@ async function boot() {
   if (copyBtn) copyBtn.disabled = true;
 
   bind("soundBtn", "click", toggleSound);
+  bind("countdownVibrationBtn", "click", toggleCountdownVibration);
   bind("notificationsBtn", "click", openNotificationCenter);
   bind("notificationCloseBtn", "click", closeNotificationCenter);
   bind("notificationMarkAllBtn", "click", markAllNotificationsRead);
@@ -9386,7 +9746,7 @@ async function boot() {
   bind("copyDepositCardBtn", "click", () => copySelectedDepositCard().catch((e) => setLocalError("depositDestinationHint", e)));
   bind("submitWithdrawBtn", "click", () => createWithdraw().catch((e) => setLocalError("withdrawSubmitHint", e)));
   bind("refreshAdminBtn", "click", () => runManualRefresh("refreshAdminBtn", () => refreshAdminPanel()).catch(() => {}));
-  bind("adminOpsRefreshBtn", "click", () => runManualRefresh("adminOpsRefreshBtn", () => refreshAdminPanel()).catch(() => {}));
+  bind("adminOpsRefreshBtn", "click", () => runManualRefresh("adminOpsRefreshBtn", () => refreshAdminOpsDashboard()).catch(() => {}));
   bind("adminGameModeManualBtn", "click", () => setAdminGameMode("MANUAL"));
   bind("adminGameModeAutoBtn", "click", () => setAdminGameMode("AUTO"));
   restoreAdminGameMode();
@@ -9460,7 +9820,7 @@ async function boot() {
   const winnerModal = getEl("winnerModal");
   if (winnerModal) {
     winnerModal.addEventListener("click", (e) => {
-      if (e.target === winnerModal) closeWinnerModal();
+      // An accidental backdrop tap must not dismiss winner details.
     });
   }
   const historyModal = getEl("historyModal");
@@ -9521,6 +9881,7 @@ async function boot() {
 
 
 window.addEventListener("beforeunload", () => {
+  stopAdminOpsAutoRefresh();
   stopCryptoCountdown();
   clearCryptoQrObjectUrl();
   stopMiniSocket();

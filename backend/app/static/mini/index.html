@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>مینی‌اپ دبرنای طوفان</title>
     <link rel="stylesheet" href="./styles.css?v=finance-reject-reasons-20261108" />
-    <link rel="stylesheet" href="./ux-v2.css?v=20261107-superadmin-stage1" />
+    <link rel="stylesheet" href="./ux-v2.css?v=remaining-ux-v1" />
   </head>
   <body>
     <div id="appSplash" class="app-splash" aria-label="در حال آماده‌سازی مینی‌اپ">
@@ -44,6 +44,7 @@
           <div id="headerRoleBadge" class="smart-chip status hidden" aria-label="نقش مدیریتی" title="نقش مدیریتی"></div>
           <div id="headerUserStatus" class="smart-chip status normal" aria-label="وضعیت بازی" title="وضعیت حضور در بازی">بدون بازی</div>
           <button id="themeBtn" class="theme-toggle-btn" type="button" aria-label="تغییر پوسته">◐ حالت تیره</button>
+          <button id="countdownVibrationBtn" class="theme-toggle-btn sound-toggle-btn" type="button" aria-pressed="false" aria-label="لرزش شمارش معکوس">لرزش</button>
           <button id="soundBtn" class="theme-toggle-btn sound-toggle-btn" type="button" aria-label="فعال‌سازی صدای بازی">🔕 صدا</button>
           <button id="notificationsBtn" class="theme-toggle-btn notification-toggle-btn" type="button" aria-label="مرکز اعلان‌ها">
             اعلان‌ها <span id="notificationsBadge" class="notification-badge hidden">0</span>
@@ -448,13 +449,30 @@
               <p id="adminGuideText">ابتدا بازی موردنظر را انتخاب کن، سپس عملیات مرتبط با همان بازی را انجام بده. گزارش‌های مالی را از میانبرهای بالای پنل باز کن.</p>
             </details>
 
-            <div class="cards-box admin-ops-dashboard mt-12">
-              <div class="cards-box-head">
-                <h3>داشبورد عملیات</h3>
-                <button id="adminOpsRefreshBtn" class="small-btn" type="button">به‌روزرسانی</button>
+            <section class="cards-box admin-ops-dashboard admin-ops-dashboard-v11 mt-12" aria-labelledby="adminOpsHeading">
+              <div class="admin-ops-head-v11">
+                <div class="admin-ops-head-copy">
+                  <span class="admin-ops-eyebrow">اتاق فرمان دبرنا • نسخه ۱.۲</span>
+                  <h3 id="adminOpsHeading">نمای کلی عملیات</h3>
+                  <p>از شاخص‌ها مستقیماً وارد صف‌ها و عملیات مربوط شوید؛ وضعیت سرویس‌ها را برای جزئیات انتخاب کنید.</p>
+                </div>
+                <button id="adminOpsRefreshBtn" class="small-btn primary" type="button" aria-label="تازه‌سازی اطلاعات داشبورد">↻ تازه‌سازی</button>
               </div>
-              <div id="adminOpsDashboard" class="admin-ops-grid"></div>
-            </div>
+              <div class="admin-ops-live-bar-v11" role="status" aria-live="polite" aria-atomic="true">
+                <span id="adminOpsStatus" class="admin-ops-live-state" data-state="loading">در حال دریافت اطلاعات...</span>
+                <span id="adminOpsUpdatedAt" class="admin-ops-updated">هنوز به‌روزرسانی نشده</span>
+              </div>
+              <div id="adminOpsDashboard" class="admin-ops-grid" aria-busy="true">
+                <div class="admin-ops-skeleton-v11" aria-hidden="true"><span></span><span></span><span></span></div>
+              </div>
+              <div id="adminOpsServiceDetail" class="admin-ops-service-inspector" role="status" aria-live="polite" hidden></div>
+              <nav class="admin-ops-shortcuts-v11" aria-label="میانبرهای اتاق فرمان">
+                <button type="button" data-admin-jump="adminGamesList">بازی‌های دستی</button>
+                <button type="button" data-admin-jump="adminRiskAlertsList">هشدارهای ریسک</button>
+                <button type="button" data-admin-jump="adminAuditLogsList">گزارش عملیات</button>
+                <button id="adminOpsSuperJump" class="hidden" type="button" data-admin-jump="superAdminSection">مدیریت ادمین‌ها</button>
+              </nav>
+            </section>
 
             <div class="admin-game-mode-picker" aria-label="روش اجرای بازی">
               <button id="adminGameModeManualBtn" class="admin-game-mode-card active" type="button" data-admin-game-mode="MANUAL">
@@ -486,6 +504,16 @@
                   <strong>سیستم چه کار می‌کند؟</strong>
                   <span>ساخت بازی → انتظار برای حداقل بازیکن → شمارش معکوس → شروع → اعلام اعداد → پایان → ساخت بازی بعدی</span>
                 </div>
+                <section class="system-game-clock-panel" aria-label="زمان‌بندی بازی‌های سیستمی">
+                  <div class="system-clock-head">
+                    <strong>⏱ زمان‌بندی زنده بازی‌های سیستمی</strong>
+                    <span class="meta">زمان از سرور • فقط بازی‌های ساخته‌شده توسط سیستم</span>
+                  </div>
+                  <div id="adminAutopilotReadiness" class="system-clock-grid" aria-live="polite"></div>
+                  <div id="adminSystemGameClocks" class="system-clock-grid" aria-live="off">
+                    <div class="empty">در حال دریافت وضعیت بازی‌های سیستمی...</div>
+                  </div>
+                </section>
                 <div id="adminAutopilotList" class="stack-list">
                   <div class="empty">در حال دریافت تنظیمات بازی خودکار...</div>
                 </div>
@@ -801,10 +829,40 @@
 
               <details id="superAdminSection" class="accordion-item hidden">
                 <summary class="accordion-head">
-                  <h3 id="superAdminTitle">مدیریت ادمین‌ها (سوپر ادمین)</h3>
+                  <h3 id="superAdminTitle">مرکز مدیریت سوپرادمین</h3>
                   <span class="accordion-icon">▾</span>
                 </summary>
-                <div class="accordion-body">
+                <div class="accordion-body superadmin-workspace-v12 superadmin-workspace-v13">
+                  <div class="superadmin-workspace-head superadmin-workspace-head-v13">
+                    <div>
+                      <span class="admin-ops-eyebrow">SUPER ADMIN · CONTROL CENTER</span>
+                      <h4>مرکز فرماندهی دبرنا</h4>
+                      <p>مدیریت عملیات در پنج بخش مستقل؛ دسترسی‌ها، APIها و تأییدهای امنیتی فعلی بدون تغییر باقی می‌مانند.</p>
+                    </div>
+                    <span class="superadmin-scope-note">محیط مدیریت ویژه سوپرادمین</span>
+                  </div>
+                  <div class="superadmin-category-layout">
+                    <nav class="superadmin-category-nav" role="tablist" aria-orientation="vertical" aria-label="دسته‌بندی مدیریت سوپرادمین">
+                      <button id="superTabOverview" class="superadmin-category-tab" type="button" role="tab" data-super-panel-tab="superPanelOverview" aria-controls="superPanelOverview" aria-selected="true" tabindex="0"><span aria-hidden="true">▦</span><span>نمای کلی<small>دسترسی سریع</small></span></button>
+                      <button id="superTabPayments" class="superadmin-category-tab" type="button" role="tab" data-super-panel-tab="superPanelPayments" aria-controls="superPanelPayments" aria-selected="false" tabindex="-1"><span aria-hidden="true">◈</span><span>مدیریت پرداخت‌ها<small>وضعیت و بررسی</small></span></button>
+                      <button id="superTabAccounts" class="superadmin-category-tab" type="button" role="tab" data-super-panel-tab="superPanelAccounts" aria-controls="superPanelAccounts" aria-selected="false" tabindex="-1"><span aria-hidden="true">▤</span><span>مقاصد واریز<small>کیف پول و بانک</small></span></button>
+                      <button id="superTabRoles" class="superadmin-category-tab" type="button" role="tab" data-super-panel-tab="superPanelRoles" aria-controls="superPanelRoles" aria-selected="false" tabindex="-1"><span aria-hidden="true">♙</span><span>نقش‌ها و دسترسی<small>مدیریت ادمین‌ها</small></span></button>
+                      <button id="superTabSecurity" class="superadmin-category-tab" type="button" role="tab" data-super-panel-tab="superPanelSecurity" aria-controls="superPanelSecurity" aria-selected="false" tabindex="-1"><span aria-hidden="true">◇</span><span>امنیت و نظارت<small>هشدارها و لاگ</small></span></button>
+                    </nav>
+                    <div class="superadmin-category-panels">
+                      <section id="superPanelOverview" class="superadmin-panel-v13" role="tabpanel" data-super-panel="superPanelOverview" aria-labelledby="superTabOverview" tabindex="0">
+                        <header class="superadmin-panel-head"><h5>نمای کلی مدیریت</h5><p>عملیات مهم را از این بخش پیدا کنید. داده‌های زنده در داشبورد عملیات بالای صفحه نمایش داده می‌شوند.</p></header>
+                        <div class="superadmin-quick-grid">
+                          <button class="superadmin-quick-card" type="button" data-super-open="superPanelPayments"><strong>◈ وضعیت پرداخت‌ها</strong><span>مدیریت فعال‌بودن روش‌های پرداخت و بررسی سلامت</span></button>
+                          <button class="superadmin-quick-card" type="button" data-super-open="superPanelAccounts"><strong>▤ مقاصد واریز</strong><span>آدرس رمزارز و کارت‌های مقصد بانکی</span></button>
+                          <button class="superadmin-quick-card" type="button" data-super-open="superPanelRoles"><strong>♙ سطح دسترسی</strong><span>اعطا و لغو نقش، جستجوی مدیران</span></button>
+                          <button class="superadmin-quick-card" type="button" data-super-open="superPanelSecurity"><strong>◇ نظارت و امنیت</strong><span>دسترسی به هشدارها و گزارش عملیات</span></button>
+                        </div>
+                        <div class="superadmin-overview-notice">برای مشاهده شاخص‌های زنده و وضعیت سرویس‌ها، از «نمای کلی عملیات» در بالای پنل استفاده کنید.</div>
+                      </section>
+                      <section id="superPanelPayments" class="superadmin-panel-v13" role="tabpanel" data-super-panel="superPanelPayments" aria-labelledby="superTabPayments" tabindex="0" hidden>
+                        <header class="superadmin-panel-head"><h5>مدیریت پرداخت‌ها</h5><p>وضعیت روش‌های پرداخت و ابزارهای پایش؛ تأییدهای فعلی برای عملیات حساس حفظ شده‌اند.</p></header>
+                        <h6 class="superadmin-panel-subtitle">پرداخت رمزارزی</h6>
                   <div class="super-crypto-control">
                     <div class="super-crypto-copy">
                       <strong>پرداخت ارز دیجیتال کاربران</strong>
@@ -825,13 +883,7 @@
                     <button id="superCryptoReconcileBtn" class="small-btn" type="button">تطبیق ۲۴ ساعت اخیر</button>
                   </div>
                   <div id="superCryptoOpsResult" class="super-crypto-ops-result hidden"></div>
-                  <details id="superCryptoWalletSection" class="super-finance-editor mt-12">
-                    <summary>💎 آدرس کیف پول‌های رمزارز</summary>
-                    <p class="hint">این آدرس‌ها از تنظیمات امن سرور خوانده می‌شوند. تغییر مستقیم از مینی‌اپ فعلاً غیرفعال است تا فاکتورهای باز و اسکنر شبکه دچار مغایرت نشوند.</p>
-                    <button id="superCryptoAddressesRefreshBtn" class="small-btn" type="button">بازخوانی آدرس‌ها</button>
-                    <div id="superCryptoAddressesList" class="cards-history-scroll mt-12"></div>
-                  </details>
-
+                        <h6 class="superadmin-panel-subtitle">کارت‌به‌کارت</h6>
                   <div class="super-crypto-control super-bank-control">
                     <div class="super-crypto-copy">
                       <strong>واریز کارت بانکی کاربران</strong>
@@ -847,6 +899,15 @@
                     >خاموش کردن کارت‌به‌کارت</button>
                   </div>
                   <div id="superBankDepositHint" class="step-hint"></div>
+                      </section>
+                      <section id="superPanelAccounts" class="superadmin-panel-v13" role="tabpanel" data-super-panel="superPanelAccounts" aria-labelledby="superTabAccounts" tabindex="0" hidden>
+                        <header class="superadmin-panel-head"><h5>حساب‌ها و مقاصد واریز</h5><p>مشاهده آدرس‌های رمزارزی و مدیریت کارت‌های بانکی، با همان قواعد ایمنی موجود.</p></header>
+                  <details id="superCryptoWalletSection" class="super-finance-editor mt-12">
+                    <summary>💎 آدرس کیف پول‌های رمزارز</summary>
+                    <p class="hint">این آدرس‌ها از تنظیمات امن سرور خوانده می‌شوند. تغییر مستقیم از مینی‌اپ فعلاً غیرفعال است تا فاکتورهای باز و اسکنر شبکه دچار مغایرت نشوند.</p>
+                    <button id="superCryptoAddressesRefreshBtn" class="small-btn" type="button">بازخوانی آدرس‌ها</button>
+                    <div id="superCryptoAddressesList" class="cards-history-scroll mt-12"></div>
+                  </details>
                   <details id="superBankCardsSection" class="super-finance-editor mt-12">
                     <summary>💳 مدیریت کارت‌های مقصد واریز (لیست، افزودن، ویرایش، غیرفعال‌سازی)</summary>
                     <p class="hint">کارت جدید ابتدا غیرفعال ثبت می‌شود. فعال‌سازی و تغییر کارت، تأیید جداگانه دارد.</p>
@@ -881,7 +942,9 @@
                     </div>
                     <div id="superBankCardsHint" class="step-hint" role="status"></div>
                   </details>
-
+                      </section>
+                      <section id="superPanelRoles" class="superadmin-panel-v13" role="tabpanel" data-super-panel="superPanelRoles" aria-labelledby="superTabRoles" tabindex="0" hidden>
+                        <header class="superadmin-panel-head"><h5>مدیریت نقش‌ها و دسترسی‌ها</h5><p>مدیریت کاربران مجاز و فهرست ادمین‌ها. سطح دسترسی از سمت سرور کنترل می‌شود.</p></header>
                   <div class="action-form">
                     <label id="superAdminUserLabel" for="superAdminTgUserInput">شناسه تلگرام کاربر</label>
                     <input id="superAdminTgUserInput" type="text" inputmode="numeric" min="1" autocomplete="off" />
@@ -904,6 +967,18 @@
                   </div>
                   <div id="superAdminListSummary" class="step-hint" aria-live="polite"></div>
                   <div id="superAdminList" class="cards-history-scroll mt-12"></div>
+                      </section>
+                      <section id="superPanelSecurity" class="superadmin-panel-v13" role="tabpanel" data-super-panel="superPanelSecurity" aria-labelledby="superTabSecurity" tabindex="0" hidden>
+                        <header class="superadmin-panel-head"><h5>امنیت و نظارت</h5><p>دسترسی به بخش‌های گزارش و هشدار موجود. این صفحه هیچ تنظیم امنیتی یا تراکنش جدیدی اجرا نمی‌کند.</p></header>
+                        <div class="superadmin-quick-grid">
+                          <button class="superadmin-quick-card" type="button" data-admin-jump="adminRiskAlertsList"><strong>⚠ هشدارهای ریسک</strong><span>بازکردن هشدارهای ثبت‌شده در پنل مدیریت</span></button>
+                          <button class="superadmin-quick-card" type="button" data-admin-jump="adminAuditLogsList"><strong>▣ گزارش عملیات</strong><span>مشاهده سوابق مدیریتی موجود</span></button>
+                          <button class="superadmin-quick-card" type="button" data-admin-jump="adminOpsDashboard"><strong>▦ وضعیت سرویس‌ها</strong><span>بازگشت به مانیتورینگ سلامت و عملیات</span></button>
+                        </div>
+                        <div class="superadmin-overview-notice">ثبت رویدادهای حساس و اعتبارسنجی مجوزها همچنان توسط سرویس‌های فعلی انجام می‌شود.</div>
+                      </section>
+                    </div>
+                  </div>
                 </div>
               </details>
             </div>
@@ -949,12 +1024,21 @@
           <button id="notificationMarkAllBtn" class="small-btn" type="button">همه خوانده شد</button>
           <button id="notificationRefreshBtn" class="small-btn primary" type="button">به‌روزرسانی</button>
         </div>
+        <p id="notificationSyncStatus" class="inbox-sync" role="status" aria-live="polite">هنوز همگام‌سازی نشده</p>
+        <div id="notificationFilters" class="inbox-filters" role="group" aria-label="فیلتر اعلان‌ها">
+          <button type="button" data-filter="all" aria-pressed="true">همه</button>
+          <button type="button" data-filter="unread" aria-pressed="false">نخوانده</button>
+          <button type="button" data-filter="game" aria-pressed="false">بازی‌ها</button>
+          <button type="button" data-filter="win" aria-pressed="false">بردها</button>
+          <button type="button" data-filter="payment" aria-pressed="false">مالی</button>
+          <button type="button" data-filter="system" aria-pressed="false">سیستم</button>
+        </div>
         <div id="notificationList" class="notification-list"></div>
       </div>
     </div>
 
     <div id="winnerModal" class="winner-modal" aria-hidden="true">
-      <div class="winner-modal-card glass">
+      <div class="winner-modal-card glass" role="dialog" aria-modal="true" aria-labelledby="winnerModalTitle" aria-describedby="winnerModalStatus">
         <div class="winner-modal-head">
           <h2 id="winnerModalTitle">اعلان برد</h2>
           <button id="winnerCloseBtn" class="icon-btn" type="button" aria-label="بستن">×</button>
@@ -967,7 +1051,9 @@
         <p id="winnerModalAmount" class="winner-modal-amount"></p>
         <p id="winnerModalGame" class="winner-modal-game"></p>
         <p id="winnerModalStatus" class="winner-modal-status"></p>
+        <div id="winnerCardDetails" class="winner-card-shares"></div>
         <div class="winner-modal-actions">
+          <button id="winnerGameBtn" class="small-btn" type="button">مشاهده بازی</button>
           <button id="winnerWalletBtn" class="small-btn primary" type="button">مشاهده در کیف پول</button>
           <button id="winnerDismissBtn" class="small-btn" type="button">بستن</button>
         </div>
@@ -1096,6 +1182,6 @@
     <div id="miniToast" class="mini-toast hidden" role="status" aria-live="polite"></div>
 
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="./app.js?v=finance-reject-reasons-20261108" type="module"></script>
+    <script src="./app.js?v=remaining-ux-v1" type="module"></script>
   </body>
 </html>

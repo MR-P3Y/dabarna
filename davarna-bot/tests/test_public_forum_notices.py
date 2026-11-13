@@ -17,6 +17,7 @@ class PublicForumNoticeTests(unittest.IsolatedAsyncioTestCase):
                 "tg_topic_id": 6,
                 "card_price": 5000,
                 "game_rule": "LINE",
+                "card_layout_version": 2,
                 "prize_pool": 9000,
             },
             "purchases": {"cards_sold": 2},

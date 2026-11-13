@@ -1,0 +1,21 @@
+{
+  "deployed": false,
+  "images": [
+    {
+      "service": "backend",
+      "tag": "dabarna-backend:remaining-4f1b0fd",
+      "image_id": "sha256:64556bf2edb7babdb5b7885825ec325d3905c4141931e31f4a94fb245e31812b",
+      "parent_image_id": "sha256:e713ff8b7a43a800549b94048efba403ee6e7314a28ae72a1cd7a73e33cf7731",
+      "verified_source_files": 90,
+      "source_commit": "4f1b0fdab31f5fa9134fd0a3dd5a8c423afafb80"
+    },
+    {
+      "service": "bot",
+      "tag": "dabarna-bot:remaining-4f1b0fd",
+      "image_id": "sha256:d947a81ae03c8d79fa6bca865fd65358886e28a6458f8a9993cc5aadcd97f96c",
+      "parent_image_id": "sha256:9f2bad21e0f3884a7f31151accb3a06c5229991194afdc5685af22751fa1d47b",
+      "verified_source_files": 85,
+      "source_commit": "4f1b0fdab31f5fa9134fd0a3dd5a8c423afafb80"
+    }
+  ]
+}

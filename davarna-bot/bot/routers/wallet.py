@@ -27,7 +27,7 @@ def _fmt_amount(value: object) -> str:
         n = int(value or 0)
     except Exception:
         n = 0
-    return _to_fa_digits(f"{n:,}".replace(",", "٬"))
+    return _to_fa_digits(f"{n:,}".replace(",", "٬")) + " تومان"
 
 
 def _fmt_datetime(value: object) -> str:
@@ -51,7 +51,7 @@ def _tx_reason_fa(
 ) -> str:
     raw = str(reason or "").strip()
     up = raw.upper()
-    rule = str(game_rule or "LEGACY").strip().upper()
+    rule = str(game_rule or "UNKNOWN").strip().upper()
     idem = str(idempotency_key or "").strip().upper()
     ref_t = str(ref_type or "").strip().upper()
     try:
@@ -69,11 +69,14 @@ def _tx_reason_fa(
         "ADJUST": "اصلاح حساب توسط سیستم/ادمین",
     }
 
+    if up in {"PRIZE_COL", "PRIZE_ROW"} and rule not in {"LINE", "LEGACY", "FULL_CARD"}:
+        return "جایزه بازی؛ قانون ذخیره‌شده قابل تأیید نیست"
+
     if up == "PRIZE_COL":
         if rule == "LINE":
             return "دریافت جایزه تورنا (۳ عدد یک ردیف)"
         if rule == "FULL_CARD":
-            return "دریافت جایزه میانی بازی"
+            return "تراکنش جایزه با قانون پرکردنی ناسازگار است"
         return "دریافت جایزه برد ستونی (تورنا)"
     if up == "PRIZE_ROW":
         if rule == "FULL_CARD":

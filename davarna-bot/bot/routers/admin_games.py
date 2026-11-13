@@ -1,4 +1,5 @@
-﻿from __future__ import annotations
+from __future__ import annotations
+from bot.services.game_rules import rule_kind
 
 import asyncio
 import time
@@ -12,6 +13,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
+from bot.services.card_render import render_number_grid_with_marks
 from bot.config import settings
 from bot.keyboards.admin_games import (
     admin_game_close_reason_kb,
@@ -133,9 +135,9 @@ def _parse_create_cancel_ctx(data: str) -> tuple[str, int]:
 
 def _configured_game_topics() -> list[tuple[str, int]]:
     raw: list[tuple[str, int | None]] = [
-        ("🎯 خطی ۱", settings.USER_TOPIC_GAME_LOW_ID),
-        ("🎯 خطی ۲", settings.USER_TOPIC_GAME_MEDIUM_ID),
-        ("🏆 پرکردنی", settings.USER_TOPIC_GAME_HIGH_ID),
+        ("🎯 سطح یک", settings.USER_TOPIC_GAME_LOW_ID),
+        ("🎯 سطح دو", settings.USER_TOPIC_GAME_MEDIUM_ID),
+        ("🏆 سطح سه", settings.USER_TOPIC_GAME_HIGH_ID),
     ]
     out: list[tuple[str, int]] = []
     seen: set[int] = set()
@@ -466,28 +468,11 @@ def _int_list(values) -> list[int]:
     return out
 
 
-def _render_card_grid(numbers: list[int], called_set: set[int]) -> str:
-    nums = [int(x) for x in numbers]
-    if len(nums) not in {20, 27}:
-        return "کارت نامعتبر"
-
-    is_v2 = len(nums) == 27
-    cols = 9 if is_v2 else 5
-    rows: list[str] = []
-    for i in range(0, len(nums), cols):
-        chunk = nums[i : i + cols]
-        cells: list[str] = []
-        for n in chunk:
-            if is_v2:
-                # Compact 3x9 layout on narrow Telegram screens. Blank cells
-                # do not display 00 and never count as called numbers.
-                cells.append(" · " if n == 0 else f"✓{n:02d}" if n in called_set else f" {n:02d}")
-            elif n in called_set:
-                cells.append(f"✅{n:02d}")
-            else:
-                cells.append(f"⬜️{n:02d}")
-        rows.append((" " if is_v2 else "  ").join(cells))
-    return "\n".join(rows)
+def _render_card_grid(numbers: list[int], called_set: set[int], game: dict) -> str:
+    try:
+        return render_number_grid_with_marks(numbers, called_set, game)
+    except ValueError as error:
+        return f"کارت نامعتبر: {error}"
 
 
 def _has_winners(g: dict | None) -> bool:
@@ -572,8 +557,8 @@ def build_monitor_text(game_id: int, rep: dict) -> str:
     card_price = g.get("card_price")
     sold_amount = g.get("sold_amount")
     prize_pool = g.get("prize_pool")
-    game_rule = str(g.get("game_rule") or "LEGACY").upper()
-    final_win_label = "پرکردنی" if game_rule == "FULL_CARD" else "خطی" if game_rule == "LINE" else "تمام"
+    game_rule = rule_kind(g)
+    final_win_label = {"FULL_CARD": "پرکردنی", "LINE": "خطی", "LEGACY": "ردیفی"}.get(game_rule, "با قانون نامشخص")
 
     row_paid = int(g.get("row_paid") or rep.get("row_paid") or 0)
     col_paid = int(g.get("col_paid") or rep.get("col_paid") or 0)
@@ -589,7 +574,7 @@ def build_monitor_text(game_id: int, rep: dict) -> str:
         f"🎁 جایزه: <b>{prize_pool}</b>",
     ]
 
-    if col_paid == 1:
+    if col_paid == 1 and game_rule in {"LINE", "LEGACY"}:
         lines.append("🏆 <b>برد تورنا پرداخت شد</b>")
     if row_paid == 1:
         lines.append(f"🏁 <b>برد {final_win_label} پرداخت شد</b>")
@@ -861,7 +846,8 @@ async def _render_winners_archive(cq: CallbackQuery, api: ApiClient, *, offset: 
                 "col_count": 0 if col_absorbed_into_row else len(col_cards),
                 "row_count": len(row_cards),
                 "card_price": int(game.get("card_price") or 0),
-                "game_rule": str(game.get("game_rule") or "LEGACY").upper(),
+                "game_rule": game.get("game_rule"),
+                "card_layout_version": game.get("card_layout_version"),
             }
         )
 
@@ -976,7 +962,7 @@ async def admin_games_autopilot(cq: CallbackQuery, api: ApiClient, is_admin: boo
         if not isinstance(items, list):
             items = []
 
-        labels = {"LOW": "خطی ۱", "MEDIUM": "خطی ۲", "HIGH": "پرکردنی"}
+        labels = {"LOW": "سطح یک", "MEDIUM": "سطح دو", "HIGH": "سطح سه"}
         lines = [
             "وضعیت سه دسته بازی از تنظیمات مرکزی Backend خوانده می‌شود.",
             "Autopilot فعلاً به‌صورت پیش‌فرض خاموش است و بدون فعال‌سازی مدیریت، بازی خودکاری اجرا نمی‌شود.",
@@ -1368,8 +1354,8 @@ async def admin_games_report(cq: CallbackQuery, api: ApiClient, is_admin: bool =
         rep = await api.admin_get_game_report(game_id)
 
         g = rep.get("game") or {}
-        game_rule = str(g.get("game_rule") or "LEGACY").upper()
-        final_win_label = "پرکردنی" if game_rule == "FULL_CARD" else "خطی" if game_rule == "LINE" else "تمام"
+        game_rule = rule_kind(g)
+        final_win_label = {"FULL_CARD": "پرکردنی", "LINE": "خطی", "LEGACY": "ردیفی"}.get(game_rule, "با قانون نامشخص")
         purchases = rep.get("purchases") or {}
         called_numbers = rep.get("called_numbers") or []
         events = rep.get("events") or []
@@ -1436,7 +1422,7 @@ async def admin_games_report(cq: CallbackQuery, api: ApiClient, is_admin: bool =
             txt += "\n\nآخرین ۱۲ عدد:\n" + "  •  ".join(str(n) for n in tail)
 
         payout_lines: list[str] = []
-        if col_paid == 1:
+        if col_paid == 1 and game_rule in {"LINE", "LEGACY"}:
             payout_lines.append("✅ پرداخت برد تورنا انجام شد.")
             if col_winner_cards or col_winner_users or col_winner_tg_users:
                 if col_winner_names:
@@ -1514,9 +1500,8 @@ async def admin_games_winners(cq: CallbackQuery, api: ApiClient, is_admin: bool 
     try:
         rep = await api.admin_get_game_report(game_id)
         g = rep.get("game") or {}
-        game_rule = str(g.get("game_rule") or "LEGACY").upper()
-        is_v2 = int(g.get("card_layout_version") or 1) == 2
-        final_win_label = "پرکردنی" if game_rule == "FULL_CARD" else "خطی" if game_rule == "LINE" else "تمام"
+        game_rule = rule_kind(g)
+        final_win_label = {"FULL_CARD": "پرکردنی", "LINE": "خطی", "LEGACY": "ردیفی"}.get(game_rule, "با قانون نامشخص")
         game_status = str(g.get("status") or "")
         called = _extract_numbers(rep.get("called_numbers") or [])
         called_set = set(called)
@@ -1548,8 +1533,7 @@ async def admin_games_winners(cq: CallbackQuery, api: ApiClient, is_admin: bool 
             card = cards_by_id.get(card_id) or {}
             user_id = _to_int(str(card.get("user_id") or ""), 0)
             tg_user_id = _to_int(str(card.get("tg_user_id") or ""), 0)
-            numbers = _int_list(card.get("numbers") or [])
-            grid = _render_card_grid(numbers, called_set) if numbers else "—"
+            grid = _render_card_grid(card.get("numbers") or [], called_set, g)
             display_name = tg_name_map.get(tg_user_id, "—") if tg_user_id > 0 else "—"
 
             lines.append(
@@ -1562,7 +1546,7 @@ async def admin_games_winners(cq: CallbackQuery, api: ApiClient, is_admin: bool 
             f"وضعیت: <b>{_fa_status(game_status)}</b>",
             f"تعداد اعداد اعلام‌شده: <b>{len(called)}</b>",
             "",
-            ("راهنما: ✓ عدد اعلام‌شده | · خانه خالی" if is_v2 else "راهنما: ✅ عدد اعلام‌شده | ⬜️ عدد اعلام‌نشده"),
+            "راهنما: ✓ عدد اعلام‌شده | · خانه خالی",
             "",
         ]
 
@@ -2031,9 +2015,9 @@ async def admin_games_view(cq: CallbackQuery, api: ApiClient, is_admin: bool = F
         row_cards = [int(x) for x in (row_info.get("winner_card_ids") or []) if str(x).isdigit()]
         winner_lines: list[str] = []
         if int(g.get("col_paid", 0) or 0) == 1:
-            winner_lines.append(f"🏆 کارت(های) برنده ستون: <code>{', '.join(str(x) for x in col_cards) or '—'}</code>")
+            winner_lines.append(f"🏆 کارت(های) برنده تورنا: <code>{', '.join(str(x) for x in col_cards) or '—'}</code>")
         if int(g.get("row_paid", 0) or 0) == 1:
-            winner_lines.append(f"🏁 کارت(های) برنده ردیف: <code>{', '.join(str(x) for x in row_cards) or '—'}</code>")
+            winner_lines.append(f"🏁 کارت(های) برنده نهایی: <code>{', '.join(str(x) for x in row_cards) or '—'}</code>")
 
         topic_id = g.get("tg_topic_id")
         topic_info = ""

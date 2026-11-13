@@ -13,8 +13,8 @@ from bot.routers.admin_games import _render_card_grid
 
 V2_NUMBERS = [
     5, 0, 25, 0, 45, 0, 65, 0, 85,
-    0, 12, 0, 32, 0, 52, 0, 72, 90,
-    7, 0, 27, 0, 47, 0, 67, 0, 87,
+    0, 12, 0, 32, 0, 52, 0, 72, 87,
+    7, 0, 27, 0, 47, 0, 67, 0, 90,
 ]
 
 
@@ -29,7 +29,7 @@ class BotV2CardLayoutTests(unittest.TestCase):
         self.assertIn("90✅", marked)
 
     def test_admin_winner_card_renders_three_by_nine(self):
-        txt = _render_card_grid(V2_NUMBERS, {0, 5, 25, 90})
+        txt = _render_card_grid(V2_NUMBERS, {5, 25, 90}, {"game_rule": "LINE", "card_layout_version": 2})
         lines = txt.splitlines()
         self.assertEqual(len(lines), 3)
         self.assertNotIn("00", txt)
@@ -40,13 +40,13 @@ class BotV2CardLayoutTests(unittest.TestCase):
         self.assertEqual(txt.count("·"), 12)
 
     def test_legacy_admin_cards_still_have_four_rows(self):
-        txt = _render_card_grid(list(range(1, 21)), {1, 5, 20})
+        txt = _render_card_grid(list(range(1, 21)), {1, 5, 20}, {"game_rule": "LEGACY", "card_layout_version": 1})
         self.assertEqual(len(txt.splitlines()), 4)
-        self.assertIn("✅01", txt)
-        self.assertIn("⬜️02", txt)
+        self.assertIn("✓01", txt)
+        self.assertIn(" 02", txt)
 
     def test_invalid_card_is_not_rendered(self):
-        self.assertEqual(_render_card_grid([1, 2, 3], {1}), "کارت نامعتبر")
+        self.assertIn("کارت نامعتبر", _render_card_grid([1, 2, 3], {1}, {"game_rule": "LINE", "card_layout_version": 2}))
 
 
 if __name__ == "__main__":
