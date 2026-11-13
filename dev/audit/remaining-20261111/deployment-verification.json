@@ -1,0 +1,145 @@
+{
+  "at": "2026-11-13T12:59:19.748385+00:00",
+  "rollout": {
+    "status": "deployed",
+    "at": "2026-11-13T12:53:21.280810+00:00",
+    "merge": "a7f3883ca0dcc4f98f0de2f84c0dbbb03088cba6",
+    "images": {
+      "backend": [
+        "dabarna-backend:remaining-4f1b0fd",
+        "sha256:64556bf2edb7babdb5b7885825ec325d3905c4141931e31f4a94fb245e31812b"
+      ],
+      "bot": [
+        "dabarna-bot:remaining-4f1b0fd",
+        "sha256:d947a81ae03c8d79fa6bca865fd65358886e28a6458f8a9993cc5aadcd97f96c"
+      ]
+    },
+    "schema": "20261108_0012",
+    "autopilot_unchanged": true,
+    "financial_settings_unchanged": true,
+    "infrastructure_not_restarted": true,
+    "prior_ack_preserved": true,
+    "monitor_sha256": "9197f47016632a323a8f4d76116c58df3fb3838e293a425860b8e95e90dfbff9",
+    "cron_unchanged": true,
+    "synthetic_messages_sent": false
+  },
+  "services": {
+    "backend": {
+      "image": "sha256:64556bf2edb7babdb5b7885825ec325d3905c4141931e31f4a94fb245e31812b",
+      "health": "healthy",
+      "restarts": 0,
+      "started_at": "2026-11-13T12:52:59.412879425Z",
+      "error_lines": 0,
+      "traceback_lines": 0,
+      "worker_start_mentions": {
+        "autopilot": false,
+        "auto_draw": false,
+        "notifier": false
+      }
+    },
+    "bot": {
+      "image": "sha256:d947a81ae03c8d79fa6bca865fd65358886e28a6458f8a9993cc5aadcd97f96c",
+      "health": "healthy",
+      "restarts": 0,
+      "started_at": "2026-11-13T12:53:07.210603728Z",
+      "error_lines": 0,
+      "traceback_lines": 0,
+      "worker_start_mentions": {
+        "autopilot": false,
+        "auto_draw": false,
+        "notifier": true
+      }
+    },
+    "mysql": {
+      "image": "sha256:99d774bf02a48a1bb1c599920d2571946d31e5940b854b02737d5e95c184358f",
+      "health": "healthy",
+      "restarts": 0,
+      "started_at": "2026-08-16T18:48:37.921926974Z"
+    },
+    "redis": {
+      "image": "sha256:02f2cc4882f8bf87c79a220ac958f58c700bdec0dfb9b9ea61b62fb0e8f1bfcf",
+      "health": "healthy",
+      "restarts": 0,
+      "started_at": "2026-08-16T18:48:37.909155435Z"
+    }
+  },
+  "monitor": {
+    "installed_sha256": "9197f47016632a323a8f4d76116c58df3fb3838e293a425860b8e95e90dfbff9",
+    "mode": "0o750",
+    "fingerprint_exists": true,
+    "fingerprint_updated_after_install": true,
+    "natural_log_updated_after_install": true,
+    "cron_schedule": [
+      [
+        "*/5",
+        "*",
+        "*",
+        "*",
+        "*"
+      ]
+    ]
+  },
+  "backup": {
+    "sha256": "0b2dd80c63ef0c2ccade16170ce6037702d28dd229f62a670fbbca0d263f32b3",
+    "bytes": 208661
+  },
+  "http": {
+    "/health/db": {
+      "status": 200,
+      "sha256": "4062edaf750fb8074e7e83e0c9028c94e32468a8b6f1614774328ef045150f93",
+      "type": "application/json"
+    },
+    "/mini/": {
+      "status": 200,
+      "sha256": "969f86456b0180a0142f85ef6228be758f392b3298fa67193d6c1bf6d1b5b567",
+      "type": "text/html; charset=utf-8"
+    },
+    "/mini/app.js": {
+      "status": 200,
+      "sha256": "4a98b058de90cd79dff9fd85b9589e3b4c0ba83571c7325fe6cc9212430ee032",
+      "type": "text/javascript; charset=utf-8"
+    },
+    "/mini/experience.mjs": {
+      "status": 200,
+      "sha256": "8c71f8cc984a6031d9041a8d5ebc18283a557e0dcc8d09bbf52ae9c4e1363ee1",
+      "type": "text/javascript; charset=utf-8"
+    },
+    "/mini/ux-v2.css": {
+      "status": 200,
+      "sha256": "bdd7c18d14e40f17ae0c5df813be5cedce9b27c1663aa13316e7d554be6b4aa4",
+      "type": "text/css; charset=utf-8"
+    },
+    "/mini-api/admin/ops-dashboard": {
+      "status": 401
+    }
+  },
+  "public_https": {
+    "at": "2026-11-13T13:01:01.840423+00:00",
+    "vantage": "local workstation via public HTTPS",
+    "base": "https://davarna.peymoonnet.de",
+    "checks": {
+      "/health/db": {
+        "status": 200
+      },
+      "/mini/": {
+        "status": 200,
+        "sha256": "969f86456b0180a0142f85ef6228be758f392b3298fa67193d6c1bf6d1b5b567"
+      },
+      "/mini/app.js": {
+        "status": 200,
+        "sha256": "4a98b058de90cd79dff9fd85b9589e3b4c0ba83571c7325fe6cc9212430ee032"
+      },
+      "/mini/experience.mjs": {
+        "status": 200,
+        "sha256": "8c71f8cc984a6031d9041a8d5ebc18283a557e0dcc8d09bbf52ae9c4e1363ee1"
+      },
+      "/mini/ux-v2.css": {
+        "status": 200,
+        "sha256": "bdd7c18d14e40f17ae0c5df813be5cedce9b27c1663aa13316e7d554be6b4aa4"
+      },
+      "/mini-api/admin/ops-dashboard": {
+        "status": 401
+      }
+    }
+  }
+}
