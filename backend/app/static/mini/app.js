@@ -7285,7 +7285,7 @@ function renderSuperCryptoSettings(payload) {
     if (!masterEnabled) {
       statusEl.textContent = "کلید اصلی سرور خاموش است؛ ابتدا .env.prod را تنظیم کنید.";
     } else if (!configured) {
-      statusEl.textContent = "آدرس معتبر TRON یا TON در .env.prod تنظیم نشده است.";
+      statusEl.textContent = "آدرس دریافت ثبت نشده؛ از بخش مقاصد واریز آن را اضافه کنید.";
     } else {
       statusEl.textContent = `${effectiveEnabled ? "فعال برای کاربران" : "غیرفعال برای کاربران"} | شبکه‌ها: ${networks.join("، ") || "-"}`;
     }
@@ -7308,6 +7308,268 @@ async function refreshSuperCryptoSettings() {
   if (!state.admin.enabled || !state.admin.canManageSuperSettings) return;
   const out = await apiFetch("/mini-api/admin/super/crypto-settings");
   renderSuperCryptoSettings(out);
+  await refreshSuperCryptoProposals();
+}
+
+let selectedCryptoProposalNetwork = "";
+let selectedCryptoCurrentAddress = "";
+
+async function refreshSuperCryptoProposals() {
+  const root = getEl("superCryptoProposalsList");
+  if (!root || !state.admin.canManageSuperSettings) return;
+  const payload = await apiFetch("/mini-api/admin/super/crypto-address-proposals");
+  root.replaceChildren();
+  const items = Array.isArray(payload?.items) ? payload.items : [];
+  if (!items.length) {
+    root.textContent = "درخواستی برای تغییر آدرس ثبت نشده است.";
+    return;
+  }
+  items.forEach((item) => {
+    const box = document.createElement("div");
+    box.className = "history-item";
+    const heading = document.createElement("strong");
+    heading.textContent = String(item.network) + " · در انتظار بررسی";
+    const address = document.createElement("code");
+    address.textContent = String(item.address || "");
+    address.className = "admin-crypto-address";
+    const detail = document.createElement("p");
+    detail.className = "hint";
+    detail.textContent = "صرفاً درخواست ثبت شده است؛ آدرس کاربران و اسکنر بدون تغییر هستند.";
+    const inspect = document.createElement("button");
+    inspect.type = "button";
+    inspect.className = "small-btn";
+    inspect.textContent = "بررسی آمادگی تغییر آدرس";
+    inspect.addEventListener("click", async () => {
+      inspect.disabled = true;
+      try {
+        const report = await apiFetch(
+          "/mini-api/admin/super/crypto-address-readiness?network=" +
+          encodeURIComponent(String(item.network || ""))
+        );
+        const summary = document.createElement("p");
+        summary.className = "hint";
+        summary.textContent = "فاکتور باز: " + toFaDigits(report.open_invoices || 0) +
+          " | منقضی/لغوشده اخیر: " + toFaDigits(report.recent_closed_invoices || 0) +
+          " | بررسی دستی: " + toFaDigits(report.needs_manual_review || 0) +
+          " | کل فاکتورهای آدرس فعلی: " + toFaDigits(report.historical_invoices || 0) +
+          " | اعمال تغییر فقط پس از کنترل مجوز سرور، فاکتورها و تأیید نهایی انجام می‌شود";
+        const previous = box.querySelector(".crypto-rotation-readiness");
+        if (previous) previous.remove();
+        summary.classList.add("crypto-rotation-readiness");
+        box.append(summary);
+      } catch (e) {
+        setLocalError("superCryptoProposalHint", e);
+      } finally {
+        inspect.disabled = false;
+      }
+    });
+    box.append(heading, address, detail, inspect);
+    const history = document.createElement("button");
+    history.type = "button";
+    history.className = "small-btn";
+    history.textContent = "بررسی سابقه بدون تغییر موجودی";
+    history.addEventListener("click", async () => {
+      history.disabled = true;
+      try {
+        const report = await apiFetch("/mini-api/admin/super/crypto-address-history-review?network=" +
+          encodeURIComponent(String(item.network || "")));
+        const summary = document.createElement("p");
+        summary.className = "hint crypto-history-review";
+        const status = report.status === "NO_HISTORY" ? "سابقه‌ای برای این آدرس ثبت نشده" :
+          report.status === "REVIEWED_NO_DISCREPANCY" ? "در پاسخ دریافت‌شده مغایرتی دیده نشد" :
+          "بررسی کامل نشد یا مورد حل‌نشده وجود دارد";
+        summary.textContent = status + " | فاکتورها: " + toFaDigits(report.historical_invoices || 0) +
+          " | تراکنش‌های بدون انتساب: " + toFaDigits(report.unassigned_transfers || 0) +
+          " | تأییدنشده: " + toFaDigits(report.unconfirmed_transfers || 0) +
+          " | این بررسی مجوز تغییر آدرس یا پرداخت نیست.";
+        const previous = box.querySelector(".crypto-history-review");
+        if (previous) previous.remove();
+        box.append(summary);
+      } catch (e) {
+        setLocalError("superCryptoProposalHint", e);
+      } finally {
+        history.disabled = false;
+      }
+    });
+    box.append(history);
+    const cancel = document.createElement("button");
+    cancel.type = "button";
+    cancel.className = "small-btn";
+    cancel.textContent = "لغو همین درخواست";
+    cancel.addEventListener("click", async () => {
+      if (!window.confirm("درخواست تغییر " + item.network + " به آدرس " + item.address + " لغو شود؟ آدرس فعال تغییری نمی‌کند.")) return;
+      cancel.disabled = true;
+      try {
+        await apiFetch("/mini-api/admin/super/crypto-address-proposals/cancel", {
+          method: "POST", body: {network: item.network, expected_address: item.address,
+            expected_created_at: item.created_at, confirmation: "CANCEL_PENDING_CRYPTO_ADDRESS"},
+        });
+        await refreshSuperCryptoProposals();
+        setHint("superCryptoProposalHint", "درخواست لغو شد؛ آدرس فعال تغییری نکرد.");
+      } catch (error) { setLocalError("superCryptoProposalHint", error); }
+      finally { cancel.disabled = false; }
+    });
+    box.append(cancel);
+    if (payload.activation_supported === true &&
+        Number.isInteger(item.expected_version) && item.expected_version >= 1 &&
+        item.expected_current_address) {
+      const activate = document.createElement("button");
+      activate.type = "button";
+      activate.className = "small-btn danger";
+      activate.textContent = "فعال‌سازی فقط در دیتابیس آزمایشی";
+      activate.addEventListener("click", async () => {
+        const network = String(item.network || "");
+        const proposedAddress = String(item.address || "");
+        const currentAddress = String(item.expected_current_address || "");
+        const version = Number(item.expected_version);
+        if (!window.confirm("فقط محیط آزمایشی مستقل: تغییر " + network +
+          " از نسخه " + version + " به آدرس جدید انجام شود؟")) return;
+        const typed = window.prompt("برای تأیید فعال‌سازی آزمایشی، عبارت TEST " +
+          network + " را وارد کنید.");
+        if (typed !== "TEST " + network) return;
+        activate.disabled = true;
+        try {
+          await apiFetch("/mini-api/admin/super/crypto-address-activate-experimental", {
+            method: "POST",
+            body: {
+              network,
+              expected_version: version,
+              expected_current_address: currentAddress,
+              proposed_address: proposedAddress,
+              confirmation: "ACTIVATE_CRYPTO_ADDRESS_DISPOSABLE_ONLY",
+            },
+          });
+          await refreshSuperCryptoSettings();
+          setHint("superCryptoProposalHint",
+            "تغییر آدرس فقط در دیتابیس آزمایشی ثبت شد؛ Production تغییری نکرد.");
+        } catch (e) {
+          setLocalError("superCryptoProposalHint", e);
+          activate.disabled = false;
+        }
+      });
+      box.append(activate);
+    }
+    if (payload.production_activation_supported === true &&
+        Number.isInteger(item.expected_version) && item.expected_current_address) {
+      const liveButton = document.createElement("button");
+      liveButton.type = "button";
+      liveButton.className = "small-btn danger";
+      liveButton.textContent = "فعال‌سازی واقعی آدرس جدید";
+      liveButton.disabled = Boolean(state.admin.cryptoSettings?.runtime_enabled);
+      liveButton.addEventListener("click", async () => {
+        liveButton.disabled = true;
+        try {
+        const network = String(item.network || "");
+        const previous = String(item.expected_current_address || "");
+        const proposed = String(item.address || "");
+        const report = await apiFetch(
+          "/mini-api/admin/super/crypto-address-readiness?network=" +
+          encodeURIComponent(network)
+        );
+        if (["open_invoices", "recent_closed_invoices", "needs_manual_review"].some(key => Number(report[key] || 0) > 0)) {
+          setHint("superCryptoProposalHint",
+            "تغییر مسدود است: فاکتور باز یا حل‌نشده روی آدرس فعلی وجود دارد.");
+          return;
+        }
+        if (!window.confirm("تغییر واقعی مقصد واریز " + network +
+          " از " + previous + " به " + proposed + "؟ واریز باید خاموش باشد.")) return;
+        if (window.prompt("عبارت ACTIVATE " + network + " را وارد کنید:") !==
+            "ACTIVATE " + network) return;
+          await apiFetch("/mini-api/admin/super/crypto-address-activate-production", {
+            method: "POST",
+            body: {
+              network,
+              expected_version: Number(item.expected_version),
+              expected_current_address: previous,
+              proposed_address: proposed,
+              confirmation: "ACTIVATE_PRODUCTION_CRYPTO_DESTINATION",
+            },
+          });
+          await refreshSuperCryptoSettings();
+          setHint("superCryptoProposalHint",
+            "آدرس تغییر کرد و واریز همچنان غیرفعال مانده است.");
+        } catch (e) {
+          setLocalError("superCryptoProposalHint", e);
+        } finally {
+          liveButton.disabled = Boolean(state.admin.cryptoSettings?.runtime_enabled);
+        }
+      });
+      box.append(liveButton);
+    }
+    root.append(box);
+  });
+}
+
+function openCryptoProposalEditor(network, currentAddress) {
+  if (!state.admin.canManageSuperSettings) return;
+  selectedCryptoProposalNetwork = String(network || "").toUpperCase();
+  selectedCryptoCurrentAddress = String(currentAddress || "").trim();
+  const editor = getEl("superCryptoProposalEditor");
+  if (!editor) return;
+  getEl("superCryptoWalletSection").open = true;
+  editor.classList.remove("hidden");
+  getEl("superCryptoProposalNetwork").textContent = "شبکه: " + selectedCryptoProposalNetwork +
+    (selectedCryptoCurrentAddress ? " | تغییر آدرس" : " | افزودن آدرس اولیه");
+  const input = getEl("superCryptoProposedAddress");
+  if (input) { input.value = ""; input.focus(); }
+}
+
+function closeCryptoProposalEditor() {
+  selectedCryptoProposalNetwork = "";
+  selectedCryptoCurrentAddress = "";
+  const editor = getEl("superCryptoProposalEditor");
+  editor?.classList.add("hidden");
+  const input = getEl("superCryptoProposedAddress");
+  if (input) input.value = "";
+}
+
+async function submitCryptoProposal() {
+  if (!state.admin.canManageSuperSettings) throw new Error("دسترسی سوپرادمین لازم است.");
+  if (!state.admin.cryptoSettings?.address_management_enabled)
+    throw new Error("مدیریت آدرس‌ها هنوز در Backend فعال نیست.");
+  const address = String(getVal("superCryptoProposedAddress") || "").trim();
+  const network = selectedCryptoProposalNetwork;
+  const previous = selectedCryptoCurrentAddress;
+  if (!network || !address) throw new Error("شبکه و آدرس را تکمیل کنید.");
+  if (previous && address === previous)
+    throw new Error("آدرس جدید نباید با آدرس فعلی یکسان باشد.");
+  const initial = !previous;
+  const action = initial
+    ? "افزودن آدرس اولیه " + network + " (پرداخت خاموش می‌ماند)"
+    : "ثبت درخواست تغییر آدرس " + network + " (هنوز فعال نمی‌شود)";
+  if (!window.confirm(action + "؟")) return;
+  const button = getEl("superCryptoProposalSubmitBtn");
+  if (button) button.disabled = true;
+  try {
+    if (initial) {
+      await apiFetch("/mini-api/admin/super/crypto-address-initialize-production", {
+        method: "POST",
+        body: {
+          network, address,
+          confirmation: "ADD_NEW_CRYPTO_DESTINATION_WITH_PAYMENTS_OFF",
+        },
+      });
+    } else {
+      await apiFetch("/mini-api/admin/super/crypto-address-proposals", {
+        method: "POST",
+        body: {
+          network, address, expected_current_address: previous,
+          confirmation: "REQUEST_ADDRESS_CHANGE",
+        },
+      });
+    }
+    closeCryptoProposalEditor();
+    await refreshSuperCryptoSettings();
+    setHint(
+      "superCryptoProposalHint",
+      initial
+        ? "آدرس اولیه ثبت شد؛ واریز رمزارزی همچنان خاموش است."
+        : "درخواست تغییر ثبت شد؛ برای اعمال واقعی ابتدا پرداخت را خاموش و تأیید نهایی را انجام دهید.",
+      "success"
+    );
+  } finally {
+    if (button) button.disabled = false;
+  }
 }
 
 
@@ -7331,7 +7593,49 @@ function renderSuperCryptoAddresses(payload) {
     const hint = document.createElement("div");
     hint.className = "history-meta";
     hint.textContent = "خوانده‌شده از تنظیمات سرور؛ تغییر از این صفحه فعلاً غیرفعال است تا فاکتورها و اسکنر بلاک‌چین ناسازگار نشوند.";
-    card.append(title, address, hint);
+    const requestBtn = document.createElement("button");
+    requestBtn.type = "button";
+    requestBtn.className = "small-btn";
+    requestBtn.textContent = network.address ? "✏️ تغییر آدرس" : "➕ افزودن آدرس";
+    requestBtn.disabled = !Boolean(payload?.address_management_enabled);
+    requestBtn.addEventListener("click", () =>
+      openCryptoProposalEditor(String(network.network || ""), String(network.address || ""))
+    );
+    hint.textContent = !payload?.address_management_enabled
+      ? "تغییر آدرس فعلاً قفل است؛ باید قابلیت مدیریت امن روی سرور فعال شود."
+      : !network.address
+      ? "آدرس اولیه را اضافه کنید؛ پرداخت تا تأیید جداگانه خاموش می‌ماند."
+      : network.requires_bootstrap
+      ? "ابتدا نسخه آدرس را آماده‌سازی کنید؛ آدرس فعال هنوز از سرور خوانده می‌شود."
+      : "تغییر آدرس نیازمند ثبت درخواست، خاموش‌بودن پرداخت و تأیید نهایی است.";
+    card.append(title, address, hint, requestBtn);
+    if (payload?.production_rotation_enabled && network.requires_bootstrap) {
+      const prep = document.createElement("button");
+      prep.type = "button";
+      prep.className = "small-btn";
+      prep.textContent = "آماده‌سازی نسخه آدرس بدون تغییر مقصد";
+      prep.disabled = Boolean(payload.runtime_enabled);
+      prep.addEventListener("click", async () => {
+        const net = String(network.network || "");
+        const address = String(network.address || "");
+        if (!window.confirm("آماده‌سازی آدرس " + net + "؟ واریز باید خاموش باشد.")) return;
+        prep.disabled = true;
+        try {
+          await apiFetch("/mini-api/admin/super/crypto-address-prepare-production", {
+            method: "POST",
+            body: {
+              network: net, expected_current_address: address,
+              confirmation: "PREPARE_PRODUCTION_CRYPTO_DESTINATION",
+            },
+          });
+          await refreshSuperCryptoSettings();
+        } catch (e) {
+          setLocalError("superCryptoProposalHint", e);
+          prep.disabled = false;
+        }
+      });
+      card.append(prep);
+    }
     root.append(card);
   });
 }
@@ -9886,6 +10190,8 @@ async function boot() {
   bind("superBankCardSaveBtn", "click", () => saveSuperBankDestination().catch((e) => setLocalError("superBankCardsHint", e)));
   bind("superBankCardDeleteBtn", "click", () => deleteSuperBankDestination().catch((e) => setLocalError("superBankCardsHint", e)));
   bind("superCryptoAddressesRefreshBtn", "click", () => refreshSuperCryptoSettings().catch((e) => setLocalError("superCryptoHint", e)));
+  bind("superCryptoProposalCancelBtn", "click", closeCryptoProposalEditor);
+  bind("superCryptoProposalSubmitBtn", "click", () => submitCryptoProposal().catch((e) => setLocalError("superCryptoProposalHint", e)));
   bind("superCryptoToggleBtn", "click", () => toggleSuperCryptoSettings().catch((e) => setLocalError("superCryptoHint", e)));
   bind("superBankDepositToggleBtn", "click", () => toggleSuperBankDepositSettings().catch((e) => setLocalError("superBankDepositHint", e)));
   bind("superCryptoHealthBtn", "click", () => checkSuperCryptoHealth().catch((e) => setLocalError("superCryptoHint", e)));

@@ -1,4 +1,10 @@
 from __future__ import annotations
+from app.services.crypto_address_change import proposal_key, validate_crypto_destination, same_crypto_destination
+from app.services.crypto_rotation_readiness import assess_rotation
+from app.services.crypto_history_review import review_destination_history
+from app.services.crypto_retired_destinations import retain_retired_destination, retired_destination
+from app.services.crypto_destination_state import (rotation_enabled, disposable_rotation_enabled, production_rotation_enabled, rotate_locked, lock_destination_state, seed_destination_state, state_key)
+from app.services.crypto_chain_service import CryptoChainService
 from app.utils.messages import stored_rule, RULE_LINES, RULE_ERROR
 
 import asyncio
@@ -5668,15 +5674,36 @@ def _mini_super_crypto_status(db: Session) -> dict[str, Any]:
         "runtime_enabled": bool(status.get("runtime_enabled")),
         "configured": bool(status.get("configured")),
         "enabled": bool(status.get("enabled")),
+        "production_rotation_enabled": production_rotation_enabled(),
+        "address_management_enabled": production_rotation_enabled(),
         "networks": [
             {
                 "network": str(item.get("network") or ""),
                 "asset": str(item.get("asset") or ""),
                 "address": str(item.get("address") or ""),
-                "address_source": "server_environment",
+                "destination_version": item.get("destination_version"),
+                "requires_bootstrap": bool(item.get("requires_bootstrap")),
+                "address_source": (
+                    "versioned_production_database"
+                    if production_rotation_enabled() else
+                    ("versioned_disposable_database"
+                     if disposable_rotation_enabled() else "server_environment")
+                ),
                 "address_editable": False,
             }
             for item in options
+        ] + [
+            {
+                "network": network,
+                "asset": "USDT" if network == "TRON" else "TON",
+                "address": "",
+                "destination_version": None,
+                "requires_bootstrap": False,
+                "address_source": "unconfigured",
+                "address_editable": bool(production_rotation_enabled()),
+            }
+            for network in ("TRON", "TON")
+            if network not in {str(item.get("network") or "") for item in options}
         ],
     }
 
@@ -5710,7 +5737,23 @@ def mini_super_update_crypto_settings(
         )
 
     previous = bool(status_before["runtime_enabled"])
-    _setting_set_json(db, CRYPTO_RUNTIME_SETTING_KEY, bool(payload.enabled))
+    # Serialize runtime enable/disable with owner-only production activation.
+    # On enabling, verify versioned state for every configured network.
+    row = db.execute(
+        select(AppSetting).where(
+            AppSetting.k == CRYPTO_RUNTIME_SETTING_KEY
+        ).with_for_update()
+    ).scalar_one_or_none()
+    # Always acquire locks in the same order as activation: runtime first,
+    # then versioned destinations. Prevent cross-endpoint deadlocks.
+    if production_rotation_enabled() and payload.enabled:
+        for item in status_before["options"]:
+            lock_destination_state(db, str(item["network"]))
+    if row is None:
+        db.add(AppSetting(k=CRYPTO_RUNTIME_SETTING_KEY, v_json=bool(payload.enabled)))
+    else:
+        row.v_json = bool(payload.enabled)
+        db.add(row)
     AdminAuditService.record(
         db,
         admin=_mini_to_admin_identity(ident),
@@ -6091,3 +6134,578 @@ def mini_super_admin_revoke(
         "user_id": int(user.id),
         "tg_user_id": int(user.tg_user_id),
     }
+
+
+class MiniSuperCryptoAddressProposalIn(BaseModel):
+    network: Literal["TRON", "TON"]
+    address: str = Field(min_length=1, max_length=128)
+    expected_current_address: str = Field(min_length=1, max_length=128)
+    confirmation: Literal["REQUEST_ADDRESS_CHANGE"]
+
+
+class MiniSuperCryptoAddressActivateIn(BaseModel):
+    network: Literal["TRON", "TON"]
+    expected_version: int = Field(ge=1)
+    expected_current_address: str = Field(min_length=1, max_length=128)
+    proposed_address: str = Field(min_length=1, max_length=128)
+    confirmation: Literal["ACTIVATE_CRYPTO_ADDRESS_DISPOSABLE_ONLY"]
+
+
+class MiniSuperCryptoProductionInitialAddressIn(BaseModel):
+    network: Literal["TRON", "TON"]
+    address: str = Field(min_length=1, max_length=128)
+    confirmation: Literal["ADD_NEW_CRYPTO_DESTINATION_WITH_PAYMENTS_OFF"]
+
+
+class MiniSuperCryptoProductionSeedIn(BaseModel):
+    network: Literal["TRON", "TON"]
+    expected_current_address: str = Field(min_length=1, max_length=128)
+    confirmation: Literal["PREPARE_PRODUCTION_CRYPTO_DESTINATION"]
+
+
+class MiniSuperCryptoProductionActivateIn(BaseModel):
+    network: Literal["TRON", "TON"]
+    expected_version: int = Field(ge=1)
+    expected_current_address: str = Field(min_length=1, max_length=128)
+    proposed_address: str = Field(min_length=1, max_length=128)
+    confirmation: Literal["ACTIVATE_PRODUCTION_CRYPTO_DESTINATION"]
+
+
+def _mini_current_crypto_destination(db: Session, network: str) -> str | None:
+    """Use the persisted active version in experimental mode, not stale .env.
+
+    For Production, retain the current environment-based behavior. This
+    helper never enables wallet rotation or writes any setting.
+    """
+    options = (
+        CryptoDepositService.runtime_status(db).get("options", [])
+        if rotation_enabled()
+        else CryptoDepositService.configured_options()
+    )
+    return next(
+        (str(item["address"]) for item in options if item["network"] == network),
+        None,
+    )
+
+
+def get_mini_crypto_owner_identity(
+    ident: MiniAdminIdentity = Depends(get_mini_super_admin_identity),
+) -> MiniAdminIdentity:
+    if RBAC_OWNER_USER_ID is None:
+        raise HTTPException(status_code=503, detail="مالک اصلی برای مدیریت مقصد رمزارز تنظیم نشده است.")
+    if int(ident.user_id) != int(RBAC_OWNER_USER_ID):
+        raise HTTPException(status_code=403, detail="این عملیات فقط برای مالک اصلی مجاز است.")
+    return ident
+
+
+@router.get("/admin/super/crypto-address-proposals")
+def mini_super_crypto_address_proposals(
+    ident: MiniAdminIdentity = Depends(get_mini_crypto_owner_identity),
+    db: Session = Depends(get_db),
+):
+    _ = ident
+    items = []
+    experimental = disposable_rotation_enabled()
+    production = production_rotation_enabled()
+    versioned_options = (
+        CryptoDepositService.runtime_status(db).get("options", [])
+        if experimental or production else []
+    )
+    for network in ("TRON", "TON"):
+        raw = _setting_get_json(db, proposal_key(network))
+        if isinstance(raw, dict) and raw.get("status") == "PENDING_REVIEW":
+            active = next(
+                (item for item in versioned_options if item.get("network") == network),
+                None,
+            )
+            entry = {
+                "network": network,
+                "address": str(raw.get("address") or ""),
+                "status": "PENDING_REVIEW",
+                "created_at": str(raw.get("created_at") or ""),
+            }
+            if ((experimental or production) and active is not None
+                    and active.get("destination_version") is not None):
+                entry["expected_current_address"] = str(active["address"])
+                entry["expected_version"] = int(active["destination_version"])
+            items.append(entry)
+    return {
+        "items": items,
+        "activation_supported": experimental,
+        "production_activation_supported": production,
+    }
+
+
+@router.get("/admin/super/crypto-address-readiness")
+def mini_super_crypto_address_readiness(
+    network: Literal["TRON", "TON"],
+    ident: MiniAdminIdentity = Depends(get_mini_crypto_owner_identity),
+    db: Session = Depends(get_db),
+):
+    _ = ident
+    current = _mini_current_crypto_destination(db, network)
+    if current is None:
+        raise HTTPException(status_code=409, detail="این شبکه روی سرور پیکربندی نشده است.")
+    proposal = _setting_get_json(db, proposal_key(network))
+    if not isinstance(proposal, dict) or proposal.get("status") != "PENDING_REVIEW":
+        raise HTTPException(status_code=404, detail="درخواست تغییر آدرس باز وجود ندارد.")
+    return assess_rotation(
+        db, network=network, current_address=current,
+        proposed_address=str(proposal.get("address") or ""),
+    )
+
+
+@router.get("/admin/super/crypto-address-history-review")
+def mini_super_crypto_address_history_review(
+    network: Literal["TRON", "TON"],
+    ident: MiniAdminIdentity = Depends(get_mini_crypto_owner_identity),
+    db: Session = Depends(get_db),
+):
+    enforce_write_rate_limit(int(ident.user_id))
+    current = _mini_current_crypto_destination(db, network)
+    if current is None:
+        raise HTTPException(status_code=409, detail="آدرس این شبکه تنظیم نشده است.")
+    # Provider GETs and database SELECTs only. No activation or accounting call.
+    return review_destination_history(db, network=network, address=current)
+
+
+@router.post("/admin/super/crypto-address-proposals", status_code=201)
+def mini_super_propose_crypto_address(
+    payload: MiniSuperCryptoAddressProposalIn,
+    request: Request,
+    ident: MiniAdminIdentity = Depends(get_mini_crypto_owner_identity),
+    db: Session = Depends(get_db),
+):
+    """Record an audited proposal only; invoice generation and chain scanners remain unchanged."""
+    enforce_write_rate_limit(int(ident.user_id))
+    network = payload.network
+    current = _mini_current_crypto_destination(db, network)
+    if not current or current != payload.expected_current_address:
+        raise HTTPException(status_code=409, detail="آدرس فعلی تغییر کرده یا شبکه تنظیم نیست؛ دوباره بارگذاری کنید.")
+    try:
+        normalized = validate_crypto_destination(network, payload.address)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="آدرس شبکه نامعتبر است.") from None
+    try:
+        same_destination = same_crypto_destination(network, normalized, current)
+    except ValueError:
+        raise HTTPException(status_code=409, detail="آدرس فعلی معتبر نیست؛ تنظیمات شبکه نیازمند بررسی است.") from None
+    if same_destination:
+        raise HTTPException(status_code=409, detail="آدرس پیشنهادی با آدرس فعلی یکسان است.")
+
+    key = proposal_key(network)
+    row = db.execute(select(AppSetting).where(AppSetting.k == key).with_for_update()).scalar_one_or_none()
+    if row is not None and isinstance(row.v_json, dict) and row.v_json.get("status") == "PENDING_REVIEW":
+        raise HTTPException(status_code=409, detail="برای این شبکه یک درخواست باز وجود دارد؛ ابتدا آن را تعیین تکلیف کنید.")
+    proposal = {
+        "network": network,
+        "address": normalized,
+        "previous_address_sha256": hashlib.sha256(current.encode()).hexdigest(),
+        "status": "PENDING_REVIEW",
+        "created_at": datetime.utcnow().isoformat(timespec="microseconds"),
+        "requested_by": int(ident.user_id),
+    }
+    if row is None:
+        db.add(AppSetting(k=key, v_json=proposal))
+        db.flush()
+    else:
+        row.v_json = proposal
+        db.add(row)
+    AdminAuditService.record(
+        db,
+        admin=_mini_to_admin_identity(ident),
+        action="settings.update",
+        target_type="app_setting",
+        target_id=None,
+        request=request,
+        details={
+            "key": key,
+            "operation": "propose_only",
+            "network": network,
+            "destination_sha256": hashlib.sha256(normalized.encode()).hexdigest(),
+            "activation": False,
+        },
+    )
+    db.commit()
+    return {
+        "network": network,
+        "status": "PENDING_REVIEW",
+        "activation_supported": False,
+        "message": "درخواست ذخیره شد؛ آدرس فعال و اسکنر تغییر نکردند.",
+    }
+
+
+class MiniSuperCryptoCancelProposalIn(BaseModel):
+    network: Literal["TRON", "TON"]
+    expected_address: str = Field(min_length=1, max_length=128)
+    expected_created_at: str = Field(min_length=1, max_length=64)
+    confirmation: Literal["CANCEL_PENDING_CRYPTO_ADDRESS"]
+
+
+@router.post("/admin/super/crypto-address-proposals/cancel")
+def mini_super_cancel_crypto_proposal(
+    payload: MiniSuperCryptoCancelProposalIn,
+    request: Request,
+    ident: MiniAdminIdentity = Depends(get_mini_crypto_owner_identity),
+    db: Session = Depends(get_db),
+):
+    enforce_write_rate_limit(int(ident.user_id))
+    key = proposal_key(payload.network)
+    row = db.execute(select(AppSetting).where(AppSetting.k == key).with_for_update()).scalar_one_or_none()
+    proposal = row.v_json if row is not None and isinstance(row.v_json, dict) else {}
+    if (proposal.get("status") != "PENDING_REVIEW"
+            or proposal.get("address") != payload.expected_address
+            or proposal.get("created_at") != payload.expected_created_at):
+        raise HTTPException(status_code=409, detail="درخواست تغییر کرده یا بسته شده است؛ دوباره بارگذاری کنید.")
+    row.v_json = {**proposal, "status": "CANCELLED", "cancelled_by": int(ident.user_id),
+                  "cancelled_at": datetime.utcnow().isoformat(timespec="microseconds")}
+    AdminAuditService.record(
+        db, admin=_mini_to_admin_identity(ident), action="settings.update",
+        target_type="app_setting", target_id=None, request=request,
+        details={"key": key, "operation": "cancel_proposal", "network": payload.network,
+                 "activation": False},
+    )
+    db.commit()
+    return {"network": payload.network, "status": "CANCELLED", "activation": False}
+
+
+@router.get("/admin/super/crypto-late-review-experimental")
+def mini_super_crypto_late_review_experimental(
+    ident: MiniAdminIdentity = Depends(get_mini_crypto_owner_identity),
+    db: Session = Depends(get_db),
+):
+    """Read-only inbox; entries cannot be auto-approved or auto-credited."""
+    _ = ident
+    if not disposable_rotation_enabled():
+        raise HTTPException(status_code=409, detail="صف بررسی آزمایشی فقط روی دیتابیس مستقل در دسترس است.")
+    rows = db.execute(
+        select(AppSetting).where(AppSetting.k.like("crypto_late_review_v1:%"))
+        .order_by(AppSetting.updated_at.desc()).limit(100)
+    ).scalars().all()
+    items = [dict(row.v_json) for row in rows if isinstance(row.v_json, dict)]
+    return {"items": items, "auto_credit_supported": False, "total_returned": len(items)}
+
+
+@router.get("/admin/super/crypto-late-review-production")
+def mini_super_crypto_late_review_production(
+    ident: MiniAdminIdentity = Depends(get_mini_crypto_owner_identity),
+    db: Session = Depends(get_db),
+):
+    """Read-only historical transfer inbox, without manual/automatic credit."""
+    _ = ident
+    if not production_rotation_enabled():
+        raise HTTPException(status_code=409, detail="صف بررسی عملیاتی فعال نیست.")
+    rows = db.execute(
+        select(AppSetting).where(AppSetting.k.like("crypto_late_review_v1:%"))
+        .order_by(AppSetting.updated_at.desc()).limit(100)
+    ).scalars().all()
+    entries = [dict(row.v_json) for row in rows if isinstance(row.v_json, dict)]
+    return {
+        "items": entries,
+        "returned": len(entries),
+        "auto_credit_supported": False,
+        "manual_credit_supported": False,
+    }
+
+
+@router.post("/admin/super/crypto-address-activate-experimental")
+def mini_super_crypto_address_activate_experimental(
+    payload: MiniSuperCryptoAddressActivateIn,
+    request: Request,
+    ident: MiniAdminIdentity = Depends(get_mini_crypto_owner_identity),
+    db: Session = Depends(get_db),
+):
+    """An atomic activation rehearsal; physically impossible on production DB.
+
+    No production enablement flag is provided by this endpoint. It can only
+    run in the disposable MySQL test environment enforced by rotation_enabled.
+    """
+    if not disposable_rotation_enabled():
+        raise HTTPException(status_code=409, detail="فعال‌سازی فقط در پایگاه داده آزمایشی مستقل امکان‌پذیر است.")
+    enforce_write_rate_limit(int(ident.user_id))
+    network = payload.network
+    pending_key = proposal_key(network)
+    proposal_row = db.execute(
+        select(AppSetting).where(AppSetting.k == pending_key).with_for_update()
+    ).scalar_one_or_none()
+    if (proposal_row is None or not isinstance(proposal_row.v_json, dict)
+            or proposal_row.v_json.get("status") != "PENDING_REVIEW"):
+        raise HTTPException(status_code=409, detail="درخواست در انتظار تأیید وجود ندارد.")
+    proposal = dict(proposal_row.v_json)
+    proposed = validate_crypto_destination(network, payload.proposed_address)
+    if proposed != str(proposal.get("address") or ""):
+        raise HTTPException(status_code=409, detail="آدرس پیشنهادی با درخواست ثبت‌شده یکسان نیست.")
+    current = lock_destination_state(db, network)
+    if (current["address"] != payload.expected_current_address
+            or current["version"] != payload.expected_version):
+        raise HTTPException(status_code=409, detail="نسخه آدرس تغییر کرده است؛ دوباره بررسی کنید.")
+    if hashlib.sha256(current["address"].encode()).hexdigest() != proposal.get("previous_address_sha256"):
+        raise HTTPException(status_code=409, detail="درخواست به نسخه قبلی آدرس تعلق دارد.")
+    readiness = assess_rotation(
+        db, network=network, current_address=str(current["address"]),
+        proposed_address=proposed,
+    )
+    if (readiness["open_invoices"] or readiness["recent_closed_invoices"]
+            or readiness["needs_manual_review"]):
+        raise HTTPException(status_code=409, detail="فاکتور یا مورد بررسی حل‌نشده وجود دارد.")
+    # A historical invoice may still receive a late transfer. Until the
+    # historical-address scanner/review queue ships, require ZERO historical
+    # invoices referencing the former address (not merely zero open ones).
+    historical_count = int(db.execute(select(func.count(CryptoDepositRequest.id)).where(
+        CryptoDepositRequest.network == network,
+        CryptoDepositRequest.destination_address == str(current["address"]),
+    )).scalar_one() or 0)
+    if historical_count:
+        raise HTTPException(status_code=409, detail="برای آدرس قبلی سابقه فاکتور وجود دارد؛ اسکن قدیمی هنوز آماده نیست.")
+    updated = rotate_locked(
+        db, network=network, expected_version=int(payload.expected_version),
+        expected_address=str(current["address"]), new_address=proposed,
+    )
+    proposal_row.v_json = {**proposal, "status": "ACTIVATED_TEST_ONLY",
+                           "activated_by": int(ident.user_id),
+                           "activated_at": datetime.utcnow().isoformat(timespec="seconds"),
+                           "activated_version": updated["version"]}
+    db.add(proposal_row)
+    AdminAuditService.record(
+        db, admin=_mini_to_admin_identity(ident),
+        action="settings.update", target_type="app_setting", target_id=None,
+        request=request,
+        details={"operation": "experimental_crypto_address_rotation",
+                 "network": network, "old_version": current["version"],
+                 "new_version": updated["version"],
+                 "old_hash": hashlib.sha256(str(current["address"]).encode()).hexdigest(),
+                 "new_hash": hashlib.sha256(proposed.encode()).hexdigest(),
+                 "production_activation": False},
+    )
+    db.commit()
+    return {"ok": True, "network": network, "version": updated["version"],
+            "address": updated["address"], "production_activation": False}
+
+
+def _lock_frozen_production_crypto_runtime(db: Session) -> None:
+    """Lock the same setting used by the owner payment toggle."""
+    row = db.execute(
+        select(AppSetting).where(
+            AppSetting.k == CRYPTO_RUNTIME_SETTING_KEY
+        ).with_for_update()
+    ).scalar_one_or_none()
+    # A missing row has no lockable identity; require explicit disabled state.
+    if row is None:
+        raise HTTPException(
+            status_code=409,
+            detail="ابتدا واریز رمزارزی را از پنل مدیریت صریحاً خاموش کنید.",
+        )
+    value = row.v_json
+    if isinstance(value, dict):
+        value = value.get("enabled")
+    is_on = value.strip().lower() in {"1", "true", "yes", "on"} if isinstance(value, str) else bool(value)
+    if is_on:
+        raise HTTPException(
+            status_code=409,
+            detail="پیش از تغییر آدرس باید صدور فاکتور رمزارزی را غیرفعال کنید.",
+        )
+
+
+@router.post("/admin/super/crypto-address-prepare-production")
+def mini_super_crypto_address_prepare_production(
+    payload: MiniSuperCryptoProductionSeedIn,
+    request: Request,
+    ident: MiniAdminIdentity = Depends(get_mini_crypto_owner_identity),
+    db: Session = Depends(get_db),
+):
+    """Explicit bootstrap of the env destination into locked versioned state.
+
+    No switching occurs here; issuance stays paused throughout preparation.
+    """
+    if not production_rotation_enabled():
+        raise HTTPException(status_code=409, detail="حالت عملیاتی تغییر آدرس فعال نشده است.")
+    enforce_write_rate_limit(int(ident.user_id))
+    _lock_frozen_production_crypto_runtime(db)
+    current = next(
+        (str(item["address"]) for item in CryptoDepositService.configured_options()
+         if item["network"] == payload.network), None,
+    )
+    if current is None or current != payload.expected_current_address:
+        raise HTTPException(status_code=409, detail="آدرس اولیه سرور تغییر کرده است.")
+    # First bootstrap is immutable; a second request must not reset the version.
+    record = seed_destination_state(db, network=payload.network, address=current)
+    AdminAuditService.record(
+        db, admin=_mini_to_admin_identity(ident),
+        action="settings.update", target_type="app_setting", target_id=None,
+        request=request,
+        details={"operation": "prepare_production_crypto_destination",
+                 "network": payload.network, "version": 1,
+                 "address_sha256": hashlib.sha256(current.encode()).hexdigest()},
+    )
+    db.commit()
+    return {"ok": True, "network": payload.network, "version": record["version"],
+            "address": current, "activated": False}
+
+
+@router.post("/admin/super/crypto-address-initialize-production")
+def mini_super_crypto_address_initialize_production(
+    payload: MiniSuperCryptoProductionInitialAddressIn,
+    request: Request,
+    ident: MiniAdminIdentity = Depends(get_mini_crypto_owner_identity),
+    db: Session = Depends(get_db),
+):
+    """Owner-only first-time ADD, not rotation; only while payments are frozen.
+
+    Requires an exact production DB gate. Never writes an env file and never
+    enables invoicing, which reads this same versioned destination in runtime_status.
+    """
+    if not production_rotation_enabled():
+        raise HTTPException(status_code=409, detail="مدیریت آدرس‌های عملیاتی در سرور فعال نشده است.")
+    enforce_write_rate_limit(int(ident.user_id))
+    # On a truly blank launch, the runtime toggle setting does not exist yet.
+    # Create an explicitly OFF lockable row only when NO old invoice and NO
+    # env-configured receiving address exists. Otherwise require the owner
+    # to freeze issuance using the existing toggle first.
+    if db.get(AppSetting, CRYPTO_RUNTIME_SETTING_KEY) is None:
+        if CryptoDepositService.configured_options():
+            raise HTTPException(status_code=409, detail="ابتدا پرداخت رمزارزی را از پنل مدیریت خاموش کنید.")
+        any_invoice = int(db.execute(select(func.count(CryptoDepositRequest.id))).scalar_one() or 0)
+        if any_invoice:
+            raise HTTPException(status_code=409, detail="سابقه فاکتور وجود دارد؛ ابتدا پرداخت را صریحاً خاموش کنید.")
+        db.add(AppSetting(k=CRYPTO_RUNTIME_SETTING_KEY, v_json=False))
+        db.flush()
+    _lock_frozen_production_crypto_runtime(db)
+    network = payload.network
+    if (network == "TRON" and not cfg.CRYPTO_TRON_USDT_ENABLED
+            or network == "TON" and not cfg.CRYPTO_TON_ENABLED):
+        raise HTTPException(status_code=409, detail="شبکه انتخابی از تنظیمات سرور غیرفعال است.")
+    existing = db.execute(select(AppSetting).where(
+        AppSetting.k == state_key(network)
+    ).with_for_update()).scalar_one_or_none()
+    if existing is not None:
+        raise HTTPException(status_code=409, detail="آدرس این شبکه قبلاً اضافه شده؛ از مسیر تغییر آدرس استفاده کنید.")
+    historical = int(db.execute(select(func.count(CryptoDepositRequest.id)).where(
+        CryptoDepositRequest.network == network
+    )).scalar_one() or 0)
+    if historical:
+        raise HTTPException(status_code=409, detail="این شبکه سابقه فاکتور دارد؛ افزودن اولیه مجاز نیست.")
+    try:
+        address = validate_crypto_destination(network, payload.address)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="آدرس واردشده با شبکه انتخابی مطابقت ندارد.") from None
+    # Validate the receiving address is queryable before it can be selected.
+    try:
+        CryptoChainService.list_incoming(
+            network=network, destination_address=address,
+            since=datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=5),
+            include_pending=False,
+        )
+    except Exception as exc:
+        log.warning("first destination provider preflight failed: network=%s error_type=%s", network, type(exc).__name__)
+        raise HTTPException(status_code=503, detail="بررسی شبکه برای این آدرس موفق نبود؛ تغییری ثبت نشد.") from None
+    record = seed_destination_state(db, network=network, address=address)
+    AdminAuditService.record(
+        db, admin=_mini_to_admin_identity(ident),
+        action="settings.update", target_type="app_setting", request=request,
+        details={
+            "operation": "add_production_crypto_destination",
+            "network": network, "version": 1,
+            "address_sha256": hashlib.sha256(address.encode()).hexdigest(),
+            "payments_remain_disabled": True,
+        },
+    )
+    db.commit()
+    return {"ok": True, "network": network, "address": address,
+            "version": record["version"], "payments_enabled": False}
+
+
+@router.post("/admin/super/crypto-address-activate-production")
+def mini_super_crypto_address_activate_production(
+    payload: MiniSuperCryptoProductionActivateIn,
+    request: Request,
+    ident: MiniAdminIdentity = Depends(get_mini_crypto_owner_identity),
+    db: Session = Depends(get_db),
+):
+    """Frozen issuance, locked state and freshly reconciled history; no credits."""
+    if not production_rotation_enabled():
+        raise HTTPException(status_code=409, detail="تغییر آدرس عملیاتی فعال نیست.")
+    enforce_write_rate_limit(int(ident.user_id))
+    _lock_frozen_production_crypto_runtime(db)
+    network = payload.network
+    proposal_row = db.execute(
+        select(AppSetting).where(
+            AppSetting.k == proposal_key(network)
+        ).with_for_update()
+    ).scalar_one_or_none()
+    if (proposal_row is None or not isinstance(proposal_row.v_json, dict)
+            or proposal_row.v_json.get("status") != "PENDING_REVIEW"):
+        raise HTTPException(status_code=409, detail="درخواست تأییدنشده‌ای وجود ندارد.")
+    proposal = dict(proposal_row.v_json)
+    try:
+        proposed = validate_crypto_destination(network, payload.proposed_address)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="آدرس پیشنهادی نامعتبر است.") from None
+    if proposed != str(proposal.get("address") or ""):
+        raise HTTPException(status_code=409, detail="آدرس پیشنهادی با درخواست یکسان نیست.")
+    current = lock_destination_state(db, network)
+    if (current["version"] != payload.expected_version
+            or current["address"] != payload.expected_current_address
+            or proposal.get("previous_address_sha256")
+            != hashlib.sha256(str(current["address"]).encode()).hexdigest()):
+        raise HTTPException(status_code=409, detail="نسخه یا آدرس مبنا تغییر کرده است.")
+    readiness = assess_rotation(
+        db, network=network, current_address=str(current["address"]),
+        proposed_address=proposed,
+    )
+    if (readiness["open_invoices"] or readiness["recent_closed_invoices"]
+            or readiness["needs_manual_review"]):
+        raise HTTPException(
+            status_code=409,
+            detail="فاکتور باز یا حل‌نشده وجود دارد؛ قبل از فعال‌سازی باید بررسی شود.",
+        )
+    if retired_destination(db, network, proposed) is not None:
+        raise HTTPException(status_code=409, detail="استفاده مجدد از مقصد بازنشسته مجاز نیست.")
+    history = review_destination_history(db, network=network, address=str(current['address']), lock=True)
+    if history['status'] not in {'NO_HISTORY', 'REVIEWED_NO_DISCREPANCY'}:
+        raise HTTPException(status_code=409, detail="تطبیق سابقه کامل نشد یا مغایرت دارد؛ مقصد تغییر نکرد.")
+    # Verify the live provider can query the NEW account before committing
+    # its active destination. This is read-only and never credits a wallet.
+    try:
+        CryptoChainService.list_incoming(
+            network=network,
+            since=datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=5),
+            destination_address=proposed,
+            include_pending=False,
+        )
+    except Exception as exc:
+        log.warning("crypto destination provider preflight failed: network=%s error_type=%s", network, type(exc).__name__)
+        raise HTTPException(
+            status_code=503,
+            detail="بررسی سرویس بلاک‌چین برای آدرس جدید ناموفق بود؛ آدرس تغییر نکرد.",
+        ) from None
+    retain_retired_destination(db, network=network, address=str(current['address']),
+        version=int(current['version']), scan_since=history.get('scan_since') or
+        (datetime.now(timezone.utc)-timedelta(minutes=5)).isoformat())
+    updated = rotate_locked(
+        db, network=network, expected_version=payload.expected_version,
+        expected_address=payload.expected_current_address, new_address=proposed,
+    )
+    proposal_row.v_json = {
+        **proposal, "status": "ACTIVATED_PRODUCTION",
+        "activated_by": int(ident.user_id),
+        "activated_at": datetime.utcnow().isoformat(timespec="seconds"),
+        "activated_version": updated["version"],
+    }
+    db.add(proposal_row)
+    AdminAuditService.record(
+        db, admin=_mini_to_admin_identity(ident),
+        action="settings.update", target_type="app_setting", target_id=None,
+        request=request,
+        details={
+            "operation": "activate_production_crypto_destination",
+            "network": network, "old_version": current["version"],
+            "new_version": updated["version"],
+            "old_address_sha256": hashlib.sha256(str(current["address"]).encode()).hexdigest(),
+            "new_address_sha256": hashlib.sha256(proposed.encode()).hexdigest(),
+            "runtime_remained_disabled": True,
+        },
+    )
+    db.commit()
+    return {"ok": True, "network": network, "version": updated["version"],
+            "address": updated["address"], "production_activation": True,
+            "runtime_enabled": False}
