@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>مینی‌اپ دبرنای طوفان</title>
     <link rel="stylesheet" href="./styles.css?v=finance-reject-reasons-20261108" />
-    <link rel="stylesheet" href="./ux-v2.css?v=autopilot-start-countdown-v1" />
+    <link rel="stylesheet" href="./ux-v2.css?v=remaining-ux-v1" />
   </head>
   <body>
     <div id="appSplash" class="app-splash" aria-label="در حال آماده‌سازی مینی‌اپ">
@@ -1024,12 +1024,21 @@
           <button id="notificationMarkAllBtn" class="small-btn" type="button">همه خوانده شد</button>
           <button id="notificationRefreshBtn" class="small-btn primary" type="button">به‌روزرسانی</button>
         </div>
+        <p id="notificationSyncStatus" class="inbox-sync" role="status" aria-live="polite">هنوز همگام‌سازی نشده</p>
+        <div id="notificationFilters" class="inbox-filters" role="group" aria-label="فیلتر اعلان‌ها">
+          <button type="button" data-filter="all" aria-pressed="true">همه</button>
+          <button type="button" data-filter="unread" aria-pressed="false">نخوانده</button>
+          <button type="button" data-filter="game" aria-pressed="false">بازی‌ها</button>
+          <button type="button" data-filter="win" aria-pressed="false">بردها</button>
+          <button type="button" data-filter="payment" aria-pressed="false">مالی</button>
+          <button type="button" data-filter="system" aria-pressed="false">سیستم</button>
+        </div>
         <div id="notificationList" class="notification-list"></div>
       </div>
     </div>
 
     <div id="winnerModal" class="winner-modal" aria-hidden="true">
-      <div class="winner-modal-card glass">
+      <div class="winner-modal-card glass" role="dialog" aria-modal="true" aria-labelledby="winnerModalTitle" aria-describedby="winnerModalStatus">
         <div class="winner-modal-head">
           <h2 id="winnerModalTitle">اعلان برد</h2>
           <button id="winnerCloseBtn" class="icon-btn" type="button" aria-label="بستن">×</button>
@@ -1042,7 +1051,9 @@
         <p id="winnerModalAmount" class="winner-modal-amount"></p>
         <p id="winnerModalGame" class="winner-modal-game"></p>
         <p id="winnerModalStatus" class="winner-modal-status"></p>
+        <div id="winnerCardDetails" class="winner-card-shares"></div>
         <div class="winner-modal-actions">
+          <button id="winnerGameBtn" class="small-btn" type="button">مشاهده بازی</button>
           <button id="winnerWalletBtn" class="small-btn primary" type="button">مشاهده در کیف پول</button>
           <button id="winnerDismissBtn" class="small-btn" type="button">بستن</button>
         </div>
@@ -1171,6 +1182,6 @@
     <div id="miniToast" class="mini-toast hidden" role="status" aria-live="polite"></div>
 
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="./app.js?v=autopilot-start-countdown-v1" type="module"></script>
+    <script src="./app.js?v=remaining-ux-v1" type="module"></script>
   </body>
 </html>

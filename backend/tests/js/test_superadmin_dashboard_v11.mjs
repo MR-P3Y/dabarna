@@ -10,14 +10,16 @@ const html = readFileSync(join(mini, "index.html"), "utf8");
 const source = readFileSync(join(mini, "app.js"), "utf8");
 const css = readFileSync(join(mini, "ux-v2.css"), "utf8");
 
-new vm.Script(source, { filename: "app.js" });
+// app.js is a browser ES module; parse its body here, with module syntax checked by node --check.
+assert.match(source, /import \* as experience from "\.\/experience\.mjs\?v=remaining-ux-v1"/);
+new vm.Script(source.replace(/^import .*;\r?\n/gm, ""), { filename: "app.js" });
 assert.match(html, /id="adminOpsHeading"/);
 assert.match(html, /id="adminOpsStatus".*data-state="loading"/);
 assert.match(html, /id="adminOpsUpdatedAt"/);
 assert.match(html, /id="adminOpsDashboard"[^>]*aria-busy="true"/);
 assert.match(html, /id="adminOpsSuperJump" class="hidden"/);
-assert.match(html, /app\.js\?v=autopilot-start-countdown-v1/);
-assert.match(html, /ux-v2\.css\?v=autopilot-start-countdown-v1/);
+assert.match(html, /app\.js\?v=remaining-ux-v1/);
+assert.match(html, /ux-v2\.css\?v=remaining-ux-v1/);
 assert.match(source, /id === "superAdminSection" && !state\.admin\.canManageSuperSettings/);
 assert.match(source, /document\.visibilityState === "hidden"/);
 assert.match(source, /ADMIN_OPS_POLL_INTERVAL_MS = 45_000/);

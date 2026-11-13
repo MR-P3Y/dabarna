@@ -213,6 +213,7 @@ class RealNotifierWiringTests(unittest.IsolatedAsyncioTestCase):
         send_user_start = AsyncMock(return_value=True)
         send_user_end = AsyncMock(return_value=True)
         send_user_created = AsyncMock(return_value=True)
+        send_lane_start = AsyncMock(return_value=True)
 
         def latest(events, kind):
             return next((e for e in events if e["kind"] == kind), None)
@@ -226,6 +227,7 @@ class RealNotifierWiringTests(unittest.IsolatedAsyncioTestCase):
             "_send_user_game_started_notice": send_user_start,
             "_send_user_game_ended_notice": send_user_end,
             "_send_user_game_created_notice": send_user_created,
+            "_send_game_started_to_lane": send_lane_start,
         }
         exec(compile(ast.fix_missing_locations(module), str(source), "exec"), namespace)
         processor = namespace["_process_game_lifecycle_reports"]
@@ -238,6 +240,8 @@ class RealNotifierWiringTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(send_admin_end.await_count, 1)
         self.assertEqual(send_user_end.await_count, 1)
         self.assertEqual(send_user_created.await_count, 1)
+        send_lane_start.assert_awaited_once()
+        self.assertEqual(notify_store.get_event_marker(42, "GAME_STARTED_NOTICE_LANE"), 11)
         self.assertEqual(notify_store.get_event_marker(42, "GAME_STARTED_NOTICE_ADMIN"), 0)
         self.assertEqual(notify_store.get_event_marker(42, "GAME_STARTED_NOTICE_USER"), 11)
 
@@ -249,7 +253,7 @@ class RealNotifierWiringTests(unittest.IsolatedAsyncioTestCase):
         )
         self.assertEqual(send_admin_start.await_count, 2)
         for mock in (send_admin_end, send_user_start, send_user_end,
-                     send_user_created):
+                     send_user_created, send_lane_start):
             mock.assert_awaited_once()
         self.assertEqual(notify_store.get_event_marker(42, "GAME_STARTED_NOTICE_ADMIN"), 11)
 

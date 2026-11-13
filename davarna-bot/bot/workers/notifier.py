@@ -567,7 +567,8 @@ def _autopilot_countdown_notice_state(game: dict, *, now_ts: float | None = None
     if scheduled is None:
         return None
     left = int(math.ceil(scheduled.timestamp() - (time.time() if now_ts is None else now_ts)))
-    if not 0 < left <= max(5, _to_int(game.get("countdown_seconds"), 30)):
+    notice_window = _to_int(game.get("announce_before_seconds"), 0) or _to_int(game.get("countdown_seconds"), 30)
+    if not 0 < left <= max(5, min(notice_window, 86400)):
         return None
     return scheduled.isoformat(), left
 
@@ -601,7 +602,10 @@ async def _notify_autopilot_start_countdown(bot: Bot, *, game_id: int, report: d
     # one in public announcements. A failure in one never duplicates the other.
     delivered = True
     expires_at = datetime.fromisoformat(schedule_key).timestamp()
-    destinations = ("game",) if topic == user_topic_id("announce") else ("game", "announce")
+    destinations = ["game"] if topic == user_topic_id("announce") else ["game", "announce"]
+    start_topic = user_topic_id("game_start")
+    if start_topic and start_topic not in {topic, user_topic_id("announce")}:
+        destinations.append("game_start")
     for destination in destinations:
         marker_key = f"autopilot_countdown_notice:{int(game_id)}:{destination}"
         if get_meta_marker(marker_key, "") == schedule_key:
@@ -614,7 +618,7 @@ async def _notify_autopilot_start_countdown(bot: Bot, *, game_id: int, report: d
             )
         else:
             sent = await send_to_user_topic(
-                bot, name="announce", text=message, parse_mode="HTML",
+                bot, name=destination, text=message, parse_mode="HTML",
                 reply_markup=markup, disable_notification=True, expires_at=expires_at,
             )
         if sent:

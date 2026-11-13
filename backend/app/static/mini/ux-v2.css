@@ -1101,3 +1101,90 @@ html[data-theme="light"] .autopilot-start-clock-inner { background: #f0f8ff; }
 @media (prefers-reduced-motion: reduce) {
   .autopilot-start-clock, .autopilot-start-clock-ring, .autopilot-start-clock-fill { animation: none; transition: none; }
 }
+/* Notification and winner workspace: one visual vocabulary, no fabricated live data. */
+.notification-panel, .winner-modal-card, .admin-winner-dialog {
+  --surface-ink: #eef4ff;
+  --surface-muted: #b8c7df;
+  --surface-line: rgba(150,177,218,.24);
+  --surface-card: rgba(25,43,68,.86);
+  color: var(--surface-ink);
+  background: linear-gradient(155deg,#142640,#0d1729);
+  border: 1px solid var(--surface-line);
+  border-radius: 26px;
+  box-shadow: 0 24px 90px rgba(0,0,0,.4);
+  max-height: calc(100dvh - 36px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  animation: experience-enter .2s ease-out;
+}
+.notification-panel { width: min(720px,100%); padding: 24px; display:flex; flex-direction:column; gap:16px; }
+.notification-head { align-items:flex-start; gap:16px; }
+.notification-head h2 { font-size:22px; margin:0 0 7px; }
+.notification-head p, .inbox-sync, .notification-item small { color:var(--surface-muted); }
+.inbox-sync { margin:0; font-size:11px; line-height:1.9; }
+.inbox-sync[data-state="error"] { color:#ffc98a; }
+.inbox-filters { display:flex; flex-wrap:wrap; gap:7px; }
+.inbox-filters button { padding:9px 14px; min-height:44px; border:1px solid var(--surface-line); border-radius:100px; background:transparent; color:var(--surface-muted); font:inherit; font-size:12px; cursor:pointer; }
+.inbox-filters button[aria-pressed="true"] { background:#a4e9df; border-color:#a4e9df; color:#102d35; font-weight:800; }
+.notification-list { display:grid; gap:12px; min-height:120px; overflow-y:auto; }
+.notification-item.inbox-card { display:block; position:relative; padding:18px; border:1px solid var(--surface-line); background:var(--surface-card); border-radius:18px; min-width:0; overflow-wrap:anywhere; }
+.inbox-card.is-unread { border-inline-start:3px solid #83d9ca; }
+.inbox-card.is-read { opacity:1; }
+.inbox-card-top { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:10px; }
+.inbox-type { color:#a4e9df; font-size:11px; font-weight:800; letter-spacing:.2px; }
+.category-win .inbox-type { color:#f5cf84; }
+.category-payment .inbox-type { color:#c3b4fa; }
+.notification-item-main strong { display:block; font-size:15px; line-height:1.9; }
+.notification-item-main p { color:var(--surface-muted); margin:7px 0; line-height:1.9; font-size:12px; }
+.notification-status { font-size:10px; padding:4px 8px; border-radius:8px; background:rgba(140,172,207,.12); color:var(--surface-muted); }
+.notification-item-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:13px; }
+.notification-panel .small-btn, .winner-modal-card .small-btn, .admin-winner-dialog .small-btn { min-height:44px; border-radius:12px; }
+.inbox-game-facts { display:flex; gap:6px; flex-wrap:wrap; margin-top:10px; }
+.inbox-game-facts span { font-size:11px; padding:5px 9px; border-radius:8px; background:rgba(140,172,207,.1); }
+.inbox-empty { min-height:200px; display:grid; place-content:center; text-align:center; gap:12px; padding:24px; }
+.inbox-empty > span { font-size:42px; color:#83d9ca; }
+.inbox-empty p { font-size:12px; line-height:1.9; margin:0; color:var(--surface-muted); }
+.inbox-skeleton { display:grid; gap:12px; }
+.inbox-skeleton i { display:block; min-height:100px; background:linear-gradient(100deg,rgba(130,157,204,.08),rgba(130,157,204,.2),rgba(130,157,204,.08)); background-size:200% 100%; animation:experience-loading 1.5s linear infinite; border-radius:16px; }
+.winner-modal-card { width:min(520px,100%); padding:26px; }
+.winner-modal-kind { color:#f5cf84; font-size:17px; font-weight:800; }
+.winner-modal-amount { color:var(--surface-ink); font-size:clamp(20px,5vw,32px); font-weight:900; line-height:1.7; overflow-wrap:anywhere; }
+.winner-modal-status, .winner-settlement-note { color:var(--surface-muted); font-size:12px; line-height:1.9; }
+.winner-card-shares { display:grid; gap:8px; margin:18px 0; max-height:200px; overflow:auto; }
+.winner-card-share { display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; border:1px solid var(--surface-line); background:var(--surface-card); border-radius:12px; padding:12px; font-size:12px; }
+.winner-modal-actions { display:flex; flex-wrap:wrap; gap:8px; }
+.admin-winner-dialog { width:min(800px,100%); padding:24px; display:block; }
+.admin-winner-dialog h3 { padding-inline-end:52px; min-height:44px; padding-top:10px; }
+.admin-winner-dialog > .modal-close { position:absolute; top:16px; left:16px; width:44px; height:44px; border:1px solid var(--surface-line); background:var(--surface-card); color:var(--surface-ink); border-radius:12px; cursor:pointer; font-size:22px; }
+.admin-winner-body { display:block; overflow:visible; }
+.admin-winner-list { max-height:none; overflow:visible; margin:16px 0; }
+.admin-winner-row span, .admin-winner-row strong { direction:rtl; }
+html[data-theme="light"] .admin-winner-dialog .small-btn:not(.primary) { background:#edf3f9; color:#173047; border-color:#c6d5e5; }
+.admin-winner-summary { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+.admin-winner-summary > div { padding:13px; border:1px solid var(--surface-line); border-radius:13px; background:var(--surface-card); }
+.admin-winner-summary span { color:var(--surface-muted); font-size:11px; }
+.admin-winner-summary strong { display:block; font-size:14px; margin-top:6px; overflow-wrap:anywhere; }
+.admin-winner-list { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr)); gap:12px; }
+.admin-winner-row { display:grid; gap:8px; padding:16px; border:1px solid var(--surface-line); border-radius:16px; background:var(--surface-card); overflow-wrap:anywhere; }
+.admin-winner-row > span { color:var(--surface-muted); font-size:12px; }
+.admin-winner-row > .winner-share { color:#a4e9df; font-size:15px; font-weight:800; }
+.admin-winner-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:18px; }
+.notification-panel :focus-visible, .winner-modal-card :focus-visible, .admin-winner-dialog :focus-visible { outline:3px solid #70cbc1; outline-offset:3px; }
+html[data-theme="light"] .notification-panel, html[data-theme="light"] .winner-modal-card, html[data-theme="light"] .admin-winner-dialog { --surface-ink:#173047; --surface-muted:#4f657c; --surface-line:#d6e2ed; --surface-card:#f3f7fb; background:#fff; box-shadow:0 24px 90px rgba(20,49,78,.2); }
+html[data-theme="light"] .inbox-type, html[data-theme="light"] .admin-winner-row > .winner-share { color:#186e65; }
+html[data-theme="light"] .category-win .inbox-type, html[data-theme="light"] .winner-modal-kind { color:#806016; }
+html[data-theme="light"] .category-payment .inbox-type { color:#7050a2; }
+html[data-theme="light"] .inbox-sync[data-state="error"] { color:#9b4b13; }
+@keyframes experience-enter { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+@keyframes experience-loading { to { background-position:-200% 0; } }
+@media(max-width:480px) {
+  .notification-center, .winner-modal, .admin-winner-modal { padding:12px; }
+  .notification-panel, .winner-modal-card, .admin-winner-dialog { padding:18px; border-radius:21px; }
+  .notification-item.inbox-card { padding:14px; }
+  .notification-head h2 { font-size:19px; }
+  .admin-winner-summary { grid-template-columns:1fr 1fr; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .notification-panel, .winner-modal-card, .admin-winner-dialog, .inbox-skeleton i, .winner-graphic, .winner-graphic * { animation:none!important; transition:none!important; }
+}

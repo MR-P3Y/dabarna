@@ -145,6 +145,32 @@ class CountdownNoticeTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("شروع شد", kw["text"])
         self.assertIn("هر <b>5 ثانیه</b>", kw["text"])
 
+    async def test_advance_window_uses_existing_deadline_without_promising_five_minutes(self):
+        now = datetime.now(timezone.utc)
+        game = {**self.game, "countdown_seconds": 600, "announce_before_seconds": 300,
+                "scheduled_start_at": (now + timedelta(seconds=301)).isoformat()}
+        self.assertIsNone(notifier._autopilot_countdown_notice_state(game, now_ts=now.timestamp()))
+        game["scheduled_start_at"] = (now + timedelta(seconds=290)).isoformat()
+        self.assertEqual(notifier._autopilot_countdown_notice_state(game, now_ts=now.timestamp())[1], 290)
+        game["scheduled_start_at"] = (now + timedelta(seconds=25)).isoformat()
+        self.assertEqual(notifier._autopilot_countdown_notice_state(game, now_ts=now.timestamp())[1], 25)
+        game["countdown_enabled"] = False
+        self.assertIsNone(notifier._autopilot_countdown_notice_state(game, now_ts=now.timestamp()))
+
+    async def test_optional_start_topic_is_distinct_and_acknowledged(self):
+        bot = AsyncMock()
+        with (
+            tempfile.TemporaryDirectory() as tmp,
+            patch.object(notify_store, "_STORE_PATH", Path(tmp) / "acks.json"),
+            patch.object(settings, "USER_FORUM_CHAT_ID", self.group),
+            patch.object(settings, "USER_TOPIC_GAME_LOW_ID", 6),
+            patch.object(settings, "USER_TOPIC_ANNOUNCE_ID", 3),
+            patch.object(settings, "USER_TOPIC_GAME_START_ID", 55),
+        ):
+            self.assertTrue(await notifier._notify_autopilot_start_countdown(bot, game_id=91, report=self.report))
+            self.assertTrue(await notifier._notify_autopilot_start_countdown(bot, game_id=91, report=self.report))
+            self.assertEqual([c.kwargs["message_thread_id"] for c in bot.send_message.await_args_list], [6, 3, 55])
+
 
 if __name__ == "__main__":
     unittest.main()
