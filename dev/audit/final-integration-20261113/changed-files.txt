@@ -60,6 +60,12 @@ davarna-bot/bot/routers/super_admin.py
 davarna-bot/bot/services/api_client.py
 davarna-bot/bot/states/super_admin.py
 davarna-bot/tests/test_crypto_wallet_owner_ui.py
+dev/audit/admin-editor-20261114/report.md
+dev/audit/admin-editor-20261114/screenshots/editor-light-mobile.png
+dev/audit/admin-editor-20261114/screenshots/result.json
+dev/audit/admin-editor-20261114/screenshots/system-clocks-dark-mobile.png
+dev/audit/admin-editor-20261114/screenshots/system-clocks-light-desktop.png
+dev/audit/admin-editor-20261114/screenshots/system-clocks-light-mobile.png
 dev/audit/autopilot-pacing-20261113/report.md
 dev/audit/autopilot-pacing-20261113/screenshots/admin-pacing-mobile.png
 dev/audit/autopilot-pacing-20261113/screenshots/result.json
@@ -70,6 +76,15 @@ dev/audit/crypto-current-20261112/history-followup-20261113.md
 dev/audit/crypto-current-20261112/report.md
 dev/audit/crypto-current-20261112/screenshots/owner-crypto-mobile.png
 dev/audit/final-integration-20261113/candidate-images.json
+dev/audit/final-integration-20261113/changed-files.txt
+dev/audit/final-integration-20261113/logs/final-integration-backend.txt
+dev/audit/final-integration-20261113/logs/final-integration-bot.txt
+dev/audit/final-integration-20261113/logs/final-integration-image-backend.txt
+dev/audit/final-integration-20261113/logs/final-integration-image-bot.txt
+dev/audit/final-integration-20261113/logs/final-integration-image-smoke.txt
+dev/audit/final-integration-20261113/logs/final-integration-lifecycle-mysql.txt
+dev/audit/final-integration-20261113/logs/final-integration-schema-rbac.txt
+dev/audit/final-integration-20261113/logs/final-integration-wallet-mysql.txt
 dev/audit/final-integration-20261113/report.md
 dev/audit/remaining-20261111/candidate-images.json
 dev/audit/remaining-20261111/deployment-verification.json
@@ -77,6 +92,7 @@ dev/audit/remaining-20261111/deployment.md
 dev/audit/remaining-20261111/prs.md
 dev/audit/remaining-20261111/release-plan.md
 dev/audit/remaining-20261111/report.md
+dev/qa/admin-autopilot-regression-browser.mjs
 dev/qa/autopilot-pacing-browser.mjs
 dev/qa/build_final_candidate.py
 dev/qa/crypto-wallet-browser.mjs

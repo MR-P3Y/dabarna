@@ -105,4 +105,4 @@ test_mini_ops_dashboard_rbac_http.py::OpsDashboardHttpRBAC::test_game_and_regula
     "server_time": datetime.utcnow().isoformat(timespec="seconds"),
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-301 passed, 4 skipped, 64 warnings, 104 subtests passed in 23.03s
+301 passed, 4 skipped, 64 warnings, 104 subtests passed in 19.16s

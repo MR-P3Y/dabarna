@@ -3,19 +3,19 @@
   "images": [
     {
       "service": "backend",
-      "tag": "dabarna-backend:final-512e62e",
-      "image_id": "sha256:af0445aaf7ec6fb5736194b3f39bafdfa22490769207e43021245a0e18420572",
+      "tag": "docker.io/library/dabarna-backend:final-a5773b3",
+      "image_id": "sha256:95d43bb11df3125933592250bdb5c23c9c6abecffbd320859a97064060d08aa4",
       "parent_image_id": "sha256:64556bf2edb7babdb5b7885825ec325d3905c4141931e31f4a94fb245e31812b",
       "verified_source_files": 114,
-      "source_commit": "512e62e8e89fd858a2a61915029533e6fa94cf36"
+      "source_commit": "a5773b36c043a4063f65c93a43f756ae38ac7fca"
     },
     {
       "service": "bot",
-      "tag": "dabarna-bot:final-512e62e",
-      "image_id": "sha256:ed9439a6008752456d585525fa8bc77649d00a90b5640c024f9b755c010bda41",
+      "tag": "docker.io/library/dabarna-bot:final-a5773b3",
+      "image_id": "sha256:fc9f74a517cf400d41995635169230d44b67cea66831abe742b70f93f67ded65",
       "parent_image_id": "sha256:d947a81ae03c8d79fa6bca865fd65358886e28a6458f8a9993cc5aadcd97f96c",
       "verified_source_files": 85,
-      "source_commit": "512e62e8e89fd858a2a61915029533e6fa94cf36"
+      "source_commit": "a5773b36c043a4063f65c93a43f756ae38ac7fca"
     }
   ]
 }
