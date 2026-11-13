@@ -19,3 +19,5 @@
 آزمون ابتدا نشان داد signature درattribute HTML درست ذخیره نمی‌شود؛ به‌جایJSON داخلHTML، اکنونdataset مستقیماًرویDOM تنظیم می‌شود. همانassertion به‌روزرسانی داده تمیز حفظ شد و اجرای نهایی موفق بود. پس ازاصلاح، مرورگرهایpacing وcrypto وهر11مجموعهJS هم دوباره موفق شدند. هیچ تستی برای پوشاندن شکست حذف نشد.
 
 فایل تست: `dev/qa/admin-autopilot-regression-browser.mjs`. شواهد تصویری وresult.json در `screenshots/`.
+
+ساخت Image تازه ابتدا به خطای resolve برچسب کوتاه Docker محلی برخورد کرد. با reference کامل docker.io/library و حفظ کنترل SHA دقیق parent، ساخت موفق شد؛ Imageهای final-a5773b3 دوباره301 تستBackend و73 تستBot وsmoke را گذراندند. هیچImage سرور تغییر نکرد.
