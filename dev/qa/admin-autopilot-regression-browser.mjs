@@ -122,4 +122,3 @@ try {
  fs.writeFileSync(path.join(output,'result.json'),JSON.stringify({result:'PASS',mockApiCalls:calls,mockedWrites:writes.length,realNetworkRequests:0,javascriptErrors:errors.length,scenarios:['open and nested details','clean refresh','focus and caret','unsaved drafts','failed refresh','late GET after save','edits during save','per-level save','manual refresh','permission revocation','light and dark mobile/desktop']},null,2));
  console.log('PASS: theme, stable details/focus/caret/drafts, failure recovery, stale GET, concurrent edits, per-level save and revoked permission; two mocked saves, zero external traffic');
 } finally {await browser.close();await new Promise(resolve=>server.close(resolve));}
-
