@@ -55,7 +55,7 @@ class MySQLFinanceConcurrencyTests(unittest.TestCase):
         with cls.engine.connect() as conn:
             name = conn.execute(text("SELECT DATABASE()")).scalar_one()
             revision = conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
-            if name != TEST_DB or revision != "20261104_0011":
+            if name != TEST_DB or revision != "20261113_0013":
                 cls.engine.dispose()
                 raise RuntimeError("SAFETY STOP: unexpected DB or migration version")
         print(f"Concurrent tests enabled only for {TEST_DB} ({revision})")
