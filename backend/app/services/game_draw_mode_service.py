@@ -10,7 +10,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.models.game import Game, GameAutoDraw, GameCalledNumber
-from app.services.game_auto_draw_service import AUTO_DRAW_INTERVALS
+from app.services.game_auto_draw_service import allowed_draw_intervals
 from app.services.game_event_service import GameEventService
 
 
@@ -81,8 +81,8 @@ class GameDrawModeService:
         ).scalar_one_or_none()
 
         if mode == DRAW_MODE_AUTO:
-            if interval_seconds is None or int(interval_seconds) not in AUTO_DRAW_INTERVALS:
-                raise HTTPException(status_code=400, detail="interval_seconds must be one of 5, 8, 10, 15")
+            if interval_seconds is None or int(interval_seconds) not in allowed_draw_intervals(game):
+                raise HTTPException(status_code=400, detail="فاصله اعلام عدد برای قانون و ساختار این بازی مجاز نیست.")
             interval = int(interval_seconds)
             if (
                 str(game.draw_mode or "").upper() == DRAW_MODE_AUTO
@@ -188,6 +188,9 @@ class GameDrawModeService:
         return {
             "game_id": int(game.id),
             "game_status": str(game.status),
+            "game_rule": game.game_rule,
+            "card_layout_version": game.card_layout_version,
+            "allowed_intervals": list(allowed_draw_intervals(game)),
             "tg_group_id": int(game.tg_group_id),
             "tg_topic_id": int(game.tg_topic_id) if game.tg_topic_id is not None else None,
             "card_price": int(game.card_price),

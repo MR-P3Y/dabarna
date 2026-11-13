@@ -18,6 +18,7 @@ from app.models.wallet import Wallet, WalletTx
 from app.models.settings import AppSetting
 from sqlalchemy.exc import IntegrityError as SAIntegrityError
 from app.services.game_event_service import GameEventService
+from app.services.game_auto_draw_service import allowed_draw_intervals
 from app.services.wallet_service import WalletService
 from app.services.game_autopilot_config_service import (
     DEFAULT_COMMISSION_RATE,
@@ -567,7 +568,7 @@ class GameService:
                 )
             interval = int(game.draw_interval_seconds or 0)
             sequence = auto_control.sequence_json if auto_control is not None and isinstance(auto_control.sequence_json, list) else []
-            if interval not in {5, 8, 10, 15}:
+            if interval not in allowed_draw_intervals(game):
                 raise HTTPException(status_code=400, detail="valid auto draw interval must be selected before game start")
             if (
                 auto_control is None

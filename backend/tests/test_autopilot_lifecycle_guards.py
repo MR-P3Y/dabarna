@@ -115,12 +115,14 @@ class AutopilotLifecycleGuardTests(unittest.TestCase):
         start.assert_not_called()
 
     def test_start_before_countdown_expires_is_blocked(self):
+        self.game.autopilot_ready_at = self.now - timedelta(seconds=20)
         self.game.scheduled_start_at = self.now + timedelta(seconds=10)
         result, _, _, start = self.manage(2)
         self.assertEqual(result, "countdown_wait")
         start.assert_not_called()
 
     def test_two_players_start_after_countdown_with_stable_idempotency_key(self):
+        self.game.autopilot_ready_at = self.now - timedelta(seconds=31)
         self.game.scheduled_start_at = self.now - timedelta(seconds=1)
         result, _, _, start = self.manage(2)
         self.assertEqual(result, "started")

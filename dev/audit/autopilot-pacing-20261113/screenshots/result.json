@@ -1,0 +1,7 @@
+{
+  "result": "PASS",
+  "mockGetCalls": 8,
+  "writeRequests": 0,
+  "javascriptErrors": 0,
+  "productionRequests": 0
+}

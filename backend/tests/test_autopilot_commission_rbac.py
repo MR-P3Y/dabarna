@@ -166,6 +166,30 @@ class AutopilotCommissionRbacTests(unittest.TestCase):
             self.assertEqual(self.row.draw_interval_seconds, 10)
         self.assertEqual(self.db.commit.call_count, 2)
 
+    def test_admin_controls_countdown_with_bounds(self):
+        for path in ('/admin/autopilot/config/LOW','/mini-api/admin/autopilot/config/LOW'):
+            for seconds in (5,45,600):
+                with self.subTest(path=path,seconds=seconds):
+                    self.status(path,200,{'countdown_seconds':seconds})
+                    self.assertEqual(self.row.countdown_seconds,seconds)
+            for seconds in (4,601):
+                before=self.db.commit.call_count
+                self.status(path,400,{'countdown_seconds':seconds})
+                self.assertEqual(self.db.commit.call_count,before)
+
+    def test_fast_interval_permission_depends_on_rule(self):
+        for path in ('/admin/autopilot/config/LOW','/mini-api/admin/autopilot/config/LOW'):
+            for rule in ('LINE','FULL_CARD','LEGACY'):
+                self.row.game_rule=rule
+                for seconds in (2,3,4):
+                    with self.subTest(path=path,rule=rule,seconds=seconds):
+                        before=self.db.commit.call_count
+                        self.status(path,200 if rule=='FULL_CARD' else 400,{'draw_interval_seconds':seconds})
+                        if rule=='FULL_CARD':
+                            self.assertEqual(self.row.draw_interval_seconds,seconds)
+                        else:
+                            self.assertEqual(self.db.commit.call_count,before)
+
 
 if __name__ == "__main__":
     unittest.main()

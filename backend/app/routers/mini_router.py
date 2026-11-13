@@ -109,7 +109,8 @@ from app.schemas.crypto import (
 from app.services.finance_service import FinanceService
 from app.services.game_event_service import GameEventService
 from app.services.game_service import GameService
-from app.services.game_auto_draw_service import AUTO_DRAW_INTERVALS, GameAutoDrawService
+from app.services.game_auto_draw_service import FULL_CARD_DRAW_INTERVALS, GameAutoDrawService
+from app.services.game_automation_timeline import automation_timeline
 from app.services.game_draw_mode_service import GameDrawModeService
 from app.services.game_autopilot_config_service import GameAutopilotConfigService
 from app.services.wallet_service import WalletService
@@ -1609,7 +1610,14 @@ def list_games(
     return MiniGameListOut(
         total=int(total or 0), limit=int(limit), offset=int(offset), items=items,
         server_time_utc=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        automation=automation_timeline(db),
     )
+
+
+@router.get("/automation/timeline")
+def mini_automation_timeline(user_id: int = Depends(get_mini_user_id), db: Session = Depends(get_db)):
+    require_user_id_not_restricted(db, int(user_id), "ACTIVE_GAMES")
+    return {"automation":automation_timeline(db),"server_time_utc":datetime.now(timezone.utc).isoformat()}
 
 
 @router.get("/dashboard/insights", response_model=MiniDashboardInsightsOut)
@@ -4474,8 +4482,8 @@ def mini_admin_auto_draw_start(
     db: Session = Depends(get_db),
 ):
     _mini_require_game_manage_access(db, int(game_id), ident)
-    if int(payload.interval_seconds) not in AUTO_DRAW_INTERVALS:
-        raise HTTPException(status_code=400, detail="فاصله اعلام باید یکی از ۵، ۸، ۱۰ یا ۱۵ ثانیه باشد.")
+    if int(payload.interval_seconds) not in FULL_CARD_DRAW_INTERVALS:
+        raise HTTPException(status_code=400, detail="فاصله اعلام نامعتبر است؛ ۲ تا ۴ ثانیه فقط برای پرکردنی مجاز است.")
     max_number = int(GameService._get_setting(db, GameService.KEY_MAX_NUMBER, 90))
     state = GameAutoDrawService.start(
         db,

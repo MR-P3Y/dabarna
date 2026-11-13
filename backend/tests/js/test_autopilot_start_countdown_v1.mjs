@@ -78,7 +78,7 @@ ctx.Date = class extends Date { static now() { return now + 27_000; } };
 ctx.getEl = id => id === "gamesList"
   ? { querySelectorAll: () => [clockCard(91), clockCard(92)] }
   : { classList: {contains: () => true} };
-ctx.document = {visibilityState: "visible"};
+ctx.document = {visibilityState: "visible", querySelectorAll: () => []};
 ctx.state.gamesCache = [game, {...game, id: 92}];
 let beeps = 0, vibrations = 0;
 ctx.tg = { HapticFeedback: { impactOccurred: () => { vibrations++; } } };

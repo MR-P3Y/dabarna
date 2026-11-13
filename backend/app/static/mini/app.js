@@ -1,4 +1,5 @@
 import * as experience from "./experience.mjs?v=remaining-ux-v1";
+import {automationClock} from "./automation-clocks.mjs?v=20261113";
 const tg = window.Telegram?.WebApp;
 
 const state = {
@@ -1998,6 +1999,44 @@ let gameStartCountdownTicker = null;
 let gameStartCountdownServerOffsetMs = 0;
 const gameStartCountdownFeedback = new Map();
 let gameStartCountdownLastFeedbackSecond = -1;
+let automationItems = [];
+let automationReceivedAt = 0;
+
+function renderAutomationTimeline() {
+  const games = getEl("gamesList");
+  if (!games) return;
+  let root = getEl("automationTimeline");
+  if (!root) {
+    root = document.createElement("div");
+    root.id = "automationTimeline";
+    root.className = "automation-timeline";
+    games.before(root);
+  }
+  root.innerHTML = automationItems.map((item, index) => {
+    const view = automationClock(item, Date.now() + gameStartCountdownServerOffsetMs, automationReceivedAt);
+    if (!view) return "";
+    return `<div class="automation-phase item" data-automation-index="${index}">
+      <strong>${safeText(autopilotLevelLabel(item.level))}</strong>
+      <span class="automation-label">${safeText(view.label)}</span>
+      <b class="automation-digits" role="timer" aria-live="off"></b>
+      <progress max="100" value="${view.progress}" aria-label="زمان باقی‌مانده"></progress>
+    </div>`;
+  }).join("");
+  tickAutomationTimeline();
+}
+
+function tickAutomationTimeline() {
+  document.querySelectorAll("[data-automation-index]").forEach((card) => {
+    const item = automationItems[Number(card.dataset.automationIndex)];
+    const view = automationClock(item, Date.now() + gameStartCountdownServerOffsetMs, automationReceivedAt);
+    if (!view) return;
+    card.querySelector(".automation-label").textContent = view.label;
+    card.querySelector(".automation-digits").textContent = view.seconds == null ? "—" :
+      toFaDigits(String(Math.floor(view.seconds/60)).padStart(2,"0")+":"+String(view.seconds%60).padStart(2,"0"));
+    card.querySelector("progress").value = view.progress;
+    card.classList.toggle("is-pending", view.pending);
+  });
+}
 
 function autopilotGameStartClock(game, nowMs = Date.now() + gameStartCountdownServerOffsetMs) {
   if (
@@ -2047,6 +2086,7 @@ function autopilotGameStartClockHtml(game, clock) {
 }
 
 function tickAutopilotGameStartClocks() {
+  tickAutomationTimeline();
   const root = getEl("gamesList");
   if (!root) return;
   const cards = root.querySelectorAll("[data-autopilot-clock]");
@@ -3173,11 +3213,43 @@ function startGlobalRefresh() {
     if (!state.authReady) return;
     refreshAutoTick().catch(() => {});
   }, GLOBAL_REFRESH_INTERVAL_MS);
+  if (!state.automationPollTimer) state.automationPollTimer = setInterval(refreshAutomationTimeline, 2000);
+}
+
+let automationRequestPending = false;
+async function refreshAutomationTimeline() {
+  if (automationRequestPending || !state.authReady || document.visibilityState === "hidden" ||
+      !getEl("view-games")?.classList.contains("active")) return;
+  automationRequestPending = true;
+  try {
+    const data = await apiFetch("/mini-api/automation/timeline");
+    const serverMs = Date.parse(String(data.server_time_utc || ""));
+    if (Array.isArray(data.automation) && Number.isFinite(serverMs)) {
+      gameStartCountdownServerOffsetMs = serverMs - Date.now();
+      automationReceivedAt = serverMs;
+      automationItems = data.automation;
+      // A fresh phase can revoke an older game-list countdown immediately.
+      state.gamesCache.forEach((game) => {
+        const phase = automationItems.find((item) => Number(item.game_id) === Number(game.id));
+        if (game.execution_source !== "SYSTEM" || game.status !== "LOBBY") return;
+        game.countdown_enabled = phase?.phase === "START";
+        if (game.countdown_enabled) {
+          game.scheduled_start_at = phase.deadline_utc;
+          game.countdown_seconds = phase.duration_seconds;
+        }
+      });
+      renderAutomationTimeline();
+      tickAutopilotGameStartClocks();
+    }
+  } catch (_) { tickAutomationTimeline(); }
+  finally { automationRequestPending = false; }
 }
 
 function stopGlobalRefresh() {
   if (state.globalRefreshTimer) clearInterval(state.globalRefreshTimer);
   state.globalRefreshTimer = null;
+  if (state.automationPollTimer) clearInterval(state.automationPollTimer);
+  state.automationPollTimer = null;
 }
 
 async function refreshGames() {
@@ -3198,6 +3270,11 @@ async function refreshGames() {
     const serverMs = Date.parse(String(gamesRes.server_time_utc || ""));
     if (Number.isFinite(serverMs)) gameStartCountdownServerOffsetMs = serverMs - Date.now();
     state.gamesCache = gamesRes.items;
+    if (Array.isArray(gamesRes.automation) && Number.isFinite(serverMs)) {
+      automationItems = gamesRes.automation;
+      automationReceivedAt = serverMs;
+      renderAutomationTimeline();
+    }
   }
 
   if (Array.isArray(cards)) {
@@ -7931,7 +8008,7 @@ function renderAdminAutopilotConfig(payload) {
               <div>
                 <label for="autopilotDrawInterval_${safeText(level)}">فاصله اعلام اعداد</label>
                 <select id="autopilotDrawInterval_${safeText(level)}">
-                  ${[5, 8, 10, 15].map((value) => `
+                  ${(item.game_rule === "FULL_CARD" ? [2, 3, 4, 5, 8, 10, 15] : [5, 8, 10, 15]).map((value) => `
                     <option value="${value}" ${drawInterval === value ? "selected" : ""}>${toFaDigits(value)} ثانیه</option>
                   `).join("")}
                 </select>
@@ -7941,7 +8018,7 @@ function renderAdminAutopilotConfig(payload) {
                 <label for="autopilotCountdown_${safeText(level)}">شمارش معکوس شروع</label>
                 <input id="autopilotCountdown_${safeText(level)}" type="text" inputmode="numeric"
                   value="${safeText(String(item?.countdown_seconds ?? 30))}" />
-                <small class="field-help">ثانیه پس از رسیدن به حداقل بازیکن</small>
+                <small class="field-help">۵ تا ۶۰۰ ثانیه پس از رسیدن به حداقل بازیکن؛ تغییر تنظیمات، تایمر آغازشده را جابه‌جا نمی‌کند.</small>
               </div>
 
               <div>
@@ -8046,7 +8123,7 @@ async function saveAdminAutopilotLevel(level, canEditCommission, button = null) 
   if (repeatInterval == null || repeatInterval < 60) throw new Error("فاصله ساخت بازی بعدی باید حداقل ۶۰ ثانیه باشد.");
   if (cooldown == null || cooldown < 0) throw new Error("زمان استراحت نامعتبر است.");
   if (announceBefore == null || announceBefore < 10) throw new Error("زمان اعلان باید حداقل ۱۰ ثانیه باشد.");
-  if (![5, 8, 10, 15].includes(drawInterval)) throw new Error("فاصله اعلام اعداد نامعتبر است.");
+  if (![2, 3, 4, 5, 8, 10, 15].includes(drawInterval)) throw new Error("فاصله اعلام اعداد نامعتبر است.");
 
   const payload = {
     enabled: Boolean(getEl(`autopilotEnabled_${key}`)?.checked),
@@ -8644,6 +8721,9 @@ function renderAdminAutoDraw() {
   const remainingEl = getEl("adminAutoDrawRemaining");
   const countdownEl = getEl("adminAutoDrawCountdown");
   const intervalEl = getEl("adminAutoDrawInterval");
+  const allowedIntervals = Array.isArray(data.allowed_intervals) ? data.allowed_intervals :
+    (game?.game_rule === "FULL_CARD" && Number(game?.card_layout_version) === 2 ? [2,3,4,5,8,10,15] : [5,8,10,15]);
+  if (intervalEl) [...intervalEl.options].forEach(option => { option.disabled = !allowedIntervals.includes(Number(option.value)); });
   const modeEl = getEl("adminDrawModeLabel");
   const lockEl = getEl("adminDrawModeLock");
   const commitmentEl = getEl("adminDrawCommitment");
@@ -8681,7 +8761,8 @@ function renderAdminAutoDraw() {
   document.querySelectorAll("[data-admin-auto-interval]").forEach((chip) => {
     const value = Number(chip.dataset.adminAutoInterval || 0);
     const selected = value === interval;
-    const canChange = Boolean(gid && isLobby && !locked && drawMode === "AUTO");
+    const canChange = Boolean(gid && isLobby && !locked && drawMode === "AUTO" && allowedIntervals.includes(value));
+    chip.hidden = !allowedIntervals.includes(value);
     chip.classList.toggle("is-selected", selected);
     chip.disabled = !canChange;
     chip.onclick = () => {

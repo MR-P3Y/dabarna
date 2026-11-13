@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>مینی‌اپ دبرنای طوفان</title>
     <link rel="stylesheet" href="./styles.css?v=finance-reject-reasons-20261108" />
-    <link rel="stylesheet" href="./ux-v2.css?v=remaining-ux-v1" />
+    <link rel="stylesheet" href="./ux-v2.css?v=remaining-ux-v1&amp;automation=20261113" />
   </head>
   <body>
     <div id="appSplash" class="app-splash" aria-label="در حال آماده‌سازی مینی‌اپ">
@@ -683,6 +683,9 @@
 
                       <label for="adminAutoDrawInterval">فاصله اعلام</label>
                       <select id="adminAutoDrawInterval" class="admin-draw-native-select">
+                        <option value="2">۲ ثانیه — پرکردنی</option>
+                        <option value="3">۳ ثانیه — پرکردنی</option>
+                        <option value="4">۴ ثانیه — پرکردنی</option>
                         <option value="5">۵ ثانیه</option>
                         <option value="8">۸ ثانیه</option>
                         <option value="10" selected>۱۰ ثانیه</option>
@@ -690,6 +693,9 @@
                       </select>
 
                       <div id="adminAutoDrawIntervalChips" class="admin-draw-interval-grid">
+                        <button type="button" data-admin-auto-interval="2">۲ ثانیه</button>
+                        <button type="button" data-admin-auto-interval="3">۳ ثانیه</button>
+                        <button type="button" data-admin-auto-interval="4">۴ ثانیه</button>
                         <button type="button" data-admin-auto-interval="5">۵ ثانیه</button>
                         <button type="button" data-admin-auto-interval="8">۸ ثانیه</button>
                         <button type="button" data-admin-auto-interval="10">۱۰ ثانیه</button>
@@ -1182,6 +1188,6 @@
     <div id="miniToast" class="mini-toast hidden" role="status" aria-live="polite"></div>
 
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="./app.js?v=remaining-ux-v1" type="module"></script>
+    <script src="./app.js?v=remaining-ux-v1&amp;automation=20261113" type="module"></script>
   </body>
 </html>

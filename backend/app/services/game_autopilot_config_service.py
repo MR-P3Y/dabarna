@@ -13,6 +13,7 @@ from app.core.config import (
     USER_TOPIC_GAME_MEDIUM_ID,
 )
 from app.models.game_autopilot import GameAutopilotConfig
+from app.services.game_auto_draw_service import AUTO_DRAW_INTERVALS, FULL_CARD_DRAW_INTERVALS
 
 
 AUTOPILOT_LEVELS = ("LOW", "MEDIUM", "HIGH")
@@ -202,13 +203,14 @@ class GameAutopilotConfigService:
             draw_interval = _positive_int(
                 values["draw_interval_seconds"],
                 "draw_interval_seconds",
-                minimum=5,
+                minimum=2,
                 maximum=15,
             )
-            if draw_interval not in {5, 8, 10, 15}:
+            allowed = FULL_CARD_DRAW_INTERVALS if row.game_rule == 'FULL_CARD' else AUTO_DRAW_INTERVALS
+            if draw_interval not in allowed:
                 raise HTTPException(
                     status_code=400,
-                    detail="draw_interval_seconds must be one of 5, 8, 10, 15",
+                    detail="فاصله ۲، ۳ و ۴ ثانیه فقط برای بازی پرکردنی مجاز است.",
                 )
             row.draw_interval_seconds = draw_interval
 
