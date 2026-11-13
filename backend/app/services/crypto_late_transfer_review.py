@@ -28,7 +28,7 @@ def late_review_key(network: str, tx_hash: str) -> str:
     return PREFIX + hashlib.sha256(f"{net}:{tx}".encode("utf-8")).hexdigest()[:40]
 
 
-def record_unmatched_historical_transfer(db: Session, transfer) -> bool:
+def record_unmatched_historical_transfer(db: Session, transfer, *, retired: bool = False) -> bool:
     """Queue a chain observation for human review, never infer ownership."""
     if not rotation_enabled():
         return False
@@ -42,7 +42,7 @@ def record_unmatched_historical_transfer(db: Session, transfer) -> bool:
         CryptoDepositRequest.status.in_(HISTORICAL_STATUSES),
         CryptoDepositRequest.created_at <= transfer.occurred_at,
     ).order_by(CryptoDepositRequest.id.asc()).limit(20)).scalars().all()
-    if not candidates:
+    if not candidates and not retired:
         return False
     # Do not create an observation if this tx has ever been assigned an invoice.
     assigned = db.execute(select(CryptoDepositRequest.id).where(

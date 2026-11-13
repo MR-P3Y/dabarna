@@ -8,6 +8,8 @@ from __future__ import annotations
 import hashlib
 import os
 import unittest
+from datetime import datetime, timedelta
+from decimal import Decimal
 from unittest.mock import patch
 
 from fastapi import FastAPI
@@ -197,6 +199,32 @@ class RealMySQLOwnerWalletFlows(unittest.TestCase):
         with Session(self.engine) as db:
             self.assertIsNone(db.get(AppSetting, "crypto_destination_v1:TON"))
             self.assertEqual(db.get(AppSetting, "crypto_destination_v1:TRON").v_json["address"], first)
+
+    def test_mysql_history_rotation_preserves_invoice_and_retired_watch(self):
+        from app.services.crypto_retired_destinations import retired_key
+        first,second=tron(31),tron(32)
+        added=self.client.post('/bot/admin/crypto-wallets/add',json={'network':'TRON','address':first,
+            'confirmation':'ADD_NEW_CRYPTO_DESTINATION_WITH_PAYMENTS_OFF'})
+        self.assertEqual(added.status_code,200,added.text)
+        with Session(self.engine) as db:
+            db.add(CryptoDepositRequest(id=901,public_id='MYSQL-HISTORY',user_id=1,network='TRON',asset='USDT',
+                amount_toman=100,rate_toman_per_asset=Decimal('100'),amount_crypto=Decimal('1'),
+                rate_provider='fixture',destination_address=first,status='EXPIRED',
+                created_at=datetime.now()-timedelta(days=12),expires_at=datetime.now()-timedelta(days=11)))
+            db.commit()
+        proposed=self.client.post('/bot/admin/crypto-wallets/propose',json={'network':'TRON','address':second,
+            'expected_current_address':first,'confirmation':'REQUEST_ADDRESS_CHANGE'})
+        self.assertEqual(proposed.status_code,201,proposed.text)
+        result=self.client.post('/bot/admin/crypto-wallets/activate',json={'network':'TRON',
+            'expected_version':1,'expected_current_address':first,'proposed_address':second,
+            'confirmation':'ACTIVATE_PRODUCTION_CRYPTO_DESTINATION'})
+        self.assertEqual(result.status_code,200,result.text)
+        with Session(self.engine) as db:
+            self.assertEqual(db.get(CryptoDepositRequest,901).destination_address,first)
+            self.assertEqual(db.get(CryptoDepositRequest,901).status,'EXPIRED')
+            self.assertEqual(db.get(AppSetting,'crypto_destination_v1:TRON').v_json['address'],second)
+            self.assertFalse(db.get(AppSetting,retired_key('TRON',first)).v_json['automatic_credit'])
+            self.assertEqual(db.execute(select(func.count()).select_from(WalletTx)).scalar_one(),0)
 
     def test_cross_surface_cancel_preserves_active_destination_and_rejects_replay(self):
         first, second = tron(21), tron(22)

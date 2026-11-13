@@ -175,6 +175,7 @@ def super_admin_crypto_wallets_kb(
             kb.button(text=f"➕ افزودن آدرس {network}", callback_data=f"super:crypto:wallet:edit:{network}")
         else:
             kb.button(text=f"✏️ تغییر آدرس {network}", callback_data=f"super:crypto:wallet:edit:{network}")
+            kb.button(text=f"🔎 بررسی سابقه {network}", callback_data=f"super:crypto:wallet:history:{network}")
             if item.get("requires_bootstrap"):
                 kb.button(text=f"🛡 آماده‌سازی {network}", callback_data=f"super:crypto:wallet:prepare:{network}")
         if network in by_proposal:

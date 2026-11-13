@@ -1008,6 +1008,36 @@ async def super_crypto_destination_overview(
     await _show_crypto_wallets(cq, api)
 
 
+@router.callback_query(F.data.startswith("super:crypto:wallet:history:"))
+async def super_crypto_wallet_history(
+    cq: CallbackQuery, api: ApiClient, is_super_admin: bool = False,
+):
+    if not _require_super_admin(is_super_admin):
+        await cq.answer("فقط سوپرادمین دسترسی دارد.", show_alert=True)
+        return
+    if not cq.message or cq.message.chat.type != "private":
+        await cq.answer("بررسی مالی فقط در گفت‌وگوی خصوصی امکان‌پذیر است.", show_alert=True)
+        return
+    network = str(cq.data or "").split(":")[-1].upper()
+    if network not in {"TRON", "TON"}:
+        await cq.answer("شبکه نامعتبر است.", show_alert=True)
+        return
+    await cq.answer("بررسی سابقه آغاز شد؛ موجودی تغییری نمی‌کند.")
+    try:
+        report = await api.super_admin_crypto_wallet_history(network)
+    except ApiError:
+        await cq.message.answer("بررسی سابقه کامل نشد؛ تغییری در آدرس یا موجودی انجام نشد.")
+        return
+    status = {"NO_HISTORY": "سابقه‌ای برای این آدرس ثبت نشده است.",
+              "REVIEWED_NO_DISCREPANCY": "در پاسخ دریافت‌شده مغایرتی دیده نشد."}.get(
+                  report.get("status"), "بررسی کامل نشد یا مورد حل‌نشده وجود دارد.")
+    await cq.message.answer(panel("بررسی سابقه " + network,
+        status + "\nفاکتورها: " + h(str(report.get("historical_invoices", 0))) +
+        "\nتراکنش بدون انتساب: " + h(str(report.get("unassigned_transfers", 0))) +
+        "\nتأییدنشده: " + h(str(report.get("unconfirmed_transfers", 0))) +
+        "\nاین گزارش مجوز تغییر آدرس یا پرداخت نیست."), parse_mode="HTML")
+
+
 @router.callback_query(F.data.startswith("super:crypto:wallet:edit:"))
 async def super_crypto_wallet_edit_start(
     cq: CallbackQuery, state: FSMContext, api: ApiClient, is_super_admin: bool = False,
@@ -1211,9 +1241,9 @@ async def super_crypto_wallet_activate_start(
     except (ApiError, StopIteration) as exc:
         await cq.answer(str(getattr(exc, "detail", "درخواست باز موجود نیست")), show_alert=True)
         return
-    blocking = ("open_invoices", "recent_closed_invoices", "needs_manual_review", "historical_invoices")
+    blocking = ("open_invoices", "recent_closed_invoices", "needs_manual_review")
     if any(int(report.get(k) or 0) > 0 for k in blocking):
-        await cq.answer("فاکتور باز یا قدیمی وجود دارد؛ تغییر مسدود شد.", show_alert=True)
+        await cq.answer("فاکتور باز یا حل‌نشده وجود دارد؛ تغییر مسدود شد.", show_alert=True)
         return
     if not proposal.get("expected_version") or not proposal.get("expected_current_address"):
         await cq.answer("ابتدا نسخه مبنای آدرس را آماده کنید.", show_alert=True)

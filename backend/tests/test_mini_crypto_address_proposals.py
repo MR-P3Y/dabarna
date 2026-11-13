@@ -11,6 +11,9 @@ from sqlalchemy.pool import StaticPool
 
 from app.core.db import get_db, Base
 from app.models.settings import AppSetting
+from app.models.user import User
+from app.models.wallet import Wallet, WalletTx
+from app.models.crypto import CryptoDepositRequest
 from app.routers import mini_router as mini
 from app.services.crypto_address_change import validate_crypto_destination
 
@@ -35,6 +38,8 @@ class CryptoAddressProposalTests(unittest.TestCase):
             poolclass=StaticPool,
         )
         AppSetting.__table__.create(self.engine)
+        for model in (User, Wallet, WalletTx, CryptoDepositRequest):
+            model.__table__.create(self.engine)
         self.old = tron_address(1)
         self.new = tron_address(2)
         self.app = FastAPI()
@@ -275,7 +280,7 @@ class CryptoAddressProposalTests(unittest.TestCase):
             )
             self.assertEqual(response.status_code, 409, response.text)
 
-    def test_production_activation_refuses_historical_invoices(self):
+    def test_production_activation_refuses_unreconciled_historical_invoices(self):
         self.assertEqual(self.request().status_code, 201)
         with Session(self.engine) as db:
             db.add(AppSetting(k="crypto_payments_runtime_enabled", v_json=False))
@@ -288,6 +293,7 @@ class CryptoAddressProposalTests(unittest.TestCase):
                 "open_invoices": 0, "recent_closed_invoices": 0,
                 "needs_manual_review": 0, "historical_invoices": 20,
             }),
+            patch.object(mini, "review_destination_history", return_value={"status":"BLOCKED"}),
             patch.object(mini, "rotate_locked") as rotate,
         ):
             response = self.client.post(
@@ -332,6 +338,7 @@ class CryptoAddressProposalTests(unittest.TestCase):
             db.commit()
         with (
             patch.object(mini, "production_rotation_enabled", return_value=True),
+            patch("app.services.crypto_destination_state.rotation_enabled", return_value=True),
             patch.object(mini, "lock_destination_state",
                          return_value={"network": "TRON", "version": 1, "address": self.old}),
             patch.object(mini, "assess_rotation", return_value={

@@ -15,6 +15,7 @@ from app.services.crypto_chain_service import CryptoChainService
 from app.services.crypto_deposit_service import CryptoDepositService, OPEN_STATUSES
 from app.services.crypto_destination_state import rotation_enabled
 from app.services.crypto_scan_observation import record_scan_observation
+from app.services.crypto_retired_destinations import retired_destinations, retired_destination
 from app.services.crypto_late_transfer_review import (
     HISTORICAL_STATUSES, record_unmatched_historical_transfer,
 )
@@ -62,16 +63,22 @@ class CryptoDepositWorker:
             if not destinations:
                 continue
             for address in destinations:
+                retired = None
+                if rotation_enabled():
+                    with SessionLocal() as db:
+                        retired = retired_destination(db, network, address)
                 gaps_before = stats.get("historical_gaps", 0)
-                since = CryptoDepositWorker._network_scan_since(network, destination_address=address, coverage_stats=stats)
+                since = (datetime.fromisoformat(retired['scan_since'].replace('Z', '+00:00')).replace(tzinfo=None)
+                         if retired else CryptoDepositWorker._network_scan_since(network, destination_address=address, coverage_stats=stats))
                 historical_gap = stats.get("historical_gaps", 0) > gaps_before
                 try:
                     transfers = CryptoChainService.list_incoming(
-                        network=network, since=since, destination_address=address
+                        network=network, since=since, destination_address=address,
+                        **({'until':_utcnow().replace(microsecond=0),'strict':True} if retired else {}),
                     )
                 except Exception as exc:
-                    log.warning("crypto chain scan failed: network=%s address_hash=%s error=%s",
-                                network, hashlib.sha256(address.encode()).hexdigest()[:12], exc)
+                    log.warning("crypto chain scan failed: network=%s address_hash=%s error_type=%s",
+                                network, hashlib.sha256(address.encode()).hexdigest()[:12], type(exc).__name__)
                     CryptoDepositWorker._record_scan(network, address, since,
                         pages_complete=False, processing_complete=False,
                         historical_gap=historical_gap, transfer_count=0)
@@ -81,6 +88,13 @@ class CryptoDepositWorker:
                 for transfer in transfers:
                     with SessionLocal() as db:
                         try:
+                            if retired:
+                                if record_unmatched_historical_transfer(db, transfer, retired=True):
+                                    db.commit()
+                                    stats['late_review'] = stats.get('late_review', 0) + 1
+                                else:
+                                    db.rollback()
+                                continue
                             invoice = CryptoDepositService.process_transfer(db, transfer)
                             if invoice is None:
                                 if record_unmatched_historical_transfer(db, transfer):
@@ -159,7 +173,9 @@ class CryptoDepositWorker:
                     CryptoDepositRequest.status.in_(watched_statuses),
                 ).distinct()
             ).scalars().all()
-        return sorted({str(value).strip() for value in rows if str(value or "").strip()})
+            retired = retired_destinations(db, network)
+        return sorted({str(value).strip() for value in rows if str(value or "").strip()} |
+                      {str(item['address']) for item in retired})
 
     @staticmethod
     def _network_has_open_invoices(network: str) -> bool:

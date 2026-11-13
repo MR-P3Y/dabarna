@@ -5,6 +5,8 @@ No production network, API key, invoice, payment, bot polling or database is use
 from __future__ import annotations
 
 import hashlib
+from datetime import datetime, timedelta
+from decimal import Decimal
 import unittest
 from unittest.mock import patch
 
@@ -203,6 +205,87 @@ class OwnerCryptoWalletManagerTest(unittest.TestCase):
         self.assertIn("RuntimeError", "\n".join(captured.output))
         with Session(self.engine) as db:
             self.assertIsNone(db.get(AppSetting, "crypto_destination_v1:TRON"))
+
+    def expired_history(self):
+        with Session(self.engine) as db:
+            db.add(CryptoDepositRequest(id=91,public_id='HISTORY-91',user_id=1,network='TRON',asset='USDT',
+                amount_toman=100,rate_toman_per_asset=Decimal('100'),amount_crypto=Decimal('1'),
+                rate_provider='fixture',destination_address=self.first,status='EXPIRED',
+                created_at=datetime.now()-timedelta(days=9),expires_at=datetime.now()-timedelta(days=8)))
+            db.commit()
+
+    def history_activation(self):
+        self.assertEqual(self.client.post('/bot/admin/crypto-wallets/propose',json={
+            'network':'TRON','address':self.second,'expected_current_address':self.first,
+            'confirmation':'REQUEST_ADDRESS_CHANGE'}).status_code,201)
+        return self.client.post('/bot/admin/crypto-wallets/activate',json={
+            'network':'TRON','expected_version':1,'expected_current_address':self.first,
+            'proposed_address':self.second,'confirmation':'ACTIVATE_PRODUCTION_CRYPTO_DESTINATION'})
+
+    def test_settled_history_rotates_with_immutable_retired_watch_and_no_financial_writes(self):
+        from app.services.crypto_retired_destinations import retired_key
+        self.assertEqual(self.add_initial().status_code,200)
+        self.expired_history()
+        preview=self.client.get('/bot/admin/crypto-wallets/history-review?network=TRON')
+        self.assertEqual(preview.status_code,200,preview.text)
+        self.assertFalse(preview.json()['activation_allowed'])
+        result=self.history_activation()
+        self.assertEqual(result.status_code,200,result.text)
+        with Session(self.engine) as db:
+            self.assertEqual(db.get(CryptoDepositRequest,91).destination_address,self.first)
+            self.assertEqual(db.get(CryptoDepositRequest,91).status,'EXPIRED')
+            retired=db.get(AppSetting,retired_key('TRON',self.first)).v_json
+            self.assertFalse(retired['automatic_credit'])
+            self.assertLess(datetime.fromisoformat(retired['scan_since']).replace(tzinfo=None),db.get(CryptoDepositRequest,91).created_at)
+            self.assertFalse(db.get(AppSetting,'crypto_payments_runtime_enabled').v_json)
+            self.assertEqual(db.execute(select(WalletTx)).scalars().all(),[])
+
+    def test_unassigned_historical_transfer_blocks_without_any_retirement_write(self):
+        from app.services.crypto_chain_service import ChainTransfer
+        from app.services.crypto_retired_destinations import retired_key
+        self.assertEqual(self.add_initial().status_code,200)
+        self.expired_history()
+        transfer=ChainTransfer(network='TRON',asset='USDT',tx_hash='late',amount=Decimal('1'),
+            sender_address=None,destination_address=self.first,occurred_at=datetime.now()-timedelta(days=2))
+        with patch.object(mini.CryptoChainService,'list_incoming',return_value=[transfer]):
+            result=self.history_activation()
+        self.assertEqual(result.status_code,409,result.text)
+        with Session(self.engine) as db:
+            self.assertIsNone(db.get(AppSetting,retired_key('TRON',self.first)))
+            self.assertEqual(db.get(AppSetting,'crypto_destination_v1:TRON').v_json['address'],self.first)
+
+    def test_retired_late_payment_goes_to_review_only_and_is_idempotent(self):
+        from app.services.crypto_chain_service import ChainTransfer
+        from app.services.crypto_worker import CryptoDepositWorker
+        from app.services.crypto_late_transfer_review import late_review_key
+        self.assertEqual(self.add_initial().status_code,200)
+        self.expired_history()
+        self.assertEqual(self.history_activation().status_code,200)
+        transfer=ChainTransfer(network='TRON',asset='USDT',tx_hash='later',amount=Decimal('1'),
+            sender_address=None,destination_address=self.first,occurred_at=datetime.now())
+        with (patch('app.services.crypto_worker.rotation_enabled',return_value=True),
+              patch('app.services.crypto_late_transfer_review.rotation_enabled',return_value=True),
+              patch('app.services.crypto_scan_observation.rotation_enabled',return_value=True),
+              patch('app.services.crypto_worker.SessionLocal',side_effect=lambda:Session(self.engine)),
+              patch.object(mini.CryptoChainService,'list_incoming',return_value=[transfer]),
+              patch.object(CryptoDepositService,'process_transfer') as credit,
+              patch.object(CryptoDepositService,'expire_due',return_value=0)):
+            for n in range(2):
+                stats=CryptoDepositWorker._process_cycle(dict(transfers=0,matched=0,credited=0,review=0,expired=0,late_review=0))
+                self.assertEqual(stats['late_review'],1 if n==0 else 0)
+                self.assertEqual(stats['credited'],0)
+            credit.assert_not_called()
+        with Session(self.engine) as db:
+            entry=db.get(AppSetting,late_review_key('TRON','later')).v_json
+            self.assertFalse(entry['automatically_credited'])
+            self.assertEqual(entry['candidate_invoice_ids'],[91])
+            self.assertEqual(db.execute(select(WalletTx)).scalars().all(),[])
+
+    def test_history_review_denies_non_owner_and_invalid_network(self):
+        self.assertEqual(self.client.get('/bot/admin/crypto-wallets/history-review?network=ETH').status_code,422)
+        self.app.dependency_overrides[get_admin_identity] = lambda: AdminIdentity(
+            scope=AdminScope.ADMIN,token='TEST',user_id=1,roles={'ADMIN'})
+        self.assertEqual(self.client.get('/bot/admin/crypto-wallets/history-review?network=TON').status_code,403)
 
 
 if __name__ == "__main__":

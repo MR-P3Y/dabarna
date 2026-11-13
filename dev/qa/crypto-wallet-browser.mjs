@@ -42,7 +42,8 @@ await page.route('**/*',async route=>{
   else throw new Error('Unexpected mutation: '+url.pathname);
  }else if(url.pathname.endsWith('/crypto-settings'))body={master_enabled:true,runtime_enabled:false,effective_enabled:false,configured:true,address_management_enabled:true,production_rotation_enabled:true,networks:[{network:'TON',asset:'TON',address:oldAddress,destination_version:1}]};
  else if(url.pathname.endsWith('/crypto-address-proposals'))body={items:pending,production_activation_supported:true};
- else if(url.pathname.endsWith('/crypto-address-readiness')){status=failReadiness?503:200;body=failReadiness?{detail:'شبکه آزمایشی در دسترس نیست'}:{historical_invoices:1};}
+ else if(url.pathname.endsWith('/crypto-address-readiness')){status=failReadiness?503:200;body=failReadiness?{detail:'شبکه آزمایشی در دسترس نیست'}:{historical_invoices:1,needs_manual_review:1};}
+ else if(url.pathname.endsWith('/crypto-address-history-review'))body={status:'BLOCKED',historical_invoices:1,unassigned_transfers:1,unconfirmed_transfers:0,activation_allowed:false};
  return route.fulfill({status,contentType:'application/json',body:JSON.stringify(body)});
 });
 try{
@@ -54,7 +55,10 @@ try{
  assert.equal(await apply.isDisabled(),false,'failed readiness must restore button');
  assert.deepEqual(writes,[],'readiness failure must not activate');
  failReadiness=false;await apply.click();await page.waitForFunction(()=>document.querySelector('#superCryptoProposalHint').textContent.includes('مسدود'));
- assert.deepEqual(writes,[],'history blocks activation');
+ assert.deepEqual(writes,[],'unresolved history blocks activation');
+ await page.getByRole('button',{name:'بررسی سابقه بدون تغییر موجودی',exact:true}).click();
+ await page.waitForFunction(()=>document.querySelector('.crypto-history-review')?.textContent.includes('مجوز تغییر آدرس'));
+ assert.deepEqual(writes,[],'history review must not activate or credit');
  await page.getByRole('button',{name:'لغو همین درخواست',exact:true}).click();
  await page.waitForFunction(()=>document.querySelector('#superCryptoProposalsList').textContent.includes('درخواستی'));
  assert.deepEqual(writes[0].data,{network:'TON',expected_address:newAddress,expected_created_at:'fixture-1',confirmation:'CANCEL_PENDING_CRYPTO_ADDRESS'});

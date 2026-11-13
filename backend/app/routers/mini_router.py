@@ -1,6 +1,8 @@
 from __future__ import annotations
 from app.services.crypto_address_change import proposal_key, validate_crypto_destination, same_crypto_destination
 from app.services.crypto_rotation_readiness import assess_rotation
+from app.services.crypto_history_review import review_destination_history
+from app.services.crypto_retired_destinations import retain_retired_destination, retired_destination
 from app.services.crypto_destination_state import (rotation_enabled, disposable_rotation_enabled, production_rotation_enabled, rotate_locked, lock_destination_state, seed_destination_state, state_key)
 from app.services.crypto_chain_service import CryptoChainService
 from app.utils.messages import stored_rule, RULE_LINES, RULE_ERROR
@@ -6245,6 +6247,20 @@ def mini_super_crypto_address_readiness(
     )
 
 
+@router.get("/admin/super/crypto-address-history-review")
+def mini_super_crypto_address_history_review(
+    network: Literal["TRON", "TON"],
+    ident: MiniAdminIdentity = Depends(get_mini_crypto_owner_identity),
+    db: Session = Depends(get_db),
+):
+    enforce_write_rate_limit(int(ident.user_id))
+    current = _mini_current_crypto_destination(db, network)
+    if current is None:
+        raise HTTPException(status_code=409, detail="آدرس این شبکه تنظیم نشده است.")
+    # Provider GETs and database SELECTs only. No activation or accounting call.
+    return review_destination_history(db, network=network, address=current)
+
+
 @router.post("/admin/super/crypto-address-proposals", status_code=201)
 def mini_super_propose_crypto_address(
     payload: MiniSuperCryptoAddressProposalIn,
@@ -6597,7 +6613,7 @@ def mini_super_crypto_address_activate_production(
     ident: MiniAdminIdentity = Depends(get_mini_crypto_owner_identity),
     db: Session = Depends(get_db),
 ):
-    """Strictly closed-history first release. Never bypass historical invoices."""
+    """Frozen issuance, locked state and freshly reconciled history; no credits."""
     if not production_rotation_enabled():
         raise HTTPException(status_code=409, detail="تغییر آدرس عملیاتی فعال نیست.")
     enforce_write_rate_limit(int(ident.user_id))
@@ -6629,11 +6645,16 @@ def mini_super_crypto_address_activate_production(
         proposed_address=proposed,
     )
     if (readiness["open_invoices"] or readiness["recent_closed_invoices"]
-            or readiness["needs_manual_review"] or readiness["historical_invoices"]):
+            or readiness["needs_manual_review"]):
         raise HTTPException(
             status_code=409,
-            detail="فاکتور تاریخی یا باز وجود دارد؛ قبل از فعال‌سازی باید تسویه و بررسی شود.",
+            detail="فاکتور باز یا حل‌نشده وجود دارد؛ قبل از فعال‌سازی باید بررسی شود.",
         )
+    if retired_destination(db, network, proposed) is not None:
+        raise HTTPException(status_code=409, detail="استفاده مجدد از مقصد بازنشسته مجاز نیست.")
+    history = review_destination_history(db, network=network, address=str(current['address']), lock=True)
+    if history['status'] not in {'NO_HISTORY', 'REVIEWED_NO_DISCREPANCY'}:
+        raise HTTPException(status_code=409, detail="تطبیق سابقه کامل نشد یا مغایرت دارد؛ مقصد تغییر نکرد.")
     # Verify the live provider can query the NEW account before committing
     # its active destination. This is read-only and never credits a wallet.
     try:
@@ -6649,6 +6670,9 @@ def mini_super_crypto_address_activate_production(
             status_code=503,
             detail="بررسی سرویس بلاک‌چین برای آدرس جدید ناموفق بود؛ آدرس تغییر نکرد.",
         ) from None
+    retain_retired_destination(db, network=network, address=str(current['address']),
+        version=int(current['version']), scan_since=history.get('scan_since') or
+        (datetime.now(timezone.utc)-timedelta(minutes=5)).isoformat())
     updated = rotate_locked(
         db, network=network, expected_version=payload.expected_version,
         expected_address=payload.expected_current_address, new_address=proposed,

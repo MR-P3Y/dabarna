@@ -338,6 +338,14 @@ class ApiClient:
         )
         return data if isinstance(data, dict) else {}
 
+    async def super_admin_crypto_wallet_history(self, network: str) -> dict:
+        data = await self._request(
+            "GET", "/bot/admin/crypto-wallets/history-review",
+            params={"network": str(network).upper()},
+            headers=self.super_admin_headers(), timeout_sec=60.0,
+        )
+        return data if isinstance(data, dict) else {}
+
     async def super_admin_crypto_wallet_add(self, *, network: str, address: str) -> dict:
         return await self._request(
             "POST", "/bot/admin/crypto-wallets/add",

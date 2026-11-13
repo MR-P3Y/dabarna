@@ -7287,6 +7287,34 @@ async function refreshSuperCryptoProposals() {
       }
     });
     box.append(heading, address, detail, inspect);
+    const history = document.createElement("button");
+    history.type = "button";
+    history.className = "small-btn";
+    history.textContent = "بررسی سابقه بدون تغییر موجودی";
+    history.addEventListener("click", async () => {
+      history.disabled = true;
+      try {
+        const report = await apiFetch("/mini-api/admin/super/crypto-address-history-review?network=" +
+          encodeURIComponent(String(item.network || "")));
+        const summary = document.createElement("p");
+        summary.className = "hint crypto-history-review";
+        const status = report.status === "NO_HISTORY" ? "سابقه‌ای برای این آدرس ثبت نشده" :
+          report.status === "REVIEWED_NO_DISCREPANCY" ? "در پاسخ دریافت‌شده مغایرتی دیده نشد" :
+          "بررسی کامل نشد یا مورد حل‌نشده وجود دارد";
+        summary.textContent = status + " | فاکتورها: " + toFaDigits(report.historical_invoices || 0) +
+          " | تراکنش‌های بدون انتساب: " + toFaDigits(report.unassigned_transfers || 0) +
+          " | تأییدنشده: " + toFaDigits(report.unconfirmed_transfers || 0) +
+          " | این بررسی مجوز تغییر آدرس یا پرداخت نیست.";
+        const previous = box.querySelector(".crypto-history-review");
+        if (previous) previous.remove();
+        box.append(summary);
+      } catch (e) {
+        setLocalError("superCryptoProposalHint", e);
+      } finally {
+        history.disabled = false;
+      }
+    });
+    box.append(history);
     const cancel = document.createElement("button");
     cancel.type = "button";
     cancel.className = "small-btn";
@@ -7361,10 +7389,9 @@ async function refreshSuperCryptoProposals() {
           "/mini-api/admin/super/crypto-address-readiness?network=" +
           encodeURIComponent(network)
         );
-        if (["open_invoices", "recent_closed_invoices", "needs_manual_review",
-             "historical_invoices"].some(key => Number(report[key] || 0) > 0)) {
+        if (["open_invoices", "recent_closed_invoices", "needs_manual_review"].some(key => Number(report[key] || 0) > 0)) {
           setHint("superCryptoProposalHint",
-            "تغییر مسدود است: فاکتور قدیمی یا باز روی آدرس فعلی وجود دارد.");
+            "تغییر مسدود است: فاکتور باز یا حل‌نشده روی آدرس فعلی وجود دارد.");
           return;
         }
         if (!window.confirm("تغییر واقعی مقصد واریز " + network +

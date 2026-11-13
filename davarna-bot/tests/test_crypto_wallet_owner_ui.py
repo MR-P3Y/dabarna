@@ -3,7 +3,7 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
-from bot.routers.super_admin import super_crypto_wallet_activate_confirm, super_crypto_wallet_cancel_confirm
+from bot.routers.super_admin import super_crypto_wallet_activate_confirm, super_crypto_wallet_cancel_confirm, super_crypto_wallet_history
 
 from bot.keyboards.super_admin import (
     super_admin_crypto_wallets_kb,
@@ -46,6 +46,20 @@ class OwnerCryptoWalletBotUiTests(unittest.TestCase):
 
 
 class OwnerCryptoConfirmationTests(unittest.IsolatedAsyncioTestCase):
+    async def test_history_review_stays_private_and_read_only(self):
+        api=SimpleNamespace(super_admin_crypto_wallet_history=AsyncMock(return_value={
+            'status':'BLOCKED','historical_invoices':2,'unassigned_transfers':1,'unconfirmed_transfers':0}))
+        message=SimpleNamespace(chat=SimpleNamespace(type='group'),answer=AsyncMock())
+        cq=SimpleNamespace(data='super:crypto:wallet:history:TON',message=message,answer=AsyncMock())
+        await super_crypto_wallet_history(cq,api,is_super_admin=True)
+        api.super_admin_crypto_wallet_history.assert_not_awaited()
+        message.chat.type='private'
+        await super_crypto_wallet_history(cq,api,is_super_admin=False)
+        api.super_admin_crypto_wallet_history.assert_not_awaited()
+        await super_crypto_wallet_history(cq,api,is_super_admin=True)
+        api.super_admin_crypto_wallet_history.assert_awaited_once_with('TON')
+        self.assertIn('مجوز تغییر آدرس',message.answer.call_args.args[0])
+
     async def test_changed_proposal_cannot_reuse_confirmation(self):
         old = {"network": "TON", "address": "shown", "expected_current_address": "old", "expected_version": 1, "created_at": "first"}
         state = SimpleNamespace(get_data=AsyncMock(return_value={"wallet_activation_network": "TON", "wallet_activation_proposal": old}), clear=AsyncMock())

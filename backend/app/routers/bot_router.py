@@ -3838,6 +3838,7 @@ from app.routers.mini_router import (
     mini_super_crypto_address_activate_production,
     mini_super_crypto_address_prepare_production,
     mini_super_crypto_address_readiness,
+    mini_super_crypto_address_history_review,
     mini_super_crypto_address_proposals,
     mini_super_crypto_settings,
 )
@@ -3875,6 +3876,18 @@ def bot_owner_crypto_wallet_readiness(
     if network not in {"TRON", "TON"}:
         raise HTTPException(status_code=422, detail="Invalid network")
     return mini_super_crypto_address_readiness(network=network, ident=identity, db=db)
+
+
+@router.get("/admin/crypto-wallets/history-review")
+def bot_owner_crypto_wallet_history_review(
+    network: str,
+    db: Session = Depends(get_db),
+    admin: AdminIdentity = Depends(get_admin_identity),
+):
+    identity = _owner_mini_identity_for_bot(admin, db)
+    if network not in {"TRON", "TON"}:
+        raise HTTPException(status_code=422, detail="شبکه نامعتبر است.")
+    return mini_super_crypto_address_history_review(network=network, ident=identity, db=db)
 
 
 @router.post("/admin/crypto-wallets/add")
