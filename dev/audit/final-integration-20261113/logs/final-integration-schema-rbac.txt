@@ -1,0 +1,26 @@
+tests.test_fresh_migrations_mysql
+
+test_fresh_upgrade_and_repeat_preserve_records (tests.test_fresh_migrations_mysql.FreshMigrationTests.test_fresh_upgrade_and_repeat_preserve_records) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 3.227s
+
+OK
+
+tests.test_mini_ops_dashboard_mysql_isolated
+
+test_denied_user (tests.test_mini_ops_dashboard_mysql_isolated.RealMySQLDashboardRBAC.test_denied_user) ... ok
+test_finance_admin_gets_counts_but_only_own_games (tests.test_mini_ops_dashboard_mysql_isolated.RealMySQLDashboardRBAC.test_finance_admin_gets_counts_but_only_own_games) ... /src/backend/app/routers/mini_router.py:3610: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+  AdminAuditLog.created_at >= datetime.utcnow() - timedelta(hours=24),
+/src/backend/app/routers/mini_router.py:3622: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+  "server_time": datetime.utcnow().isoformat(timespec="seconds"),
+ok
+test_game_operator_is_scoped (tests.test_mini_ops_dashboard_mysql_isolated.RealMySQLDashboardRBAC.test_game_operator_is_scoped) ... ok
+test_post_disallowed (tests.test_mini_ops_dashboard_mysql_isolated.RealMySQLDashboardRBAC.test_post_disallowed) ... ok
+test_regular_admin_is_scoped (tests.test_mini_ops_dashboard_mysql_isolated.RealMySQLDashboardRBAC.test_regular_admin_is_scoped) ... ok
+test_superadmin_sees_all (tests.test_mini_ops_dashboard_mysql_isolated.RealMySQLDashboardRBAC.test_superadmin_sees_all) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.561s
+
+OK

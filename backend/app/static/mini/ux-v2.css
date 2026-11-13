@@ -965,6 +965,17 @@ html[data-theme="light"] .admin-ops-dashboard-v11 {
 .system-clock-urgent .system-clock-digits{color:#ffbb5d;animation:system-clock-pulse 1s ease-in-out infinite}
 .system-clock-running .system-clock-digits{font-size:1.5rem;color:#73e4c2}
 .system-clock-pending .system-clock-status{color:#f9d6a6}
+html[data-theme="light"] .system-game-clock-panel{background:linear-gradient(130deg,#f1f8ff,#f7f4ff);border-color:#c5d5e5;color:#173047}
+html[data-theme="light"] .system-clock-card{background:#fff;border-color:#c8d6e4;box-shadow:0 2px 8px rgba(23,48,71,.04);color:#173047}
+html[data-theme="light"] .system-game-clock-panel .meta,
+html[data-theme="light"] .system-clock-foot{color:#475e76;opacity:1}
+html[data-theme="light"] .system-clock-digits{color:#173047}
+html[data-theme="light"] .system-clock-status,
+html[data-theme="light"] .system-clock-pending .system-clock-status{color:#83530c}
+html[data-theme="light"] .system-clock-urgent .system-clock-digits{color:#985114}
+html[data-theme="light"] .system-clock-running .system-clock-digits{color:#146b54}
+html[data-theme="light"] .system-clock-track{background:#dce6ef}
+html[data-theme="light"] .system-clock-fill{background:linear-gradient(90deg,#2685ae,#3b70c4)}
 @keyframes system-clock-pulse{50%{opacity:.68}}
 @media(prefers-reduced-motion:reduce){.system-clock-urgent .system-clock-digits{animation:none}.system-clock-fill{transition:none}}
 /* Superadmin v1.3: five categorized workspaces. Existing controls and RBAC stay unchanged. */

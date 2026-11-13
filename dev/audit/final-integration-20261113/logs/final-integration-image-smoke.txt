@@ -1,0 +1,5 @@
+PASS /health 404
+PASS /health/db 200
+PASS /mini/ 200
+PASS /mini-api/admin/ops-dashboard 401
+PASS /mini-api/automation/timeline 401

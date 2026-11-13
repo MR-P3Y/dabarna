@@ -1,0 +1,108 @@
+.......................................................................................... [ 29%]
+......................................................... [ 48%]
+................................................................ [ 70%]
+................................................................. [ 91%]
+.........................                            [100%]
+============================== warnings summary ===============================
+..\..\.qa-backend\Lib\site-packages\starlette\testclient.py:45
+  C:\Users\PEYMOON\Documents\Codex\2026-11-10\pr-toofan-dabarna-github-mr-p3y\.qa-backend\Lib\site-packages\starlette\testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+app\routers\admin_users_router.py:49
+  C:\Users\PEYMOON\Documents\Codex\2026-11-10\pr-toofan-dabarna-github-mr-p3y\autopilot-final\backend\app\routers\admin_users_router.py:49: PydanticDeprecatedSince20: Using extra keyword arguments on `Field` is deprecated and will be removed. Use `json_schema_extra` instead. (Extra keys: 'ne'). Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    amount: int = Field(ne=0)
+
+app\routers\bot_router.py:682
+  C:\Users\PEYMOON\Documents\Codex\2026-11-10\pr-toofan-dabarna-github-mr-p3y\autopilot-final\backend\app\routers\bot_router.py:682: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class BotUserOut(BaseModel):
+
+app\routers\bot_router.py:691
+  C:\Users\PEYMOON\Documents\Codex\2026-11-10\pr-toofan-dabarna-github-mr-p3y\autopilot-final\backend\app\routers\bot_router.py:691: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class WalletTxOut(BaseModel):
+
+app\routers\bot_router.py:706
+  C:\Users\PEYMOON\Documents\Codex\2026-11-10\pr-toofan-dabarna-github-mr-p3y\autopilot-final\backend\app\routers\bot_router.py:706: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class WalletOut(BaseModel):
+
+app\routers\bot_router.py:724
+  C:\Users\PEYMOON\Documents\Codex\2026-11-10\pr-toofan-dabarna-github-mr-p3y\autopilot-final\backend\app\routers\bot_router.py:724: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class WithdrawRequestOut(BaseModel):
+
+app\routers\bot_router.py:767
+  C:\Users\PEYMOON\Documents\Codex\2026-11-10\pr-toofan-dabarna-github-mr-p3y\autopilot-final\backend\app\routers\bot_router.py:767: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class DepositRequestOut(BaseModel):
+
+app\routers\bot_router.py:783
+  C:\Users\PEYMOON\Documents\Codex\2026-11-10\pr-toofan-dabarna-github-mr-p3y\autopilot-final\backend\app\routers\bot_router.py:783: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class BotGameOut(BaseModel):
+
+app\routers\bot_router.py:803
+  C:\Users\PEYMOON\Documents\Codex\2026-11-10\pr-toofan-dabarna-github-mr-p3y\autopilot-final\backend\app\routers\bot_router.py:803: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class BotAdminGameOut(BaseModel):
+
+app\routers\bot_router.py:976
+  C:\Users\PEYMOON\Documents\Codex\2026-11-10\pr-toofan-dabarna-github-mr-p3y\autopilot-final\backend\app\routers\bot_router.py:976: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class BotPurchaseCardsOut(BaseModel):
+
+app\routers\bot_router.py:991
+  C:\Users\PEYMOON\Documents\Codex\2026-11-10\pr-toofan-dabarna-github-mr-p3y\autopilot-final\backend\app\routers\bot_router.py:991: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class AdminDepositRequestOut(BaseModel):
+
+app\routers\bot_router.py:1013
+  C:\Users\PEYMOON\Documents\Codex\2026-11-10\pr-toofan-dabarna-github-mr-p3y\autopilot-final\backend\app\routers\bot_router.py:1013: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class AdminWithdrawRequestOut(BaseModel):
+
+app\schemas\finance.py:61
+  C:\Users\PEYMOON\Documents\Codex\2026-11-10\pr-toofan-dabarna-github-mr-p3y\autopilot-final\backend\app\schemas\finance.py:61: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class GatewayPaymentOut(BaseModel):
+
+tests/test_admin_reports_crypto.py: 10 warnings
+  C:\Users\PEYMOON\Documents\Codex\2026-11-10\pr-toofan-dabarna-github-mr-p3y\.qa-backend\Lib\site-packages\sqlalchemy\engine\default.py:952: DeprecationWarning: The default datetime adapter is deprecated as of Python 3.12; see the sqlite3 documentation for suggested replacement recipes
+    cursor.execute(statement, parameters)
+
+tests/test_crypto_destination_match_isolated.py::DestinationMatchIsolation::test_claimed_hash_on_wrong_wallet_is_rejected
+tests/test_crypto_destination_match_isolated.py::DestinationMatchIsolation::test_correct_wallet_matches
+tests/test_crypto_destination_match_isolated.py::DestinationMatchIsolation::test_same_amount_cannot_credit_old_wallet_invoice
+tests/test_crypto_destination_match_isolated.py::DestinationMatchIsolation::test_ton_friendly_invoice_matches_raw_provider_without_rewriting_invoice
+tests/test_crypto_destination_match_isolated.py::DestinationMatchIsolation::test_ton_memo_on_correct_wallet_matches
+tests/test_crypto_destination_match_isolated.py::DestinationMatchIsolation::test_ton_memo_on_wrong_wallet_is_rejected
+  C:\Users\PEYMOON\Documents\Codex\2026-11-10\pr-toofan-dabarna-github-mr-p3y\autopilot-final\backend\tests\test_crypto_destination_match_isolated.py:40: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    self.now = datetime.utcnow()
+
+tests/test_mini_crypto_address_proposals.py: 15 warnings
+tests/test_owner_crypto_wallet_manager.py: 5 warnings
+  C:\Users\PEYMOON\Documents\Codex\2026-11-10\pr-toofan-dabarna-github-mr-p3y\autopilot-final\backend\app\routers\mini_router.py:6305: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "created_at": datetime.utcnow().isoformat(timespec="microseconds"),
+
+tests/test_mini_crypto_address_proposals.py::CryptoAddressProposalTests::test_cancel_is_version_bound_and_changes_only_pending_proposal
+  C:\Users\PEYMOON\Documents\Codex\2026-11-10\pr-toofan-dabarna-github-mr-p3y\autopilot-final\backend\app\routers\mini_router.py:6361: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "cancelled_at": datetime.utcnow().isoformat(timespec="microseconds")}
+
+tests/test_mini_crypto_address_proposals.py::CryptoAddressProposalTests::test_production_activation_commits_audited_version_but_does_not_enable_deposits
+tests/test_owner_crypto_wallet_manager.py::OwnerCryptoWalletManagerTest::test_bot_proposal_activation_uses_same_database_address
+tests/test_owner_crypto_wallet_manager.py::OwnerCryptoWalletManagerTest::test_retired_late_payment_goes_to_review_only_and_is_idempotent
+tests/test_owner_crypto_wallet_manager.py::OwnerCryptoWalletManagerTest::test_settled_history_rotates_with_immutable_retired_watch_and_no_financial_writes
+  C:\Users\PEYMOON\Documents\Codex\2026-11-10\pr-toofan-dabarna-github-mr-p3y\autopilot-final\backend\app\routers\mini_router.py:6691: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "activated_at": datetime.utcnow().isoformat(timespec="seconds"),
+
+tests/test_mini_deposit_rejection_reason.py::MiniDepositRejectTests::test_customer_history_contains_rejection_reason
+tests/test_mini_deposit_rejection_reason.py::MiniDepositRejectTests::test_duplicate_rejection_never_notifies_twice_or_changes_wallet
+tests/test_mini_deposit_rejection_reason.py::MiniDepositRejectTests::test_failed_telegram_notice_leaves_reason_durable_and_no_retries
+tests/test_mini_deposit_rejection_reason.py::MiniDepositRejectTests::test_reason_is_saved_with_status_and_audit_without_credit
+  C:\Users\PEYMOON\Documents\Codex\2026-11-10\pr-toofan-dabarna-github-mr-p3y\autopilot-final\backend\app\routers\mini_router.py:5034: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    dr.reviewed_at = datetime.utcnow()
+
+tests/test_mini_ops_dashboard_rbac_http.py::OpsDashboardHttpRBAC::test_finance_and_superadmin_receive_finance_counts
+tests/test_mini_ops_dashboard_rbac_http.py::OpsDashboardHttpRBAC::test_finance_and_superadmin_receive_finance_counts
+  C:\Users\PEYMOON\Documents\Codex\2026-11-10\pr-toofan-dabarna-github-mr-p3y\autopilot-final\backend\app\routers\mini_router.py:3610: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    AdminAuditLog.created_at >= datetime.utcnow() - timedelta(hours=24),
+
+tests/test_mini_ops_dashboard_rbac_http.py::OpsDashboardHttpRBAC::test_finance_and_superadmin_receive_finance_counts
+tests/test_mini_ops_dashboard_rbac_http.py::OpsDashboardHttpRBAC::test_finance_and_superadmin_receive_finance_counts
+tests/test_mini_ops_dashboard_rbac_http.py::OpsDashboardHttpRBAC::test_game_and_regular_admin_get_no_global_finance
+tests/test_mini_ops_dashboard_rbac_http.py::OpsDashboardHttpRBAC::test_game_and_regular_admin_get_no_global_finance
+  C:\Users\PEYMOON\Documents\Codex\2026-11-10\pr-toofan-dabarna-github-mr-p3y\autopilot-final\backend\app\routers\mini_router.py:3622: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "server_time": datetime.utcnow().isoformat(timespec="seconds"),
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+301 passed, 4 skipped, 64 warnings, 104 subtests passed in 19.94s

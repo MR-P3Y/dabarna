@@ -8249,17 +8249,40 @@ function restoreAdminGameMode() {
   setAdminGameMode(saved === "AUTO" ? "AUTO" : "MANUAL", { persist: false });
 }
 
+let adminAutopilotRefreshRequest = null;
+let adminAutopilotConfigEpoch = 0;
+
+function autopilotEditorSyncStatus(message = "") {
+  const root = getEl("adminAutopilotList");
+  if (!root) return;
+  let status = getEl("adminAutopilotSyncStatus");
+  if (!status) {
+    status = document.createElement("div");
+    status.id = "adminAutopilotSyncStatus";
+    status.className = "meta";
+    status.setAttribute("role", "status");
+    root.before(status);
+  }
+  status.textContent = message;
+  status.hidden = !message;
+}
+
 function renderAdminAutopilotConfig(payload) {
   const root = getEl("adminAutopilotList");
   if (!root) return;
   const items = Array.isArray(payload?.items) ? payload.items : [];
   const canEditCommission = Boolean(payload?.can_edit_commission);
   if (!items.length) {
-    root.innerHTML = '<div class="empty">تنظیمات بازی خودکار هنوز ایجاد نشده است.</div>';
+    if (!root.querySelector("[data-autopilot-level]")) {
+      root.innerHTML = '<div class="empty">تنظیمات بازی خودکار هنوز ایجاد نشده است.</div>';
+    } else {
+      autopilotEditorSyncStatus("تنظیمات تازه دریافت نشد؛ تغییرات واردشده شما حفظ شده است.");
+    }
     return;
   }
 
-  root.innerHTML = items
+  const staged = document.createElement("div");
+  staged.innerHTML = items
     .map((item) => {
       const level = String(item?.level || "").toUpperCase();
       const enabled = Boolean(item?.enabled);
@@ -8383,11 +8406,39 @@ function renderAdminAutopilotConfig(payload) {
     })
     .join("");
 
+  // Reconcile by level. Polling must not replace a focused or unsaved form.
+  const previous = new Map([...root.querySelectorAll("[data-autopilot-level]")]
+    .map((card) => [card.dataset.autopilotLevel, card]));
+  const signatures = new Map(items.map((item) =>
+    [String(item.level || "").toUpperCase(), JSON.stringify([item, canEditCommission])]));
+  if (!previous.size) root.replaceChildren();
+  for (const next of [...staged.children]) {
+    next.dataset.serverSignature = signatures.get(next.dataset.autopilotLevel) || "";
+    const current = previous.get(next.dataset.autopilotLevel);
+    if (!current) { root.append(next); continue; }
+    if (current.dataset.dirty === "1" || current.dataset.saving === "1" ||
+        current.contains(document.activeElement) || current.dataset.serverSignature === next.dataset.serverSignature) {
+      // Preserve drafts without retaining a commission permission revoked by the server.
+      const save = current.querySelector("[data-autopilot-save]");
+      if (save) save.dataset.canEditCommission = canEditCommission ? "1" : "0";
+      const commission = current.querySelector('[id^="autopilotCommission_"]');
+      if (commission) commission.disabled = !canEditCommission;
+      continue;
+    }
+    next.open = current.open;
+    next.querySelector(".autopilot-advanced").open = current.querySelector(".autopilot-advanced").open;
+    current.replaceWith(next);
+  }
+  root.dataset.autopilotDirty = root.querySelector('[data-dirty="1"]') ? "1" : "0";
+
   if (!root.dataset.autopilotEditorBound) {
     root.dataset.autopilotEditorBound = "1";
 
     const markDirty = (ev) => {
-      if (!ev.target?.closest?.("[data-autopilot-level]")) return;
+      const card = ev.target?.closest?.("[data-autopilot-level]");
+      if (!card) return;
+      card.dataset.dirty = "1";
+      card.dataset.editRevision = String(Number(card.dataset.editRevision || 0) + 1);
       root.dataset.autopilotDirty = "1";
     };
     root.addEventListener("input", markDirty);
@@ -8452,7 +8503,10 @@ async function saveAdminAutopilotLevel(level, canEditCommission, button = null) 
   }
 
   const hintId = `adminAutopilotHint_${key}`;
+  const card = getEl(`autopilotCountdown_${key}`)?.closest("[data-autopilot-level]");
+  const submittedRevision = card?.dataset.editRevision || "0";
   setHint(hintId, "در حال ذخیره...");
+  if (card) card.dataset.saving = "1";
   if (button) button.disabled = true;
 
   try {
@@ -8460,11 +8514,16 @@ async function saveAdminAutopilotLevel(level, canEditCommission, button = null) 
       method: "PUT",
       body: payload,
     });
-    setHint(hintId, "تنظیمات بازی خودکار ذخیره شد.", "success");
-    const root = getEl("adminAutopilotList");
-    if (root) root.dataset.autopilotDirty = "0";
-    await refreshAdminAutopilotConfig({ force: true });
+    adminAutopilotConfigEpoch += 1;
+    const editedWhileSaving = (card?.dataset.editRevision || "0") !== submittedRevision;
+    if (card) {
+      card.dataset.saving = "0";
+      if (!editedWhileSaving) card.dataset.dirty = "0";
+    }
+    await refreshAdminAutopilotConfig({ afterSave: true });
+    setHint(hintId, editedWhileSaving ? "تنظیمات ارسال‌شده ذخیره شد؛ تغییرات جدید شما هنوز ذخیره نشده است." : "تنظیمات بازی خودکار ذخیره شد.", "success");
   } finally {
+    if (card) card.dataset.saving = "0";
     if (button) button.disabled = false;
   }
 }
@@ -8472,17 +8531,28 @@ async function saveAdminAutopilotLevel(level, canEditCommission, button = null) 
 async function refreshAdminAutopilotConfig(options = {}) {
   if (!state.admin.enabled) return;
   const root = getEl("adminAutopilotList");
-  const force = Boolean(options?.force);
-  if (!force && root?.dataset?.autopilotDirty === "1") return;
-  try {
-    const out = await apiFetch("/mini-api/admin/autopilot/config");
-    renderAdminAutopilotConfig(out);
-  } catch (err) {
-    const msg = localizeApiError(err?.message || err || "");
-    if (root) {
-      root.innerHTML = `<div class="empty">این بخش برای مدیریت بازی و سوپرادمین در دسترس است.<br /><span class="meta">${safeText(msg)}</span></div>`;
-    }
+  if (adminAutopilotRefreshRequest) {
+    await adminAutopilotRefreshRequest;
+    if (options.afterSave) return refreshAdminAutopilotConfig();
+    return;
   }
+  const epoch = adminAutopilotConfigEpoch;
+  adminAutopilotRefreshRequest = (async () => {
+    try {
+      const out = await apiFetch("/mini-api/admin/autopilot/config");
+      if (epoch !== adminAutopilotConfigEpoch) return;
+      autopilotEditorSyncStatus();
+      renderAdminAutopilotConfig(out);
+    } catch (err) {
+      const msg = localizeApiError(err?.message || err || "");
+      autopilotEditorSyncStatus("بازخوانی انجام نشد؛ مقادیر واردشده حفظ شدند. " + msg);
+      if (root && !root.querySelector("[data-autopilot-level]")) {
+        root.innerHTML = '<div class="empty">دریافت تنظیمات ممکن نشد؛ دوباره بازخوانی کنید.</div>';
+      }
+    }
+  })();
+  try { await adminAutopilotRefreshRequest; }
+  finally { adminAutopilotRefreshRequest = null; }
 }
 
 async function refreshAdminPanel(options = {}) {
@@ -10138,8 +10208,6 @@ async function boot() {
 
   bind("adminAutopilotRefreshBtn", "click", () =>
     runManualRefresh("adminAutopilotRefreshBtn", () => {
-      const root = getEl("adminAutopilotList");
-      if (root) root.dataset.autopilotDirty = "0";
       return refreshAdminAutopilotConfig({ force: true });
     }).catch(() => {})
   );
