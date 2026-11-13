@@ -23,7 +23,7 @@ with tempfile.TemporaryDirectory(prefix='dabarna-committed-build-') as tmp:
     with tarfile.open(fileobj=io.BytesIO(archive)) as stream:
         stream.extractall(root, filter='data')
     for service, parent in parents.items():
-        parent_tag = f'dabarna-{service}:remaining-4f1b0fd'
+        parent_tag = f'docker.io/library/dabarna-{service}:remaining-4f1b0fd'
         actual_parent = run('docker', 'image', 'inspect', '--format', '{{.Id}}', parent_tag, text=True).strip()
         if actual_parent != parent:
             raise RuntimeError('Candidate parent image identity changed')
@@ -32,7 +32,7 @@ with tempfile.TemporaryDirectory(prefix='dabarna-committed-build-') as tmp:
         dockerfile = root / ('Dockerfile.' + service)
         migration_copy = 'COPY backend/alembic /app/alembic\nCOPY backend/alembic.ini /app/alembic.ini\n' if service == 'backend' else ''
         dockerfile.write_text(f'FROM {parent_tag}\nLABEL org.opencontainers.image.revision="{revision}"\nCOPY {context} {destination}\n'+migration_copy)
-        tag = f'dabarna-{service}:final-{revision[:7]}'
+        tag = f'docker.io/library/dabarna-{service}:final-{revision[:7]}'
         subprocess.run(['docker', 'build', '--network', 'none', '--pull=false', '-f', str(dockerfile), '-t', tag, str(root)], check=True)
         expected = {destination+'/'+str(path.relative_to(root / context)).replace('\\', '/'):hashlib.sha256(path.read_bytes()).hexdigest()
                     for path in (root / context).rglob('*') if path.is_file()}
