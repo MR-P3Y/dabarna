@@ -4,7 +4,7 @@ from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import and_, or_, select, update
 from sqlalchemy.orm import Session
 
 from app.core.config import (
@@ -12,6 +12,7 @@ from app.core.config import (
     USER_TOPIC_GAME_LOW_ID,
     USER_TOPIC_GAME_MEDIUM_ID,
 )
+from app.models.game import Game
 from app.models.game_autopilot import GameAutopilotConfig
 from app.services.game_auto_draw_service import AUTO_DRAW_INTERVALS, FULL_CARD_DRAW_INTERVALS
 
@@ -55,6 +56,15 @@ def _positive_int(value: Any, field: str, *, minimum: int = 1, maximum: int = 86
     if out < minimum or out > maximum:
         raise HTTPException(status_code=400, detail=f"{field} must be {minimum}..{maximum}")
     return out
+
+
+MAX_PLAYER_THRESHOLD = 2_147_483_647  # Signed INTEGER column.
+
+
+def player_threshold(value: int) -> int:
+    if type(value) is not int or not 1 <= value <= MAX_PLAYER_THRESHOLD:
+        raise HTTPException(status_code=400, detail="حداقل بازیکن باید یک عدد صحیح مثبت باشد.")
+    return value
 
 
 class GameAutopilotConfigService:
@@ -171,7 +181,14 @@ class GameAutopilotConfigService:
         updated_by: int | None,
         allow_commission_change: bool,
     ) -> tuple[dict[str, Any], dict[str, Any]]:
-        row = GameAutopilotConfigService.get(db, level)
+        if values.get("min_unique_players") is not None:
+            threshold = player_threshold(values["min_unique_players"])
+            row = db.get(GameAutopilotConfig, _normalize_level(level), with_for_update=True)
+            if row is None:
+                raise HTTPException(status_code=404, detail="autopilot config not found")
+        else:
+            threshold = None
+            row = GameAutopilotConfigService.get(db, level)
         before = GameAutopilotConfigService.serialize(row)
 
         if "enabled" in values and values["enabled"] is not None:
@@ -214,9 +231,19 @@ class GameAutopilotConfigService:
                 )
             row.draw_interval_seconds = draw_interval
 
-        # v1 business rule is intentionally fixed. It is stored in DB for observability,
-        # but no admin endpoint can reduce it below two distinct players.
-        row.min_unique_players = 2
+        if threshold is not None and threshold != row.min_unique_players:
+            row.min_unique_players = threshold
+            # A deadline armed under the previous threshold cannot start a round.
+            lane = Game.game_level == row.level
+            topic = GameAutopilotConfigService.topic_id_for_level(row.level)
+            if topic is not None:
+                lane = or_(lane, and_(Game.game_level.is_(None), Game.tg_topic_id == topic))
+            db.execute(
+                update(Game).where(
+                    lane, Game.execution_source == "SYSTEM", Game.status == "LOBBY",
+                    Game.autopilot_ready_at.is_not(None),
+                ).values(autopilot_ready_at=None, scheduled_start_at=None)
+            )
         row.updated_by = int(updated_by) if updated_by is not None else None
 
         db.flush()

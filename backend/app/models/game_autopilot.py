@@ -25,7 +25,7 @@ class GameAutopilotConfig(Base):
     draw_interval_seconds: Mapped[int] = mapped_column(Integer, nullable=False, server_default="10")
     cooldown_seconds: Mapped[int] = mapped_column(Integer, nullable=False, server_default="60")
 
-    # Business rule: a game is never allowed to run with only one distinct player.
+    # Distinct card owners required before the automatic countdown can arm.
     min_unique_players: Mapped[int] = mapped_column(Integer, nullable=False, server_default="2")
 
     updated_by: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("users.id"), nullable=True)

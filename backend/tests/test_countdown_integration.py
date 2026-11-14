@@ -17,6 +17,7 @@ from app.models.user import User
 from app.models.wallet import Wallet, WalletTx
 from app.routers.bot_router import get_bot_admin_game_report
 from app.routers.mini_router import list_games
+from app.services.game_autopilot_config_service import GameAutopilotConfigService
 from app.services.game_autopilot_worker import GameAutopilotWorker
 
 
@@ -82,6 +83,31 @@ class CountdownIntegrationTests(unittest.TestCase):
         self.assertEqual(tick(), "waiting_players")
         self.assert_timer(None)
         self.assertEqual(self.game.status, "LOBBY")
+
+    def test_editing_player_threshold_revokes_old_timer_on_both_surfaces(self):
+        now = datetime(2026, 11, 14, 12)
+        def tick(at):
+            return GameAutopilotWorker._manage_active(
+                self.db, game=self.game, config=self.lane, actor_user_id=10, now=at)
+        def set_threshold(players):
+            GameAutopilotConfigService.update(self.db, level="LOW",
+                values={"min_unique_players": players}, updated_by=10, allow_commission_change=False)
+            self.db.commit()
+        set_threshold(1)
+        self.assertEqual(tick(now), "countdown_armed")
+        self.assert_timer(30)
+        set_threshold(3)
+        self.assert_timer(None)
+        self.assertEqual(tick(now + timedelta(seconds=35)), "waiting_players")
+        self.add_card(3, 11)  # Three cards, still just two people.
+        self.assertEqual(tick(now + timedelta(seconds=36)), "waiting_players")
+        self.add_card(4, 12)
+        self.assertEqual(tick(now + timedelta(seconds=38)), "countdown_armed")
+        self.assert_timer(30)
+        deadline = self.game.scheduled_start_at
+        self.assertEqual(deadline, now + timedelta(seconds=68))
+        set_threshold(3)
+        self.assertEqual(self.game.scheduled_start_at, deadline)
 
     def test_ineligible_and_ended_games_have_no_countdown(self):
         self.add_card(3, 11)

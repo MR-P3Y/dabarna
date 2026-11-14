@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.core import config as cfg
@@ -26,6 +26,7 @@ class AutopilotConfigUpdateIn(BaseModel):
     repeat_interval_seconds: int | None = None
     draw_interval_seconds: int | None = None
     cooldown_seconds: int | None = None
+    min_unique_players: int | None = Field(default=None, strict=True)
 
 
 def _require_game_config_access(ident: AdminIdentity) -> None:

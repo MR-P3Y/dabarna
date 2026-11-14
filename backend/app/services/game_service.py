@@ -22,6 +22,7 @@ from app.services.game_auto_draw_service import allowed_draw_intervals
 from app.services.wallet_service import WalletService
 from app.services.game_autopilot_config_service import (
     DEFAULT_COMMISSION_RATE,
+    player_threshold,
     GameAutopilotConfigService,
 )
 from app.utils.bingo import (
@@ -538,7 +539,10 @@ class GameService:
 
         return purchase, cards, int(prize_pool_new)
     @staticmethod
-    def start_game(db: Session, game_id: int, admin_user_id: int, idempotency_key: str, can_manage_any: bool = False) -> Game:
+    def start_game(
+        db: Session, game_id: int, admin_user_id: int, idempotency_key: str,
+        can_manage_any: bool = False, *, autopilot_minimum: int | None = None,
+    ) -> Game:
         game = (
             db.execute(select(Game).where(Game.id == game_id).with_for_update())
             .scalar_one_or_none()
@@ -602,9 +606,13 @@ class GameService:
 
             raise HTTPException(status_code=400, detail="cannot start: no cards sold")
 
-        # Global game invariant: every game needs at least two distinct players.
-        # Enforce this here (not only in Autopilot) so Bot, Mini App, admin APIs,
-        # and future automation paths cannot accidentally start a one-player game.
+        # Only the worker supplies the threshold from its locked lane config.
+        # Manual Bot/API starts retain their existing two-player rule.
+        minimum = 2
+        if autopilot_minimum is not None:
+            if game.execution_source != "SYSTEM":
+                raise HTTPException(status_code=409, detail="automatic start requires a system game")
+            minimum = player_threshold(autopilot_minimum)
         unique_players = int(
             db.execute(
                 select(func.count(func.distinct(GameCard.user_id))).where(
@@ -613,7 +621,7 @@ class GameService:
             ).scalar_one()
             or 0
         )
-        if unique_players < 2:
+        if unique_players < minimum:
             try:
                 GameEventService.emit(
                     db,
@@ -625,7 +633,7 @@ class GameService:
                     payload={
                         "reason": "not_enough_unique_players",
                         "unique_players": int(unique_players),
-                        "min_unique_players": 2,
+                        "min_unique_players": minimum,
                         "sold_amount": int(game.sold_amount),
                         "status": str(game.status),
                     },
@@ -634,7 +642,7 @@ class GameService:
                 pass
             raise HTTPException(
                 status_code=409,
-                detail="cannot start: at least 2 unique players are required",
+                detail=f"cannot start: at least {minimum} unique players are required",
             )
 
         prize_pool = int(game.prize_pool)
