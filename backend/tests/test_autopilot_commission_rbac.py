@@ -166,6 +166,19 @@ class AutopilotCommissionRbacTests(unittest.TestCase):
             self.assertEqual(self.row.draw_interval_seconds, 10)
         self.assertEqual(self.db.commit.call_count, 2)
 
+    def test_player_threshold_is_saved_per_lane_and_survives_other_edits(self):
+        for path in ("/admin/autopilot/config/LOW", "/mini-api/admin/autopilot/config/LOW"):
+            for players in (1, 3):
+                self.status(path, 200, {"min_unique_players": players})
+                self.assertEqual(self.row.min_unique_players, players)
+                self.status(path, 200, {"countdown_seconds": 35})
+                self.assertEqual(self.row.min_unique_players, players)
+            for value, status in ((0, 400), (-1, 400), (2147483648, 400),
+                                  (True, 422), (1.5, 422), ("3", 422)):
+                with self.subTest(path=path, value=value):
+                    self.status(path, status, {"min_unique_players": value})
+                    self.assertEqual(self.row.min_unique_players, 3)
+
     def test_admin_controls_countdown_with_bounds(self):
         for path in ('/admin/autopilot/config/LOW','/mini-api/admin/autopilot/config/LOW'):
             for seconds in (5,45,600):

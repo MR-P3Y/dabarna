@@ -15,6 +15,7 @@ from app.models.user import User
 from app.services.game_autopilot_config_service import (
     AUTOPILOT_LEVELS,
     GameAutopilotConfigService,
+    player_threshold,
 )
 from app.services.game_draw_mode_service import GameDrawModeService
 from app.services.game_service import GameService
@@ -126,7 +127,7 @@ class GameAutopilotWorker:
                 or (game.draw_mode == "AUTO" and not cfg.GAME_AUTO_DRAW_ENABLED)
             ):
                 continue
-            if cls._unique_players(db, game.id) >= max(2, int(config.min_unique_players or 2)):
+            if cls._unique_players(db, game.id) >= player_threshold(config.min_unique_players):
                 ready = _as_datetime(game.autopilot_ready_at)
                 scheduled = _as_datetime(game.scheduled_start_at)
                 if ready and scheduled and scheduled > ready:
@@ -192,9 +193,9 @@ class GameAutopilotWorker:
             return "blocked_auto_draw_disabled"
 
         players = GameAutopilotWorker._unique_players(db, int(game.id))
-        minimum = max(2, int(config.min_unique_players or 2))
+        minimum = player_threshold(config.min_unique_players)
         if players < minimum:
-            # A past deadline cannot make a later second buyer start instantly.
+            # A past deadline cannot make a later qualifying buyer start instantly.
             if game.scheduled_start_at is not None or getattr(game, 'autopilot_ready_at', None) is not None:
                 game.scheduled_start_at = None
                 game.autopilot_ready_at = None
@@ -219,6 +220,7 @@ class GameAutopilotWorker:
             admin_user_id=int(actor_user_id),
             idempotency_key=f"autopilot:start:{int(game.id)}",
             can_manage_any=True,
+            autopilot_minimum=minimum,
         )
         return "started"
 
@@ -226,7 +228,8 @@ class GameAutopilotWorker:
     def _run_level(level: str) -> str:
         now = _utcnow_naive()
         with SessionLocal() as db:
-            config = db.get(GameAutopilotConfig, str(level))
+            # Serialize a tick with edits that revoke an armed threshold.
+            config = db.get(GameAutopilotConfig, str(level), with_for_update=True)
             if config is None or not bool(int(config.enabled or 0)):
                 return "disabled"
 

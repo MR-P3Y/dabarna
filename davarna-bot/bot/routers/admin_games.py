@@ -965,7 +965,7 @@ async def admin_games_autopilot(cq: CallbackQuery, api: ApiClient, is_admin: boo
         labels = {"LOW": "سطح یک", "MEDIUM": "سطح دو", "HIGH": "سطح سه"}
         lines = [
             "وضعیت سه دسته بازی از تنظیمات مرکزی Backend خوانده می‌شود.",
-            "Autopilot فعلاً به‌صورت پیش‌فرض خاموش است و بدون فعال‌سازی مدیریت، بازی خودکاری اجرا نمی‌شود.",
+            "برای تغییر حداقل بازیکن، تنظیمات همان سطح را در بخش بازی‌های خودکار مینی‌اپ باز کنید.",
             "",
         ]
         for item in items:
@@ -984,7 +984,7 @@ async def admin_games_autopilot(cq: CallbackQuery, api: ApiClient, is_admin: boo
                     f"💳 قیمت کارت: <b>{html_escape(price_text)}</b>",
                     f"🗓 زمان‌بندی: <b>{scheduler}</b> | شروع: <b>{start}</b>",
                     f"🔢 شماره‌خوانی: <b>{draw}</b> | هر <b>{int(item.get('draw_interval_seconds') or 0)}</b> ثانیه",
-                    f"👥 حداقل: <b>{int(item.get('min_unique_players') or 2)}</b> کاربر مجزا",
+                    f"👥 حداقل: <b>{html_escape(str(item.get('min_unique_players') or 'نامشخص'))}</b> کاربر مجزا",
                     f"💰 کمیسیون: <b>{rate:g}%</b>",
                     "",
                 ]

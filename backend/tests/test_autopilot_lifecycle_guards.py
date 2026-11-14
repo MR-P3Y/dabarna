@@ -81,7 +81,7 @@ class AutopilotLifecycleGuardTests(unittest.TestCase):
             )
             db = session.return_value.__enter__.return_value
             db.get.side_effect = (
-                lambda cls, key: self.config
+                lambda cls, key, **kwargs: self.config
                 if cls is GameAutopilotConfig
                 else SimpleNamespace(id=42)
             )
@@ -129,7 +129,7 @@ class AutopilotLifecycleGuardTests(unittest.TestCase):
         start.assert_called_once_with(
             db=self.db, game_id=9001, admin_user_id=42,
             idempotency_key="autopilot:start:9001",
-            can_manage_any=True,
+            can_manage_any=True, autopilot_minimum=2,
         )
 
     def test_auto_draw_disabled_blocks_auto_game_start(self):

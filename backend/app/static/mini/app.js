@@ -8289,7 +8289,7 @@ function renderAdminAutopilotConfig(payload) {
       const price = item?.card_price == null ? "" : String(item.card_price);
       const rate = Number(item?.commission_rate || 0) * 100;
       const drawInterval = Number(item?.draw_interval_seconds || 10);
-      const repeatInterval = Number(item?.repeat_interval_seconds || 60);
+      const repeatInterval = Math.max(Number(item?.repeat_interval_seconds ?? 60), Number(item?.cooldown_seconds ?? 0));
       const countdown = Number(item?.countdown_seconds || 30);
       const commissionDisabled = canEditCommission ? "" : "disabled";
       const statusText = enabled ? "فعال" : "غیرفعال";
@@ -8345,14 +8345,14 @@ function renderAdminAutopilotConfig(payload) {
                 <label for="autopilotCountdown_${safeText(level)}">شمارش معکوس شروع</label>
                 <input id="autopilotCountdown_${safeText(level)}" type="text" inputmode="numeric"
                   value="${safeText(String(item?.countdown_seconds ?? 30))}" />
-                <small class="field-help">۵ تا ۶۰۰ ثانیه پس از رسیدن به حداقل بازیکن؛ تغییر تنظیمات، تایمر آغازشده را جابه‌جا نمی‌کند.</small>
+                <small class="field-help">۵ تا ۶۰۰ ثانیه پس از رسیدن به حداقل بازیکن؛ تغییر مدت آمادگی، تایمر آغازشده را جابه‌جا نمی‌کند.</small>
               </div>
 
               <div>
-                <label for="autopilotRepeat_${safeText(level)}">فاصله تا بازی بعدی</label>
+                <label for="autopilotRepeat_${safeText(level)}">استراحت تا ساخت بازی بعدی</label>
                 <input id="autopilotRepeat_${safeText(level)}" type="text" inputmode="numeric"
-                  value="${safeText(String(item?.repeat_interval_seconds ?? 60))}" />
-                <small class="field-help">ثانیه پس از پایان بازی قبلی</small>
+                  value="${safeText(String(repeatInterval))}" />
+                <small class="field-help">از پایان بازی قبلی تا ساخت دور بعدی این سطح، حداقل ۶۰ ثانیه.</small>
               </div>
             </div>
 
@@ -8367,10 +8367,10 @@ function renderAdminAutopilotConfig(payload) {
                 </div>
 
                 <div>
-                  <label for="autopilotCooldown_${safeText(level)}">زمان استراحت سیستم</label>
-                  <input id="autopilotCooldown_${safeText(level)}" type="text" inputmode="numeric"
-                    value="${safeText(String(item?.cooldown_seconds ?? 0))}" />
-                  <small class="field-help">ثانیه</small>
+                  <label for="autopilotMinPlayers_${safeText(level)}">حداقل بازیکن مجزا برای شروع خودکار</label>
+                  <input id="autopilotMinPlayers_${safeText(level)}" type="text" inputmode="numeric"
+                    value="${safeText(String(item.min_unique_players ?? ""))}" />
+                  <small class="field-help">هر خریدار یک نفر حساب می‌شود. تغییر حد نصاب، مهلت آمادگی لابی این سطح را از نو محاسبه می‌کند.</small>
                 </div>
 
                 <div>
@@ -8380,11 +8380,6 @@ function renderAdminAutopilotConfig(payload) {
                   <small class="field-help">${canEditCommission ? "برای بازی‌های جدید این سطح ذخیره می‌شود" : "امکان تغییر ندارید"}</small>
                 </div>
 
-                <div class="autopilot-locked-field">
-                  <span>حداقل بازیکن مجزا</span>
-                  <strong>۲ نفر</strong>
-                  <small>قانون سیستمی و غیرقابل کاهش</small>
-                </div>
               </div>
             </details>
 
@@ -8469,29 +8464,36 @@ async function saveAdminAutopilotLevel(level, canEditCommission, button = null) 
   const price = parseIntegerStrict(getVal(`autopilotPrice_${key}`));
   const countdown = parseIntegerStrict(getVal(`autopilotCountdown_${key}`));
   const repeatInterval = parseIntegerStrict(getVal(`autopilotRepeat_${key}`));
-  const cooldown = parseIntegerStrict(getVal(`autopilotCooldown_${key}`));
+  const minPlayers = parseIntegerStrict(getVal(`autopilotMinPlayers_${key}`));
   const announceBefore = parseIntegerStrict(getVal(`autopilotAnnounce_${key}`));
   const drawInterval = parseIntegerStrict(getVal(`autopilotDrawInterval_${key}`));
 
   if (price == null || price < 1000) throw new Error("قیمت کارت باید حداقل ۱,۰۰۰ تومان باشد.");
   if (countdown == null || countdown < 5) throw new Error("شمارش معکوس باید حداقل ۵ ثانیه باشد.");
-  if (repeatInterval == null || repeatInterval < 60) throw new Error("فاصله ساخت بازی بعدی باید حداقل ۶۰ ثانیه باشد.");
-  if (cooldown == null || cooldown < 0) throw new Error("زمان استراحت نامعتبر است.");
+  if (repeatInterval == null || repeatInterval < 60 || repeatInterval > 86400) throw new Error("استراحت بین دو بازی باید بین ۶۰ تا ۸۶۴۰۰ ثانیه باشد.");
+  if (minPlayers == null || minPlayers < 1 || minPlayers > 2147483647) throw new Error("حداقل بازیکن باید یک عدد صحیح مثبت و قابل ذخیره باشد.");
   if (announceBefore == null || announceBefore < 10) throw new Error("زمان اعلان باید حداقل ۱۰ ثانیه باشد.");
   if (![2, 3, 4, 5, 8, 10, 15].includes(drawInterval)) throw new Error("فاصله اعلام اعداد نامعتبر است.");
 
   const payload = {
     enabled: Boolean(getEl(`autopilotEnabled_${key}`)?.checked),
-    scheduler_mode: "AUTO",
-    start_mode: "AUTO",
-    draw_mode: "AUTO",
     card_price: price,
     countdown_seconds: countdown,
-    repeat_interval_seconds: repeatInterval,
-    cooldown_seconds: cooldown,
     announce_before_seconds: announceBefore,
     draw_interval_seconds: drawInterval,
   };
+
+  // Keep both legacy values intact unless the displayed effective delay was edited.
+  if (repeatInterval !== Number(getEl(`autopilotRepeat_${key}`).defaultValue)) {
+    payload.repeat_interval_seconds = repeatInterval;
+    payload.cooldown_seconds = 0;
+  }
+  const minInput = getEl(`autopilotMinPlayers_${key}`);
+  if (minPlayers !== Number(minInput.defaultValue)) payload.min_unique_players = minPlayers;
+  const enabledInput = getEl(`autopilotEnabled_${key}`);
+  if (enabledInput.checked && !enabledInput.defaultChecked) {
+    Object.assign(payload, {scheduler_mode: "AUTO", start_mode: "AUTO", draw_mode: "AUTO"});
+  }
 
   if (canEditCommission) {
     const rawRate = toEnglishDigits(String(getVal(`autopilotCommission_${key}`) || "")).trim().replace(",", ".");
@@ -8514,6 +8516,10 @@ async function saveAdminAutopilotLevel(level, canEditCommission, button = null) 
       method: "PUT",
       body: payload,
     });
+    // A retained draft compares subsequent edits against the values just saved.
+    if ("min_unique_players" in payload) minInput.defaultValue = String(minPlayers);
+    if ("repeat_interval_seconds" in payload) getEl(`autopilotRepeat_${key}`).defaultValue = String(repeatInterval);
+    enabledInput.defaultChecked = payload.enabled;
     adminAutopilotConfigEpoch += 1;
     const editedWhileSaving = (card?.dataset.editRevision || "0") !== submittedRevision;
     if (card) {

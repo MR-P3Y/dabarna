@@ -52,6 +52,8 @@ from app.models.game import Game, GameAutoDraw, GameCalledNumber
 from app.models.game_autopilot import GameAutopilotConfig
 from app.models.user import User
 from app.models.wallet import Wallet, WalletTx
+from fastapi import HTTPException
+from app.services.game_autopilot_config_service import GameAutopilotConfigService
 from app.services.game_autopilot_worker import GameAutopilotWorker
 from app.services.game_auto_draw_worker import GameAutoDrawWorker
 from app.services.game_service import GameService
@@ -202,8 +204,14 @@ class MySQLAutopilotEndToEndTests(unittest.TestCase):
     def test_full_card_four_second_draws_and_next_round(self):
         self.play_cycle('FULL_CARD',4)
 
-    def play_cycle(self, rule, interval):
+    def test_single_player_config_applies_only_to_autopilot_after_full_grace(self):
+        self.play_cycle("LINE", 8, single_player=True)
+
+    def play_cycle(self, rule, interval, single_player=False):
         lane=self.db.get(GameAutopilotConfig,'LOW')
+        if single_player:
+            GameAutopilotConfigService.update(self.db, level="LOW", values={"min_unique_players": 1},
+                                              updated_by=self.alice.id, allow_commission_change=False)
         lane.game_rule=rule
         lane.draw_interval_seconds=interval
         self.db.commit()
@@ -241,16 +249,22 @@ class MySQLAutopilotEndToEndTests(unittest.TestCase):
                 idempotency_key="e2e-buy-alice",
             )
             self.db.commit()
-            self.assertEqual(self.tick(now + timedelta(seconds=1)), "waiting_players")
+            if single_player:
+                with self.assertRaises(HTTPException) as err:
+                    GameService.start_game(self.db, game_id, self.alice.id, "manual-test", can_manage_any=True)
+                self.assertEqual(err.exception.status_code, 409)
+                self.assertEqual(self.tick(now + timedelta(seconds=1)), "countdown_armed")
+            else:
+                self.assertEqual(self.tick(now + timedelta(seconds=1)), "waiting_players")
             self.db.expire_all()
             self.assertEqual(str(self.db.get(Game, game_id).status), "LOBBY")
 
             GameService.buy_cards(
-                self.db, game_id, int(self.bob.id), 1,
-                idempotency_key="e2e-buy-bob",
+                self.db, game_id, int(self.alice.id if single_player else self.bob.id), 1,
+                idempotency_key="e2e-buy-second",
             )
             self.db.commit()
-            self.assertEqual(self.tick(now + timedelta(seconds=2)), "countdown_armed")
+            self.assertEqual(self.tick(now + timedelta(seconds=2)), "countdown_wait" if single_player else "countdown_armed")
             self.assertEqual(self.tick(now + timedelta(seconds=20)), "countdown_wait")
             self.assertEqual(self.tick(now + timedelta(seconds=34)), "started")
 

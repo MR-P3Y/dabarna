@@ -636,6 +636,7 @@ class MiniAutopilotConfigUpdateIn(BaseModel):
     repeat_interval_seconds: int | None = None
     draw_interval_seconds: int | None = None
     cooldown_seconds: int | None = None
+    min_unique_players: int | None = Field(default=None, strict=True)
 
 
 def _audit_auto_draw(
