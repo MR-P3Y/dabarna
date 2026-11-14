@@ -1,0 +1,4 @@
+{
+  "production_destination_rotation_enabled": false,
+  "test_rotation_enabled": false
+}

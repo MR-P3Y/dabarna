@@ -1,5 +1,5 @@
 {
-  "deployed": false,
+  "deployed": true,
   "images": [
     {
       "service": "backend",
@@ -17,5 +17,8 @@
       "verified_source_files": 85,
       "source_commit": "a5773b36c043a4063f65c93a43f756ae38ac7fca"
     }
-  ]
+  ],
+  "deployed_at": "2026-11-13T21:22:55.893418+00:00",
+  "merge_commit": "1ad1e9932d58522179b5379af8e60c270284190c",
+  "receipt": "deployment.md"
 }
