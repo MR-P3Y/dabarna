@@ -41,7 +41,7 @@ def games_list_kb(
         status = _fa_status(str(g.get("status") or ""))
 
         kb.button(
-            text=f"🎮 #{gid} | {level_title(g)} | {rule_title(g)} | {status} | {_fmt_int(price)} تومان",
+            text=f"🎮 {g.get('display_code') or gid} | {level_title(g)} | {rule_title(g)} | {status} | {_fmt_int(price)} تومان",
             callback_data=f"buy:game:{gid}",
         )
 

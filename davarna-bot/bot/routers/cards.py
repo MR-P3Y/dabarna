@@ -38,8 +38,8 @@ def _card_message(card: dict, game_id: int, game_state: dict, called_numbers: li
             raw_numbers = json.loads(raw_numbers)
         except (TypeError, ValueError):
             raw_numbers = []
-    title = f"🃏 کارت {int(card.get('id') or card.get('card_id') or 0)}"
-    header = f"🎮 بازی <b>#{game_id}</b>\n"
+    title = f"🃏 کارت {int(card.get('display_serial') or card.get('id') or card.get('card_id') or 0)}"
+    header = f"🎮 بازی <b>#{html_escape(str(card.get('display_code') or game_state.get('display_code') or game_id))}</b>\n"
     kind = rule_kind(game_state)
     if kind == "UNKNOWN":
         return panel(title, header + rule_details(game_state))
@@ -72,7 +72,7 @@ def cards_list_kb(cards, page, total_pages, game_id: int):
 
     for c in cards[:8]:
         kb.button(
-            text=f"🃏 کارت {c.get('id')} (بازی {c.get('game_id')})",
+            text=f"🃏 کارت {c.get('display_serial') or c.get('id')} (بازی {c.get('display_code') or c.get('game_id')})",
             callback_data=f"card:open:{c.get('id')}",
         )
 
@@ -151,6 +151,7 @@ async def _collect_user_game_counts(
             continue
         card_price = (meta or {}).get("card_price")
         filtered.append({
+            "display_code": (meta or {}).get("display_code"),
             "game_id": game_id, "count": cnt, "card_price": card_price,
             "game_rule": (meta or {}).get("game_rule"),
             "game_level": (meta or {}).get("game_level"),

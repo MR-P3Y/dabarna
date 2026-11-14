@@ -114,7 +114,7 @@ def _build_game_flow_body(game_id: int, state: dict) -> str:
     if state.get("col_absorbed_into_row") and kind in ("LINE", "LEGACY"):
         winner_stats = f"برندگان نهایی: <b>{winners['row_users']}</b> نفر"
     lines = [
-        f"🎮 بازی <b>#{game_id}</b> | {level_title(state)}",
+        f"🎮 بازی <b>#{state.get('display_code') or game_id}</b> | {level_title(state)}",
         f"وضعیت بازی: <b>{status_fa}</b>",
         f"👥 تعداد برندگان: <b>{winners['users_total']}</b> نفر",
         f"🪪 کارت‌های برنده: <b>{winners['cards_total']}</b>",

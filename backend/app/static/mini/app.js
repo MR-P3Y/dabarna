@@ -2194,7 +2194,8 @@ function drawGames(items) {
         <div class="item-row game-hero-top">
           <div class="game-identity">
             <span class="game-identity-overline">${safeText(ruleMeta.levelLabel)}</span>
-            <h3>بازی #${safeText(toFaDigits(gid))}</h3>
+            <h3>بازی ${safeText(toFaDigits(g.display_code?.split("-").at(-1) || gid))}</h3>
+            ${g.display_code ? `<small>کد پیگیری بازی <bdi>${safeText(g.display_code)}</bdi></small>` : ""}
           </div>
           <span class="game-state ${statusClass}">${safeText(statusLabel(statusKey))}</span>
         </div>
@@ -2276,6 +2277,19 @@ function liveBarGameInfo(game) {
   return { gid, snap, st, called, lastNumber, lastFiveNumbers, statusKey, myCards };
 }
 
+function gameDisplayRef(id) {
+  const gid = Number(id);
+  return state.gameSnapshots.get(gid)?.game?.display_code ||
+    state.gamesCache?.find(g => Number(g.id) === gid)?.display_code ||
+    state.admin.gamesById?.get(gid)?.display_code || String(id);
+}
+
+function winnerCardRef(gameId, cardId) {
+  const snap = state.gameSnapshots.get(Number(gameId));
+  const serial = snap?.my_cards?.find(c => Number(c.card_id) === Number(cardId))?.display_serial;
+  return serial ? `کارت ${toFaDigits(serial)}` : `شناسه کارت ${toFaDigits(cardId)}`;
+}
+
 function sortLiveBarGames(items = state.gamesCache) {
   const selectedId = Number(state.selectedGameId || 0);
   return (Array.isArray(items) ? items : [])
@@ -2339,7 +2353,7 @@ function renderLiveGameBar(items = state.gamesCache) {
   bar.classList.toggle("is-expanded", Boolean(state.liveBarExpanded));
   const lastFiveText = lastFiveNumbers.length ? lastFiveNumbers.map((n) => toFaDigits(n)).join("، ") : "هنوز اعلام نشده";
   const myCardsText = myCards > 0 ? ` · کارت‌های من: ${toFaDigits(myCards)}` : "";
-  const summaryTitle = `بازی #${toFaDigits(gid)}${myCardsText}`;
+  const summaryTitle = `بازی ${game.display_code || toFaDigits(gid)}${myCardsText}`;
   const summaryDetail = `آخرین عدد: ${toFaDigits(lastNumber ?? "-")} · ۵ عدد آخر: ${lastFiveText}`;
   const rows = liveGames.slice(0, 5).map((g) => {
     const info = liveBarGameInfo(g);
@@ -2347,7 +2361,7 @@ function renderLiveGameBar(items = state.gamesCache) {
     const actionText = canBuy && info.myCards <= 0 ? "خرید" : "ورود";
     return `
       <button class="live-bar-row" data-game-id="${safeText(info.gid)}" data-buy="${canBuy && info.myCards <= 0 ? "1" : "0"}" type="button">
-        <b>#${safeText(toFaDigits(info.gid))}</b>
+        <b>${safeText(g.display_code || toFaDigits(info.gid))}</b>
         <span>${safeText(statusLabel(info.statusKey))}</span>
         <span>آخرین عدد: ${safeText(toFaDigits(info.lastNumber ?? "-"))}</span>
         <span>کارت من: ${safeText(toFaDigits(info.myCards))}</span>
@@ -2448,7 +2462,7 @@ function drawRecentStats(items) {
 
       return `
       <div class="stat-card">
-        <h4>بازی #${g.game_id}</h4>
+        <h4>بازی ${safeText(gameDisplayRef(g.game_id))}</h4>
         <div class="meta-row">وضعیت: ${safeText(statusLabel(g.status || "ENDED"))}</div>
         <div class="meta-row">🎫 مبلغ کارت: ${safeText(toman(g.card_price || 0))}</div>
         <div class="meta-row">🎟 کارت فروخته‌شده: ${safeText(g.sold_cards)}</div>
@@ -2584,7 +2598,7 @@ function buildWinnerNoticeText(event) {
   const amount = resolveWinnerAmount(payload);
   const kindLabel = resolveWinnerKindLabel(kind, payload);
   const amountPart = amount > 0 ? ` | مبلغ: ${toman(amount)}` : "";
-  const gamePart = gid > 0 ? ` در بازی #${gid}` : "";
+  const gamePart = gid > 0 ? ` در بازی ${gameDisplayRef(gid)}` : "";
   return `تبریک! ${kindLabel}${gamePart}${amountPart}`;
 }
 
@@ -2634,9 +2648,9 @@ function openWinnerModal(event) {
   const rows = experience.prizeRows(event.payload).filter(row => row.userId === Number(state.currentUserId));
   getEl("winnerModalKind").textContent = info.kindLabel;
   getEl("winnerModalAmount").textContent = info.amount !== null ? toman(info.amount) : "مبلغ اختصاصی هنوز قابل تأیید نیست";
-  getEl("winnerModalGame").textContent = `بازی #${info.gameId} · ${rows.length ? `${toFaDigits(rows.length)} کارت برنده` : "جزئیات کارت در حال بررسی"}`;
+  getEl("winnerModalGame").textContent = `بازی ${gameDisplayRef(info.gameId)} · ${rows.length ? `${toFaDigits(rows.length)} کارت برنده` : "جزئیات کارت در حال بررسی"}`;
   getEl("winnerModalStatus").textContent = "نتیجه بازی ثبت شده است؛ وضعیت پرداخت را از رسید کیف پول بررسی کنید.";
-  getEl("winnerCardDetails").innerHTML = rows.map(row => `<div class="winner-card-share"><span>کارت #${safeText(row.cardId)}</span><strong>${safeText(toman(row.amount))}</strong></div>`).join("");
+  getEl("winnerCardDetails").innerHTML = rows.map(row => `<div class="winner-card-share"><span>${safeText(winnerCardRef(info.gameId, row.cardId))}</span><strong>${safeText(toman(row.amount))}</strong></div>`).join("");
   getEl("winnerGameBtn").onclick = async () => {
     try { await openLiveGame(info.gameId, { announce: false }); closeWinnerModal(); switchToView("games"); }
     catch (error) { showToast(localizeApiError(error?.message || error), "error"); }
@@ -2817,7 +2831,7 @@ function renderLive(snapshot, options = {}) {
   state.gameSnapshots.set(Number(game.id), snapshot);
 
   if (liveGameMeta) {
-    liveGameMeta.textContent = `#${toFaDigits(game.id)} | ${statusLabel(game.status)} | ${gameRuleUiMeta(game, snapshot).label}`;
+    liveGameMeta.textContent = `${game.display_code || toFaDigits(game.id)} | ${statusLabel(game.status)} | ${gameRuleUiMeta(game, snapshot).label}`;
   }
 
   const called = Array.isArray(st.called_numbers) ? st.called_numbers : [];
@@ -2924,7 +2938,7 @@ async function openLiveGame(gameId, options = {}) {
     notifyAfterId: previousCursor,
   });
   hydrateAdminCallPanelFromSnapshot(gameId, snapshot);
-  if (options.announce !== false) setHint("liveActionHint", `بازی #${gameId} انتخاب شد.`, "success");
+  if (options.announce !== false) setHint("liveActionHint", `بازی ${gameDisplayRef(gameId)} انتخاب شد.`, "success");
 }
 
 function appendEvents(events) {
@@ -3502,10 +3516,10 @@ function renderCardsBadge(activeGames) {
   const freshLast = g.freshNumbers.length ? g.freshNumbers[g.freshNumbers.length - 1] : null;
 
   if (freshLast !== null && freshLast !== undefined) {
-    badgeStatus.textContent = `عدد جدید رسید | بازی #${g.gameId}`;
+    badgeStatus.textContent = `عدد جدید رسید | بازی ${g.displayCode || gameDisplayRef(g.gameId)}`;
     badgeLast.textContent = String(freshLast);
   } else {
-    badgeStatus.textContent = `آخرین عدد بازی #${g.gameId}`;
+    badgeStatus.textContent = `آخرین عدد بازی ${g.displayCode || gameDisplayRef(g.gameId)}`;
     badgeLast.textContent = String(lastNum ?? "-");
   }
 
@@ -3573,7 +3587,7 @@ function renderCardsActive(activeGames) {
       return `
         <div class="active-game-block game-emphasis-block active-game-block-ux21" data-game-id="${g.gameId}">
           <div class="active-game-head">
-            <h4>بازی #${g.gameId}</h4>
+            <h4>بازی <bdi>${safeText(g.displayCode || g.gameId)}</bdi></h4>
             <div class="active-game-meta">
               <span>${safeText(statusLabel(g.status))}</span>
               <span>آخرین عدد: <strong>${safeText(g.lastNumber ?? "-")}</strong></span>
@@ -3604,7 +3618,7 @@ function renderCardsActive(activeGames) {
                 return `
                   <div class="${cardClass}">
                     <div class="card-pro-head">
-                      <strong>کارت #${c.card_id}</strong>
+                      <strong>کارت ${safeText(c.display_serial || c.card_id)}</strong>
                       <span>${safeText(formatFaDateTime(c.created_at))}</span>
                     </div>
                     ${winnerLabel}
@@ -3649,7 +3663,7 @@ function renderCardsHistory(items) {
     .map(
       (c) => `
         <div class="history-item clickable" data-game-id="${Number(c.game_id || 0)}" data-card-id="${Number(c.card_id || 0)}">
-          <strong>بازی #${c.game_id} | کارت #${c.card_id}</strong>
+          <strong>بازی <bdi>${safeText(c.display_code || c.game_id)}</bdi> | کارت ${safeText(c.display_serial || c.card_id)}</strong>
           <div class="history-meta">
             وضعیت بازی: ${safeText(statusLabel(c.game_status))}<br />
             قیمت کارت: ${toman(c.card_price)}<br />
@@ -3712,7 +3726,7 @@ async function openHistoryModalForGame(gameId, { cardId = 0, source = "history" 
     const colWinnerSet = new Set((st.col_winner_card_ids || []).map((x) => Number(x)));
     const gameRule = String(st.game_rule || snapshot?.game?.game_rule || "LEGACY").toUpperCase();
 
-    titleEl.textContent = source === "wins" ? `جزئیات برد بازی #${gid}` : `جزئیات کارت‌های بازی #${gid}`;
+    titleEl.textContent = source === "wins" ? `جزئیات برد بازی ${gameDisplayRef(gid)}` : `جزئیات کارت‌های بازی ${gameDisplayRef(gid)}`;
     metaEl.textContent = `وضعیت: ${statusLabel(st.status || snapshot?.game?.status)} | اعداد اعلام‌شده: ${calledNumbers.length}`;
 
     if (!shownCards.length) {
@@ -3738,8 +3752,8 @@ async function openHistoryModalForGame(gameId, { cardId = 0, source = "history" 
         return `
           <div class="history-modal-card-item history-modal-card-item-ux21">
             <div class="card-pro-head">
-              <span class="card-id-stack"><strong>کارت #${safeText(c.card_id)}</strong><em>بازی #${gid}</em></span>
-              <span class="card-game-badge">بازی #${gid}</span>
+              <span class="card-id-stack"><strong>کارت ${safeText(c.display_serial || c.card_id)}</strong><em>شناسه پیگیری ${safeText(c.card_id)}</em></span>
+              <span class="card-game-badge">بازی <bdi>${safeText(c.display_code || gid)}</bdi></span>
               <span>${safeText(formatFaDateTime(c.created_at))}</span>
             </div>
             ${winnerLabel ? `<span class="winner-kind-pill">${safeText(winnerLabel)}</span>` : ""}
@@ -3753,7 +3767,7 @@ async function openHistoryModalForGame(gameId, { cardId = 0, source = "history" 
     bodyEl.innerHTML = `${head}<div class="history-modal-grid history-modal-grid-ux21">${cardsHtml}</div>`;
   } catch (err) {
     const msg = localizeApiError(err?.message || err || "خطای بارگذاری جزئیات");
-    titleEl.textContent = source === "wins" ? `جزئیات برد بازی #${gid}` : `جزئیات کارت‌های بازی #${gid}`;
+    titleEl.textContent = source === "wins" ? `جزئیات برد بازی ${gameDisplayRef(gid)}` : `جزئیات کارت‌های بازی ${gameDisplayRef(gid)}`;
     metaEl.textContent = "بارگذاری ناموفق";
     bodyEl.innerHTML = `<div class="empty">جزئیات کارت‌ها بارگذاری نشد. ${safeText(msg)}</div>`;
     renderCardsPullHint(msg, "error");
@@ -3812,8 +3826,8 @@ async function openAdminWinnerCardModal(gameId, cardId) {
     panel.innerHTML = `
       <div class="admin-winner-card-head">
         <div>
-          <strong>کارت #${safeText(cid)}</strong>
-          <span>${safeText(winnerLabel)} | بازی #${safeText(gid)}</span>
+          <strong>کارت ${safeText(card.display_serial || cid)}</strong>
+          <span>${safeText(winnerLabel)} | بازی ${safeText(gameDisplayRef(gid))}</span>
         </div>
       </div>
       <div class="admin-winner-card-meta">
@@ -3894,6 +3908,7 @@ async function refreshCards({ silent = false } = {}) {
 
     return {
       gameId: gid,
+      displayCode: snap?.game?.display_code || cards[0]?.display_code,
       status: String(snap?.game?.status || cards[0]?.game_status || "LOBBY"),
       eventMarker: Number(snap?.last_event_id || 0),
       calledNumbers,
@@ -5099,7 +5114,7 @@ function drawWinTimeline() {
   const gameIds = [...new Set(wins.map((w) => Number(w?.ref_id || 0)).filter((x) => x > 0))].sort((a, b) => b - a);
   const prev = String(filterEl.value || "all");
   filterEl.innerHTML = `<option value="all">همه بازی‌ها</option>${gameIds
-    .map((gid) => `<option value="${gid}">بازی #${gid}</option>`)
+    .map((gid) => `<option value="${gid}">بازی ${gameDisplayRef(gid)}</option>`)
     .join("")}`;
   if (prev && (prev === "all" || gameIds.includes(Number(prev)))) {
     filterEl.value = prev;
@@ -5982,7 +5997,7 @@ function renderSystemGameClocks() {
     const digits = view.secs == null ? "—:—" :
       toFaDigits(String(Math.floor(view.secs / 60)).padStart(2, "0") + ":" + String(view.secs % 60).padStart(2, "0"));
     return '<div class="system-clock-card system-clock-' + view.kind + '">' +
-      '<div class="system-clock-card-head"><strong>' + safeText(autopilotLevelLabel(game.game_level)) + ' • بازی #' + safeText(toFaDigits(gid)) +
+      '<div class="system-clock-card-head"><strong>' + safeText(autopilotLevelLabel(game.game_level)) + ' • بازی ' + safeText(game.display_code || toFaDigits(gid)) +
       '</strong><span class="system-clock-status">' + safeText(view.label) + '</span></div>' +
       '<div class="system-clock-digits" role="timer" aria-label="شمارش معکوس شروع">' + safeText(digits) + '</div>' +
       '<div class="system-clock-track"><div class="system-clock-fill" style="width:' + frac.toFixed(1) + '%"></div></div>' +
@@ -6073,7 +6088,7 @@ function renderAdminGames(payload) {
       return `
         <div class="history-item admin-game-list-item-v2" data-game-id="${gid}">
           <div class="admin-game-list-title-v2">
-            <strong>بازی #${safeText(toFaDigits(gid))} | ${status}</strong>
+            <strong>بازی <bdi>${safeText(g.display_code || toFaDigits(gid))}</bdi> | ${status}</strong>
             <span class="admin-game-rule-v2">${safeText(gameRuleUiMeta(g).label)}</span>
           </div>
           <div class="history-meta">
@@ -6104,7 +6119,7 @@ function renderAdminGames(payload) {
       if (selectedGame?.can_manage === false) {
         showToast("این بازی فقط قابل مشاهده است؛ مجوز اجرای عملیات مدیریتی نداری.", "error");
       } else {
-        setAdminLocalHint("adminCallActionHint", `بازی #${gid} برای کنترل انتخاب شد.`, "success");
+        setAdminLocalHint("adminCallActionHint", `بازی ${gameDisplayRef(gid)} برای کنترل انتخاب شد.`, "success");
         jumpToAdminSectionV2("adminDrawModeShell");
       }
     });
@@ -8668,7 +8683,7 @@ async function adminStartGame() {
     method: "POST",
     body: { idempotency_key: idem("mini_admin_start") },
   });
-  setAdminLocalHint("adminCallActionHint", `بازی #${gid} شروع شد و حالت اعلام عدد قفل شد.`, "success");
+  setAdminLocalHint("adminCallActionHint", `بازی ${gameDisplayRef(gid)} شروع شد و حالت اعلام عدد قفل شد.`, "success");
   await Promise.allSettled([refreshAdminGames(), refreshAdminAutoDraw(gid), openLiveGame(gid)]);
 }
 
@@ -9252,7 +9267,7 @@ async function adminCallNumber() {
   setVal("adminCallNumberInput", "");
   focusAdminCallNumberInput();
   renderAdminCallQuickPanel({ fresh: true });
-  setAdminLocalHint("adminCallActionHint", `عدد ${number} برای بازی #${gid} ثبت شد.`, "success");
+  setAdminLocalHint("adminCallActionHint", `عدد ${number} برای بازی ${gameDisplayRef(gid)} ثبت شد.`, "success");
   await Promise.allSettled([
     refreshAdminGames(),
     openLiveGame(gid, { notifyFresh: true, notifyAfterId: previousCursor }),
@@ -9334,7 +9349,7 @@ async function adminSendLiveLink() {
   const okCount = Number(res?.notified_ok || 0);
   const failCount = Number(res?.notify_failed || 0);
   const noTgCount = Number(res?.no_tg_count || 0);
-  const msg = `لینک لایو بازی #${gid} ارسال شد. خریداران: ${participants} | موفق: ${okCount} | ناموفق: ${failCount} | بدون شناسه: ${noTgCount}`;
+  const msg = `لینک لایو بازی ${gameDisplayRef(gid)} ارسال شد. خریداران: ${participants} | موفق: ${okCount} | ناموفق: ${failCount} | بدون شناسه: ${noTgCount}`;
   setAdminLocalHint("adminLiveActionHint", msg, okCount > 0 ? "success" : "error");
   await Promise.allSettled([refreshAdminGames(), openLiveGame(gid)]);
 }

@@ -55,7 +55,7 @@ class MySQLFinanceConcurrencyTests(unittest.TestCase):
         with cls.engine.connect() as conn:
             name = conn.execute(text("SELECT DATABASE()")).scalar_one()
             revision = conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
-            if name != TEST_DB or revision != "20261113_0013":
+            if name != TEST_DB or revision != "20261115_0014":
                 cls.engine.dispose()
                 raise RuntimeError("SAFETY STOP: unexpected DB or migration version")
         print(f"Concurrent tests enabled only for {TEST_DB} ({revision})")
@@ -186,6 +186,9 @@ class MySQLFinanceConcurrencyTests(unittest.TestCase):
                 select(func.count()).select_from(GameCard)
                 .where(GameCard.game_id == self.game_id)
             ).scalar_one())
+            serials = db.scalars(select(GameCard.display_serial).where(
+                GameCard.game_id == self.game_id).order_by(GameCard.display_serial)).all()
+            self.assertEqual(serials, list(range(1, cards + 1)))
             debits = int(db.execute(
                 select(func.count()).select_from(WalletTx)
                 .where(WalletTx.wallet_id == self.wallet_ids[0],

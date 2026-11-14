@@ -8,6 +8,7 @@ class CreateGameIn(BaseModel):
     commission_rate: float | None = Field(default=None, ge=0, lt=1)
 
 class GameOut(BaseModel):
+    display_code: str | None = None
     id: int
     tg_group_id: int
     tg_topic_id: int | None = None
@@ -60,6 +61,7 @@ class CallNumberOut(BaseModel):
 
 
 class CardOut(BaseModel):
+    display_serial: int | None = None
     card_id: int
     fingerprint: str
     numbers: list[int]  # V1 20 numbers; V2 27 cells with 0 for blank
@@ -69,6 +71,7 @@ class MyCardsOut(BaseModel):
     cards: list[CardOut]
 
 class GameStateOut(BaseModel):
+    display_code: str | None = None
     game_id: int
     tg_group_id: int
     tg_topic_id: int | None = None

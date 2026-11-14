@@ -349,6 +349,7 @@ def _read_request_destination(db: Session, *, request_id: int) -> tuple[str | No
 
 def _to_game_out(g: Game) -> MiniGameItemOut:
     return MiniGameItemOut(
+        display_code=getattr(g, "display_code", None),
         id=int(g.id),
         tg_group_id=int(g.tg_group_id),
         tg_topic_id=int(g.tg_topic_id) if g.tg_topic_id is not None else None,
@@ -1279,7 +1280,7 @@ def _mini_send_game_created_notice(*, game: Game) -> bool:
     game_topic_id = int(game.tg_topic_id) if getattr(game, "tg_topic_id", None) is not None else None
     game_topic_title = _mini_game_topic_title(game_topic_id)
     text = (
-        f"🎮 <b>بازی #{int(game.id)} | خرید کارت باز است</b>\n"
+        f"🎮 <b>بازی #{getattr(game, 'display_code', None) or int(game.id)} | خرید کارت باز است</b>\n"
         f"🎯 {html_escape(game_topic_title)}\n"
         f"💳 قیمت هر کارت: <b>{int(game.card_price):,} تومان</b>\n"
         f"{_mini_game_rule_announcement_line(getattr(game, 'game_rule', None), getattr(game, 'card_layout_version', None))}"
@@ -1923,6 +1924,7 @@ def list_my_cards(
     for card, game in rows:
         items.append(
             MiniUserCardItemOut(
+                display_code=game.display_code, display_serial=card.display_serial,
                 game_id=int(card.game_id),
                 card_id=int(card.id),
                 fingerprint=str(card.fingerprint),
@@ -1959,6 +1961,7 @@ def game_snapshot(
     cards = GameService.get_user_cards(db, game_id=int(game_id), user_id=int(user_id))
     my_cards = [
         MiniCardOut(
+            display_serial=c.get("display_serial"),
             card_id=int(c["card_id"]),
             fingerprint=str(c["fingerprint"]),
             numbers=[int(x) for x in c["numbers"]],
@@ -4678,6 +4681,7 @@ def mini_admin_get_game_card(
     return {
         "game_id": int(game.id),
         "game_status": str(game.status),
+        "display_code": game.display_code, "display_serial": card.display_serial,
         "card_id": int(card.id),
         "fingerprint": str(card.fingerprint),
         "numbers": _numbers_from_json(card.numbers_json),
