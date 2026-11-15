@@ -1,0 +1,134 @@
+{
+  "at": "2026-11-13T21:27:00.789294+00:00",
+  "rollout": {
+    "status": "deployed",
+    "at": "2026-11-13T21:22:55.893418+00:00",
+    "merge": "1ad1e9932d58522179b5379af8e60c270284190c",
+    "source": "a5773b36c043a4063f65c93a43f756ae38ac7fca",
+    "images": {
+      "backend": [
+        "docker.io/library/dabarna-backend:final-a5773b3",
+        "sha256:95d43bb11df3125933592250bdb5c23c9c6abecffbd320859a97064060d08aa4"
+      ],
+      "bot": [
+        "docker.io/library/dabarna-bot:final-a5773b3",
+        "sha256:fc9f74a517cf400d41995635169230d44b67cea66831abe742b70f93f67ded65"
+      ]
+    },
+    "schema": "20261113_0013",
+    "financial_data_unchanged_by_migration": true,
+    "autopilot_settings_unchanged": true,
+    "financial_settings_unchanged": true,
+    "runtime_environments_unchanged": true,
+    "infrastructure_not_restarted": true,
+    "prior_ack_preserved": true,
+    "synthetic_messages_sent": false
+  },
+  "services": {
+    "backend": {
+      "image": "sha256:95d43bb11df3125933592250bdb5c23c9c6abecffbd320859a97064060d08aa4",
+      "health": "healthy",
+      "restarts": 0,
+      "started_at": "2026-11-13T21:22:33.472590346Z",
+      "error_lines": 0,
+      "traceback_lines": 0,
+      "worker_start_mentions": {
+        "autopilot": true,
+        "auto draw": false,
+        "notifier": false
+      }
+    },
+    "bot": {
+      "image": "sha256:fc9f74a517cf400d41995635169230d44b67cea66831abe742b70f93f67ded65",
+      "health": "healthy",
+      "restarts": 0,
+      "started_at": "2026-11-13T21:22:41.147698816Z",
+      "error_lines": 0,
+      "traceback_lines": 0,
+      "worker_start_mentions": {
+        "autopilot": false,
+        "auto draw": false,
+        "notifier": true
+      }
+    },
+    "mysql": {
+      "image": "sha256:99d774bf02a48a1bb1c599920d2571946d31e5940b854b02737d5e95c184358f",
+      "health": "healthy",
+      "restarts": 0,
+      "started_at": "2026-08-16T18:48:37.921926974Z"
+    },
+    "redis": {
+      "image": "sha256:02f2cc4882f8bf87c79a220ac958f58c700bdec0dfb9b9ea61b62fb0e8f1bfcf",
+      "health": "healthy",
+      "restarts": 0,
+      "started_at": "2026-08-16T18:48:37.909155435Z"
+    }
+  },
+  "database": {
+    "schema": "20261113_0013",
+    "active_status_counts": {
+      "LOBBY": 3,
+      "RUNNING": 0
+    },
+    "trigger_count": 5
+  },
+  "backup": {
+    "sha256": "042023b17c483a803b559728b95b29f62f39a93d1e39aa93d62a19d8948192a9",
+    "bytes": 205792
+  },
+  "http_internal": {
+    "/health/db": {
+      "status": 200,
+      "sha256": "4062edaf750fb8074e7e83e0c9028c94e32468a8b6f1614774328ef045150f93"
+    },
+    "/mini/": {
+      "status": 200,
+      "sha256": "c3d119fe16c607ea3ccd5bfd08c5b418fc35f2975ea305bd8fca315cc9398bb3"
+    },
+    "/mini/app.js": {
+      "status": 200,
+      "sha256": "799a87ec8f8debc4544edb68c3fd35532cd56c617a50b2ff25c25df2eaab1a9f"
+    },
+    "/mini/ux-v2.css": {
+      "status": 200,
+      "sha256": "be64aa38a5300d30c0200ee4163b14b8684bca9872b9e8dd78f24f9616764fee"
+    },
+    "/mini/automation-clocks.mjs": {
+      "status": 200,
+      "sha256": "b0b1a02c7ceb526aab856bfeb3cff2913c1288c8816e50083319117e73720c8e"
+    },
+    "/mini-api/admin/ops-dashboard": {
+      "status": 401
+    },
+    "/mini-api/automation/timeline": {
+      "status": 401
+    }
+  },
+  "http_public": {
+    "/health/db": {
+      "status": 200
+    },
+    "/mini/": {
+      "status": 200,
+      "sha256": "c3d119fe16c607ea3ccd5bfd08c5b418fc35f2975ea305bd8fca315cc9398bb3"
+    },
+    "/mini/app.js": {
+      "status": 200,
+      "sha256": "799a87ec8f8debc4544edb68c3fd35532cd56c617a50b2ff25c25df2eaab1a9f"
+    },
+    "/mini/ux-v2.css": {
+      "status": 200,
+      "sha256": "be64aa38a5300d30c0200ee4163b14b8684bca9872b9e8dd78f24f9616764fee"
+    },
+    "/mini/automation-clocks.mjs": {
+      "status": 200,
+      "sha256": "b0b1a02c7ceb526aab856bfeb3cff2913c1288c8816e50083319117e73720c8e"
+    },
+    "/mini-api/admin/ops-dashboard": {
+      "status": 401
+    },
+    "/mini-api/automation/timeline": {
+      "status": 401
+    }
+  }
+}

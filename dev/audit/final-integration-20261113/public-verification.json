@@ -1,0 +1,32 @@
+{
+  "at": "2026-11-13T21:24:59.828282+00:00",
+  "vantage": "local workstation via public HTTPS",
+  "base": "https://davarna.peymoonnet.de",
+  "checks": {
+    "/health/db": {
+      "status": 200
+    },
+    "/mini/": {
+      "status": 200,
+      "sha256": "c3d119fe16c607ea3ccd5bfd08c5b418fc35f2975ea305bd8fca315cc9398bb3"
+    },
+    "/mini/app.js": {
+      "status": 200,
+      "sha256": "799a87ec8f8debc4544edb68c3fd35532cd56c617a50b2ff25c25df2eaab1a9f"
+    },
+    "/mini/automation-clocks.mjs": {
+      "status": 200,
+      "sha256": "b0b1a02c7ceb526aab856bfeb3cff2913c1288c8816e50083319117e73720c8e"
+    },
+    "/mini/ux-v2.css": {
+      "status": 200,
+      "sha256": "be64aa38a5300d30c0200ee4163b14b8684bca9872b9e8dd78f24f9616764fee"
+    },
+    "/mini-api/admin/ops-dashboard": {
+      "status": 401
+    },
+    "/mini-api/automation/timeline": {
+      "status": 401
+    }
+  }
+}
