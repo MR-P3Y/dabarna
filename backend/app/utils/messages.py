@@ -27,7 +27,7 @@ def money_toman(value) -> str:
 def format_game_summary(state: dict) -> str:
     status = {"LOBBY": "در انتظار شروع", "RUNNING": "در حال بازی", "ENDED": "پایان‌یافته"}.get(state["status"], "وضعیت نامشخص")
     rule = stored_rule(state.get("game_rule"), state.get("card_layout_version"))
-    lines = [f"بازی شماره {state['game_id']} | {status}"]
+    lines = [f"بازی شماره {state.get('display_code') or state['game_id']} | {status}"]
     if rule == "UNKNOWN":
         return "\n".join([*lines, RULE_ERROR])
     lines += [RULE_LINES[rule].strip().replace("<b>", "").replace("</b>", ""),

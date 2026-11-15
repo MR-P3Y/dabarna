@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import secrets
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 from decimal import Decimal, ROUND_HALF_UP
 from typing import Any
 
@@ -287,7 +288,16 @@ class GameService:
                 raise HTTPException(status_code=409, detail="invalid configured V2 game rule")
             layout_version = 2
 
+        # One allocation lock across all levels. Acquire before choosing the Tehran day.
+        sequence = db.execute(select(AppSetting).where(
+            AppSetting.k == "game_display_sequence").with_for_update()
+            .execution_options(populate_existing=True)).scalar_one()
+        day = datetime.now(ZoneInfo("Asia/Tehran")).strftime("%Y%m%d")
+        last = sequence.v_json
+        serial = int(last["serial"]) + 1 if day == last["day"] else 1
+        sequence.v_json = {"day": day, "serial": serial}
         g = Game(
+            display_code=f"G-{day}-{serial:03d}",
             tg_group_id=tg_group_id,
             tg_topic_id=tg_topic_id,
             admin_user_id=admin_user_id,
@@ -452,6 +462,12 @@ class GameService:
         max_number = int(GameService._get_setting(db, GameService.KEY_MAX_NUMBER, 90))
         cards: list[GameCard] = []
 
+        # buy_cards already holds the game lock. A locking read sees the latest
+        # committed serial even if an earlier MySQL consistent read opened a snapshot.
+        previous = db.execute(select(GameCard.display_serial).where(
+            GameCard.game_id == game.id, GameCard.display_serial.is_not(None)
+        ).order_by(GameCard.display_serial.desc()).limit(1).with_for_update()).scalar_one_or_none()
+        first_serial = (previous or 0) + 1
         MAX_RETRY = 5  # ✅ طبق requirement
 
         for i in range(int(qty)):
@@ -469,6 +485,7 @@ class GameService:
                 try:
                     with db.begin_nested():
                         c = GameCard(
+                            display_serial=first_serial + i,
                             game_id=int(game.id),
                             user_id=int(user_id),
                             purchase_id=int(purchase.id),
@@ -1399,6 +1416,7 @@ class GameService:
             out.append(
                 {
                     "card_id": int(c.id),
+                    "display_serial": c.display_serial,
                     "fingerprint": str(c.fingerprint),
                     "numbers": [int(x) for x in nums],
                 }
@@ -1441,6 +1459,7 @@ class GameService:
             ).one()
 
         return {
+            "display_code": g.display_code,
             "ended_at": str(g.ended_at) if g.ended_at else None,
             "col_absorbed_into_row": bool(col_info.get("absorbed_into_row")),
             "cards_count": cards_count,
@@ -1506,6 +1525,7 @@ class GameService:
             out_cards.append(
                 {
                     "card_id": int(c.id),
+                    "display_serial": c.display_serial,
                     "fingerprint": str(c.fingerprint),
                     "grid_text": render_card_text(nums, called_numbers, g.game_rule, g.card_layout_version),
                 }
@@ -1515,6 +1535,6 @@ class GameService:
             "game_id": int(game_id),
             "user_id": int(user_id),
             "called_numbers": called_numbers,
-            "cards": out_cards,
+            "cards": out_cards, "display_code": g.display_code,
         }
 

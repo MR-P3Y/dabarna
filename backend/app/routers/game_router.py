@@ -52,6 +52,7 @@ def _row_paid_from_game(g: Game) -> int:
 
 def _to_game_out(g: Game) -> GameOut:
     return GameOut(
+        display_code=getattr(g,"display_code",None),
         id=g.id,
         tg_group_id=g.tg_group_id,
         tg_topic_id=g.tg_topic_id,
@@ -265,7 +266,7 @@ def my_cards_message(
         game_id=pv["game_id"],
         user_id=pv["user_id"],
         called_numbers=pv["called_numbers"],
-        cards=pv["cards"],
+        cards=pv["cards"], display_code=pv.get("display_code"),
     )
 
     parts = paginate_blocks(header_block, card_blocks)

@@ -16,6 +16,7 @@ class MiniAuthExchangeOut(BaseModel):
 
 
 class MiniGameItemOut(BaseModel):
+    display_code: str | None = None
     id: int
     tg_group_id: int
     tg_topic_id: int | None = None
@@ -56,12 +57,15 @@ class MiniEventOut(BaseModel):
 
 
 class MiniCardOut(BaseModel):
+    display_serial: int | None = None
     card_id: int
     fingerprint: str
     numbers: list[int]
 
 
 class MiniUserCardItemOut(BaseModel):
+    display_serial: int | None = None
+    display_code: str | None = None
     game_id: int
     card_id: int
     fingerprint: str

@@ -249,7 +249,7 @@ async def buy_confirm(cq: CallbackQuery, state: FSMContext, api: ApiClient, tg_u
 
         text = panel(
             "خرید با موفقیت انجام شد ✅",
-            f"🎮 بازی: <b>{out.get('game_id')}</b>\n"
+            f"🎮 بازی: <b>{out.get('display_code') or out.get('game_id')}</b>\n"
             f"🧾 سفارش: <b>{out.get('order_id')}</b>\n"
             f"🃏 کارت ساخته شد: <b>{out.get('cards_created')}</b>\n"
             f"💰 مبلغ: <b>{_fmt_int(out['total_amount'])} تومان</b>\n"

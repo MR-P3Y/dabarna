@@ -592,7 +592,7 @@ async def _notify_autopilot_start_countdown(bot: Bot, *, game_id: int, report: d
     mode = str(game.get("draw_mode") or "").upper()
     mode_label = "خودکار" if mode == "AUTO" else "دستی توسط ادمین" if mode == "MANUAL" else "در حال آماده‌سازی"
     message = (
-        f"⏳ <b>بازی #{int(game_id)} در آستانه شروع است!</b>\n"
+        f"⏳ <b>بازی #{game.get('display_code') or game_id} در آستانه شروع است!</b>\n"
         f"🎮 {user_game_topic_title(topic)}\n"
         f"⏱ شروع خودکار طبق ساعت سرور: <b>حدود {seconds_left} ثانیه دیگر</b>\n"
         f"🔢 شماره‌خوان: <b>{mode_label}</b>\n"
@@ -639,7 +639,7 @@ async def _send_game_started_to_lane(bot: Bot, *, game_id: int, report: dict, ev
         return False
     mode_line = _game_start_draw_line(event)
     message = (
-        f"🚀 <b>بازی #{int(game_id)} شروع شد!</b>\n"
+        f"🚀 <b>بازی #{game.get('display_code') or game_id} شروع شد!</b>\n"
         f"🎮 {user_game_topic_title(topic)}\n"
         f"{mode_line + chr(10) if mode_line else ''}"
         "🔢 اعداد را در بخش «اعداد زنده» دنبال کنید."
@@ -658,7 +658,7 @@ async def _send_user_game_started_notice(bot: Bot, *, game_id: int, report: dict
     topic_id = _to_int(game.get("tg_topic_id"), 0)
     mode_line = _game_start_draw_line(event)
     text = (
-        f"▶️ <b>بازی #{game_id} شروع شد</b>\n"
+        f"▶️ <b>بازی #{game.get('display_code') or game_id} شروع شد</b>\n"
         f"🎮 {user_game_topic_title(topic_id or None)}\n"
         f"{_game_rule_notice_line(game)}"
         f"{mode_line + chr(10) if mode_line else ''}"
@@ -677,7 +677,7 @@ async def _send_user_game_created_notice(bot: Bot, *, game_id: int, report: dict
     game = report.get("game") or {}
     topic_id = _to_int(game.get("tg_topic_id"), 0)
     text = (
-        f"🎮 <b>بازی #{game_id} | خرید کارت باز است</b>\n"
+        f"🎮 <b>بازی #{game.get('display_code') or game_id} | خرید کارت باز است</b>\n"
         f"🎯 {user_game_topic_title(topic_id or None)}\n"
         f"💳 قیمت هر کارت: <b>{_fmt_amount(_to_int(game.get('card_price'), 0))} تومان</b>\n"
         f"{_game_rule_notice_line(game)}"
@@ -698,7 +698,7 @@ async def _send_user_game_ended_notice(bot: Bot, *, game_id: int, report: dict, 
     topic_id = _to_int(game.get("tg_topic_id"), 0)
     called = _called_numbers_from_report(report)
     text = (
-        f"🏁 <b>بازی #{game_id} پایان یافت</b>\n"
+        f"🏁 <b>بازی #{game.get('display_code') or game_id} پایان یافت</b>\n"
         f"🎮 {user_game_topic_title(topic_id or None)}\n"
         f"📌 نتیجه: {_end_reason_fa(end_reason)}\n"
         f"{_game_rule_notice_line(game)}"
@@ -717,12 +717,13 @@ async def _send_user_live_number_notice(
     game_id: int,
     game_topic_id: int | None,
     number: int,
+    display_code: str | None = None,
     called_numbers: list[int],
 ) -> None:
     # One short message per draw: no repeated guide, inline keyboard or
     # verbose header (particularly important at five-second draw intervals).
     text = (
-        f"🔢 <b>بازی #{game_id} | عدد {number}</b>\n"
+        f"🔢 <b>بازی #{display_code or game_id} | عدد {number}</b>\n"
         f"۱۰ عدد آخر: {_fmt_last(called_numbers, 10)}"
     )
     await send_to_user_topic(
@@ -1409,16 +1410,18 @@ async def _queue_prize_notifications(
         return
     kind_title = "تورنا" if bucket == "col" else {"FULL_CARD": "پرکردنی", "LINE": "خطی", "LEGACY": "ردیفی"}[rule]
     grouped = _winner_shares(game, payload, bucket)
+    labels = {row["card_id"]: row["display_serial"] for row in report.get("winner_cards", [])
+              if row.get("card_id") and row.get("display_serial")}
     winner_card_ids = [cid for cards in grouped.values() for cid, _ in cards]
     if _is_user_forum_game(report):
         public_text = panel(
             "اعلان برنده",
             "#نتایج #برنده\n"
-            f"🎮 بازی: <b>#{game_id}</b>\n"
+            f"🎮 بازی: <b>#{game.get('display_code') or game_id}</b>\n"
             f"🧵 دسته بازی: <b>{user_game_topic_title(game_topic_id if game_topic_id > 0 else None)}</b>\n"
             f"🏆 نوع برد: <b>{kind_title}</b>\n"
             f"👥 تعداد برنده‌ها: <b>{len(grouped)}</b>\n"
-            f"🪪 کارت‌های برنده: <code>{', '.join(str(x) for x in winner_card_ids) if winner_card_ids else '—'}</code>\n"
+            f"🪪 کارت‌های برنده: <code>{', '.join(str(labels.get(x, x)) for x in winner_card_ids) if winner_card_ids else '—'}</code>\n"
             f"💰 مجموع پرداخت: <b>{_amount_text(amount_total)}</b>\n"
             f"{f'🔢 عدد برنده: <b>{call_number}</b>' if call_number > 0 else ''}\n\n"
             "سهم هر برنده در ربات خصوصی نمایش داده می‌شود.",
@@ -1434,8 +1437,8 @@ async def _queue_prize_notifications(
     for tg_uid, cards in grouped.items():
         text = (
             f"🏆 <b>تبریک!</b>\n"
-            f"تو در بازی <b>#{game_id}</b> برنده {kind_title} شدی.\n"
-            f"🪪 کارت(ها): <code>{_fmt_cards(cards)}</code>\n"
+            f"تو در بازی <b>#{game.get('display_code') or game_id}</b> برنده {kind_title} شدی.\n"
+            f"🪪 کارت(ها): <code>{_fmt_cards([(labels.get(cid, cid), share) for cid, share in cards])}</code>\n"
             f"💰 مبلغ: <b>{_personal_amount(cards)}</b>\n"
             f"{f'🔢 عدد برنده: <b>{call_number}</b>' if call_number > 0 else ''}"
         ).strip()
@@ -1755,6 +1758,7 @@ async def notifier_loop(
                             await _send_user_live_number_notice(
                                 bot,
                                 game_id=gid,
+                                display_code=game.get("display_code"),
                                 game_topic_id=game_topic_id if game_topic_id > 0 else None,
                                 number=int(n),
                                 called_numbers=partial_called,

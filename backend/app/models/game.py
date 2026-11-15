@@ -10,6 +10,7 @@ GameStatus = Enum("LOBBY","RUNNING","ENDED", name="game_status")
 class Game(Base):
     __tablename__ = "games"
     __table_args__ = (
+        UniqueConstraint("display_code", name="uq_games_display_code"),
         Index("idx_group_status", "tg_group_id", "status"),
         Index("idx_group_topic_status", "tg_group_id", "tg_topic_id", "status"),
         Index("idx_games_draw_mode", "draw_mode"),
@@ -17,6 +18,7 @@ class Game(Base):
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    display_code: Mapped[str | None] = mapped_column(String(32))
     tg_group_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
     tg_topic_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
 
@@ -83,6 +85,7 @@ class GamePurchase(Base):
 class GameCard(Base):
     __tablename__ = "game_cards"
     __table_args__ = (
+        UniqueConstraint("game_id", "display_serial", name="uq_game_card_serial"),
         UniqueConstraint("game_id", "fingerprint", name="uq_game_cards_game_fp"),
         Index("idx_game_user", "game_id", "user_id"),
     )
@@ -92,6 +95,7 @@ class GameCard(Base):
     user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id"), nullable=False)
     purchase_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("game_purchases.id"), nullable=False)
 
+    display_serial: Mapped[int | None] = mapped_column(Integer)
     numbers_json: Mapped[dict] = mapped_column(JSON, nullable=False)
     fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
 

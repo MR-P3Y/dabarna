@@ -781,6 +781,7 @@ class DepositRequestOut(BaseModel):
 
 
 class BotGameOut(BaseModel):
+    display_code: str | None = None
     id: int
     title: str
     status: str
@@ -801,6 +802,7 @@ class BotGameOut(BaseModel):
 
 
 class BotAdminGameOut(BaseModel):
+    display_code: str | None = None
     id: int
     tg_group_id: int
     tg_topic_id: int | None = None
@@ -873,6 +875,7 @@ class BotAdminStatusIn(BaseModel):
 
 
 class BotAdminGameReportGameOut(BaseModel):
+    display_code: str | None = None
     id: int
     tg_group_id: int
     tg_topic_id: int | None = None
@@ -932,6 +935,7 @@ class BotAdminGameEventOut(BaseModel):
 
 
 class BotAdminWinnerCardOut(BaseModel):
+    display_serial: int | None = None
     card_id: int
     user_id: int
     tg_user_id: int | None = None
@@ -974,6 +978,7 @@ class BotPurchaseCardsIn(BaseModel):
 
 
 class BotPurchaseCardsOut(BaseModel):
+    display_code: str | None = None
     order_id: int
     total_amount: int
     wallet_balance: int
@@ -1054,6 +1059,7 @@ class ManualChargeIn(BaseModel):
 
 def _to_bot_admin_game_out(g: Game) -> BotAdminGameOut:
     return BotAdminGameOut(
+        display_code=getattr(g, "display_code", None),
         id=int(g.id),
         tg_group_id=int(g.tg_group_id),
         tg_topic_id=int(g.tg_topic_id) if getattr(g, "tg_topic_id", None) is not None else None,
@@ -2349,7 +2355,8 @@ def list_bot_games(
         out.append(
             BotGameOut(
                 id=g.id,
-                title=f"بازی شمارهٔ {g.id}",
+                title=f"بازی شمارهٔ {g.display_code or g.id}",
+                display_code=g.display_code,
                 status=bot_status,
                 card_price=g.card_price,
                 game_rule=g.game_rule,
@@ -2406,6 +2413,7 @@ def bot_purchase_cards(
 
         db.commit()
         return BotPurchaseCardsOut(
+            display_code=db.scalar(select(Game.display_code).where(Game.id == payload.game_id)),
             order_id=int(purchase.id),
             total_amount=int(purchase.total_price),
             wallet_balance=wallet_balance,
@@ -2582,23 +2590,23 @@ def get_my_cards(
         raise HTTPException(status_code=400, detail="page_size must be between 1 and 100")
 
     # Build query
-    query = select(GameCard).where(GameCard.user_id == user.id)
+    query = select(GameCard, Game.display_code).join(Game, Game.id == GameCard.game_id).where(GameCard.user_id == user.id)
 
     if game_id:
         query = query.where(GameCard.game_id == game_id)
 
     # Get total count before pagination
-    total_count_result = db.execute(query).scalars().all()
-    total_count = len(total_count_result)
+    total_count = db.scalar(select(func.count()).select_from(query.subquery()))
 
     # Apply pagination
     offset = (page - 1) * page_size
     cards = db.execute(
-        query.offset(offset).limit(page_size)
-    ).scalars().all()
+        query.order_by(GameCard.id.desc()).offset(offset).limit(page_size)
+    ).all()
 
     return {
-        "cards": cards if cards else [],
+        "cards": [{**{column.name: getattr(card, column.name) for column in GameCard.__table__.columns},
+                   "display_code": code} for card, code in cards],
         "pagination": {
             "page": page,
             "page_size": page_size,
@@ -2651,7 +2659,7 @@ def list_bot_admin_games(
     rows = db.execute(
         text(f"""
             SELECT
-              id, tg_group_id, tg_topic_id, admin_user_id, status,
+              id, display_code, tg_group_id, tg_topic_id, admin_user_id, status,
               card_price, card_layout_version, game_rule, commission_rate, sold_amount, commission_amount, prize_pool,
               prize_locked, col_prize_amount, row_prize_amount,
               col_paid, payout_state_json, row_winner_user_id,
@@ -2666,6 +2674,7 @@ def list_bot_admin_games(
 
     items = [
         BotAdminGameOut(
+            display_code=r["display_code"],
             id=int(r["id"]),
             tg_group_id=int(r["tg_group_id"]),
             tg_topic_id=int(r["tg_topic_id"]) if r["tg_topic_id"] is not None else None,
@@ -2711,7 +2720,7 @@ def get_bot_admin_game_report(
     game = db.execute(
         text("""
             SELECT
-              id, tg_group_id, tg_topic_id, admin_user_id, status, game_level,
+              id, display_code, tg_group_id, tg_topic_id, admin_user_id, status, game_level,
               execution_source, scheduled_start_at, draw_mode,
               card_price, card_layout_version, game_rule, commission_rate,
               sold_amount, commission_amount, prize_pool,
@@ -2754,12 +2763,12 @@ def get_bot_admin_game_report(
     winner_cards_out: list[BotAdminWinnerCardOut] = []
     if winner_card_ids:
         card_rows = db.execute(
-            select(GameCard.id, GameCard.user_id, GameCard.numbers_json).where(
+            select(GameCard.id, GameCard.user_id, GameCard.numbers_json, GameCard.display_serial).where(
                 GameCard.game_id == game_id,
                 GameCard.id.in_(winner_card_ids),
             )
         ).all()
-        for cid, uid, nums_raw in card_rows:
+        for cid, uid, nums_raw, serial in card_rows:
             nums = []
             for x in _as_json_list(nums_raw):
                 try:
@@ -2768,6 +2777,7 @@ def get_bot_admin_game_report(
                     continue
             winner_cards_out.append(
                 BotAdminWinnerCardOut(
+                    display_serial=serial,
                     card_id=int(cid),
                     user_id=int(uid),
                     tg_user_id=tg_map.get(int(uid)),
@@ -2823,6 +2833,7 @@ def get_bot_admin_game_report(
 
     return BotAdminReportOut(
         game=BotAdminGameReportGameOut(
+            display_code=game["display_code"],
             id=int(game["id"]),
             tg_group_id=int(game["tg_group_id"]),
             tg_topic_id=int(game["tg_topic_id"]) if game["tg_topic_id"] is not None else None,

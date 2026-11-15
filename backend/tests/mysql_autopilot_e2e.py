@@ -68,7 +68,7 @@ class MySQLAutopilotEndToEndTests(unittest.TestCase):
             if actual_db != TEST_DB:
                 raise RuntimeError("SAFETY STOP: wrong database selected")
             version = db.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
-            if version != "20261113_0013":
+            if version != "20261115_0014":
                 raise RuntimeError(f"SAFETY STOP: wrong test schema migration {version}")
         print(f"ISOLATED MYSQL ONLY: {TEST_DB}, migration {version}")
 
@@ -235,6 +235,7 @@ class MySQLAutopilotEndToEndTests(unittest.TestCase):
                     Game.execution_source == "SYSTEM",
                 )
             ).scalar_one()
+            self.assertRegex(game.display_code, r"^G-[0-9]{8}-[0-9]{3,}$")
             game_id = int(game.id)
             self.assertEqual(str(game.game_rule), rule)
             self.assertEqual(int(game.card_layout_version), 2)
@@ -276,6 +277,8 @@ class MySQLAutopilotEndToEndTests(unittest.TestCase):
             self.assertEqual(str(control.status), "RUNNING")
             self.assertEqual(control.interval_seconds,interval)
             self.assertEqual((control.next_draw_at-control.started_at).total_seconds(),interval)
+            serials = self.db.execute(text("SELECT display_serial FROM game_cards WHERE game_id=:game ORDER BY id"), {"game": game_id}).scalars().all()
+            self.assertEqual(serials, [1, 2])
             self.assertEqual(int(game.prize_pool), 9000)
             self.assertEqual(int(game.commission_amount), 1000)
             self.assertEqual(self.financial_snapshot(game_id)["buy"], 10_000)

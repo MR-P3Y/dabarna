@@ -31,7 +31,7 @@ def games_select_kb(
         game_id = int(item.get("game_id") or item.get("id") or 0)
         cnt = int(item.get("count") or 0)
         price = _fmt_int(item.get("card_price"))
-        kb.button(text=f"🎮 #{game_id} | {level_title(item)} | {rule_title(item)} | {price} | {cnt} کارت", callback_data=f"mycards:game:{game_id}")
+        kb.button(text=f"🎮 {item.get('display_code') or game_id} | {level_title(item)} | {rule_title(item)} | {price} | {cnt} کارت", callback_data=f"mycards:game:{game_id}")
 
     if total_pages > 1:
         if page > 1:
