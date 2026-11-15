@@ -2617,6 +2617,34 @@ def mini_my_notifications(
             )
         )
 
+    if RBAC_OWNER_USER_ID is not None and int(user_id) == int(RBAC_OWNER_USER_ID):
+        # Both the Bot and Mini App record successful activation in this transaction log.
+        rotations = db.execute(
+            select(AdminAuditLog.id, AdminAuditLog.created_at)
+            .where(
+                AdminAuditLog.action == "settings.update",
+                AdminAuditLog.target_type == "app_setting",
+                AdminAuditLog.details_json["operation"].as_string()
+                == "activate_production_crypto_destination",
+            )
+            .order_by(AdminAuditLog.id.desc())
+            .limit(int(limit))
+        )
+        for audit_id, activated_at in rotations:
+            notifications.append(_mini_notification(
+                key=f"destination-change:{audit_id}",
+                kind="system",
+                title="آدرس دریافت رمزارز تغییر کرد",
+                body="تغییر مقصد واریز ثبت شد. جزئیات عملیات را در گزارش مدیریت ببینید.",
+                status="DONE",
+                severity="danger",
+                created_at=activated_at,
+                target_view="admin",
+                target_section="audit",
+                target_type="admin_audit_log",
+                target_id=audit_id,
+            ))
+
     notifications.sort(key=lambda item: str(item.get("created_at") or ""), reverse=True)
     return {"total": len(notifications), "items": notifications[: int(limit)]}
 
