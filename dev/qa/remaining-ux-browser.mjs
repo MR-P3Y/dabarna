@@ -7,7 +7,7 @@ import http from 'node:http';
 import {fileURLToPath} from 'node:url';
 const {chromium}=await import(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const base=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../../backend/app/static/mini');
-const output=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../audit/remaining-20261111/screenshots');
+const output=process.env.SCREENSHOT_DIR || path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../audit/remaining-20261111/screenshots');
 fs.mkdirSync(output,{recursive:true});
 const server=http.createServer((req,res)=>{
  const name=decodeURIComponent(new URL(req.url,'http://localhost').pathname).replace(/^\/mini\/?/,'') || 'index.html';
@@ -17,7 +17,7 @@ const server=http.createServer((req,res)=>{
  let body=fs.readFileSync(full);
  if(name==='app.js'){
   body=body.toString().replace('boot().catch((err) => {','Promise.resolve().catch((err) => {').replace('  let authOk = false;','  hideSplash(); return;\n  let authOk = false;');
-  body+='\nwindow.qa={state,boot,refreshNotifications,inboxUi,showAdminWinnerPopup,closeAdminWinnerModal,openWinnerModal,closeWinnerModal,openNotificationCenter,closeNotificationCenter,renderNotificationCenter,refreshGames};';
+  body+='\nwindow.qa={state,boot,refreshNotifications,inboxUi,showAdminWinnerPopup,closeAdminWinnerModal,openWinnerModal,closeWinnerModal,openNotificationCenter,closeNotificationCenter,renderNotificationCenter,refreshGames,drawGames};';
  }
  res.end(body);
 });
@@ -53,9 +53,27 @@ await page.route('**/*',async route=>{
 try {
  await page.goto(origin+'/mini/');await page.waitForFunction(()=>window.qa);
  await page.evaluate(async()=>{qa.state.currentUserId=8;qa.state.token='OFFLINE_TEST';qa.state.tokenExp=9999999999;qa.state.soundEnabled=false;await qa.boot();});
+ await page.evaluate(rows=>qa.drawGames(rows),games);
+ await page.locator('[data-game-filter="RUNNING"]').click();
+ assert.equal(await page.locator('#gamesList article:visible').count(),1);
+ assert.equal(await page.locator('#gamesList article:visible').getAttribute('data-status'),'RUNNING');
+ await page.evaluate(rows=>qa.drawGames(rows.filter(g=>g.status!=='RUNNING')),games);
+ assert.equal(await page.locator('#gameFilterEmpty').isVisible(),true);
+ await page.evaluate(rows=>qa.drawGames(rows),games);
+ assert.equal(await page.locator('[data-game-filter="RUNNING"]').getAttribute('aria-pressed'),'true');
+ await page.locator('[data-game-filter="ALL"]').click();
+ await page.locator('.player-preferences summary').click();
+ assert.equal(await page.locator('#themeBtn').isVisible(),true);
+ await page.locator('#themeBtn').click();
+ await page.locator('.player-preferences summary').click();
+ assert.equal(await page.locator('#themeBtn').isVisible(),false);
+ await page.evaluate(()=>document.documentElement.dataset.theme='dark');
+ assert.equal(await page.locator('#gamesList article:visible').count(),3);
  await page.locator('#notificationsBtn').click();
  await page.waitForFunction(()=>qa.inboxUi.syncedAt&&!qa.inboxUi.loading);
  assert.equal(await page.locator('.inbox-card').count(),5);
+ const filterBounds=await page.locator('#notificationFilters').boundingBox();
+ assert.ok(filterBounds.height >= 44, 'inbox filters retain a full touch target');
  assert.equal(await page.evaluate(()=>Boolean(window.xss)),false);
  assert.equal(await page.locator('#notificationList img').count(),0);
  const focusable=page.locator('#notificationCenter [role="dialog"] button:visible:not(:disabled)');
@@ -76,6 +94,7 @@ try {
  await page.locator('[data-inbox-action="receipt"]').click();await page.waitForFunction(()=>qa.state.notificationReadIds.has('deposit:1'));
  await page.keyboard.press('Escape');
  assert.equal(await page.evaluate(()=>document.activeElement.dataset.inboxAction),'receipt','nested dialog restores focus');
+ await page.waitForFunction(()=>!qa.inboxUi.request);
  const count=notificationCalls;await page.evaluate(()=>Promise.all([qa.refreshNotifications(),qa.refreshNotifications(),qa.refreshNotifications()]));
  assert.equal(notificationCalls-count,1,'refresh requests must coalesce');
  failNotifications=true;await page.evaluate(()=>qa.refreshNotifications());

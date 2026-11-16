@@ -284,8 +284,6 @@ const UI_TEXT = {
   headerWalletMiniLabel: "کیف پول",
   gamesTitle: "بازی‌ها",
   refreshGamesBtn: "به‌روزرسانی",
-  gamesHint:
-    "بازی‌ها را مقایسه کن؛ قانون، قیمت و وضعیت خرید هر بازی مشخص است.",
   gamesGuideText:
     "قانون هر بازی را بررسی کن. تا وقتی بازی در لابی است می‌توانی کارت بخری؛ بعد از شروع، اعداد زنده را دنبال کن.",
   recentStatsTitle: "آمار ۵ بازی اخیر",
@@ -299,10 +297,10 @@ const UI_TEXT = {
     "کارت‌های بازی فعال با هایلایت عددهای خوانده‌شده نمایش داده می‌شوند.",
   cardsGuideText:
     "در خطی، پیشرفت بهترین ردیف را می‌بینی؛ در پرکردنی، تکمیل ۱۵ عدد مهم است. جزئیات بردهای قبلی در تاریخچه است.",
-  cardsActiveTitle: "کارت‌های خریداری‌شده بازی‌های فعال",
+  cardsActiveTitle: "کارت‌های فعال",
   cardsHistoryTitle: "تاریخچه خرید کارت (۱۰ مورد آخر)",
   cardsHistoryMeta: "اسکرول‌پذیر",
-  cardsWinsTitle: "تایم‌لاین بردها",
+  cardsWinsTitle: "بردهای من",
   walletTitle: "کیف پول",
   refreshWalletBtn: "به‌روزرسانی",
   walletGuideText:
@@ -1102,7 +1100,7 @@ function renderNotificationCenter() {
       <small>${safeText(formatFaDateTime(item.created_at))}</small></div>
       <div class="notification-item-actions">
       ${route.receiptKind && route.receiptId ? '<button class="small-btn" data-inbox-action="receipt" type="button">رسید</button>' : ""}
-      <button class="small-btn primary" data-inbox-action="open" type="button">${action}</button>
+      <button class="small-btn inbox-open-btn" data-inbox-action="open" type="button">${action}</button>
       ${read ? "" : '<button class="small-btn inbox-read-btn" data-inbox-action="read" type="button">خواندم</button>'}</div></article>`;
   }).join("");
   root.querySelectorAll("[data-inbox-action]").forEach(button => button.addEventListener("click", async () => {
@@ -1967,30 +1965,38 @@ function gameRuleUiMeta(game, snapshot = null) {
   };
 }
 
-function drawGamesOverview(items) {
-  const root = getEl("gamesOverview");
-  if (!root) return;
-  const list = Array.isArray(items) ? items : [];
-  const lobby = list.filter((g) => String(g?.status || "").toUpperCase() === "LOBBY").length;
-  const running = list.filter((g) => String(g?.status || "").toUpperCase() === "RUNNING").length;
-  const owned = list.reduce((sum, g) => sum + Number(state.myCardsByGame.get(Number(g?.id || 0)) || 0), 0);
+let selectedGameFilter = "ALL";
 
-  root.innerHTML = `
-    <div class="games-overview-head">
-      <div>
-        <span class="games-overview-eyebrow">داشبورد بازی</span>
-        <strong>بازی مناسب خودت را انتخاب کن</strong>
-        <p>قوانین، قیمت کارت و وضعیت بازی را پیش از ورود ببین.</p>
-      </div>
-      <button class="small-btn games-overview-cards" type="button">کارت‌های من</button>
-    </div>
-    <div class="games-overview-stats">
-      <div><span>آماده خرید</span><strong>${safeText(toFaDigits(lobby))}</strong></div>
-      <div><span>در حال اجرا</span><strong>${safeText(toFaDigits(running))}</strong></div>
-      <div><span>کارت‌های من در بازی‌های جاری</span><strong>${safeText(toFaDigits(owned))}</strong></div>
-    </div>
-  `;
-  root.querySelector(".games-overview-cards")?.addEventListener("click", () => switchToView("cards"));
+function applyGameFilter() {
+  const cards = getEl("gamesList")?.querySelectorAll(".game-hero-v2") || [];
+  let visible = 0;
+  for (const card of cards) {
+    card.hidden = selectedGameFilter !== "ALL" && card.dataset.status !== selectedGameFilter;
+    if (!card.hidden) visible++;
+  }
+  const empty = getEl("gameFilterEmpty");
+  if (empty) empty.hidden = !cards.length || visible > 0;
+  getEl("gamesOverview")?.querySelectorAll("button").forEach(button => {
+    button.setAttribute("aria-pressed", String(button.dataset.gameFilter === selectedGameFilter));
+  });
+}
+
+function drawGamesOverview(items) {
+  const counts = { ALL: items.length, LOBBY: 0, RUNNING: 0 };
+  for (const game of items) {
+    const status = String(game.status || "").toUpperCase();
+    if (status === "LOBBY" || status === "RUNNING") counts[status]++;
+  }
+  const owned = items.reduce((sum, g) => sum + (state.myCardsByGame.get(Number(g.id)) || 0), 0);
+  const badge = getEl("navCardsCount");
+  if (badge) {
+    badge.hidden = owned === 0;
+    badge.textContent = toFaDigits(owned);
+    badge.closest("button").setAttribute("aria-label", owned ? `کارت‌های من، ${toFaDigits(owned)} کارت در بازی‌های جاری` : "کارت‌های من");
+  }
+  getEl("gamesOverview")?.querySelectorAll("button").forEach(button => {
+    button.querySelector("span").textContent = toFaDigits(counts[button.dataset.gameFilter]);
+  });
 }
 
 // Autopilot is the only authority for the deadline. This module only displays
@@ -2159,6 +2165,7 @@ function drawGames(items) {
         <button class="small-btn game-empty-reload" type="button">بررسی دوباره بازی‌ها</button>
       </div>
     `;
+    applyGameFilter();
     root.querySelector(".game-empty-reload")?.addEventListener("click", () =>
       refreshGames().catch((err) => setLocalError("gamesHint", err))
     );
@@ -2167,7 +2174,7 @@ function drawGames(items) {
 
   const sorted = [...games].sort((a, b) => {
     const rank = (g) => autopilotGameStartClock(g) ? 0 :
-      String(g?.status || "").toUpperCase() === "LOBBY" ? 1 : 2;
+      ({ LOBBY: 1, RUNNING: 2, ENDED: 3 }[String(g?.status || "").toUpperCase()] ?? 4);
     return rank(a) - rank(b) || Number(b?.id || 0) - Number(a?.id || 0);
   });
   root.innerHTML = sorted.map((g) => {
@@ -2181,16 +2188,16 @@ function drawGames(items) {
     const myCards = Number(state.myCardsByGame.get(gid) || 0);
     const soldCards = soldCardsCount(g, snap);
     const players = playersCount(g, snap);
-    const statusClass = isRunning ? "running" : "lobby";
+    const statusClass = isRunning ? "running" : isLobby ? "lobby" : "ended";
     const price = Number(g.card_price || 0);
-    const commissionRate = Number(g.commission_rate ?? 0.10);
+    const commissionRate = g.commission_rate == null ? NaN : Number(g.commission_rate);
     const commission = Number.isFinite(commissionRate) ? `${toFaDigits(Math.round(commissionRate * 10000) / 100)}٪` : "—";
     const primaryLabel = isLobby
       ? (myCards > 0 ? "خرید کارت بیشتر" : "خرید کارت")
-      : "مشاهده اعداد زنده";
+      : isRunning ? "مشاهده اعداد زنده" : "جزئیات بازی";
 
     return `
-      <article class="item game-hero game-hero-v2${startClock ? " countdown-soon" : ""}" data-game-id="${safeText(gid)}">
+      <article class="item game-hero game-hero-v2${startClock ? " countdown-soon" : ""}" data-game-id="${safeText(gid)}" data-status="${safeText(statusKey)}">
         <div class="item-row game-hero-top">
           <div class="game-identity">
             <span class="game-identity-overline">${safeText(ruleMeta.levelLabel)}</span>
@@ -2223,6 +2230,7 @@ function drawGames(items) {
       </article>
     `;
   }).join("");
+  applyGameFilter();
   tickAutopilotGameStartClocks();
 
   root.querySelectorAll(".open-btn").forEach((btn) => {
@@ -3334,7 +3342,7 @@ function localizeCardsShell() {
       "کارت‌های بازی‌های فعال به صورت زنده هایلایت می‌شوند و ۱۰ خرید آخر در تاریخچه نمایش داده می‌شود.",
     cardsPullHint: "برای نوسازی، صفحه را کمی به پایین بکشید.",
     cardsLiveStatus: "در انتظار بازی فعال",
-    cardsActiveTitle: "کارت‌های خریداری‌شده بازی‌های فعال",
+    cardsActiveTitle: "کارت‌های فعال",
     cardsHistoryTitle: "تاریخچه خرید کارت (۱۰ مورد آخر)",
     cardsHistoryMeta: "اسکرول‌پذیر",
   };
@@ -10208,6 +10216,13 @@ async function boot() {
 
   bind("soundBtn", "click", toggleSound);
   bind("countdownVibrationBtn", "click", toggleCountdownVibration);
+  bind("gamesOverview", "click", event => {
+    const button = event.target.closest("button[data-game-filter]");
+    if (button) {
+      selectedGameFilter = button.dataset.gameFilter;
+      applyGameFilter();
+    }
+  });
   bind("notificationsBtn", "click", openNotificationCenter);
   bind("notificationCloseBtn", "click", closeNotificationCenter);
   bind("notificationMarkAllBtn", "click", markAllNotificationsRead);
