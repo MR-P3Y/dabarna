@@ -17,7 +17,7 @@ const server=http.createServer((req,res)=>{
  let body=fs.readFileSync(full);
  if(name==='app.js'){
   body=body.toString().replace('boot().catch((err) => {','Promise.resolve().catch((err) => {').replace('  let authOk = false;','  hideSplash(); return;\n  let authOk = false;');
-  body+='\nwindow.qa={state,boot,refreshNotifications,inboxUi,showAdminWinnerPopup,closeAdminWinnerModal,openWinnerModal,closeWinnerModal,openNotificationCenter,closeNotificationCenter,renderNotificationCenter,refreshGames,drawGames};';
+  body+='\nwindow.qa={state,boot,refreshNotifications,inboxUi,showAdminWinnerPopup,closeAdminWinnerModal,openWinnerModal,closeWinnerModal,openNotificationCenter,closeNotificationCenter,renderNotificationCenter,refreshGames,drawGames,refreshCards,stopCardsPolling,loadEventCues,handleMiniSocketMessage};';
  }
  res.end(body);
 });
@@ -34,6 +34,9 @@ const games=[
 const notifications=[{id:'deposit:1',kind:'deposit',title:'واریز در انتظار بررسی',body:'درخواست آزمایشی · ۲۰٬۰۰۰ تومان',severity:'pending',created_at:'2026-11-11T12:00:00Z',receipt_kind:'bank_deposit',receipt_id:1,route:{view:'wallet',action:'open_receipt'}},
  {id:'prize:1',kind:'win',title:'جایزه ثبت شد',body:'<img src=x onerror="window.xss=true">',created_at:'2026-11-11T11:00:00Z',severity:'success',receipt_kind:'prize',receipt_id:2,route:{view:'cards',action:'open_winning_card',target_id:92}}];
 const page=await browser.newPage({viewport:{width:390,height:844}});
+const grid=[1,0,20,0,40,0,60,0,80,2,0,21,0,41,0,61,0,81,3,0,22,0,42,0,62,0,82];
+const personalDraws=[50,3,12];
+let personal=false, ended=false, disconnected=false, personalEvent=1000;
 page.on('pageerror',error=>errors.push(String(error)));
 await page.route('**/*',async route=>{
  const url=new URL(route.request().url());
@@ -41,7 +44,22 @@ await page.route('**/*',async route=>{
  if(!url.pathname.includes('mini-api'))return route.continue();
  if(route.request().method()!=='GET')writes.push(url.pathname);
  let body={};let status=200;
- if(url.pathname.endsWith('/notifications')){notificationCalls++;body={items:notifications};if(failNotifications)status=503;}
+ if(personal && url.pathname.endsWith('/me/active-games')){
+   body={items:[
+     {game_id:92,status:'RUNNING',card_count:2,last_number:personalDraws.at(-1)},
+     {game_id:91,status:'LOBBY',card_count:1,last_number:null},
+   ]};
+ } else if(personal && url.pathname.endsWith('/snapshot')){
+   const id=Number(url.pathname.split('/').at(-2));
+   const game={...games.find(g=>g.id===id)};
+   if(id===92 && ended)game.status='ENDED';
+   const called=id===92 ? personalDraws : [];
+   body={game,state:{status:game.status,game_rule:game.game_rule,card_layout_version:game.card_layout_version,
+     called_numbers:called,last_number:called.at(-1)??null},last_event_id:personalEvent,recent_events:[],
+     my_cards:(id===92?[701,702]:id===91?[703]:[]).map((card_id,i)=>({card_id,display_serial:i+1,
+       fingerprint:'mock-'+card_id,numbers:i?grid.map(n=>n?n+1:0):grid}))};
+   if(id===92 && disconnected)status=503;
+ } else if(url.pathname.endsWith('/notifications')){notificationCalls++;body={items:notifications};if(failNotifications)status=503;}
  else if(url.pathname.endsWith('/games')){body={items:games};if(failGames)status=403;}
  else if(url.pathname.includes('/receipts/')){receiptCalls++;if(failReceipts)status=503;body={title:'رسید آزمایشی',kind:'prize',status:'DONE',amount:70,direction:'CREDIT',items:[]};}
  else if(url.pathname.includes('/snapshot'))body={game:games[1],state:{game_rule:'FULL_CARD',card_layout_version:2,status:'ENDED',called_numbers:[],row_winner_card_ids:[101,102]},events:[]};
@@ -146,6 +164,88 @@ try {
  assert.equal(await page.evaluate(()=>qa.state.notificationReadIds.has('deposit:1')),false,'read state scoped to account');
  await page.locator('[data-filter="all"]').click();
  await page.screenshot({path:path.join(output,'inbox-desktop-light.png'),fullPage:true});
+ await page.keyboard.press('Escape');
+ personal=true;
+ await page.setViewportSize({width:390,height:844});
+ await page.evaluate(async()=>{
+   qa.state.currentUserId=8;
+   qa.state.admin.enabled=false;
+   window.testVibrations=[];
+   Object.defineProperty(navigator,'vibrate',{configurable:true,value:n=>{window.testVibrations.push(n);return true;}});
+   await qa.refreshGames();
+ });
+ assert.equal(await page.locator('#returnGameSelect option').count(),2);
+ assert.match(await page.locator('#returnGameStatus').innerText(),/۱۲/);
+ await page.locator('#returnGameSelect').selectOption('91');
+ await page.evaluate(()=>qa.refreshGames());
+ assert.equal(await page.locator('#returnGameSelect').inputValue(),'91');
+ assert.match(await page.locator('#returnGameStatus').innerText(),/هنوز عددی/);
+ await page.locator('#returnGameCards').click();
+ await page.locator('.active-game-block[data-game-id="91"]').waitFor();
+ assert.equal(await page.locator('[data-focus-game="91"]').count(),0);
+ await page.locator('.nav-btn[data-view="games"]').click();
+ await page.locator('#returnGameSelect').selectOption('92');
+ await page.locator('#returnGamePanel').screenshot({path:path.join(output,'return-game.png')});
+ await page.locator('.player-preferences summary').click();
+ await page.locator('#numberCue').uncheck();
+ await page.locator('#startCue').uncheck();
+ await page.locator('.player-preferences').screenshot({path:path.join(output,'event-preferences.png')});
+ assert.deepEqual(await page.evaluate(()=>JSON.parse(localStorage.getItem('davarna_event_cues:8'))),{start:false,number:false});
+ await page.evaluate(()=>{qa.state.currentUserId=9;qa.loadEventCues();});
+ assert.equal(await page.locator('#numberCue').isChecked(),true);
+ await page.evaluate(()=>{qa.state.currentUserId=8;qa.loadEventCues();});
+ assert.equal(await page.locator('#startCue').isChecked(),false);
+ await page.locator('.player-preferences summary').click();
+ await page.locator('#returnGameCards').click();
+ await page.locator('[data-focus-game="92"]').click();
+ await page.evaluate(()=>qa.stopCardsPolling());
+ const focus=page.locator('#cardFocus');
+ assert.equal(await focus.isVisible(),true);
+ assert.equal(await page.locator('#focusCardSelect option').count(),2);
+ await page.locator('#focusCardSelect').selectOption('702');
+ assert.equal(await page.locator('#focusGrid .num-chip').count(),27);
+ assert.equal(await page.locator('#focusGrid .empty-cell').count(),12);
+ const initialHaptics=await page.evaluate(()=>window.testVibrations.length);
+ personalDraws.push(22);personalEvent++;
+ await page.evaluate(()=>qa.refreshCards({silent:true}));
+ assert.equal(await page.locator('#focusCardSelect').inputValue(),'702');
+ assert.equal(await page.locator('#focusLastNumber').innerText(),'۲۲');
+ assert.match(await page.locator('#focusMatches').innerText(),/۲ از ۱۵/);
+ assert.equal(await page.evaluate(()=>window.testVibrations.length),initialHaptics);
+ for(const width of [320,390]){
+   await page.setViewportSize({width,height:844});
+   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+ }
+ await focus.screenshot({path:path.join(output,'full-card-focus.png')});
+ disconnected=true;
+ await page.evaluate(()=>qa.refreshCards({silent:true}));
+ assert.equal(await page.locator('#focusReadout').isVisible(),false);
+ assert.match(await page.locator('#focusState').innerText(),/ارتباط/);
+ disconnected=false;
+ await page.evaluate(()=>qa.refreshCards({silent:true}));
+ assert.equal(await page.locator('#focusReadout').isVisible(),true);
+ await page.locator('.player-preferences summary').click();
+ await page.locator('#numberCue').check();
+ if(await page.locator('#countdownVibrationBtn').getAttribute('aria-pressed')==='false')await page.locator('#countdownVibrationBtn').click();
+ await page.locator('.player-preferences summary').click();
+ const before=await page.evaluate(()=>window.testVibrations.length);
+ personalDraws.push(4);personalEvent++;
+ await page.evaluate(async()=>{
+   const url='/mini-api/games/92/snapshot';
+   const snapshot=await (await fetch(url)).json();
+   const emit=s=>qa.handleMiniSocketMessage({data:JSON.stringify({type:'live_snapshot',game_id:92,snapshot:s})});
+   emit(snapshot);
+   emit({...snapshot,last_event_id:snapshot.last_event_id-1,state:{...snapshot.state,called_numbers:[],last_number:null}});
+   await qa.refreshCards({silent:true});
+ });
+ assert.equal(await page.locator('#focusLastNumber').innerText(),'۴');
+ assert.equal(await page.evaluate(()=>window.testVibrations.length),before+1,'one vibration on a new draw');
+ ended=true;personalEvent++;
+ await page.evaluate(()=>qa.refreshCards({silent:true}));
+ assert.match(await page.locator('#focusState').innerText(),/پایان/);
+ await page.locator('#exitCardFocus').click();
+ assert.equal(await focus.isVisible(),false);
+ assert.equal(await page.locator('#cardsPanel').isVisible(),true);
  assert.deepEqual(errors,[]);assert.deepEqual(writes,[]);
- console.log(JSON.stringify({result:'PASS',screenshots:5,pageErrors:errors,mutationRequests:writes,notificationCalls,receiptCalls}));
+ console.log(JSON.stringify({result:'PASS',screenshots:8,pageErrors:errors,mutationRequests:writes,notificationCalls,receiptCalls}));
 } finally {await browser.close();server.close();}

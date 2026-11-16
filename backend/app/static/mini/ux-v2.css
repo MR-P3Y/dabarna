@@ -1345,3 +1345,28 @@ html[data-theme] .bottom-nav .nav-btn.active { background: var(--player-inset); 
   #notificationCenter .notification-panel { overflow-y: auto; }
   #notificationCenter .notification-list { flex: none; overflow: visible; }
 }
+#returnGamePanel[hidden], #cardFocus[hidden], #focusReadout[hidden], #cardsPanel[hidden] { display: none; }
+.player-return { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; justify-content: space-between; }
+.player-return h2, #cardFocus h2 { margin: 0 0 6px; font-size: 18px; }
+.player-return p { margin: 6px 0 0; color: var(--player-muted); font-size: 13px; }
+.player-return label, #focusReadout label { margin-inline-end: 6px; }
+.player-return select, #focusCardSelect {
+  max-width: 100%; min-height: 44px; padding: 4px 8px; font: inherit; font-size: 13px;
+  background: var(--player-inset); color: var(--player-ink); border: 1px solid var(--player-line); border-radius: 8px;
+}
+#returnGameCards { min-height: 44px; background: var(--player-action); color: var(--player-action-ink); }
+.event-preferences { flex: 1 0 100%; display: flex; flex-wrap: wrap; gap: 8px 18px; border: 0; margin: 0; padding: 4px 0; }
+.event-preferences legend { font-size: 12px; color: var(--player-muted); }
+.event-preferences label { min-height: 44px; display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
+.event-preferences input { width: 18px; height: 18px; margin: 0; accent-color: var(--player-action); }
+#cardFocus { max-width: 660px; margin-inline: auto; }
+#cardFocus header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+#cardFocus .focus-number { text-align: center; background: var(--player-inset); border-radius: 14px; padding: 12px; }
+#cardFocus .focus-number strong { display: block; font-variant-numeric: tabular-nums; font-size: clamp(52px, 11vw, 80px); line-height: 1.2; }
+.focus-recent-row, #focusRecent { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+#focusRecent { font-variant-numeric: tabular-nums; }
+#focusRecent bdi { padding: 2px 8px; border-radius: 6px; background: var(--player-inset); }
+#focusGrid { margin-block-start: 12px; }
+#focusGrid .num-chip { font-size: clamp(13px, 3.3vw, 21px); min-height: 32px; }
+#focusMatches, #focusState { color: var(--player-muted); }
+.content:has(#view-cards.active #cardFocus:not([hidden])) #liveGameBar { display: none; }
