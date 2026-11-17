@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>مینی‌اپ دبرنای طوفان</title>
     <link rel="stylesheet" href="./styles.css?v=finance-reject-reasons-20261108" />
-    <link rel="stylesheet" href="./ux-v2.css?v=remaining-ux-v1&amp;automation=20261113&amp;editor=20261114" />
+    <link rel="stylesheet" href="./ux-v2.css?v=remaining-ux-v1&amp;automation=20261113&amp;editor=20261114&amp;player=20261116b" />
   </head>
   <body>
     <div id="appSplash" class="app-splash" aria-label="در حال آماده‌سازی مینی‌اپ">
@@ -14,7 +14,6 @@
       <div class="splash-card glass">
         <img class="splash-logo" src="./assets/bot-logo.jpg?v=20260630assetfix2" alt="Dabarna Toofan logo" />
         <div class="splash-title">دبرنای طوفان</div>
-        <div class="splash-subtitle">بازی، هیجان، جایزه واقعی</div>
         <div class="splash-loader"><i></i></div>
         <div id="splashStatus" class="splash-status">در حال آماده‌سازی بازی...</div>
       </div>
@@ -43,9 +42,19 @@
         <div class="smart-head smart-head-secondary">
           <div id="headerRoleBadge" class="smart-chip status hidden" aria-label="نقش مدیریتی" title="نقش مدیریتی"></div>
           <div id="headerUserStatus" class="smart-chip status normal" aria-label="وضعیت بازی" title="وضعیت حضور در بازی">بدون بازی</div>
-          <button id="themeBtn" class="theme-toggle-btn" type="button" aria-label="تغییر پوسته">◐ حالت تیره</button>
-          <button id="countdownVibrationBtn" class="theme-toggle-btn sound-toggle-btn" type="button" aria-pressed="false" aria-label="لرزش شمارش معکوس">لرزش</button>
-          <button id="soundBtn" class="theme-toggle-btn sound-toggle-btn" type="button" aria-label="فعال‌سازی صدای بازی">🔕 صدا</button>
+          <details class="player-preferences">
+            <summary>تنظیمات نمایش</summary>
+            <div class="player-preference-controls">
+              <button id="themeBtn" class="theme-toggle-btn" type="button" aria-label="تغییر پوسته">◐ حالت تیره</button>
+              <button id="countdownVibrationBtn" class="theme-toggle-btn sound-toggle-btn" type="button" aria-pressed="false" aria-label="لرزش بازی">لرزش</button>
+              <button id="soundBtn" class="theme-toggle-btn sound-toggle-btn" type="button" aria-label="فعال‌سازی صدای بازی">🔕 صدا</button>
+              <fieldset class="event-preferences">
+                <legend>هشدارهای همین مینی‌اپ</legend>
+                <label><input id="startCue" type="checkbox" checked /> نزدیک شروع بازی</label>
+                <label><input id="numberCue" type="checkbox" checked /> اعلام عدد جدید</label>
+              </fieldset>
+            </div>
+          </details>
           <button id="notificationsBtn" class="theme-toggle-btn notification-toggle-btn" type="button" aria-label="مرکز اعلان‌ها">
             اعلان‌ها <span id="notificationsBadge" class="notification-badge hidden">0</span>
           </button>
@@ -57,30 +66,30 @@
         <section id="liveGameBar" class="live-game-bar hidden" aria-label="نوار زنده بازی"></section>
 
         <section id="view-games" class="view active">
+          <section id="returnGamePanel" class="player-return panel glass" aria-label="بازگشت به بازی من" hidden>
+            <div><h2>بازگشت به بازی من</h2><label id="returnGameLabel" for="returnGameSelect">بازی من</label>
+              <select id="returnGameSelect"></select>
+              <p id="returnGameStatus"></p></div>
+            <button id="returnGameCards" class="small-btn primary" type="button">دیدن کارت‌های من</button>
+          </section>
           <article class="glass panel">
             <div class="panel-head">
               <h2 id="gamesTitle">بازی‌ها</h2>
               <button id="refreshGamesBtn" class="small-btn" type="button">به‌روزرسانی</button>
             </div>
-            <p id="gamesHint" class="hint">بازی‌ها و جوایز را مقایسه کن و با یک لمس وارد شو.</p>
-            <div id="gamesOverview" class="games-overview-v2" aria-label="خلاصه بازی‌های جاری"></div>
+            <p id="gamesHint" class="hint" role="status"></p>
+            <div id="gamesOverview" class="game-filters" role="group" aria-label="نمایش بازی بر اساس وضعیت">
+              <button type="button" data-game-filter="ALL" aria-pressed="true">همه بازی‌ها <span></span></button>
+              <button type="button" data-game-filter="LOBBY" aria-pressed="false">آماده خرید <span></span></button>
+              <button type="button" data-game-filter="RUNNING" aria-pressed="false">در حال اجرا <span></span></button>
+            </div>
+            <div id="hotGameBanner" class="hot-banner hidden"></div>
+            <div id="gamesList" class="stack-list" aria-label="فهرست بازی‌های فعال"></div>
+            <p id="gameFilterEmpty" class="empty" hidden>بازی‌ای در این دسته نیست.</p>
             <details class="quick-guide quick-guide-collapse">
               <summary>راهنمای کوتاه بازی</summary>
               <p id="gamesGuideText">بازی را انتخاب کنید، قوانین را بخوانید و قبل از شروع کارت بخرید. بعد از شروع، اعداد زنده را در همین صفحه دنبال کنید.</p>
             </details>
-            <div id="hotGameBanner" class="hot-banner hidden"></div>
-            <div id="gamesList" class="stack-list" aria-label="فهرست بازی‌های فعال"></div>
-          </article>
-
-          <article class="glass panel">
-            <div class="panel-head">
-              <h2 id="recentStatsTitle">آمار ۵ بازی اخیر</h2>
-            </div>
-            <div id="recentStatsSlider" class="h-scroll-cards"></div>
-            <div class="panel-head mt-12">
-              <h2 id="trustPanelTitle">سیستم اعتماد</h2>
-            </div>
-            <div id="trustStrip" class="trust-strip"></div>
           </article>
 
           <article class="glass panel">
@@ -104,20 +113,38 @@
             <div id="liveActionHint" class="step-hint"></div>
             <div id="liveEvents" class="events-list"></div>
           </article>
+          <article class="glass panel">
+            <div class="panel-head">
+              <h2 id="recentStatsTitle">آمار ۵ بازی اخیر</h2>
+            </div>
+            <div id="recentStatsSlider" class="h-scroll-cards"></div>
+            <div class="panel-head mt-12">
+              <h2 id="trustPanelTitle">سیستم اعتماد</h2>
+            </div>
+            <div id="trustStrip" class="trust-strip"></div>
+          </article>
+
         </section>
 
         <section id="view-cards" class="view">
+          <section id="cardFocus" class="panel glass" aria-labelledby="focusTitle" hidden>
+            <header><h2 id="focusTitle">حالت تمرکز پرکردنی</h2>
+              <button id="exitCardFocus" type="button" class="small-btn">بازگشت به کارت‌ها</button></header>
+            <p id="focusState" role="status"></p>
+            <div id="focusReadout">
+              <div class="focus-number"><span>آخرین عدد</span><strong id="focusLastNumber" aria-live="polite">—</strong></div>
+              <p class="focus-recent-row"><span>اعداد اخیر</span> <span id="focusRecent"></span></p>
+              <label for="focusCardSelect">کارت من</label> <select id="focusCardSelect"></select>
+              <div id="focusGrid" class="mini-card-grid v2"></div>
+              <p id="focusMatches"></p>
+            </div>
+          </section>
           <article id="cardsPanel" class="glass panel cards-panel">
             <div class="panel-head">
               <h2 id="cardsTitle">کارت‌های من</h2>
               <button id="refreshCardsBtn" class="small-btn" type="button">به‌روزرسانی</button>
             </div>
             <p id="cardsHint" class="hint">نمایش زنده کارت‌ها و هایلایت اعداد اعلام‌شده</p>
-            <details class="quick-guide quick-guide-collapse">
-              <summary>راهنمای کارت‌ها و برد</summary>
-              <p id="cardsGuideText">برای هر کارت می‌بینی چند عدد خوانده شده و چه نوع بردی در انتظار است. جزئیات بازی‌های قبلی را از تاریخچه باز کن.</p>
-            </details>
-
             <div id="cardsPullHint" class="pull-hint" data-state="idle">برای نوسازی، صفحه را به پایین بکشید</div>
 
             <div id="cardsLiveBadge" class="cards-live-badge">
@@ -130,7 +157,7 @@
 
             <div class="cards-box">
               <div class="cards-box-head">
-                <h3 id="cardsActiveTitle">کارت‌های خریداری‌شده بازی‌های فعال</h3>
+                <h3 id="cardsActiveTitle">کارت‌های فعال</h3>
                 <span id="cardsActiveMeta" class="meta">-</span>
               </div>
               <div id="cardsActiveList" class="cards-active-list"></div>
@@ -146,11 +173,16 @@
 
             <div class="cards-box mt-12">
               <div class="cards-box-head">
-                <h3 id="cardsWinsTitle">تایم‌لاین بردها</h3>
+                <h3 id="cardsWinsTitle">بردهای من</h3>
                 <select id="winsGameFilter" class="small-select"></select>
               </div>
               <div id="cardsWinsTimeline" class="cards-history-scroll"></div>
             </div>
+            <details class="quick-guide quick-guide-collapse">
+              <summary>راهنمای کارت‌ها و برد</summary>
+              <p id="cardsGuideText">برای هر کارت می‌بینی چند عدد خوانده شده و چه نوع بردی در انتظار است. جزئیات بازی‌های قبلی را از تاریخچه باز کن.</p>
+            </details>
+
           </article>
         </section>
 
@@ -159,10 +191,6 @@
             <div class="panel-head">
               <h2 id="walletTitle">کیف پول</h2>
               <button id="refreshWalletBtn" class="small-btn" type="button">به‌روزرسانی</button>
-            </div>
-            <div class="quick-guide">
-              <strong>راهنمای سریع</strong>
-              <p id="walletGuideText">برای واریز یا برداشت، مراحل را به ترتیب انجام دهید و وضعیت درخواست‌ها را پیگیری کنید.</p>
             </div>
             <div class="wallet-balance-wrap">
               <span id="walletBalanceLabel">موجودی فعلی</span>
@@ -173,6 +201,10 @@
               <button class="small-btn wallet-jump-btn" data-target="withdraw" type="button">درخواست برداشت</button>
             </div>
 
+            <details class="quick-guide quick-guide-collapse">
+              <summary>راهنمای واریز و برداشت</summary>
+              <p id="walletGuideText">برای واریز یا برداشت، مراحل را به ترتیب انجام دهید و وضعیت درخواست‌ها را پیگیری کنید.</p>
+            </details>
             <div class="wallet-flow-grid">
               <div class="deposit-flow flow-card">
                 <div class="deposit-flow-head">
@@ -1007,16 +1039,16 @@
 
       <nav class="bottom-nav glass" aria-label="ناوبری اصلی">
         <button class="nav-btn active" data-view="games" type="button" aria-current="page" aria-label="بازی‌ها">
-          <span class="nav-icon">🎲</span><span id="navGamesText">بازی</span>
+          <span class="nav-icon icon-die" aria-hidden="true"></span><span id="navGamesText">بازی</span>
         </button>
         <button class="nav-btn" data-view="cards" type="button" aria-label="کارت‌های من">
-          <span class="nav-icon">🎫</span><span id="navCardsText">کارت‌های من</span>
+          <span class="nav-icon icon-cards" aria-hidden="true"></span><span><span id="navCardsText">کارت‌های من</span> <span id="navCardsCount" hidden></span></span>
         </button>
         <button class="nav-btn" data-view="wallet" type="button" aria-label="کیف پول">
-          <span class="nav-icon">💰</span><span id="navWalletText">کیف پول</span>
+          <span class="nav-icon icon-wallet" aria-hidden="true"></span><span id="navWalletText">کیف پول</span>
         </button>
         <button id="adminNavBtn" class="nav-btn hidden" data-view="admin" type="button" aria-label="مدیریت">
-          <span class="nav-icon">⚙️</span><span id="navAdminText">مدیریت</span>
+          <span class="nav-icon icon-admin" aria-hidden="true">⚙︎</span><span id="navAdminText">مدیریت</span>
         </button>
       </nav>
     </div>
@@ -1040,8 +1072,8 @@
           <button id="notificationCloseBtn" class="icon-btn" type="button" aria-label="بستن">×</button>
         </div>
         <div class="notification-actions">
-          <button id="notificationMarkAllBtn" class="small-btn" type="button">همه خوانده شد</button>
-          <button id="notificationRefreshBtn" class="small-btn primary" type="button">به‌روزرسانی</button>
+          <button id="notificationMarkAllBtn" class="small-btn" type="button">خواندن همه</button>
+          <button id="notificationRefreshBtn" class="small-btn" type="button">به‌روزرسانی</button>
         </div>
         <p id="notificationSyncStatus" class="inbox-sync" role="status" aria-live="polite">هنوز همگام‌سازی نشده</p>
         <div id="notificationFilters" class="inbox-filters" role="group" aria-label="فیلتر اعلان‌ها">
@@ -1201,6 +1233,6 @@
     <div id="miniToast" class="mini-toast hidden" role="status" aria-live="polite"></div>
 
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="./app.js?v=remaining-ux-v1&amp;automation=20261113&amp;crypto-history=20261113&amp;editor=20261114&amp;players=1&amp;numbering=1" type="module"></script>
+    <script src="./app.js?v=remaining-ux-v1&amp;automation=20261113&amp;crypto-history=20261113&amp;editor=20261114&amp;players=1&amp;numbering=1&amp;player=20261116b" type="module"></script>
   </body>
 </html>

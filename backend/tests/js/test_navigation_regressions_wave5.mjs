@@ -32,6 +32,8 @@ let stopPolling = 0;
 let adminRefreshes = 0;
 
 const navigationContext = {
+  cardsTargetId: 7,
+  exitCardFocus() {},
   state: { admin: { enabled: false } },
   getEl(id) { return views[id] || null; },
   document: { querySelectorAll() { return nav; } },
@@ -59,6 +61,7 @@ assert.equal(cardsRefreshes, 1, "Normal card nav should still refresh");
 navigationContext.navigate("admin");
 assert.equal(adminRefreshes, 0, "No admin data may load without admin role");
 assert.equal(views["view-games"].classList.active, true, "Unauthorized admin goes to games");
+assert.equal(navigationContext.cardsTargetId, 0, "Leaving cards clears the personal game target");
 
 const routeContext = {};
 vm.runInNewContext(

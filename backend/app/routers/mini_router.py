@@ -1895,6 +1895,32 @@ def dashboard_insights(
     )
 
 
+@router.get("/me/active-games")
+def my_active_games(user_id: int = Depends(get_mini_user_id), db: Session = Depends(get_db)):
+    require_user_id_not_restricted(db, int(user_id), "ACTIVE_GAMES")
+    owned = (
+        select(GameCard.game_id, func.count(GameCard.id).label("card_count"))
+        .where(GameCard.user_id == user_id)
+        .group_by(GameCard.game_id)
+        .subquery()
+    )
+    last_number = (
+        select(GameCalledNumber.number)
+        .where(GameCalledNumber.game_id == Game.id)
+        .order_by(GameCalledNumber.id.desc())
+        .limit(1)
+        .scalar_subquery()
+    )
+    rows = db.execute(
+        select(Game.id.label("game_id"), Game.display_code, Game.status,
+               owned.c.card_count, last_number.label("last_number"))
+        .join(owned, owned.c.game_id == Game.id)
+        .where(Game.status.in_(["LOBBY", "RUNNING"]))
+        .order_by((Game.status == "RUNNING").desc(), Game.id.desc())
+    ).mappings()
+    return {"items": [dict(row) for row in rows]}
+
+
 @router.get("/me/cards", response_model=MiniUserCardListOut)
 def list_my_cards(
     game_id: int | None = Query(default=None),

@@ -98,4 +98,16 @@ ctx.tick();
 ctx.tick();
 assert.equal(beeps, 1);
 assert.equal(vibrations, 1);
+ctx.state.eventCues = {start: false};
+ctx.state.soundEnabled = true;
+ctx.state.gamesCache = [{...game, scheduled_start_at: "2026-11-10T15:00:33Z"}];
+ctx.Date.now = () => now + 30_000;
+const digit = {textContent: ""};
+ctx.getEl = id => id === "gamesList" ? {querySelectorAll: () => [
+  {...clockCard(91), querySelector: cls => cls.endsWith("digits") ? digit : null}
+]} : {classList: {contains: () => true}};
+ctx.tick();
+assert.ok(digit.textContent.includes("3"), "silencing the start alert preserves the visible countdown");
+assert.equal(beeps, 1);
+assert.equal(vibrations, 1);
 console.log("PASS: Autopilot-authoritative countdown, UI, sound/haptic safeguards and pending state.");

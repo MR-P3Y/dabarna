@@ -137,6 +137,11 @@ function clearMiniSession() {
   state.tokenExp = 0;
   state.authReady = false;
   state.currentUserId = 0;
+  state.myCardsByGame.clear();
+  cardsTargetId = 0;
+  exitCardFocus(false);
+  renderReturnGames([]);
+  loadEventCues();
   try {
     sessionStorage.removeItem(MINI_SESSION_STORAGE_KEY);
   } catch (_) {}
@@ -284,8 +289,6 @@ const UI_TEXT = {
   headerWalletMiniLabel: "کیف پول",
   gamesTitle: "بازی‌ها",
   refreshGamesBtn: "به‌روزرسانی",
-  gamesHint:
-    "بازی‌ها را مقایسه کن؛ قانون، قیمت و وضعیت خرید هر بازی مشخص است.",
   gamesGuideText:
     "قانون هر بازی را بررسی کن. تا وقتی بازی در لابی است می‌توانی کارت بخری؛ بعد از شروع، اعداد زنده را دنبال کن.",
   recentStatsTitle: "آمار ۵ بازی اخیر",
@@ -299,10 +302,10 @@ const UI_TEXT = {
     "کارت‌های بازی فعال با هایلایت عددهای خوانده‌شده نمایش داده می‌شوند.",
   cardsGuideText:
     "در خطی، پیشرفت بهترین ردیف را می‌بینی؛ در پرکردنی، تکمیل ۱۵ عدد مهم است. جزئیات بردهای قبلی در تاریخچه است.",
-  cardsActiveTitle: "کارت‌های خریداری‌شده بازی‌های فعال",
+  cardsActiveTitle: "کارت‌های فعال",
   cardsHistoryTitle: "تاریخچه خرید کارت (۱۰ مورد آخر)",
   cardsHistoryMeta: "اسکرول‌پذیر",
-  cardsWinsTitle: "تایم‌لاین بردها",
+  cardsWinsTitle: "بردهای من",
   walletTitle: "کیف پول",
   refreshWalletBtn: "به‌روزرسانی",
   walletGuideText:
@@ -500,15 +503,12 @@ function playNumberSound() {
 }
 
 function playNumberFeedback() {
+  if (state.eventCues?.number === false || document.hidden) return;
   playNumberSound();
-  triggerLightHaptic("success");
-  try { tg?.HapticFeedback?.impactOccurred?.("medium"); } catch (_) {}
-  try { tg?.HapticFeedback?.notificationOccurred?.("success"); } catch (_) {}
-  try {
-    if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") {
-      navigator.vibrate([35, 25, 45]);
-    }
-  } catch (_) {}
+  if (!state.countdownVibration) return;
+  if (tg?.HapticFeedback?.impactOccurred) {
+    try { tg.HapticFeedback.impactOccurred("light"); } catch (_) {}
+  } else if (navigator.vibrate) navigator.vibrate(18);
 }
 
 function playNotifySound(type = "success") {
@@ -1102,7 +1102,7 @@ function renderNotificationCenter() {
       <small>${safeText(formatFaDateTime(item.created_at))}</small></div>
       <div class="notification-item-actions">
       ${route.receiptKind && route.receiptId ? '<button class="small-btn" data-inbox-action="receipt" type="button">رسید</button>' : ""}
-      <button class="small-btn primary" data-inbox-action="open" type="button">${action}</button>
+      <button class="small-btn inbox-open-btn" data-inbox-action="open" type="button">${action}</button>
       ${read ? "" : '<button class="small-btn inbox-read-btn" data-inbox-action="read" type="button">خواندم</button>'}</div></article>`;
   }).join("");
   root.querySelectorAll("[data-inbox-action]").forEach(button => button.addEventListener("click", async () => {
@@ -1967,30 +1967,38 @@ function gameRuleUiMeta(game, snapshot = null) {
   };
 }
 
-function drawGamesOverview(items) {
-  const root = getEl("gamesOverview");
-  if (!root) return;
-  const list = Array.isArray(items) ? items : [];
-  const lobby = list.filter((g) => String(g?.status || "").toUpperCase() === "LOBBY").length;
-  const running = list.filter((g) => String(g?.status || "").toUpperCase() === "RUNNING").length;
-  const owned = list.reduce((sum, g) => sum + Number(state.myCardsByGame.get(Number(g?.id || 0)) || 0), 0);
+let selectedGameFilter = "ALL";
 
-  root.innerHTML = `
-    <div class="games-overview-head">
-      <div>
-        <span class="games-overview-eyebrow">داشبورد بازی</span>
-        <strong>بازی مناسب خودت را انتخاب کن</strong>
-        <p>قوانین، قیمت کارت و وضعیت بازی را پیش از ورود ببین.</p>
-      </div>
-      <button class="small-btn games-overview-cards" type="button">کارت‌های من</button>
-    </div>
-    <div class="games-overview-stats">
-      <div><span>آماده خرید</span><strong>${safeText(toFaDigits(lobby))}</strong></div>
-      <div><span>در حال اجرا</span><strong>${safeText(toFaDigits(running))}</strong></div>
-      <div><span>کارت‌های من در بازی‌های جاری</span><strong>${safeText(toFaDigits(owned))}</strong></div>
-    </div>
-  `;
-  root.querySelector(".games-overview-cards")?.addEventListener("click", () => switchToView("cards"));
+function applyGameFilter() {
+  const cards = getEl("gamesList")?.querySelectorAll(".game-hero-v2") || [];
+  let visible = 0;
+  for (const card of cards) {
+    card.hidden = selectedGameFilter !== "ALL" && card.dataset.status !== selectedGameFilter;
+    if (!card.hidden) visible++;
+  }
+  const empty = getEl("gameFilterEmpty");
+  if (empty) empty.hidden = !cards.length || visible > 0;
+  getEl("gamesOverview")?.querySelectorAll("button").forEach(button => {
+    button.setAttribute("aria-pressed", String(button.dataset.gameFilter === selectedGameFilter));
+  });
+}
+
+function drawGamesOverview(items) {
+  const counts = { ALL: items.length, LOBBY: 0, RUNNING: 0 };
+  for (const game of items) {
+    const status = String(game.status || "").toUpperCase();
+    if (status === "LOBBY" || status === "RUNNING") counts[status]++;
+  }
+  const owned = Array.from(state.myCardsByGame.values()).reduce((sum, count) => sum + count, 0);
+  const badge = getEl("navCardsCount");
+  if (badge) {
+    badge.hidden = owned === 0;
+    badge.textContent = toFaDigits(owned);
+    badge.closest("button").setAttribute("aria-label", owned ? `کارت‌های من، ${toFaDigits(owned)} کارت در بازی‌های جاری` : "کارت‌های من");
+  }
+  getEl("gamesOverview")?.querySelectorAll("button").forEach(button => {
+    button.querySelector("span").textContent = toFaDigits(counts[button.dataset.gameFilter]);
+  });
 }
 
 // Autopilot is the only authority for the deadline. This module only displays
@@ -2091,7 +2099,7 @@ function tickAutopilotGameStartClocks() {
   if (!root) return;
   const cards = root.querySelectorAll("[data-autopilot-clock]");
   if (gameStartCountdownFeedback.size > 128) gameStartCountdownFeedback.clear();
-  const enabledFeedback = getEl("view-games")?.classList.contains("active") &&
+  const enabledFeedback = state.eventCues?.start !== false && getEl("view-games")?.classList.contains("active") &&
     (typeof document.visibilityState === "undefined" || document.visibilityState === "visible");
   let feedbackPlayedThisTick = false;
   for (const card of cards) {
@@ -2115,11 +2123,14 @@ function tickAutopilotGameStartClocks() {
 
     // At most one gentle tick per second and per displayed game. Do not
     // replay missed beats when a backgrounded Telegram Mini App resumes.
-    if (enabledFeedback && !feedbackPlayedThisTick && view.seconds >= 1 && view.seconds <= 3) {
+    if (enabledFeedback && !card.closest(".game-hero-v2")?.hidden && !feedbackPlayedThisTick && view.seconds >= 1 && view.seconds <= 3) {
       const key = gid + ":" + view.scheduledMs;
       const currentSecond = Math.floor(Date.now() / 1000);
       if (gameStartCountdownFeedback.get(key) !== view.seconds &&
           gameStartCountdownLastFeedbackSecond !== currentSecond) {
+        if (!gameStartCountdownFeedback.has(key) && state.myCardsByGame?.get(gid) > 0) {
+          showToast("بازی " + (game.display_code || toFaDigits(gid)) + " در آستانه شروع است.");
+        }
         gameStartCountdownFeedback.set(key, view.seconds);
         gameStartCountdownLastFeedbackSecond = currentSecond;
         if (state.soundEnabled) playTone({ freq: 660 + (4 - view.seconds) * 120, duration: 0.085, gain: 0.024 });
@@ -2159,6 +2170,7 @@ function drawGames(items) {
         <button class="small-btn game-empty-reload" type="button">بررسی دوباره بازی‌ها</button>
       </div>
     `;
+    applyGameFilter();
     root.querySelector(".game-empty-reload")?.addEventListener("click", () =>
       refreshGames().catch((err) => setLocalError("gamesHint", err))
     );
@@ -2167,7 +2179,7 @@ function drawGames(items) {
 
   const sorted = [...games].sort((a, b) => {
     const rank = (g) => autopilotGameStartClock(g) ? 0 :
-      String(g?.status || "").toUpperCase() === "LOBBY" ? 1 : 2;
+      ({ LOBBY: 1, RUNNING: 2, ENDED: 3 }[String(g?.status || "").toUpperCase()] ?? 4);
     return rank(a) - rank(b) || Number(b?.id || 0) - Number(a?.id || 0);
   });
   root.innerHTML = sorted.map((g) => {
@@ -2181,16 +2193,16 @@ function drawGames(items) {
     const myCards = Number(state.myCardsByGame.get(gid) || 0);
     const soldCards = soldCardsCount(g, snap);
     const players = playersCount(g, snap);
-    const statusClass = isRunning ? "running" : "lobby";
+    const statusClass = isRunning ? "running" : isLobby ? "lobby" : "ended";
     const price = Number(g.card_price || 0);
-    const commissionRate = Number(g.commission_rate ?? 0.10);
+    const commissionRate = g.commission_rate == null ? NaN : Number(g.commission_rate);
     const commission = Number.isFinite(commissionRate) ? `${toFaDigits(Math.round(commissionRate * 10000) / 100)}٪` : "—";
     const primaryLabel = isLobby
       ? (myCards > 0 ? "خرید کارت بیشتر" : "خرید کارت")
-      : "مشاهده اعداد زنده";
+      : isRunning ? "مشاهده اعداد زنده" : "جزئیات بازی";
 
     return `
-      <article class="item game-hero game-hero-v2${startClock ? " countdown-soon" : ""}" data-game-id="${safeText(gid)}">
+      <article class="item game-hero game-hero-v2${startClock ? " countdown-soon" : ""}" data-game-id="${safeText(gid)}" data-status="${safeText(statusKey)}">
         <div class="item-row game-hero-top">
           <div class="game-identity">
             <span class="game-identity-overline">${safeText(ruleMeta.levelLabel)}</span>
@@ -2223,6 +2235,7 @@ function drawGames(items) {
       </article>
     `;
   }).join("");
+  applyGameFilter();
   tickAutopilotGameStartClocks();
 
   root.querySelectorAll(".open-btn").forEach((btn) => {
@@ -2248,9 +2261,145 @@ function drawGames(items) {
   });
 }
 
+let returnGames = [];
+let cardsTargetId = 0;
+let focusGameId = 0;
+let focusSnapshot = null;
+let gamesRequestSerial = 0;
+let cardsRequestSerial = 0;
+let lastAppliedCardsRequest = 0;
+let eventCueAccount = null;
+
+function loadEventCues() {
+  const account = Number(state.currentUserId || 0);
+  if (eventCueAccount === account) return;
+  eventCueAccount = account;
+  state.eventCues = {start: true, number: true};
+  if (account) {
+    try {
+      const saved = JSON.parse(localStorage.getItem("davarna_event_cues:" + account) || "{}");
+      for (const kind of ["start", "number"]) state.eventCues[kind] = saved?.[kind] !== false;
+    } catch (_) {}
+  }
+  for (const kind of ["start", "number"]) {
+    const checkbox = getEl(kind + "Cue");
+    checkbox.checked = state.eventCues[kind];
+    checkbox.disabled = !account;
+  }
+}
+
+function saveEventCue(kind) {
+  loadEventCues();
+  if (!eventCueAccount) return;
+  state.eventCues[kind] = getEl(kind + "Cue").checked;
+  try { localStorage.setItem("davarna_event_cues:" + eventCueAccount, JSON.stringify(state.eventCues)); } catch (_) {}
+}
+
+// Keep native select controls stable while polling, including keyboard focus.
+function updatePlayerChoices(select, choices) {
+  const current = select.value;
+  if (select.length !== choices.length || choices.some(([id, label], i) =>
+    String(id) !== select.options[i]?.value || label !== select.options[i]?.text)) {
+    select.replaceChildren(...choices.map(([id, label]) => new Option(label, String(id))));
+    if (choices.some(([id]) => String(id) === current)) select.value = current;
+  }
+}
+
+function renderReturnGames(items) {
+  returnGames = items;
+  const panel = getEl("returnGamePanel");
+  const select = getEl("returnGameSelect");
+  panel.hidden = !items.length;
+  updatePlayerChoices(select, items.map(g => [g.game_id, "بازی " + (g.display_code || toFaDigits(g.game_id))]));
+  const game = items.find(g => String(g.game_id) === select.value);
+  if (!game) return;
+  getEl("returnGameStatus").textContent = [
+    statusLabel(game.status), toFaDigits(game.card_count) + " کارت",
+    game.last_number == null ? "هنوز عددی اعلام نشده" : "آخرین عدد " + toFaDigits(game.last_number),
+  ].join(" · ");
+}
+
+function focusEligible(snap) {
+  const game = snap?.game, st = snap?.state;
+  return game?.game_rule === "FULL_CARD" && Number(game.card_layout_version) === 2 &&
+    game.status === "RUNNING" && (!st?.game_rule || st.game_rule === game.game_rule) &&
+    (st?.card_layout_version == null || Number(st.card_layout_version) === 2) &&
+    (!st?.status || st.status === game.status) && Array.isArray(snap.my_cards) && snap.my_cards.length > 0;
+}
+
+function focusMessage(message) {
+  getEl("focusReadout").hidden = true;
+  getEl("focusState").textContent = message;
+}
+
+function renderFocusSnapshot(snap) {
+  if (!focusGameId || Number(snap?.game?.id) !== focusGameId) return;
+  if (focusSnapshot && Number(snap.last_event_id) < Number(focusSnapshot.last_event_id)) return;
+  const previous = focusSnapshot?.state?.called_numbers;
+  focusSnapshot = snap;
+  if (!focusEligible(snap)) {
+    focusMessage(snap.game.status === "ENDED" ? "این بازی پایان یافته است." : "اطلاعات بازی یا کارت برای حالت تمرکز قابل تأیید نیست.");
+    return;
+  }
+  const called = snap.state?.called_numbers;
+  const validNumber = n => Number.isInteger(n) && n >= 1 && n <= 90;
+  if (!Array.isArray(called) || !called.every(validNumber) || new Set(called).size !== called.length ||
+      (snap.state.last_number != null && snap.state.last_number !== called.at(-1))) {
+    focusMessage("اعداد اعلام‌شده از سرور قابل تأیید نیستند.");
+    return;
+  }
+  const select = getEl("focusCardSelect");
+  updatePlayerChoices(select, snap.my_cards.map(c => [c.card_id, "کارت " + toFaDigits(c.display_serial || c.card_id)]));
+  const card = snap.my_cards.find(c => String(c.card_id) === select.value);
+  const cells = card?.numbers;
+  if (!Array.isArray(cells) || cells.length !== 27 || !cells.every(n => n === 0 || validNumber(n)) ||
+      new Set(cells.filter(Boolean)).size !== 15 || [0,9,18].some(i => cells.slice(i,i+9).filter(Boolean).length !== 5)) {
+    getEl("focusGrid").replaceChildren();
+    getEl("focusMatches").textContent = "ساختار این کارت با قانون پرکردنی سازگار نیست.";
+  } else {
+    const hits = new Set(called);
+    getEl("focusGrid").innerHTML = buildCardGrid(cells, hits, new Set(called.slice(-1)));
+    getEl("focusMatches").textContent = toFaDigits(cells.filter(n => n && hits.has(n)).length) + " از ۱۵ عدد تطبیق دارد";
+  }
+  getEl("focusReadout").hidden = false;
+  getEl("focusState").textContent = "بازی " + (snap.game.display_code || toFaDigits(focusGameId));
+  const lastNumber = called.length ? toFaDigits(called.at(-1)) : "—";
+  if (getEl("focusLastNumber").textContent !== lastNumber) getEl("focusLastNumber").textContent = lastNumber;
+  getEl("focusRecent").innerHTML = called.slice(-6).reverse()
+    .map(n => `<bdi>${toFaDigits(n)}</bdi>`).join("") || "هنوز اعلام نشده";
+  if (Array.isArray(previous) && called.length > previous.length) playNumberFeedback();
+}
+
+function exitCardFocus(restoreFocus = true) {
+  if (!focusGameId) return;
+  const oldId = focusGameId;
+  focusGameId = 0;
+  focusSnapshot = null;
+  getEl("cardFocus").hidden = true;
+  getEl("cardsPanel").hidden = false;
+  if (restoreFocus) (getEl("cardsActiveList").querySelector('[data-focus-game="' + oldId + '"]') || getEl("refreshCardsBtn")).focus();
+}
+
+function enterCardFocus(snapshot) {
+  if (!focusEligible(snapshot)) return;
+  focusGameId = cardsTargetId = Number(snapshot.game.id);
+  focusSnapshot = null;
+  getEl("cardFocus").hidden = false;
+  getEl("cardsPanel").hidden = true;
+  if (state.selectedGameId !== focusGameId) {
+    state.selectedGameId = focusGameId;
+    startEventPolling();
+  }
+  renderFocusSnapshot(snapshot);
+  getEl("exitCardFocus").focus();
+  getEl("cardFocus").scrollIntoView({block: "start"});
+}
+
 async function openMyCardsForGame(gameId) {
   const gid = Number(gameId || 0);
   if (!gid) return;
+  exitCardFocus(false);
+  cardsTargetId = gid;
   switchToView("cards", { skipCardsRefresh: true });
   await refreshCards({ silent: true });
   const root = getEl("cardsActiveList");
@@ -2838,7 +2987,7 @@ function renderLive(snapshot, options = {}) {
   const tailNumbers = called.slice(-45);
   const lastNow = st.last_number ?? (called.length ? called[called.length - 1] : null);
   const prevLast = state.latestLiveNumberByGame[Number(game.id)];
-  const lastFresh = prevLast !== undefined && prevLast !== null && Number(lastNow) !== Number(prevLast);
+  const lastFresh = prevLast !== undefined && lastNow != null && Number(lastNow) !== Number(prevLast);
   state.latestLiveNumberByGame[Number(game.id)] = lastNow;
   const lastNumberClass = lastFresh ? "last-number-pop fresh" : "last-number-pop";
   const calledGrid = tailNumbers.length
@@ -2868,7 +3017,7 @@ function renderLive(snapshot, options = {}) {
     </div>
   `;
 
-  if (lastFresh && lastNow !== null && lastNow !== undefined) {
+  if (!focusGameId && lastFresh && lastNow !== null && lastNow !== undefined) {
     playNumberFeedback();
   }
 
@@ -2885,6 +3034,7 @@ function renderLive(snapshot, options = {}) {
     notifyAfterId: Number(options.notifyAfterId || 0),
     gameRule: st.game_rule || game.game_rule || "LEGACY",
   });
+  renderFocusSnapshot(snapshot);
   renderLiveGameBar(state.gamesCache);
 }
 
@@ -2905,6 +3055,7 @@ function renderLiveSnapshot(snapshot, gameId, options = {}) {
   const previousCursor = Number(options.notifyAfterId ?? getLiveEventCursor(gid));
   const canNotify = Boolean(options.notifyFresh) && liveEventCursorKnown(gid);
   const lastEventId = Number(snapshot?.last_event_id || 0);
+  if (lastEventId < getLiveEventCursor(gid)) return;
   state.selectedGameId = gid;
   renderLive(snapshot, { notifyFresh: canNotify, notifyAfterId: previousCursor });
   markLiveEventCursor(gid, lastEventId);
@@ -2912,6 +3063,7 @@ function renderLiveSnapshot(snapshot, gameId, options = {}) {
 }
 
 async function syncAutoLiveGame(gameItems) {
+  if (focusGameId) return;
   const gid = pickAutoLiveGameId(gameItems);
   if (!gid) return;
   try {
@@ -3171,12 +3323,9 @@ function startEventPolling() {
       const events = await apiFetch(
         `/mini-api/games/${gid}/events?after_id=${previousCursor}&limit=${LIVE_EVENTS_LIMIT}`
       );
-      if (events?.length) {
-        const calledEvent = events.find((e) => String(e?.kind || "").toUpperCase() === "NUMBER_CALLED");
-        if (calledEvent) {
-          playNumberFeedback();
-        }
+      if (events?.length && gid === Number(state.selectedGameId)) {
         const snap = await apiFetch(`/mini-api/games/${gid}/snapshot?events_limit=${LIVE_EVENTS_LIMIT}`);
+        if (gid !== Number(state.selectedGameId)) return;
         renderLiveSnapshot(snap, gid, {
           notifyFresh: true,
           notifyAfterId: previousCursor,
@@ -3267,12 +3416,16 @@ function stopGlobalRefresh() {
 }
 
 async function refreshGames() {
+  const sequence = ++gamesRequestSerial;
+  const account = state.currentUserId;
   const [gamesSettled, cardsSettled, insightsSettled] = await Promise.allSettled([
     apiFetch("/mini-api/games?status=LOBBY,RUNNING&limit=30"),
-    apiFetch("/mini-api/me/cards?limit=200"),
+    apiFetch("/mini-api/me/active-games"),
     apiFetch("/mini-api/dashboard/insights"),
   ]);
 
+  if (sequence !== gamesRequestSerial || account !== state.currentUserId) return;
+  loadEventCues();
   const gamesRes = gamesSettled.status === "fulfilled" ? gamesSettled.value : null;
   const cardsRes = cardsSettled.status === "fulfilled" ? cardsSettled.value : null;
   const insights = insightsSettled.status === "fulfilled" ? insightsSettled.value : null;
@@ -3291,14 +3444,8 @@ async function refreshGames() {
     }
   }
 
-  if (Array.isArray(cards)) {
-    state.myCardsByGame = new Map();
-    cards.forEach((c) => {
-      const gid = Number(c?.game_id || 0);
-      if (!gid) return;
-      state.myCardsByGame.set(gid, Number(state.myCardsByGame.get(gid) || 0) + 1);
-    });
-  }
+  renderReturnGames(cards || []);
+  state.myCardsByGame = new Map((cards || []).map(g => [Number(g.game_id), Number(g.card_count)]));
 
   if (insights) {
     state.hotGameId = null;
@@ -3312,6 +3459,7 @@ async function refreshGames() {
   const snapshotResults = await Promise.allSettled(
     gameItems.slice(0, 10).map((g) => apiFetch(`/mini-api/games/${g.id}/snapshot?events_limit=1`))
   );
+  if (sequence !== gamesRequestSerial || account !== state.currentUserId) return;
   snapshotResults.forEach((res) => {
     if (res.status === "fulfilled") {
       const gid = Number(res.value?.game?.id || 0);
@@ -3320,6 +3468,7 @@ async function refreshGames() {
   });
 
   await syncAutoLiveGame(gameItems);
+  if (sequence !== gamesRequestSerial || account !== state.currentUserId) return;
   renderLiveGameBar(gameItems);
   drawGames(gameItems);
   drawRecentStats(state.recentGamesStats);
@@ -3334,7 +3483,7 @@ function localizeCardsShell() {
       "کارت‌های بازی‌های فعال به صورت زنده هایلایت می‌شوند و ۱۰ خرید آخر در تاریخچه نمایش داده می‌شود.",
     cardsPullHint: "برای نوسازی، صفحه را کمی به پایین بکشید.",
     cardsLiveStatus: "در انتظار بازی فعال",
-    cardsActiveTitle: "کارت‌های خریداری‌شده بازی‌های فعال",
+    cardsActiveTitle: "کارت‌های فعال",
     cardsHistoryTitle: "تاریخچه خرید کارت (۱۰ مورد آخر)",
     cardsHistoryMeta: "اسکرول‌پذیر",
   };
@@ -3591,6 +3740,7 @@ function renderCardsActive(activeGames) {
             <div class="active-game-meta">
               <span>${safeText(statusLabel(g.status))}</span>
               <span>آخرین عدد: <strong>${safeText(g.lastNumber ?? "-")}</strong></span>
+              ${focusEligible(g.snapshot) ? `<button type="button" class="small-btn" data-focus-game="${g.gameId}">حالت تمرکز</button>` : ""}
               <button class="small-btn open-from-cards" data-game-id="${g.gameId}" type="button">ورود</button>
             </div>
           </div>
@@ -3638,6 +3788,9 @@ function renderCardsActive(activeGames) {
     })
     .join("");
 
+  root.querySelectorAll("[data-focus-game]").forEach(button => {
+    button.addEventListener("click", () => enterCardFocus(activeGames.find(g => g.gameId === Number(button.dataset.focusGame))?.snapshot));
+  });
   root.querySelectorAll(".open-from-cards").forEach((btn) => {
     btn.addEventListener("click", () => {
       const gid = Number(btn.getAttribute("data-game-id") || "0");
@@ -3865,6 +4018,9 @@ function groupCardsByGame(items) {
 }
 
 async function refreshCards({ silent = false } = {}) {
+  const sequence = ++cardsRequestSerial;
+  const target = cardsTargetId;
+  const account = state.currentUserId;
   if (!silent) {
     renderCardsSkeleton();
   }
@@ -3872,7 +4028,9 @@ async function refreshCards({ silent = false } = {}) {
   const payload = await apiFetch("/mini-api/me/cards?limit=100");
   const allCards = Array.isArray(payload?.items) ? payload.items : [];
 
-  if (!allCards.length) {
+  if (account !== state.currentUserId || target !== cardsTargetId || sequence < lastAppliedCardsRequest) return;
+  if (!allCards.length && !target) {
+    lastAppliedCardsRequest = sequence;
     renderCardsEmpty();
     return;
   }
@@ -3880,12 +4038,15 @@ async function refreshCards({ silent = false } = {}) {
   const historyItems = allCards.slice(0, CARD_HISTORY_LIMIT);
   const activeCards = allCards.filter((c) => ACTIVE_GAME_STATUSES.has(String(c?.game_status || "").toUpperCase()));
   const byGame = groupCardsByGame(activeCards);
+  if (target && !byGame.has(target)) byGame.set(target, []);
   const gameIds = [...byGame.keys()].sort((a, b) => b - a);
 
   const snapshotResults = await Promise.allSettled(
     gameIds.map((gid) => apiFetch(`/mini-api/games/${gid}/snapshot?events_limit=1`))
   );
 
+  if (account !== state.currentUserId || target !== cardsTargetId || sequence < lastAppliedCardsRequest) return;
+  lastAppliedCardsRequest = sequence;
   const snapshots = new Map();
   snapshotResults.forEach((res, idx) => {
     if (res.status === "fulfilled") {
@@ -3893,9 +4054,16 @@ async function refreshCards({ silent = false } = {}) {
     }
   });
 
+  if (target && !focusGameId && !snapshots.has(target) && !byGame.get(target)?.length) {
+    throw new Error("دریافت کارت‌های این بازی انجام نشد. دوباره تلاش کنید.");
+  }
   const activeGames = gameIds.map((gid) => {
-    const cards = byGame.get(gid) || [];
+    const recentCards = byGame.get(gid) || [];
     const snap = snapshots.get(gid) || null;
+    const recentById = new Map(recentCards.map(c => [c.card_id, c]));
+    const cards = Array.isArray(snap?.my_cards)
+      ? snap.my_cards.map(c => ({...recentById.get(c.card_id), ...c}))
+      : recentCards;
     const calledNumbers = Array.isArray(snap?.state?.called_numbers)
       ? snap.state.called_numbers.map((x) => Number(x)).filter((x) => Number.isFinite(x))
       : [];
@@ -3908,6 +4076,7 @@ async function refreshCards({ silent = false } = {}) {
 
     return {
       gameId: gid,
+      snapshot: snap,
       displayCode: snap?.game?.display_code || cards[0]?.display_code,
       status: String(snap?.game?.status || cards[0]?.game_status || "LOBBY"),
       eventMarker: Number(snap?.last_event_id || 0),
@@ -3919,7 +4088,12 @@ async function refreshCards({ silent = false } = {}) {
       colWinnerCardIds: Array.isArray(snap?.state?.col_winner_card_ids) ? snap.state.col_winner_card_ids.map((x) => Number(x)) : [],
       cards,
     };
-  });
+  }).filter(g => g.cards.length && ACTIVE_GAME_STATUSES.has(g.status));
+  if (focusGameId) {
+    const current = snapshots.get(focusGameId);
+    if (current) renderFocusSnapshot(current);
+    else focusMessage("به‌روزرسانی بازی انجام نشد. در انتظار ارتباط با سرور…");
+  }
 
   state.userFlags.inGame = activeGames.length > 0;
   updateHeaderStatus();
@@ -3938,7 +4112,7 @@ function startCardsPolling() {
   stopCardsPolling();
   state.cardsPollTimer = setInterval(() => {
     if (!isCardsViewActive()) return;
-    refreshCards({ silent: true }).catch(() => {});
+    refreshCards({ silent: true }).catch(() => { if (focusGameId) focusMessage("ارتباط با سرور برقرار نشد؛ منتظر به‌روزرسانی باشید."); });
   }, CARDS_REFRESH_INTERVAL_MS);
 }
 
@@ -9949,6 +10123,8 @@ function switchToView(target, { skipCardsRefresh = false } = {}) {
     startCardsPolling();
     if (!skipCardsRefresh) refreshCards({ silent: true }).catch(() => {});
   } else {
+    exitCardFocus(false);
+    cardsTargetId = 0;
     stopCardsPolling();
   }
 
@@ -10207,7 +10383,24 @@ async function boot() {
   if (copyBtn) copyBtn.disabled = true;
 
   bind("soundBtn", "click", toggleSound);
+  loadEventCues();
+  bind("startCue", "change", () => saveEventCue("start"));
+  bind("numberCue", "change", () => saveEventCue("number"));
+  bind("returnGameSelect", "change", () => renderReturnGames(returnGames));
+  bind("returnGameCards", "click", () => openMyCardsForGame(getEl("returnGameSelect").value).catch(err => showToast(localizeApiError(err.message), "error")));
+  bind("exitCardFocus", "click", () => exitCardFocus());
+  bind("focusCardSelect", "change", () => renderFocusSnapshot(focusSnapshot));
+  bind("cardFocus", "keydown", event => {
+    if (event.key === "Escape") { event.stopPropagation(); exitCardFocus(); }
+  });
   bind("countdownVibrationBtn", "click", toggleCountdownVibration);
+  bind("gamesOverview", "click", event => {
+    const button = event.target.closest("button[data-game-filter]");
+    if (button) {
+      selectedGameFilter = button.dataset.gameFilter;
+      applyGameFilter();
+    }
+  });
   bind("notificationsBtn", "click", openNotificationCenter);
   bind("notificationCloseBtn", "click", closeNotificationCenter);
   bind("notificationMarkAllBtn", "click", markAllNotificationsRead);
