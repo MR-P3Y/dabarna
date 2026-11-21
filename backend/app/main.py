@@ -107,6 +107,8 @@ app.include_router(game_draw_mode_router)
 app.include_router(admin_users_router)
 app.include_router(admin_autopilot_router)
 app.include_router(mini_router)
+from app.routers.tracking_router import router as tracking_router
+app.include_router(tracking_router)
 app.include_router(admin_audit_router)
 app.include_router(crypto_router)
 

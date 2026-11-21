@@ -37,6 +37,9 @@ const page=await browser.newPage({viewport:{width:390,height:844}});
 const grid=[1,0,20,0,40,0,60,0,80,2,0,21,0,41,0,61,0,81,3,0,22,0,42,0,62,0,82];
 const personalDraws=[50,3,12];
 let personal=false, ended=false, disconnected=false, personalEvent=1000;
+let failTracking=false;
+let unsafeTracking=true;
+const trackingRow={kind:"deposit",id:125,code:"DAV-DEP-000125",title:"واریز بانکی",status:"APPROVED",status_label:"تأیید شده",amount:20000,created_at:"2026-11-20T10:00:00Z"};
 page.on('pageerror',error=>errors.push(String(error)));
 await page.route('**/*',async route=>{
  const url=new URL(route.request().url());
@@ -44,7 +47,14 @@ await page.route('**/*',async route=>{
  if(!url.pathname.includes('mini-api'))return route.continue();
  if(route.request().method()!=='GET')writes.push(url.pathname);
  let body={};let status=200;
- if(personal && url.pathname.endsWith('/me/active-games')){
+ if(url.pathname.includes('/tracking/search')){
+   if(failTracking)status=503;
+   const offset=Number(url.searchParams.get('offset')||0);
+   body={items:offset?[{...trackingRow,id:126,code:"DAV-DEP-000126"}]:[trackingRow,{...trackingRow,kind:"game",id:12,title:"بازی",code:"G-261121-012",amount:null}],total:21,offset,limit:20,fetched_at:"2026-11-21T12:00:00Z"};
+ } else if(url.pathname.includes('/tracking/deposit/')){
+   body={...trackingRow,fields:[{label:"دلیل بررسی",value:unsafeTracking?'<img src=x onerror="window.trackingXss=true">':"رسید بررسی شد و اعتبار در کیف پول ثبت شد."}],
+     links:[],timeline:[{label:"ثبت درخواست",at:trackingRow.created_at}],audit:{items:[],total:0,offset:0,limit:20},fetched_at:"2026-11-21T12:00:00Z"};
+ } else if(personal && url.pathname.endsWith('/me/active-games')){
    body={items:[
      {game_id:92,status:'RUNNING',card_count:2,last_number:personalDraws.at(-1)},
      {game_id:91,status:'LOBBY',card_count:1,last_number:null},
@@ -246,6 +256,46 @@ try {
  await page.locator('#exitCardFocus').click();
  assert.equal(await focus.isVisible(),false);
  assert.equal(await page.locator('#cardsPanel').isVisible(),true);
+ await page.locator('#trackingBtn').click();
+ await page.locator('#trackingQuery').fill('125');
+ await page.locator('#trackingForm button[type="submit"]').click();
+ await page.locator('#trackingBody .tracking-result').first().waitFor();
+ assert.equal(await page.locator('#trackingBody .tracking-result').count(),2,'ambiguous codes retain choices');
+ await page.locator('[data-page="search"][data-offset="20"]').click();
+ await page.waitForFunction(()=>document.querySelector('#trackingBody').textContent.includes('DAV-DEP-000126'));
+ await page.locator('[data-page="search"][data-offset="0"]').click();
+ await page.locator('[data-kind="deposit"][data-id="125"]').click();
+ await page.locator('#trackingBody .tracking-summary').waitFor();
+ assert.equal(await page.locator('#trackingBody img').count(),0);
+ assert.equal(await page.evaluate(()=>Boolean(window.trackingXss)),false);
+ unsafeTracking=false;
+ await page.locator('#trackingCenter [data-refresh]').click();
+ await page.waitForFunction(()=>document.querySelector('#trackingBody').textContent.includes('رسید بررسی شد'));
+ for(const theme of ['light','dark']){
+   await page.evaluate(t=>document.documentElement.dataset.theme=t,theme);
+   for(const width of [320,390,1440]){
+     await page.setViewportSize({width,height:900});
+     assert.equal(await page.locator('#trackingCenter').evaluate(el=>el.scrollWidth>el.clientWidth),false);
+   }
+   await page.setViewportSize({width:390,height:844});
+   await page.locator('#trackingCenter').screenshot({path:path.join(output,'tracking-'+theme+'.png')});
+ }
+ await page.keyboard.press('Escape');
+ assert.equal(await page.locator('#trackingCenter').isVisible(),false);
+ assert.equal(await page.evaluate(()=>document.activeElement.id),'trackingBtn');
+ await page.evaluate(()=>location.hash='track=deposit/125');
+ await page.locator('#trackingCenter .tracking-summary').waitFor();
+ await page.locator('#trackingCenter [data-back]').click();
+ failTracking=true;
+ await page.locator('#trackingCenter [data-refresh]').click();
+ await page.waitForFunction(()=>document.querySelector('#trackingUpdated').textContent.includes('دریافت نشد'));
+ failTracking=false;
+ await page.keyboard.press('Escape');
+ await page.evaluate(()=>qa.state.currentUserId=9);
+ await page.locator('#trackingBtn').click();
+ assert.equal(await page.locator('#trackingBody').innerText(),'','account change clears private result');
+ assert.equal(await page.locator('#trackingRecent button').count(),0);
+ await page.keyboard.press('Escape');
  assert.deepEqual(errors,[]);assert.deepEqual(writes,[]);
- console.log(JSON.stringify({result:'PASS',screenshots:8,pageErrors:errors,mutationRequests:writes,notificationCalls,receiptCalls}));
+ console.log(JSON.stringify({result:'PASS',screenshots:10,pageErrors:errors,mutationRequests:writes,notificationCalls,receiptCalls}));
 } finally {await browser.close();server.close();}

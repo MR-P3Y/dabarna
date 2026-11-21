@@ -1,4 +1,5 @@
 import * as experience from "./experience.mjs?v=remaining-ux-v1";
+import {initTracking} from "./tracking.mjs?v=20261121";
 import {automationClock} from "./automation-clocks.mjs?v=20261113";
 const tg = window.Telegram?.WebApp;
 
@@ -132,6 +133,7 @@ function _nowSec() {
 }
 
 function clearMiniSession() {
+  tracking.clear();
   stopMiniSocket();
   state.token = null;
   state.tokenExp = 0;
@@ -10530,6 +10532,7 @@ async function boot() {
   }
 
   if (!authOk) return;
+  tracking.openLinked();
 
   startMiniSocket();
   setSplashStatus("در حال دریافت بازی‌ها و کیف پول...");
@@ -10558,6 +10561,7 @@ window.addEventListener("beforeunload", () => {
   stopCardsPolling();
   stopGlobalRefresh();
 });
+const tracking = initTracking({apiFetch, getAccount: () => state.currentUserId});
 boot().catch((err) => {
   setBadge("error", String(err.message || "خطای داخلی"));
   setSplashStatus("خطا در آماده‌سازی. لطفاً دوباره تلاش کنید.");
