@@ -1,5 +1,5 @@
 import * as experience from "./experience.mjs?v=remaining-ux-v1";
-import {initTracking} from "./tracking.mjs?v=20261121";
+import {initTracking} from "./tracking.mjs?v=20261122design";
 import {automationClock} from "./automation-clocks.mjs?v=20261113";
 const tg = window.Telegram?.WebApp;
 
