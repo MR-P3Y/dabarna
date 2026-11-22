@@ -257,10 +257,12 @@ try {
  assert.equal(await focus.isVisible(),false);
  assert.equal(await page.locator('#cardsPanel').isVisible(),true);
  await page.locator('#trackingBtn').click();
+ await page.locator('#trackingCenter').screenshot({path:path.join(output,'tracking-search.png')});
  await page.locator('#trackingQuery').fill('125');
  await page.locator('#trackingForm button[type="submit"]').click();
  await page.locator('#trackingBody .tracking-result').first().waitFor();
  assert.equal(await page.locator('#trackingBody .tracking-result').count(),2,'ambiguous codes retain choices');
+ await page.locator('#trackingCenter').screenshot({path:path.join(output,'tracking-results.png')});
  await page.locator('[data-page="search"][data-offset="20"]').click();
  await page.waitForFunction(()=>document.querySelector('#trackingBody').textContent.includes('DAV-DEP-000126'));
  await page.locator('[data-page="search"][data-offset="0"]').click();
@@ -277,6 +279,7 @@ try {
      await page.setViewportSize({width,height:900});
      assert.equal(await page.locator('#trackingCenter').evaluate(el=>el.scrollWidth>el.clientWidth),false);
    }
+   await page.locator('#trackingCenter').screenshot({path:path.join(output,'tracking-desktop-'+theme+'.png')});
    await page.setViewportSize({width:390,height:844});
    await page.locator('#trackingCenter').screenshot({path:path.join(output,'tracking-'+theme+'.png')});
  }
@@ -297,5 +300,5 @@ try {
  assert.equal(await page.locator('#trackingRecent button').count(),0);
  await page.keyboard.press('Escape');
  assert.deepEqual(errors,[]);assert.deepEqual(writes,[]);
- console.log(JSON.stringify({result:'PASS',screenshots:10,pageErrors:errors,mutationRequests:writes,notificationCalls,receiptCalls}));
+ console.log(JSON.stringify({result:'PASS',screenshots:14,pageErrors:errors,mutationRequests:writes,notificationCalls,receiptCalls}));
 } finally {await browser.close();server.close();}
