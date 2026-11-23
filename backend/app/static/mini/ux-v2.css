@@ -1412,3 +1412,21 @@ html[data-theme] .bottom-nav.glass { box-shadow: 0 -2px 16px -5px rgb(var(--them
   .topbar .smart-head-secondary :is(#trackingBtn, #notificationsBtn, .player-preferences > summary) { gap: 4px; font-size: 11px; }
   .topbar .header-action-icon { width: 16px; height: 16px; flex-basis: 16px; }
 }
+
+/* Telegram updates these inset variables on fullscreen/orientation changes. */
+#notificationCenter {
+  --notification-safe-top: calc(max(env(safe-area-inset-top, 0px), var(--tg-safe-area-inset-top, 0px)) + var(--tg-content-safe-area-inset-top, 0px));
+  --notification-safe-bottom: calc(max(env(safe-area-inset-bottom, 0px), var(--tg-safe-area-inset-bottom, 0px)) + var(--tg-content-safe-area-inset-bottom, 0px));
+  padding-top: calc(16px + var(--notification-safe-top));
+  padding-bottom: calc(16px + var(--notification-safe-bottom));
+  padding-left: calc(12px + max(env(safe-area-inset-left, 0px), var(--tg-safe-area-inset-left, 0px)) + var(--tg-content-safe-area-inset-left, 0px));
+  padding-right: calc(12px + max(env(safe-area-inset-right, 0px), var(--tg-safe-area-inset-right, 0px)) + var(--tg-content-safe-area-inset-right, 0px));
+  box-sizing: border-box;
+}
+#notificationCenter .notification-panel {
+  box-sizing: border-box;
+  max-height: calc(100dvh - 32px - var(--notification-safe-top) - var(--notification-safe-bottom));
+  min-height: 0;
+}
+#notificationCenter .notification-head { flex-shrink: 0; }
+#notificationCloseBtn { min-width: 44px; min-height: 44px; flex-shrink: 0; }

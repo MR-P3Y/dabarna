@@ -21,7 +21,7 @@ const ctx = {
   setInterval: () => 1,
 };
 vm.runInNewContext(
-  source.slice(begin, end) +
+  source.slice(source.indexOf("function requestGameHaptic()"), source.indexOf("function playNumberFeedback()")) + source.slice(begin, end) +
   "\nthis.getClock = autopilotGameStartClock;" +
   "\nthis.getHtml = autopilotGameStartClockHtml; this.tick = tickAutopilotGameStartClocks;",
   ctx,
