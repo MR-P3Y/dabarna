@@ -16,11 +16,15 @@
   --theme-danger-soft: #492d36;
   --theme-shadow-rgb: 0 10 28;
   --theme-backdrop: rgb(3 12 28 / 72%);
-  --theme-shadow: 0 12px 36px rgb(var(--theme-shadow-rgb) / 18%);
+  --theme-shadow: 0 2px 4px rgb(var(--theme-shadow-rgb) / 8%), 0 12px 28px -10px rgb(var(--theme-shadow-rgb) / 24%);
+  --theme-shadow-raised: 0 4px 10px -4px rgb(var(--theme-shadow-rgb) / 18%), 0 24px 56px -20px rgb(var(--theme-shadow-rgb) / 36%);
+  --theme-shadow-button: 0 2px 4px rgb(var(--theme-shadow-rgb) / 8%), 0 5px 12px -6px rgb(var(--theme-shadow-rgb) / 22%);
   --theme-qr: #ffffff;
 }
 html[data-theme="light"] {
   color-scheme: light;
+  --theme-shadow: 0 1px 3px rgb(var(--theme-shadow-rgb) / 3%), 0 8px 24px -10px rgb(var(--theme-shadow-rgb) / 14%);
+  --theme-shadow-raised: 0 3px 10px -4px rgb(var(--theme-shadow-rgb) / 10%), 0 24px 54px -20px rgb(var(--theme-shadow-rgb) / 24%);
   --theme-bg: #f3f6fc;
   --theme-surface: #ffffff;
   --theme-inset: #edf2fa;
