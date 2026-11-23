@@ -6,7 +6,7 @@ import http from 'node:http';
 import {fileURLToPath} from 'node:url';
 const {chromium}=await import(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const base=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../../backend/app/static/mini');
-const output=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../audit/autopilot-pacing-20261113/screenshots');
+const output=process.env.SCREENSHOT_DIR || path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../audit/autopilot-pacing-20261113/screenshots');
 fs.mkdirSync(output,{recursive:true});
 const server=http.createServer((req,res)=>{
  const name=decodeURIComponent(new URL(req.url,'http://localhost').pathname).replace(/^\/mini\/?/,'') || 'index.html';
@@ -73,6 +73,10 @@ try {
  await page.locator('#adminAutopilotList').evaluate(el=>{let p=el;while(p&&p!==document.body){p.hidden=false;p.classList.remove('hidden');p.style.display='block';if(p.tagName==='DETAILS')p.open=true;p=p.parentElement;}});
  await page.setViewportSize({width:390,height:844});
  await page.locator('#adminAutopilotList').screenshot({path:path.join(output,'admin-pacing-mobile.png')});
+ for(const theme of ['light','dark']){
+   await page.evaluate(t=>document.documentElement.dataset.theme=t,theme);
+   await page.locator('#adminAutopilotList').screenshot({path:path.join(output,'autopilot-'+theme+'.png')});
+ }
  assert.deepEqual(writes,[]);assert.deepEqual(errors,[]);
  fs.writeFileSync(path.join(output,'result.json'),JSON.stringify({result:'PASS',mockGetCalls:calls,writeRequests:writes.length,javascriptErrors:errors.length,productionRequests:0},null,2));
  console.log('PASS: actual browser assets, mobile/desktop clocks, server pending, stale data, coalesced polling, countdown revocation, admin countdown and rule-specific speeds; zero writes');

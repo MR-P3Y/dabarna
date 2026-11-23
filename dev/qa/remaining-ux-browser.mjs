@@ -17,7 +17,7 @@ const server=http.createServer((req,res)=>{
  let body=fs.readFileSync(full);
  if(name==='app.js'){
   body=body.toString().replace('boot().catch((err) => {','Promise.resolve().catch((err) => {').replace('  let authOk = false;','  hideSplash(); return;\n  let authOk = false;');
-  body+='\nwindow.qa={state,boot,refreshNotifications,inboxUi,showAdminWinnerPopup,closeAdminWinnerModal,openWinnerModal,closeWinnerModal,openNotificationCenter,closeNotificationCenter,renderNotificationCenter,refreshGames,drawGames,refreshCards,stopCardsPolling,loadEventCues,handleMiniSocketMessage};';
+  body+='\nwindow.qa={state,boot,refreshNotifications,inboxUi,showAdminWinnerPopup,closeAdminWinnerModal,openWinnerModal,closeWinnerModal,openNotificationCenter,closeNotificationCenter,renderNotificationCenter,refreshGames,drawGames,refreshCards,stopCardsPolling,loadEventCues,handleMiniSocketMessage,drawWallet,renderAdminOpsDashboard};';
  }
  res.end(body);
 });
@@ -299,6 +299,24 @@ try {
  assert.equal(await page.locator('#trackingBody').innerText(),'','account change clears private result');
  assert.equal(await page.locator('#trackingRecent button').count(),0);
  await page.keyboard.press('Escape');
+
+ for(const theme of ['light','dark']){
+   await page.evaluate(t=>{
+     document.documentElement.dataset.theme=t;
+     document.querySelectorAll('.view').forEach(e=>e.classList.remove('active'));
+     document.querySelector('#view-wallet').classList.add('active');
+     qa.drawWallet({balance:250000},[{id:1,amount:20000,direction:'CREDIT',reason:'DEPOSIT',created_at:'2026-11-23T10:00:00Z'}]);
+   },theme);
+   await page.setViewportSize({width:390,height:844});
+   await page.locator('#view-wallet').screenshot({path:path.join(output,'wallet-'+theme+'.png')});
+   await page.evaluate(()=>{
+     document.querySelector('#view-wallet').classList.remove('active');
+     document.querySelector('#view-admin').classList.add('active');
+     qa.renderAdminOpsDashboard({counts:{pending_deposits:3,pending_withdraws:2},active_games:[{id:92,status:'RUNNING',cards_count:8,players_count:4,prize_pool:40000}],system:{services:[{key:'api',title:'سرور',status:'ok'}]}});
+   });
+   await page.locator('#adminOpsDashboard').evaluate(el=>{for(let p=el;p&&p!==document.body;p=p.parentElement){p.hidden=false;p.classList.remove('hidden');if(p.tagName==='DETAILS')p.open=true;}});
+   await page.locator('#adminOpsDashboard').screenshot({path:path.join(output,'dashboard-'+theme+'.png')});
+ }
  assert.deepEqual(errors,[]);assert.deepEqual(writes,[]);
- console.log(JSON.stringify({result:'PASS',screenshots:14,pageErrors:errors,mutationRequests:writes,notificationCalls,receiptCalls}));
+ console.log(JSON.stringify({result:'PASS',screenshots:18,pageErrors:errors,mutationRequests:writes,notificationCalls,receiptCalls}));
 } finally {await browser.close();server.close();}
