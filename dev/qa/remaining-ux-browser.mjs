@@ -128,6 +128,26 @@ try {
  await page.locator('#notificationsBtn').click();
  await page.waitForFunction(()=>qa.inboxUi.syncedAt&&!qa.inboxUi.loading);
  assert.equal(await page.locator('.inbox-card').count(),5);
+ // Simulated Telegram fullscreen controls, notch, then landscape and exit.
+ for(const scenario of [{width:390,height:844,top:44,content:56,left:0,right:0,bottom:34},{width:844,height:390,top:0,content:48,left:44,right:44,bottom:21},{width:390,height:844,top:0,content:0,left:0,right:0,bottom:0}]){
+   await page.setViewportSize(scenario);
+   await page.evaluate(v=>{
+     const style=document.documentElement.style;
+     for(const side of ['top','bottom','left','right'])style.setProperty('--tg-safe-area-inset-'+side,v[side]+'px');
+     style.setProperty('--tg-content-safe-area-inset-top',v.content+'px');
+   },scenario);
+   const close=await page.locator('#notificationCloseBtn').boundingBox();
+   assert.ok(close.y>=scenario.top+scenario.content+16,'close remains below Telegram controls');
+   assert.ok(close.x>=scenario.left&&close.x+close.width<=scenario.width-scenario.right);
+   assert.ok(close.y+close.height<=scenario.height-scenario.bottom);
+   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+   if(scenario.top)await page.screenshot({path:path.join(output,'notification-fullscreen-safe.png')});
+   await page.locator('#notificationCloseBtn').click();
+   assert.equal(await page.locator('#notificationCenter').isVisible(),false);
+   await page.locator('#notificationsBtn').click();
+ }
+ await page.setViewportSize({width:390,height:844});
+
  const filterBounds=await page.locator('#notificationFilters').boundingBox();
  assert.ok(filterBounds.height >= 44, 'inbox filters retain a full touch target');
  assert.equal(await page.evaluate(()=>Boolean(window.xss)),false);
@@ -346,5 +366,5 @@ try {
    await page.locator('#adminOpsDashboard').screenshot({path:path.join(output,'dashboard-'+theme+'.png')});
  }
  assert.deepEqual(errors,[]);assert.deepEqual(writes,[]);
- console.log(JSON.stringify({result:'PASS',screenshots:26,pageErrors:errors,mutationRequests:writes,notificationCalls,receiptCalls}));
+ console.log(JSON.stringify({result:'PASS',screenshots:27,pageErrors:errors,mutationRequests:writes,notificationCalls,receiptCalls}));
 } finally {await browser.close();server.close();}

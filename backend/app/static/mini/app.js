@@ -504,13 +504,22 @@ function playNumberSound() {
   setTimeout(() => playTone({ freq: 980, duration: 0.06, type: "sine", gain: 0.022 }), 68);
 }
 
+// API acceptance cannot prove that a physical vibration occurred.
+function requestGameHaptic() {
+  if (!state.countdownVibration || document.hidden) return false;
+  try {
+    if (tg?.HapticFeedback?.impactOccurred && (!tg.isVersionAtLeast || tg.isVersionAtLeast("6.1"))) {
+      tg.HapticFeedback.impactOccurred("light");
+      return true;
+    }
+  } catch (_) {}
+  try { return Boolean(navigator.vibrate?.(18)); } catch (_) { return false; }
+}
+
 function playNumberFeedback() {
   if (state.eventCues?.number === false || document.hidden) return;
   playNumberSound();
-  if (!state.countdownVibration) return;
-  if (tg?.HapticFeedback?.impactOccurred) {
-    try { tg.HapticFeedback.impactOccurred("light"); } catch (_) {}
-  } else if (navigator.vibrate) navigator.vibrate(18);
+  requestGameHaptic();
 }
 
 function playNotifySound(type = "success") {
@@ -555,12 +564,20 @@ function updateCountdownVibrationButton() {
   if (!button) return;
   button.setAttribute("aria-pressed", String(state.countdownVibration));
   button.classList.toggle("is-on", state.countdownVibration);
+  button.textContent = state.countdownVibration ? "لرزش روشن" : "لرزش خاموش";
+  button.setAttribute("aria-label", state.countdownVibration ? "خاموش‌کردن لرزش بازی" : "روشن‌کردن لرزش بازی");
 }
 
 function toggleCountdownVibration() {
   state.countdownVibration = !state.countdownVibration;
   try { localStorage.setItem("davarna_countdown_vibration", state.countdownVibration ? "1" : "0"); } catch (_) {}
   updateCountdownVibrationButton();
+  if (state.countdownVibration) {
+    const accepted = requestGameHaptic();
+    showToast(accepted ? "لرزش روشن شد؛ پشتیبانی به دستگاه بستگی دارد" : "تنظیم لرزش ذخیره شد؛ در این محیط قابل اجرا نیست", "pending");
+  } else {
+    showToast("لرزش بازی خاموش شد", "pending");
+  }
 }
 
 function initSoundPreference() {
@@ -2136,12 +2153,7 @@ function tickAutopilotGameStartClocks() {
         gameStartCountdownFeedback.set(key, view.seconds);
         gameStartCountdownLastFeedbackSecond = currentSecond;
         if (state.soundEnabled) playTone({ freq: 660 + (4 - view.seconds) * 120, duration: 0.085, gain: 0.024 });
-        if (state.countdownVibration) {
-          try {
-            if (tg?.HapticFeedback?.impactOccurred) tg.HapticFeedback.impactOccurred("light");
-            else navigator.vibrate?.(30);
-          } catch (_) {}
-        }
+        requestGameHaptic();
         feedbackPlayedThisTick = true;
       }
     }
