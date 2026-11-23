@@ -1,12 +1,12 @@
 #trackingCenter {
-  --track-bg: #f4f7f6;
-  --track-surface: #ffffff;
-  --track-ink: #172d2a;
-  --track-muted: #5d7370;
-  --track-line: #dce7e3;
-  --track-accent: #126858;
-  --track-soft: #e4f2eb;
-  --track-hero: #dff0e7;
+  --track-bg: var(--theme-bg);
+  --track-surface: var(--theme-surface);
+  --track-ink: var(--theme-text);
+  --track-muted: var(--theme-muted);
+  --track-line: var(--theme-line);
+  --track-accent: var(--theme-accent);
+  --track-soft: var(--theme-soft);
+  --track-hero: var(--theme-soft);
   width: min(1000px, calc(100% - 40px));
   max-height: calc(100dvh - 48px);
   margin: auto;
@@ -19,21 +19,21 @@
   font: inherit;
   font-size: 14px;
   line-height: 1.8;
-  box-shadow: 0 30px 100px rgb(0 24 19 / 28%);
+  box-shadow: 0 30px 100px rgb(var(--theme-shadow-rgb) / 0.28);
   overscroll-behavior: contain;
   scrollbar-width: thin;
 }
 [data-theme="dark"] #trackingCenter {
-  --track-bg: #0e1d21;
-  --track-surface: #15292d;
-  --track-ink: #e7f3ef;
-  --track-muted: #a1b8b3;
-  --track-line: #2c4547;
-  --track-accent: #8de0bc;
-  --track-soft: #203c35;
-  --track-hero: #193c32;
+  --track-bg: var(--theme-bg);
+  --track-surface: var(--theme-surface);
+  --track-ink: var(--theme-text);
+  --track-muted: var(--theme-muted);
+  --track-line: var(--theme-line);
+  --track-accent: var(--theme-accent);
+  --track-soft: var(--theme-soft);
+  --track-hero: var(--theme-soft);
 }
-#trackingCenter::backdrop { background: rgb(5 18 23 / 65%); backdrop-filter: blur(7px); }
+#trackingCenter::backdrop { background: var(--theme-backdrop); backdrop-filter: blur(7px); }
 #trackingCenter *, #trackingCenter *::before, #trackingCenter *::after { box-sizing: border-box; }
 #trackingCenter header {
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
@@ -62,7 +62,7 @@
 #trackingCenter #trackingQuery { min-width: 0; min-height: 54px; background: var(--track-bg); }
 #trackingCenter #trackingQuery::placeholder { color: var(--track-muted); font-size: 12px; }
 #trackingCenter .tracking-primary { background: var(--track-accent); color: var(--track-surface); border-color: var(--track-accent); min-width: 110px; font-weight: 750; }
-[data-theme="dark"] #trackingCenter .tracking-primary { color: #10251e; }
+[data-theme="dark"] #trackingCenter .tracking-primary { color: var(--theme-on-accent); }
 #trackingCenter summary { cursor: pointer; min-height: 44px; padding-block: 12px; color: var(--track-muted); font-size: 13px; }
 #trackingForm details { margin-top: 14px; border-top: 1px solid var(--track-line); }
 #trackingCenter .tracking-filters { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 12px; padding-block: 8px; }
@@ -84,8 +84,8 @@
 #trackingCenter .tracking-result>small { color: var(--track-muted); font-size: 11px; text-align: end; }
 #trackingCenter .tracking-state { justify-self: end; align-self: start; display: inline-flex; align-items: center; gap: 6px; border-radius: 30px; padding: 4px 10px; font-size: 11px; color: var(--track-accent); background: var(--track-soft); }
 #trackingCenter .tracking-state::before { content: ""; width: 5px; height: 5px; flex-shrink: 0; border-radius: 50%; background: currentColor; }
-#trackingCenter .tracking-state[data-status="REJECTED"], #trackingCenter .tracking-state[data-status="CANCELLED"] { color: #ae2947; background: #ffe8ef; }
-#trackingCenter .tracking-state[data-status="PENDING"], #trackingCenter .tracking-state[data-status="PENDING_REVIEW"], #trackingCenter .tracking-state[data-status="CONFIRMING"] { color: #805000; background: #fff0cc; }
+#trackingCenter .tracking-state[data-status="REJECTED"], #trackingCenter .tracking-state[data-status="CANCELLED"] { color: var(--theme-danger); background: var(--theme-inset); }
+#trackingCenter .tracking-state[data-status="PENDING"], #trackingCenter .tracking-state[data-status="PENDING_REVIEW"], #trackingCenter .tracking-state[data-status="CONFIRMING"] { color: var(--theme-warning); background: var(--theme-inset); }
 #trackingCenter .tracking-back { margin-bottom: 16px; padding: 5px 0; border: 0; background: transparent; color: var(--track-muted); font-size: 12px; }
 #trackingCenter .tracking-summary { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 18px; padding: 26px 28px; background: var(--track-hero); border: 1px solid var(--track-line); border-radius: 20px; }
 #trackingCenter .tracking-record-label { color: var(--track-muted); font-size: 11px; }

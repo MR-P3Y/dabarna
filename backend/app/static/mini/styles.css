@@ -39,40 +39,37 @@
 }
 
 :root {
-  --bg: #070c1a;
-  --bg-soft:
-    radial-gradient(75% 62% at 11% 6%, rgba(49, 71, 148, 0.44) 0%, rgba(49, 71, 148, 0) 62%),
-    radial-gradient(80% 66% at 91% 8%, rgba(27, 176, 197, 0.26) 0%, rgba(27, 176, 197, 0) 70%),
-    linear-gradient(160deg, #0a132c 0%, #071022 48%, #050a18 100%);
-  --text: #f2f6ff;
-  --muted: #9aabd1;
-  --accent: #5fc8ff;
-  --accent-2: #e0a641;
-  --glass: rgba(13, 24, 52, 0.62);
-  --glass-border: rgba(125, 160, 245, 0.28);
-  --danger: #ff738f;
-  --success: #69f0c0;
-  --shadow: 0 20px 44px rgba(2, 8, 24, 0.52);
-  --lux-gold: #e0a641;
-  --lux-gold-soft: rgba(224, 166, 65, 0.22);
-  --lux-blue-soft: rgba(95, 200, 255, 0.2);
+  --bg: var(--theme-bg);
+  --bg-soft: var(--theme-bg);
+  --text: var(--theme-text);
+  --muted: var(--theme-muted);
+  --accent: var(--theme-accent);
+  --accent-2: var(--theme-accent);
+  --glass: var(--theme-surface);
+  --glass-border: var(--theme-line);
+  --danger: var(--theme-danger);
+  --success: var(--theme-accent);
+  --shadow: var(--theme-shadow);
+  --lux-gold: var(--theme-accent);
+  --lux-gold-soft: var(--theme-soft);
+  --lux-blue-soft: var(--theme-soft);
 }
 
 html[data-theme="light"] {
-  --bg: #f5f7fb;
-  --bg-soft: radial-gradient(120% 105% at 12% 4%, #fff7e9 0%, #f6f8ff 40%, #eef3fb 74%, #f7f9fc 100%);
-  --text: #101b32;
-  --muted: #3f506f;
-  --accent: #173fbd;
-  --accent-2: #9a6613;
-  --glass: rgba(255, 255, 255, 0.96);
-  --glass-border: rgba(25, 40, 72, 0.26);
-  --danger: #b72248;
-  --success: #087055;
-  --shadow: 0 14px 30px rgba(22, 36, 71, 0.18);
-  --lux-gold: #9a6613;
-  --lux-gold-soft: rgba(154, 102, 19, 0.18);
-  --lux-blue-soft: rgba(23, 63, 189, 0.14);
+  --bg: var(--theme-bg);
+  --bg-soft: var(--theme-bg);
+  --text: var(--theme-text);
+  --muted: var(--theme-muted);
+  --accent: var(--theme-accent);
+  --accent-2: var(--theme-accent);
+  --glass: var(--theme-surface);
+  --glass-border: var(--theme-line);
+  --danger: var(--theme-danger);
+  --success: var(--theme-accent);
+  --shadow: var(--theme-shadow);
+  --lux-gold: var(--theme-accent);
+  --lux-gold-soft: var(--theme-soft);
+  --lux-blue-soft: var(--theme-soft);
 }
 
 * {
@@ -141,7 +138,7 @@ body {
   border-radius: 10px;
   object-fit: cover;
   border: 1px solid var(--glass-border);
-  box-shadow: 0 8px 20px rgba(7, 11, 24, 0.35);
+  box-shadow: 0 8px 20px rgb(var(--theme-shadow-rgb) / 0.35);
 }
 
 .brand h1 {
@@ -165,7 +162,7 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(145deg, rgba(100, 214, 255, 0.3), rgba(45, 212, 191, 0.3));
+  background: linear-gradient(145deg, var(--theme-surface), var(--theme-soft));
   color: var(--accent);
 }
 
@@ -180,7 +177,7 @@ body {
   min-height: 30px;
   border-radius: 9px;
   border: 1px solid var(--glass-border);
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--theme-surface);
   color: var(--text);
   padding: 0 8px;
   font-size: 11px;
@@ -207,7 +204,7 @@ body {
   padding: 0 8px;
   border-radius: 999px;
   border: 1px solid var(--glass-border);
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--theme-surface);
   font-size: 11px;
   font-weight: 700;
   color: var(--muted);
@@ -226,17 +223,17 @@ body {
 }
 
 .badge.pending {
-  background: rgba(255, 193, 91, 0.18);
-  color: #ffc15b;
+  background: var(--theme-warning-soft);
+  color: var(--theme-warning);
 }
 
 .badge.success {
-  background: rgba(126, 245, 188, 0.18);
+  background: var(--theme-surface);
   color: var(--success);
 }
 
 .badge.error {
-  background: rgba(255, 127, 138, 0.18);
+  background: var(--theme-danger-soft);
   color: var(--danger);
 }
 
@@ -290,7 +287,7 @@ body {
 
 .small-btn {
   border: 1px solid var(--glass-border);
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--theme-surface);
   color: var(--text);
   border-radius: 10px;
   padding: 6px 10px;
@@ -302,14 +299,14 @@ body {
 .small-btn.primary {
   border-color: transparent;
   background: linear-gradient(140deg, var(--accent), var(--accent-2));
-  color: #061328;
+  color: var(--theme-on-accent);
   font-weight: 700;
 }
 
 .small-btn.danger {
-  border-color: rgba(255, 127, 138, 0.45);
-  color: #ffd5db;
-  background: rgba(255, 127, 138, 0.14);
+  border-color: var(--theme-danger);
+  color: var(--theme-danger);
+  background: var(--theme-danger-soft);
 }
 
 .small-btn.disabled,
@@ -329,9 +326,9 @@ body {
 
 .quick-guide {
   margin: 8px 0 12px;
-  border: 1px dashed rgba(100, 214, 255, 0.42);
+  border: 1px dashed var(--theme-line);
   border-radius: 12px;
-  background: rgba(100, 214, 255, 0.08);
+  background: var(--theme-surface);
   padding: 8px 10px;
 }
 
@@ -356,7 +353,7 @@ body {
   padding: 10px;
   display: grid;
   gap: 8px;
-  background: linear-gradient(150deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
+  background: linear-gradient(150deg, var(--theme-surface), var(--theme-surface));
 }
 
 .action-form label {
@@ -369,7 +366,7 @@ body {
   min-height: 38px;
   border-radius: 10px;
   border: 1px solid var(--glass-border);
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--theme-inset);
   color: var(--text);
   padding: 8px 10px;
   outline: none;
@@ -380,7 +377,7 @@ body {
   min-height: 38px;
   border-radius: 10px;
   border: 1px solid var(--glass-border);
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--theme-inset);
   color: var(--text);
   padding: 8px 10px;
   outline: none;
@@ -393,7 +390,7 @@ body {
   padding: 10px;
   display: grid;
   gap: 7px;
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--theme-surface);
 }
 
 .live-link .small-btn {
@@ -422,9 +419,9 @@ body {
 }
 
 .price-chip {
-  border: 1px solid rgba(100, 214, 255, 0.4);
+  border: 1px solid var(--theme-line);
   border-radius: 999px;
-  background: rgba(100, 214, 255, 0.1);
+  background: var(--theme-surface);
   color: var(--accent);
   padding: 5px 10px;
   font-size: 11px;
@@ -432,15 +429,15 @@ body {
 }
 
 .price-chip:hover {
-  background: rgba(100, 214, 255, 0.18);
+  background: var(--theme-surface);
 }
 
 .price-chip.active,
 .topic-chip.active {
-  border-color: rgba(45, 212, 191, 0.75);
-  background: rgba(45, 212, 191, 0.2);
-  color: #e9fffb;
-  box-shadow: 0 0 0 1px rgba(45, 212, 191, 0.25);
+  border-color: var(--theme-line);
+  background: var(--theme-soft);
+  color: var(--theme-text);
+  box-shadow: 0 0 0 1px rgb(var(--theme-shadow-rgb) / 0.25);
 }
 
 .admin-action-row {
@@ -457,7 +454,7 @@ body {
 .accordion-item {
   border: 1px solid var(--glass-border);
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--theme-surface);
   overflow: hidden;
 }
 
@@ -497,7 +494,7 @@ body {
 .deposit-flow {
   border-radius: 14px;
   border: 1px solid var(--glass-border);
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--theme-surface);
   padding: 12px;
   display: grid;
   gap: 10px;
@@ -523,14 +520,14 @@ body {
   width: 190px;
   height: 190px;
   border-radius: 999px;
-  background: radial-gradient(circle, rgba(100, 214, 255, 0.16), transparent 68%);
+  background: radial-gradient(circle, var(--theme-surface), transparent 68%);
   pointer-events: none;
 }
 
 .withdraw-flow {
   border-radius: 14px;
   border: 1px solid var(--glass-border);
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--theme-surface);
   padding: 12px;
   display: grid;
   gap: 10px;
@@ -538,7 +535,7 @@ body {
 }
 
 .withdraw-flow .deposit-step.final {
-  background: rgba(45, 212, 191, 0.14);
+  background: var(--theme-soft);
 }
 
 .withdraw-flow-head h3 {
@@ -570,10 +567,10 @@ body {
 
 
 .wallet-guide-card {
-  border: 1px solid rgba(91, 194, 225, 0.28);
+  border: 1px solid var(--theme-line);
   border-radius: 10px;
   padding: 10px;
-  background: rgba(91, 194, 225, 0.055);
+  background: var(--theme-surface);
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   gap: 10px;
@@ -581,11 +578,11 @@ body {
 }
 
 .wallet-guide-badge {
-  border: 1px solid rgba(91, 194, 225, 0.5);
+  border: 1px solid var(--theme-line);
   border-radius: 999px;
   padding: 4px 8px;
-  color: #9deaff;
-  background: rgba(91, 194, 225, 0.08);
+  color: var(--theme-accent);
+  background: var(--theme-surface);
   font-size: 10px;
   font-weight: 900;
   white-space: nowrap;
@@ -620,8 +617,8 @@ body {
 }
 
 .withdraw-guide-card {
-  border-color: rgba(45, 212, 191, 0.3);
-  background: rgba(45, 212, 191, 0.055);
+  border-color: var(--theme-line);
+  background: var(--theme-soft);
 }
 
 @media (max-width: 420px) {
@@ -637,7 +634,7 @@ body {
 .deposit-step {
   border: 1px solid var(--glass-border);
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--theme-surface);
   padding: 10px;
   display: grid;
   grid-template-columns: 28px 1fr;
@@ -648,13 +645,13 @@ body {
 }
 
 .deposit-step:hover {
-  border-color: rgba(100, 214, 255, 0.5);
+  border-color: var(--theme-line);
   transform: translateY(-1px);
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--theme-surface);
 }
 
 .deposit-step.final {
-  background: rgba(100, 214, 255, 0.08);
+  background: var(--theme-surface);
 }
 
 .deposit-step-no {
@@ -690,7 +687,7 @@ body {
   min-height: 38px;
   border-radius: 10px;
   border: 1px solid var(--glass-border);
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--theme-inset);
   color: var(--text);
   padding: 8px 10px;
   outline: none;
@@ -723,15 +720,15 @@ body {
 }
 
 .deposit-step-body select.has-selection {
-  border-color: rgba(45, 212, 191, 0.72);
-  box-shadow: 0 0 0 2px rgba(45, 212, 191, 0.12);
-  background: rgba(45, 212, 191, 0.08);
+  border-color: var(--theme-line);
+  box-shadow: 0 0 0 2px rgb(var(--theme-shadow-rgb) / 0.12);
+  background: var(--theme-soft);
 }
 
 .destination-selected-card {
-  border: 1px solid rgba(45, 212, 191, 0.58);
+  border: 1px solid var(--theme-line);
   border-radius: 11px;
-  background: linear-gradient(140deg, rgba(45, 212, 191, 0.16), rgba(100, 214, 255, 0.11));
+  background: linear-gradient(140deg, var(--theme-soft), var(--theme-inset));
   padding: 8px 9px;
   display: grid;
   gap: 3px;
@@ -780,7 +777,7 @@ body {
 .withdraw-review-card {
   border: 1px solid var(--glass-border);
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--theme-surface);
   padding: 8px;
   display: grid;
   gap: 6px;
@@ -831,7 +828,7 @@ body {
   margin-bottom: 8px;
   border: 1px solid var(--glass-border);
   border-radius: 8px;
-  background: rgba(45, 212, 191, 0.06);
+  background: var(--theme-soft);
 }
 
 .super-crypto-copy {
@@ -874,13 +871,13 @@ body {
 }
 
 .super-crypto-ops-result[data-state="ok"] {
-  border-color: rgba(45, 212, 191, 0.42);
-  background: rgba(45, 212, 191, 0.07);
+  border-color: var(--theme-line);
+  background: var(--theme-soft);
 }
 
 .super-crypto-ops-result[data-state="warning"] {
-  border-color: rgba(244, 63, 94, 0.42);
-  background: rgba(244, 63, 94, 0.07);
+  border-color: var(--theme-danger);
+  background: var(--theme-danger-soft);
 }
 
 @media (max-width: 540px) {
@@ -923,7 +920,7 @@ body {
   padding: 4px;
   border: 1px solid var(--glass-border);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--theme-surface);
 }
 
 .deposit-mode-btn {
@@ -940,7 +937,7 @@ body {
 .deposit-mode-btn.active {
   color: var(--text);
   border-color: var(--glass-border);
-  background: rgba(100, 214, 255, 0.12);
+  background: var(--theme-surface);
 }
 
 .deposit-mode-btn:disabled {
@@ -992,7 +989,7 @@ body {
   padding: 10px 12px;
   border: 1px solid var(--glass-border);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.035);
+  background: var(--theme-surface);
   color: var(--text);
   text-align: right;
   cursor: pointer;
@@ -1000,8 +997,8 @@ body {
 }
 
 .crypto-network-option.is-selected {
-  border-color: rgba(74, 204, 225, 0.82);
-  background: rgba(74, 204, 225, 0.09);
+  border-color: var(--theme-line);
+  background: var(--theme-soft);
 }
 
 .crypto-network-option:disabled {
@@ -1016,18 +1013,18 @@ body {
   align-items: center;
   justify-content: center;
   border-radius: 8px;
-  color: #061529;
+  color: var(--theme-text);
   font-weight: 900;
   direction: ltr;
 }
 
 .crypto-network-mark.is-usdt {
-  background: #4fd1a4;
+  background: var(--theme-surface);
   font-size: 23px;
 }
 
 .crypto-network-mark.is-ton {
-  background: #45bce4;
+  background: var(--theme-soft);
   font-size: 11px;
 }
 
@@ -1054,27 +1051,27 @@ body {
 .crypto-network-health {
   font-size: 9px;
   line-height: 1.5;
-  color: #66ddb4;
+  color: var(--theme-accent);
 }
 
 .crypto-network-health[data-state="error"] {
-  color: #ff8298;
+  color: var(--theme-danger);
 }
 
 .crypto-network-health[data-state="warning"] {
-  color: #eab308;
+  color: var(--theme-warning);
 }
 
 .crypto-network-radio {
   width: 20px;
   height: 20px;
-  border: 2px solid #8797bb;
+  border: 2px solid var(--theme-line);
   border-radius: 50%;
   position: relative;
 }
 
 .crypto-network-option.is-selected .crypto-network-radio {
-  border-color: #45c9df;
+  border-color: var(--theme-line);
 }
 
 .crypto-network-option.is-selected .crypto-network-radio::after {
@@ -1082,7 +1079,7 @@ body {
   position: absolute;
   inset: 4px;
   border-radius: 50%;
-  background: #45c9df;
+  background: var(--theme-soft);
 }
 
 .crypto-amount-label {
@@ -1102,9 +1099,9 @@ body {
   align-items: center;
   gap: 8px;
   padding: 0 12px;
-  border: 1px solid rgba(91, 194, 225, 0.6);
+  border: 1px solid var(--theme-line);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.035);
+  background: var(--theme-inset);
 }
 
 .crypto-amount-input-wrap input {
@@ -1142,8 +1139,8 @@ body {
 }
 
 .crypto-amount-presets .crypto-amount-preset.is-selected {
-  border-color: rgba(74, 204, 225, 0.72);
-  background: rgba(74, 204, 225, 0.12);
+  border-color: var(--theme-line);
+  background: var(--theme-soft);
 }
 
 .crypto-create-summary {
@@ -1157,7 +1154,7 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  border-bottom: 1px solid rgba(125, 160, 245, 0.14);
+  border-bottom: 1px solid var(--theme-line);
 }
 
 .crypto-create-summary > div:last-child {
@@ -1183,10 +1180,10 @@ body {
 .crypto-trust-card,
 .crypto-wallet-trust,
 .crypto-invoice-guide {
-  border: 1px solid rgba(91, 194, 225, 0.28);
+  border: 1px solid var(--theme-line);
   border-radius: 10px;
   padding: 10px;
-  background: rgba(91, 194, 225, 0.055);
+  background: var(--theme-surface);
 }
 
 .crypto-guide-card {
@@ -1197,11 +1194,11 @@ body {
 }
 
 .crypto-guide-badge {
-  border: 1px solid rgba(91, 194, 225, 0.5);
+  border: 1px solid var(--theme-line);
   border-radius: 999px;
   padding: 4px 8px;
-  color: #9deaff;
-  background: rgba(91, 194, 225, 0.08);
+  color: var(--theme-accent);
+  background: var(--theme-surface);
   font-size: 10px;
   font-weight: 900;
   white-space: nowrap;
@@ -1238,22 +1235,22 @@ body {
 .crypto-trust-card {
   display: grid;
   gap: 5px;
-  border-color: rgba(45, 212, 191, 0.32);
-  background: rgba(45, 212, 191, 0.06);
+  border-color: var(--theme-line);
+  background: var(--theme-soft);
 }
 
 .crypto-wallet-trust {
   display: grid;
   gap: 5px;
-  border-color: rgba(45, 212, 191, 0.3);
-  background: rgba(45, 212, 191, 0.055);
+  border-color: var(--theme-line);
+  background: var(--theme-soft);
 }
 
 .crypto-invoice-guide {
   display: grid;
   gap: 5px;
-  border-color: rgba(246, 185, 67, 0.28);
-  background: rgba(246, 185, 67, 0.06);
+  border-color: var(--theme-line);
+  background: var(--theme-soft);
 }
 
 .crypto-primary-action,
@@ -1270,9 +1267,9 @@ body {
   justify-content: space-between;
   gap: 10px;
   padding: 10px;
-  border: 1px solid rgba(246, 185, 67, 0.52);
+  border: 1px solid var(--theme-line);
   border-radius: 8px;
-  background: rgba(246, 185, 67, 0.08);
+  background: var(--theme-soft);
 }
 
 .crypto-active-resume > div {
@@ -1290,10 +1287,10 @@ body {
 }
 
 .crypto-invoice-box {
-  border: 1px solid rgba(91, 194, 225, 0.28);
+  border: 1px solid var(--theme-line);
   border-radius: 8px;
   padding: 14px;
-  background: rgba(5, 16, 40, 0.58);
+  background: var(--theme-surface);
   min-width: 0;
   display: grid;
   gap: 14px;
@@ -1346,19 +1343,19 @@ body {
 }
 
 .crypto-payment-status.is-pending {
-  color: #f6b943;
-  background: rgba(246, 185, 67, 0.08);
+  color: var(--theme-warning);
+  background: var(--theme-warning-soft);
 }
 
 .crypto-payment-status.is-success {
-  color: #66ddb4;
-  background: rgba(102, 221, 180, 0.08);
+  color: var(--theme-accent);
+  background: var(--theme-surface);
 }
 
 .crypto-payment-status.is-warning,
 .crypto-payment-status.is-danger {
-  color: #ff8298;
-  background: rgba(255, 130, 152, 0.08);
+  color: var(--theme-danger);
+  background: var(--theme-danger-soft);
 }
 
 .crypto-countdown {
@@ -1376,12 +1373,12 @@ body {
   direction: ltr;
   font-size: 28px;
   line-height: 1;
-  color: #f6b943;
+  color: var(--theme-accent);
   font-variant-numeric: tabular-nums;
 }
 
 .crypto-countdown.is-urgent strong {
-  color: #ff8298;
+  color: var(--theme-danger);
 }
 
 .crypto-payment-amount {
@@ -1405,7 +1402,7 @@ body {
 }
 
 .crypto-payment-amount strong {
-  color: #4ed0df;
+  color: var(--theme-accent);
   font-size: clamp(22px, 7vw, 32px);
   font-weight: 900;
   letter-spacing: 0;
@@ -1458,7 +1455,7 @@ body {
 }
 
 .crypto-direct-unavailable {
-  color: #ff9aae;
+  color: var(--theme-danger);
   font-size: 10px;
   line-height: 1.8;
   text-align: center;
@@ -1494,11 +1491,11 @@ body {
 
 .crypto-manual-help {
   margin: 0 10px 10px;
-  border: 1px solid rgba(246, 185, 67, 0.22);
+  border: 1px solid var(--theme-line);
   border-radius: 8px;
   padding: 8px 10px;
-  color: #f6d58a;
-  background: rgba(246, 185, 67, 0.07);
+  color: var(--theme-muted);
+  background: var(--theme-soft);
   font-size: 10px;
   line-height: 1.8;
 }
@@ -1531,11 +1528,11 @@ body {
 
 .crypto-copy-text-btn {
   min-height: 30px;
-  border: 1px solid rgba(91, 194, 225, 0.5);
+  border: 1px solid var(--theme-line);
   border-radius: 999px;
   padding: 0 10px;
-  background: rgba(91, 194, 225, 0.1);
-  color: #9deaff;
+  background: var(--theme-surface);
+  color: var(--theme-accent);
   font-family: inherit;
   font-size: 10px;
   font-weight: 800;
@@ -1557,9 +1554,9 @@ body {
 .crypto-qr-wrap img {
   width: min(176px, 54vw);
   aspect-ratio: 1;
-  border: 5px solid #ffffff;
+  border: 5px solid var(--theme-line);
   border-radius: 8px;
-  background: #ffffff;
+  background: var(--theme-qr);
 }
 
 .crypto-address-block {
@@ -1580,9 +1577,9 @@ body {
   align-items: center;
   gap: 8px;
   padding: 0 10px;
-  border: 1px solid rgba(91, 194, 225, 0.46);
+  border: 1px solid var(--theme-line);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.025);
+  background: var(--theme-surface);
 }
 
 .crypto-address-block code {
@@ -1605,13 +1602,13 @@ body {
 }
 
 .crypto-network-warning {
-  color: #f6b943;
-  background: rgba(246, 185, 67, 0.08);
+  color: var(--theme-warning);
+  background: var(--theme-warning-soft);
 }
 
 .crypto-invoice-warning {
-  color: #ff9aae;
-  background: rgba(255, 115, 143, 0.09);
+  color: var(--theme-danger);
+  background: var(--theme-danger-soft);
 }
 
 .crypto-tx-details {
@@ -1621,8 +1618,8 @@ body {
 }
 
 .crypto-tx-details-highlight {
-  border-color: rgba(45, 212, 191, 0.46);
-  background: rgba(45, 212, 191, 0.055);
+  border-color: var(--theme-line);
+  background: var(--theme-soft);
 }
 
 .crypto-tx-details summary {
@@ -1709,29 +1706,29 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid #7483a4;
+  border: 1px solid var(--theme-line);
   border-radius: 50%;
-  background: #09152f;
+  background: var(--theme-surface);
   color: inherit;
   font-style: normal;
 }
 
 .crypto-timeline-step.is-done {
-  color: #66ddb4;
+  color: var(--theme-accent);
 }
 
 .crypto-timeline-step.is-done i {
-  border-color: #66ddb4;
-  background: #66ddb4;
-  color: #061529;
+  border-color: var(--theme-line);
+  background: var(--theme-surface);
+  color: var(--theme-text);
 }
 
 .crypto-timeline-step.is-active {
-  color: #f6b943;
+  color: var(--theme-accent);
 }
 
 .crypto-timeline-step.is-warning {
-  color: #ff8298;
+  color: var(--theme-danger);
 }
 
 .crypto-invoice-secondary-actions {
@@ -1764,10 +1761,10 @@ body {
   align-items: center;
   justify-content: center;
   justify-self: center;
-  border: 1px solid rgba(102, 221, 180, 0.7);
+  border: 1px solid var(--theme-line);
   border-radius: 50%;
-  background: rgba(102, 221, 180, 0.12);
-  color: #66ddb4;
+  background: var(--theme-surface);
+  color: var(--theme-accent);
   font-size: 30px;
   font-weight: 900;
 }
@@ -1839,7 +1836,7 @@ body {
   display: grid;
   align-items: end;
   padding: 16px;
-  background: rgba(2, 8, 22, 0.72);
+  background: var(--theme-backdrop);
 }
 
 .crypto-confirm-dialog {
@@ -1850,11 +1847,11 @@ body {
   display: grid;
   gap: 14px;
   padding: 16px;
-  border: 1px solid rgba(91, 194, 225, 0.42);
+  border: 1px solid var(--theme-line);
   border-radius: 8px;
-  background: #0b1935;
-  color: #f4f7ff;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.42);
+  background: var(--theme-surface);
+  color: var(--theme-text);
+  box-shadow: 0 20px 60px rgb(var(--theme-shadow-rgb) / 0.42);
 }
 
 .crypto-confirm-head {
@@ -1875,7 +1872,7 @@ body {
 
 .crypto-confirm-dialog > p {
   margin: 0;
-  color: #c6d0e6;
+  color: var(--theme-text);
   font-size: 12px;
   line-height: 1.9;
 }
@@ -1890,12 +1887,12 @@ body {
   justify-content: space-between;
   gap: 10px;
   padding: 9px 10px;
-  border: 1px solid rgba(125, 160, 245, 0.2);
+  border: 1px solid var(--theme-line);
   border-radius: 8px;
 }
 
 .crypto-confirm-summary span {
-  color: #9eacc9;
+  color: var(--theme-text);
   font-size: 10px;
 }
 
@@ -1910,7 +1907,7 @@ body {
   grid-template-columns: 20px minmax(0, 1fr);
   align-items: start;
   gap: 9px;
-  color: #d9e1f1;
+  color: var(--theme-text);
   font-size: 11px;
   line-height: 1.8;
 }
@@ -1927,13 +1924,13 @@ body {
 }
 
 html[data-theme="light"] .crypto-confirm-dialog {
-  background: #ffffff;
-  color: #13213d;
+  background: var(--theme-surface);
+  color: var(--theme-text);
 }
 
 html[data-theme="light"] .crypto-confirm-dialog > p,
 html[data-theme="light"] .crypto-confirm-check {
-  color: #435372;
+  color: var(--theme-text);
 }
 
 body.crypto-payment-active {
@@ -1983,28 +1980,28 @@ body.crypto-payment-active .bottom-nav {
 html[data-theme="light"] .deposit-mode-switch,
 html[data-theme="light"] .crypto-network-option,
 html[data-theme="light"] .crypto-amount-input-wrap {
-  background: rgba(14, 34, 67, 0.035);
+  background: var(--theme-inset);
 }
 
 html[data-theme="light"] .crypto-invoice-box {
-  background: rgba(255, 255, 255, 0.94);
-  border-color: rgba(23, 63, 128, 0.24);
+  background: var(--theme-surface);
+  border-color: var(--theme-line);
 }
 
 html[data-theme="light"] .crypto-guide-card,
 html[data-theme="light"] .crypto-trust-card,
 html[data-theme="light"] .crypto-wallet-trust,
 html[data-theme="light"] .crypto-invoice-guide {
-  background: rgba(23, 63, 128, 0.035);
-  border-color: rgba(23, 63, 128, 0.16);
+  background: var(--theme-soft);
+  border-color: var(--theme-line);
 }
 
 html[data-theme="light"] .crypto-timeline-step i {
-  background: #ffffff;
+  background: var(--theme-surface);
 }
 
 html[data-theme="light"] .crypto-address-block > div {
-  background: rgba(23, 63, 189, 0.025);
+  background: var(--theme-soft);
 }
 
 @media (max-width: 540px) {
@@ -2056,7 +2053,7 @@ html[data-theme="light"] .crypto-address-block > div {
 .item {
   border-radius: 13px;
   border: 1px solid var(--glass-border);
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--theme-surface);
   padding: 10px;
 }
 
@@ -2083,7 +2080,7 @@ html[data-theme="light"] .crypto-address-block > div {
   border: 0;
   border-radius: 10px;
   background: linear-gradient(140deg, var(--accent), var(--accent-2));
-  color: #041226;
+  color: var(--theme-on-accent);
   padding: 6px 10px;
   font-weight: 700;
   font-size: 12px;
@@ -2139,7 +2136,7 @@ html[data-theme="light"] .crypto-address-block > div {
   align-items: center;
   justify-content: space-between;
   font-size: 13px;
-  background: linear-gradient(120deg, rgba(100, 214, 255, 0.1), rgba(45, 212, 191, 0.08));
+  background: linear-gradient(120deg, var(--theme-surface), var(--theme-soft));
 }
 
 .wallet-balance-wrap strong {
@@ -2161,15 +2158,15 @@ html[data-theme="light"] .crypto-address-block > div {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--theme-surface);
 }
 
 .tx-chip.credit {
-  border-color: rgba(126, 245, 188, 0.35);
+  border-color: var(--theme-line);
 }
 
 .tx-chip.debit {
-  border-color: rgba(255, 127, 138, 0.35);
+  border-color: var(--theme-line);
 }
 
 .bottom-nav {
@@ -2199,7 +2196,7 @@ html[data-theme="light"] .crypto-address-block > div {
 
 .nav-btn.active {
   border-color: var(--glass-border);
-  background: linear-gradient(140deg, rgba(100, 214, 255, 0.2), rgba(45, 212, 191, 0.2));
+  background: linear-gradient(140deg, var(--theme-surface), var(--theme-soft));
 }
 
 .empty {
@@ -2224,25 +2221,25 @@ html[data-theme="light"] .crypto-address-block > div {
 
 .pull-hint[data-state="pull"] {
   color: var(--accent);
-  border-color: rgba(100, 214, 255, 0.45);
+  border-color: var(--theme-line);
 }
 
 .pull-hint[data-state="ready"] {
   color: var(--accent-2);
-  border-color: rgba(45, 212, 191, 0.55);
-  background: rgba(45, 212, 191, 0.08);
+  border-color: var(--theme-line);
+  background: var(--theme-soft);
 }
 
 .pull-hint[data-state="refresh"] {
   color: var(--success);
-  border-color: rgba(126, 245, 188, 0.55);
+  border-color: var(--theme-line);
 }
 
 .cards-live-badge {
   border: 1px solid var(--glass-border);
   border-radius: 14px;
   padding: 10px;
-  background: linear-gradient(130deg, rgba(100, 214, 255, 0.12), rgba(45, 212, 191, 0.08));
+  background: linear-gradient(130deg, var(--theme-surface), var(--theme-soft));
 }
 
 .cards-live-head {
@@ -2255,12 +2252,12 @@ html[data-theme="light"] .crypto-address-block > div {
 .status-pill {
   display: inline-flex;
   align-items: center;
-  border: 1px solid rgba(100, 214, 255, 0.4);
+  border: 1px solid var(--theme-line);
   border-radius: 999px;
   padding: 5px 9px;
   font-size: 11px;
   color: var(--accent);
-  background: rgba(100, 214, 255, 0.1);
+  background: var(--theme-surface);
 }
 
 .last-number {
@@ -2284,14 +2281,14 @@ html[data-theme="light"] .crypto-address-block > div {
   text-align: center;
   border-radius: 999px;
   border: 1px solid var(--glass-border);
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--theme-surface);
   padding: 3px 8px;
   font-size: 11px;
 }
 
 .called-chip.new {
-  border-color: rgba(45, 212, 191, 0.75);
-  box-shadow: 0 0 0 1px rgba(45, 212, 191, 0.35), 0 0 16px rgba(45, 212, 191, 0.22);
+  border-color: var(--theme-line);
+  box-shadow: 0 0 0 1px rgb(var(--theme-shadow-rgb) / 0.35), 0 0 16px rgb(var(--theme-shadow-rgb) / 0.22);
 }
 
 .cards-box {
@@ -2299,7 +2296,7 @@ html[data-theme="light"] .crypto-address-block > div {
   border: 1px solid var(--glass-border);
   border-radius: 14px;
   padding: 10px;
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--theme-surface);
 }
 
 .cards-box-head {
@@ -2325,7 +2322,7 @@ html[data-theme="light"] .crypto-address-block > div {
   border: 1px solid var(--glass-border);
   border-radius: 12px;
   padding: 10px;
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--theme-surface);
 }
 
 .active-game-head {
@@ -2359,7 +2356,7 @@ html[data-theme="light"] .crypto-address-block > div {
   border: 1px solid var(--glass-border);
   border-radius: 12px;
   padding: 9px;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--theme-surface);
 }
 
 .card-pro-head {
@@ -2405,7 +2402,7 @@ html[data-theme="light"] .crypto-address-block > div {
 .card-progress-bar {
   height: 6px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--theme-surface);
   overflow: hidden;
   margin-top: 4px;
 }
@@ -2432,20 +2429,20 @@ html[data-theme="light"] .crypto-address-block > div {
   align-items: center;
   justify-content: center;
   font-size: 12px;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--theme-surface);
   transition: all 0.25s ease;
 }
 
 .num-chip.called {
-  border-color: rgba(100, 214, 255, 0.65);
-  background: rgba(100, 214, 255, 0.2);
-  color: #eaf6ff;
+  border-color: var(--theme-accent);
+  background: var(--theme-soft);
+  color: var(--theme-accent);
 }
 
 .num-chip.fresh {
-  border-color: rgba(45, 212, 191, 0.9);
-  background: rgba(45, 212, 191, 0.24);
-  color: #eafff8;
+  border-color: var(--theme-line);
+  background: var(--theme-soft);
+  color: var(--theme-text);
   animation: pulseFresh 1.2s ease;
 }
 
@@ -2461,7 +2458,7 @@ html[data-theme="light"] .crypto-address-block > div {
   border: 1px solid var(--glass-border);
   border-radius: 10px;
   padding: 8px;
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--theme-surface);
   font-size: 12px;
 }
 
@@ -2472,8 +2469,8 @@ html[data-theme="light"] .crypto-address-block > div {
 
 .history-item.clickable:hover {
   transform: translateY(-1px);
-  border-color: rgba(100, 214, 255, 0.55);
-  background: rgba(100, 214, 255, 0.08);
+  border-color: var(--theme-line);
+  background: var(--theme-surface);
 }
 
 .admin-item-actions {
@@ -2496,12 +2493,12 @@ html[data-theme="light"] .crypto-address-block > div {
   padding: 2px 8px;
   font-size: 10px;
   color: var(--text);
-  background: rgba(255, 255, 255, 0.07);
+  background: var(--theme-surface);
 }
 
 .admin-mini-pill.is-soft {
   color: var(--muted);
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--theme-surface);
 }
 
 .admin-user-search-item {
@@ -2509,8 +2506,8 @@ html[data-theme="light"] .crypto-address-block > div {
 }
 
 .admin-user-search-item.is-selected {
-  border-color: rgba(45, 212, 191, 0.72);
-  box-shadow: 0 0 0 1px rgba(45, 212, 191, 0.25);
+  border-color: var(--theme-line);
+  box-shadow: 0 0 0 1px rgb(var(--theme-shadow-rgb) / 0.25);
 }
 
 .admin-user-profile-card {
@@ -2537,20 +2534,20 @@ html[data-theme="light"] .crypto-address-block > div {
 }
 
 .admin-status-pill.is-ok {
-  border-color: rgba(45, 212, 191, 0.65);
-  color: #8ce8d8;
-  background: rgba(45, 212, 191, 0.12);
+  border-color: var(--theme-line);
+  color: var(--theme-accent);
+  background: var(--theme-soft);
 }
 
 .admin-status-pill.is-danger {
-  border-color: rgba(255, 127, 138, 0.68);
-  color: #ffbcc4;
-  background: rgba(255, 127, 138, 0.12);
+  border-color: var(--theme-danger);
+  color: var(--theme-danger);
+  background: var(--theme-danger-soft);
 }
 
 .admin-status-pill.is-muted {
   color: var(--muted);
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--theme-surface);
 }
 
 .admin-user-kpi-grid {
@@ -2564,7 +2561,7 @@ html[data-theme="light"] .crypto-address-block > div {
   border: 1px solid var(--glass-border);
   border-radius: 10px;
   padding: 7px 8px;
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--theme-surface);
 }
 
 .admin-user-kpi .k {
@@ -2591,9 +2588,9 @@ html[data-theme="light"] .crypto-address-block > div {
 }
 
 .small-btn.is-active {
-  border-color: rgba(45, 212, 191, 0.75);
-  background: rgba(45, 212, 191, 0.2);
-  color: #eafffb;
+  border-color: var(--theme-line);
+  background: var(--theme-soft);
+  color: var(--theme-muted);
 }
 
 .admin-users-report {
@@ -2604,7 +2601,7 @@ html[data-theme="light"] .crypto-address-block > div {
   border: 1px solid var(--glass-border);
   border-radius: 10px;
   padding: 8px;
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--theme-surface);
 }
 
 .admin-report-head {
@@ -2653,13 +2650,13 @@ html[data-theme="light"] .crypto-address-block > div {
   border: 1px solid var(--glass-border);
   border-radius: 12px;
   padding: 10px;
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--theme-inset);
 }
 
 .skeleton-line {
   border-radius: 8px;
   height: 12px;
-  background: linear-gradient(90deg, rgba(255,255,255,0.05) 25%, rgba(255,255,255,0.16) 45%, rgba(255,255,255,0.05) 70%);
+  background: linear-gradient(90deg, var(--theme-inset) 25%, var(--theme-inset) 45%, var(--theme-inset) 70%);
   background-size: 220% 100%;
   animation: shimmer 1.3s infinite linear;
 }
@@ -2684,15 +2681,15 @@ html[data-theme="light"] .crypto-address-block > div {
 @keyframes pulseFresh {
   0% {
     transform: scale(1);
-    box-shadow: 0 0 0 rgba(45, 212, 191, 0);
+    box-shadow: 0 0 0 rgb(var(--theme-shadow-rgb) / 0.0);
   }
   30% {
     transform: scale(1.06);
-    box-shadow: 0 0 16px rgba(45, 212, 191, 0.34);
+    box-shadow: 0 0 16px rgb(var(--theme-shadow-rgb) / 0.34);
   }
   100% {
     transform: scale(1);
-    box-shadow: 0 0 0 rgba(45, 212, 191, 0);
+    box-shadow: 0 0 0 rgb(var(--theme-shadow-rgb) / 0.0);
   }
 }
 
@@ -2722,10 +2719,10 @@ html[data-theme="light"] .crypto-address-block > div {
 
 .winner-banner {
   margin: 0 0 8px;
-  border: 1px solid rgba(126, 245, 188, 0.65);
+  border: 1px solid var(--theme-line);
   border-radius: 12px;
   padding: 10px;
-  background: linear-gradient(125deg, rgba(126, 245, 188, 0.2), rgba(100, 214, 255, 0.14));
+  background: linear-gradient(125deg, var(--theme-surface), var(--theme-surface));
 }
 
 .winner-banner strong {
@@ -2741,9 +2738,9 @@ html[data-theme="light"] .crypto-address-block > div {
 }
 
 .event-chip.winner-event {
-  border-color: rgba(126, 245, 188, 0.75);
-  background: rgba(126, 245, 188, 0.12);
-  box-shadow: 0 0 0 1px rgba(126, 245, 188, 0.22), 0 0 18px rgba(126, 245, 188, 0.14);
+  border-color: var(--theme-line);
+  background: var(--theme-surface);
+  box-shadow: 0 0 0 1px rgb(var(--theme-shadow-rgb) / 0.22), 0 0 18px rgb(var(--theme-shadow-rgb) / 0.14);
 }
 
 .winner-note {
@@ -2776,7 +2773,7 @@ html[data-theme="light"] .crypto-address-block > div {
   border-radius: 10px;
   padding: 4px 7px;
   min-height: 30px;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--theme-surface);
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -2819,23 +2816,23 @@ html[data-theme="light"] .crypto-address-block > div {
 
 .smart-chip.status.ingame {
   color: var(--accent);
-  border-color: rgba(100, 214, 255, 0.5);
+  border-color: var(--theme-line);
 }
 
 .smart-chip.status.winner {
-  color: #ffd56f;
-  border-color: rgba(255, 213, 111, 0.65);
-  background: linear-gradient(130deg, rgba(255, 213, 111, 0.2), rgba(255, 255, 255, 0.04));
+  color: var(--theme-accent);
+  border-color: var(--theme-line);
+  background: linear-gradient(130deg, var(--theme-surface), var(--theme-surface));
 }
 
 .hot-banner {
-  border: 1px solid rgba(255, 213, 111, 0.58);
+  border: 1px solid var(--theme-line);
   border-radius: 12px;
   padding: 8px 10px;
   margin: 8px 0;
   font-size: 12px;
-  color: #ffd56f;
-  background: rgba(255, 213, 111, 0.1);
+  color: var(--theme-accent);
+  background: var(--theme-surface);
 }
 
 .hidden {
@@ -2851,8 +2848,8 @@ html[data-theme="light"] .crypto-address-block > div {
   max-width: min(92vw, 360px);
   border-radius: 999px;
   border: 1px solid var(--glass-border);
-  background: rgba(8, 16, 36, 0.9);
-  color: #f3f7ff;
+  background: var(--theme-surface);
+  color: var(--theme-text);
   text-align: center;
   padding: 10px 14px;
   font-size: 12px;
@@ -2862,7 +2859,7 @@ html[data-theme="light"] .crypto-address-block > div {
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.2s ease, transform 0.2s ease;
-  box-shadow: 0 16px 30px rgba(2, 10, 31, 0.42);
+  box-shadow: 0 16px 30px rgb(var(--theme-shadow-rgb) / 0.42);
 }
 
 .mini-toast.show {
@@ -2871,18 +2868,18 @@ html[data-theme="light"] .crypto-address-block > div {
 }
 
 .mini-toast.success {
-  border-color: rgba(126, 245, 188, 0.5);
-  color: #d8ffe8;
+  border-color: var(--theme-line);
+  color: var(--theme-text);
 }
 
 .mini-toast.error {
-  border-color: rgba(255, 127, 138, 0.55);
-  color: #ffd4da;
+  border-color: var(--theme-danger);
+  color: var(--theme-text);
 }
 
 .mini-toast.pending {
-  border-color: rgba(255, 193, 91, 0.55);
-  color: #ffe8bf;
+  border-color: var(--theme-warning);
+  color: var(--theme-warning);
 }
 
 .admin-notify {
@@ -2897,11 +2894,11 @@ html[data-theme="light"] .crypto-address-block > div {
   max-width: 480px;
   min-height: 54px;
   margin: 0 auto;
-  border: 1px solid rgba(148, 190, 255, 0.22);
+  border: 1px solid var(--theme-line);
   border-radius: 14px;
-  background: rgba(12, 23, 48, 0.9);
-  color: #f5f8ff;
-  box-shadow: 0 14px 34px rgba(2, 10, 31, 0.34);
+  background: var(--theme-surface);
+  color: var(--theme-text);
+  box-shadow: 0 14px 34px rgb(var(--theme-shadow-rgb) / 0.34);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   z-index: 12100;
@@ -2918,11 +2915,11 @@ html[data-theme="light"] .crypto-address-block > div {
 }
 
 .admin-notify.deposit {
-  border-color: rgba(126, 245, 188, 0.34);
+  border-color: var(--theme-line);
 }
 
 .admin-notify.withdraw {
-  border-color: rgba(255, 213, 111, 0.38);
+  border-color: var(--theme-line);
 }
 
 .admin-notify.is-dismissing {
@@ -2950,8 +2947,8 @@ html[data-theme="light"] .crypto-address-block > div {
   margin-bottom: 1px;
   border-radius: 999px;
   padding: 1px 7px;
-  background: rgba(255, 255, 255, 0.08);
-  color: #cbdcff;
+  background: var(--theme-surface);
+  color: var(--theme-text);
   font-size: 10px;
   font-weight: 800;
 }
@@ -2971,7 +2968,7 @@ html[data-theme="light"] .crypto-address-block > div {
 
 .admin-notify-meta,
 #adminNotifyMeta {
-  color: rgba(230, 238, 255, 0.68);
+  color: var(--theme-muted);
   font-size: 11px;
   line-height: 1.45;
   white-space: nowrap;
@@ -2984,7 +2981,7 @@ html[data-theme="light"] .crypto-address-block > div {
   min-height: 34px;
   margin: 8px 0 8px 8px;
   border-radius: 11px;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--theme-surface);
   font-size: 19px;
   line-height: 1;
   cursor: pointer;
@@ -2996,11 +2993,11 @@ html[data-theme="light"] .crypto-address-block > div {
 
 @keyframes adminNotifyPulse {
   0% {
-    box-shadow: 0 0 0 0 rgba(255, 213, 111, 0.36);
-    border-color: rgba(255, 213, 111, 0.64);
+    box-shadow: 0 0 0 0 rgb(var(--theme-shadow-rgb) / 0.36);
+    border-color: var(--theme-line);
   }
   45% {
-    box-shadow: 0 0 0 8px rgba(255, 213, 111, 0.1);
+    box-shadow: 0 0 0 8px rgb(var(--theme-shadow-rgb) / 0.1);
   }
   100% {
     box-shadow: none;
@@ -3020,17 +3017,17 @@ html[data-theme="light"] .crypto-address-block > div {
   padding: 4px 8px;
   font-size: 11px;
   border: 1px solid var(--glass-border);
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--theme-surface);
 }
 
 .game-state.lobby {
   color: var(--accent-2);
-  border-color: rgba(45, 212, 191, 0.5);
+  border-color: var(--theme-line);
 }
 
 .game-state.running {
-  color: #ff8d8d;
-  border-color: rgba(255, 127, 138, 0.6);
+  color: var(--theme-danger);
+  border-color: var(--theme-line);
 }
 
 .game-kpis {
@@ -3043,7 +3040,7 @@ html[data-theme="light"] .crypto-address-block > div {
   border: 1px solid var(--glass-border);
   border-radius: 10px;
   padding: 7px 8px;
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--theme-surface);
 }
 
 .kpi .label {
@@ -3061,7 +3058,7 @@ html[data-theme="light"] .crypto-address-block > div {
   margin-top: 5px;
   height: 8px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--theme-surface);
   overflow: hidden;
 }
 
@@ -3069,17 +3066,17 @@ html[data-theme="light"] .crypto-address-block > div {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, #ffcc66, #ff8a5b);
+  background: linear-gradient(90deg, var(--theme-accent), var(--theme-danger));
 }
 
 .running-banner {
   margin-top: 6px;
-  border: 1px solid rgba(255, 127, 138, 0.64);
+  border: 1px solid var(--theme-line);
   border-radius: 10px;
   padding: 6px 8px;
   font-size: 11px;
-  color: #ff9fa6;
-  background: rgba(255, 127, 138, 0.1);
+  color: var(--theme-danger);
+  background: var(--theme-surface);
 }
 
 .cta-big {
@@ -3099,7 +3096,7 @@ html[data-theme="light"] .crypto-address-block > div {
   border: 1px solid var(--glass-border);
   border-radius: 12px;
   padding: 10px;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--theme-surface);
 }
 
 .stat-card h4 {
@@ -3123,7 +3120,7 @@ html[data-theme="light"] .crypto-address-block > div {
   border: 1px solid var(--glass-border);
   border-radius: 11px;
   padding: 8px;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--theme-surface);
 }
 
 .trust-chip .label {
@@ -3151,18 +3148,18 @@ html[data-theme="light"] .crypto-address-block > div {
   font-size: 10px;
   text-align: center;
   color: var(--muted);
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--theme-surface);
 }
 
 .timeline-step.active {
   color: var(--text);
-  border-color: rgba(100, 214, 255, 0.7);
-  background: rgba(100, 214, 255, 0.14);
+  border-color: var(--theme-line);
+  background: var(--theme-surface);
 }
 
 .timeline-step.done {
   color: var(--accent-2);
-  border-color: rgba(45, 212, 191, 0.62);
+  border-color: var(--theme-line);
 }
 
 .live-main {
@@ -3183,7 +3180,7 @@ html[data-theme="light"] .crypto-address-block > div {
   padding: 8px;
   text-align: center;
   border: 1px solid var(--glass-border);
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--theme-surface);
   font-size: 24px;
   font-weight: 900;
   letter-spacing: 0.3px;
@@ -3191,7 +3188,7 @@ html[data-theme="light"] .crypto-address-block > div {
 
 .last-number-pop.fresh {
   animation: pulseFresh 1s ease;
-  border-color: rgba(45, 212, 191, 0.85);
+  border-color: var(--theme-line);
 }
 
 .live-called-grid {
@@ -3209,12 +3206,12 @@ html[data-theme="light"] .crypto-address-block > div {
   border-radius: 999px;
   padding: 3px 8px;
   font-size: 11px;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--theme-surface);
 }
 
 .live-called-chip.fresh {
-  border-color: rgba(45, 212, 191, 0.75);
-  background: rgba(45, 212, 191, 0.2);
+  border-color: var(--theme-line);
+  background: var(--theme-soft);
 }
 
 .live-insights {
@@ -3228,7 +3225,7 @@ html[data-theme="light"] .crypto-address-block > div {
   border: 1px solid var(--glass-border);
   border-radius: 11px;
   padding: 8px;
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--theme-surface);
 }
 
 .live-insight .k {
@@ -3246,31 +3243,31 @@ html[data-theme="light"] .crypto-address-block > div {
   min-height: 30px;
   border-radius: 9px;
   border: 1px solid var(--glass-border);
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--theme-inset);
   color: var(--text);
   padding: 4px 8px;
   font-size: 11px;
 }
 
 .card-pro.winner-focus {
-  border-color: rgba(255, 213, 111, 0.85);
-  box-shadow: 0 0 0 1px rgba(255, 213, 111, 0.36), 0 0 22px rgba(255, 213, 111, 0.22);
+  border-color: var(--theme-line);
+  box-shadow: 0 0 0 1px rgb(var(--theme-shadow-rgb) / 0.36), 0 0 22px rgb(var(--theme-shadow-rgb) / 0.22);
   transform: scale(1.01);
 }
 
 .num-chip.win {
-  border-color: rgba(255, 213, 111, 0.9);
-  background: rgba(255, 213, 111, 0.22);
-  color: #fff6d4;
+  border-color: var(--theme-line);
+  background: var(--theme-surface);
+  color: var(--theme-text);
 }
 
 .winner-kind-pill {
   display: inline-flex;
   border-radius: 999px;
-  border: 1px solid rgba(255, 213, 111, 0.7);
+  border: 1px solid var(--theme-line);
   padding: 3px 8px;
   font-size: 10px;
-  color: #ffd56f;
+  color: var(--theme-accent);
 }
 
 .winner-modal {
@@ -3280,7 +3277,7 @@ html[data-theme="light"] .crypto-address-block > div {
   display: none;
   align-items: center;
   justify-content: center;
-  background: rgba(7, 11, 24, 0.65);
+  background: var(--theme-backdrop);
   padding: 16px;
 }
 
@@ -3328,7 +3325,7 @@ html[data-theme="light"] .crypto-address-block > div {
   object-fit: contain;
   border-radius: 14px;
   border: 1px solid var(--glass-border);
-  background: rgba(0, 0, 0, 0.18);
+  background: var(--theme-surface);
 }
 
 .deposit-receipt-file-box {
@@ -3358,7 +3355,7 @@ html[data-theme="light"] .crypto-address-block > div {
   border: 1px solid var(--glass-border);
   border-radius: 12px;
   padding: 9px;
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--theme-surface);
   font-size: 12px;
   line-height: 1.8;
 }
@@ -3373,7 +3370,7 @@ html[data-theme="light"] .crypto-address-block > div {
   border: 1px solid var(--glass-border);
   border-radius: 12px;
   padding: 9px;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--theme-surface);
 }
 
 .history-modal-card-item .card-pro-head {
@@ -3383,7 +3380,7 @@ html[data-theme="light"] .crypto-address-block > div {
 .history-modal-result {
   margin-top: 6px;
   font-size: 11px;
-  color: #ffd56f;
+  color: var(--theme-accent);
   font-weight: 700;
 }
 
@@ -3408,7 +3405,7 @@ html[data-theme="light"] .crypto-address-block > div {
 .winner-modal-amount {
   font-size: 24px;
   font-weight: 900;
-  color: #ffd56f;
+  color: var(--theme-accent);
 }
 
 .winner-modal-actions {
@@ -3420,17 +3417,17 @@ html[data-theme="light"] .crypto-address-block > div {
 
 html[data-theme="dark"] body {
   background:
-    radial-gradient(68% 52% at 12% 8%, rgba(72, 104, 206, 0.28) 0%, rgba(72, 104, 206, 0) 72%),
-    radial-gradient(72% 56% at 88% 11%, rgba(41, 198, 216, 0.18) 0%, rgba(41, 198, 216, 0) 74%),
+    radial-gradient(68% 52% at 12% 8%, var(--theme-soft) 0%, transparent 72%),
+    radial-gradient(72% 56% at 88% 11%, var(--theme-soft) 0%, transparent 74%),
     var(--bg-soft);
 }
 
 html[data-theme="dark"] .glass {
-  background: linear-gradient(155deg, rgba(13, 24, 52, 0.72), rgba(8, 16, 37, 0.66));
-  border-color: rgba(128, 165, 255, 0.3);
+  background: linear-gradient(155deg, var(--theme-surface), var(--theme-surface));
+  border-color: var(--theme-line);
   box-shadow:
-    0 18px 42px rgba(2, 8, 24, 0.56),
-    inset 0 1px 0 rgba(168, 194, 255, 0.08);
+    0 18px 42px rgb(var(--theme-shadow-rgb) / 0.56),
+    inset 0 1px 0 rgb(var(--theme-shadow-rgb) / 0.08);
 }
 
 html[data-theme="dark"] .panel,
@@ -3457,23 +3454,23 @@ html[data-theme="dark"] .live-link,
 html[data-theme="dark"] .deposit-step,
 html[data-theme="dark"] .withdraw-review-card,
 html[data-theme="dark"] .cards-live-badge {
-  background: linear-gradient(155deg, rgba(14, 27, 60, 0.76), rgba(9, 17, 39, 0.7));
-  border-color: rgba(121, 157, 244, 0.29);
+  background: linear-gradient(155deg, var(--theme-surface), var(--theme-surface));
+  border-color: var(--theme-line);
 }
 
 html[data-theme="dark"] .small-btn,
 html[data-theme="dark"] .theme-toggle-btn {
-  border-color: rgba(123, 160, 247, 0.34);
-  background: rgba(17, 31, 68, 0.74);
-  color: #e8efff;
+  border-color: var(--theme-line);
+  background: var(--theme-surface);
+  color: var(--theme-muted);
 }
 
 html[data-theme="dark"] .small-btn.primary,
 html[data-theme="dark"] .item .open-btn {
-  background: linear-gradient(135deg, #3e6cff 0%, #4bcdf5 48%, #e0a641 100%);
-  color: #071329;
+  background: linear-gradient(135deg, var(--theme-accent) 0%, var(--theme-accent) 48%, var(--theme-accent) 100%);
+  color: var(--theme-on-accent);
   border-color: transparent;
-  box-shadow: 0 10px 22px rgba(11, 40, 116, 0.38);
+  box-shadow: 0 10px 22px rgb(var(--theme-shadow-rgb) / 0.38);
 }
 
 html[data-theme="dark"] .small-btn.primary:hover,
@@ -3483,136 +3480,136 @@ html[data-theme="dark"] .item .open-btn:hover {
 }
 
 html[data-theme="dark"] .bottom-nav {
-  background: rgba(8, 17, 40, 0.92);
-  border: 1px solid rgba(120, 158, 245, 0.28);
-  box-shadow: 0 14px 30px rgba(1, 7, 21, 0.62);
+  background: var(--theme-surface);
+  border: 1px solid var(--theme-line);
+  box-shadow: 0 14px 30px rgb(var(--theme-shadow-rgb) / 0.62);
 }
 
 html[data-theme="dark"] .nav-btn.active {
-  border-color: rgba(126, 164, 248, 0.5);
-  background: linear-gradient(145deg, rgba(66, 109, 255, 0.28), rgba(224, 166, 65, 0.24));
+  border-color: var(--theme-line);
+  background: linear-gradient(145deg, var(--theme-soft), var(--theme-soft));
 }
 
 html[data-theme="dark"] .quick-guide {
-  border-color: rgba(95, 200, 255, 0.46);
-  background: linear-gradient(148deg, rgba(95, 200, 255, 0.13), rgba(224, 166, 65, 0.09));
+  border-color: var(--theme-line);
+  background: linear-gradient(148deg, var(--theme-surface), var(--theme-soft));
 }
 
 html[data-theme="dark"] .quick-guide strong,
 html[data-theme="dark"] .history-open-hint {
-  color: #90dcff;
+  color: var(--theme-muted);
 }
 
 html[data-theme="dark"] .smart-chip.status.ingame {
-  color: #86ddff;
-  border-color: rgba(95, 200, 255, 0.64);
-  background: rgba(95, 200, 255, 0.12);
+  color: var(--theme-accent);
+  border-color: var(--theme-line);
+  background: var(--theme-surface);
 }
 
 html[data-theme="dark"] .smart-chip.status.winner {
-  color: #ffdb8d;
-  border-color: rgba(224, 166, 65, 0.68);
-  background: linear-gradient(130deg, rgba(224, 166, 65, 0.2), rgba(20, 36, 72, 0.45));
+  color: var(--theme-accent);
+  border-color: var(--theme-line);
+  background: linear-gradient(130deg, var(--theme-soft), var(--theme-surface));
 }
 
 html[data-theme="dark"] .called-chip,
 html[data-theme="dark"] .live-called-chip,
 html[data-theme="dark"] .num-chip {
-  background: rgba(12, 24, 55, 0.76);
-  border-color: rgba(117, 152, 234, 0.28);
-  color: #eaf2ff;
+  background: var(--theme-surface);
+  border-color: var(--theme-line);
+  color: var(--theme-text);
 }
 
 html[data-theme="dark"] .num-chip.called {
-  border-color: rgba(95, 200, 255, 0.7);
-  background: rgba(95, 200, 255, 0.2);
-  color: #eef8ff;
+  border-color: var(--theme-accent);
+  background: var(--theme-soft);
+  color: var(--theme-accent);
 }
 
 html[data-theme="dark"] .num-chip.fresh,
 html[data-theme="dark"] .called-chip.new,
 html[data-theme="dark"] .live-called-chip.fresh {
-  border-color: rgba(224, 166, 65, 0.86);
-  background: rgba(224, 166, 65, 0.22);
-  color: #ffeac1;
-  box-shadow: 0 0 0 1px rgba(224, 166, 65, 0.24), 0 0 18px rgba(224, 166, 65, 0.28);
+  border-color: var(--theme-line);
+  background: var(--theme-soft);
+  color: var(--theme-text);
+  box-shadow: 0 0 0 1px rgb(var(--theme-shadow-rgb) / 0.24), 0 0 18px rgb(var(--theme-shadow-rgb) / 0.28);
 }
 
 html[data-theme="dark"] .winner-banner,
 html[data-theme="dark"] .event-chip.winner-event {
-  border-color: rgba(224, 166, 65, 0.58);
-  background: linear-gradient(130deg, rgba(224, 166, 65, 0.16), rgba(95, 200, 255, 0.12));
+  border-color: var(--theme-line);
+  background: linear-gradient(130deg, var(--theme-soft), var(--theme-surface));
 }
 
 html[data-theme="dark"] .winner-banner strong,
 html[data-theme="dark"] .winner-note {
-  color: #ffd894;
+  color: var(--theme-accent);
 }
 
 html[data-theme="dark"] .hot-banner,
 html[data-theme="dark"] .winner-kind-pill {
-  border-color: rgba(224, 166, 65, 0.66);
-  color: #ffd894;
-  background: rgba(224, 166, 65, 0.14);
+  border-color: var(--theme-line);
+  color: var(--theme-accent);
+  background: var(--theme-soft);
 }
 
 html[data-theme="dark"] .wallet-balance-wrap {
-  background: linear-gradient(130deg, rgba(67, 111, 255, 0.2), rgba(224, 166, 65, 0.16));
+  background: linear-gradient(130deg, var(--theme-soft), var(--theme-soft));
 }
 
 html[data-theme="dark"] .wallet-balance-wrap strong {
-  color: #9ddfff;
-  text-shadow: 0 0 14px rgba(77, 199, 255, 0.25);
+  color: var(--theme-accent);
+  text-shadow: 0 0 14px rgb(var(--theme-shadow-rgb) / 0.25);
 }
 
 html[data-theme="dark"] .prize-progress {
-  background: rgba(166, 190, 247, 0.16);
+  background: var(--theme-surface);
 }
 
 html[data-theme="dark"] .prize-progress > i {
-  background: linear-gradient(90deg, #4d82ff, #67dbff, #e5ad4f);
+  background: linear-gradient(90deg, var(--theme-accent), var(--theme-accent), var(--theme-accent));
 }
 
 html[data-theme="dark"] .system-badge {
-  border-color: rgba(126, 163, 247, 0.34);
+  border-color: var(--theme-line);
 }
 
 html[data-theme="dark"] .admin-mini-pill {
-  border-color: rgba(121, 157, 244, 0.38);
-  background: rgba(12, 24, 55, 0.65);
+  border-color: var(--theme-line);
+  background: var(--theme-surface);
 }
 
 html[data-theme="dark"] .admin-mini-pill.is-soft {
-  color: #9fb2db;
+  color: var(--theme-accent);
 }
 
 html[data-theme="dark"] .admin-action-block {
-  border-color: rgba(121, 157, 244, 0.34);
+  border-color: var(--theme-line);
 }
 
 html[data-theme="dark"] .small-btn.is-active {
-  border-color: rgba(224, 166, 65, 0.8);
-  background: rgba(224, 166, 65, 0.24);
-  color: #ffe9be;
+  border-color: var(--theme-line);
+  background: var(--theme-soft);
+  color: var(--theme-muted);
 }
 
 html[data-theme="dark"] .admin-report-wrap {
-  border-color: rgba(121, 157, 244, 0.34);
+  border-color: var(--theme-line);
 }
 
 html[data-theme="light"] body {
   background:
-    radial-gradient(70% 55% at 12% 7%, rgba(255, 246, 219, 0.54) 0%, rgba(255, 246, 219, 0) 74%),
-    radial-gradient(75% 60% at 90% 10%, rgba(195, 212, 255, 0.46) 0%, rgba(195, 212, 255, 0) 70%),
+    radial-gradient(70% 55% at 12% 7%, var(--theme-surface) 0%, transparent 74%),
+    radial-gradient(75% 60% at 90% 10%, var(--theme-surface) 0%, transparent 70%),
     var(--bg-soft);
 }
 
 html[data-theme="light"] .glass {
-  background: linear-gradient(155deg, rgba(255, 255, 255, 0.98), rgba(247, 250, 255, 0.94));
-  border-color: rgba(24, 39, 70, 0.25);
+  background: linear-gradient(155deg, var(--theme-surface), var(--theme-surface));
+  border-color: var(--theme-line);
   box-shadow:
-    0 14px 30px rgba(24, 40, 76, 0.16),
-    inset 0 1px 0 rgba(255, 255, 255, 0.96);
+    0 14px 30px rgb(var(--theme-shadow-rgb) / 0.16),
+    inset 0 1px 0 rgb(var(--theme-shadow-rgb) / 0.96);
 }
 
 html[data-theme="light"] .panel,
@@ -3634,14 +3631,14 @@ html[data-theme="light"] .history-modal-head,
 html[data-theme="light"] .history-modal-card-item,
 html[data-theme="light"] .winner-modal-card,
 html[data-theme="light"] .history-modal-card {
-  background: linear-gradient(155deg, rgba(255, 255, 255, 0.98), rgba(247, 250, 255, 0.92));
-  border-color: rgba(27, 45, 82, 0.26);
+  background: linear-gradient(155deg, var(--theme-surface), var(--theme-surface));
+  border-color: var(--theme-line);
 }
 
 html[data-theme="light"] .theme-mode-text {
-  background: rgba(255, 255, 255, 0.82);
-  border-color: rgba(32, 52, 97, 0.24);
-  color: #3f537e;
+  background: var(--theme-surface);
+  border-color: var(--theme-line);
+  color: var(--theme-accent);
 }
 
 html[data-theme="light"] .brand p,
@@ -3654,7 +3651,7 @@ html[data-theme="light"] .tx-sub,
 html[data-theme="light"] .trust-chip .label,
 html[data-theme="light"] .kpi .label,
 html[data-theme="light"] .live-insight .k {
-  color: #405171;
+  color: var(--theme-muted);
 }
 
 html[data-theme="light"] h1,
@@ -3665,44 +3662,44 @@ html[data-theme="light"] .panel strong,
 html[data-theme="light"] .history-item strong,
 html[data-theme="light"] .destination-selected-title,
 html[data-theme="light"] .admin-action-block-title {
-  color: #101b32;
+  color: var(--theme-muted);
 }
 
 html[data-theme="light"] .quick-guide {
-  border-color: rgba(31, 76, 215, 0.28);
-  background: linear-gradient(150deg, rgba(31, 76, 215, 0.09), rgba(200, 143, 47, 0.08));
+  border-color: var(--theme-line);
+  background: linear-gradient(150deg, var(--theme-soft), var(--theme-soft));
 }
 
 html[data-theme="light"] .quick-guide strong,
 html[data-theme="light"] .history-open-hint {
-  color: #234ebf;
+  color: var(--theme-muted);
 }
 
 html[data-theme="light"] .small-btn {
-  border-color: rgba(35, 57, 104, 0.24);
-  background: rgba(255, 255, 255, 0.78);
-  color: #243765;
+  border-color: var(--theme-line);
+  background: var(--theme-surface);
+  color: var(--theme-muted);
   font-weight: 600;
 }
 
 html[data-theme="light"] .theme-toggle-btn {
-  border-color: rgba(33, 53, 98, 0.28);
-  background: rgba(255, 255, 255, 0.86);
-  color: #26407a;
+  border-color: var(--theme-line);
+  background: var(--theme-surface);
+  color: var(--theme-accent);
 }
 
 html[data-theme="light"] .small-btn.primary,
 html[data-theme="light"] .item .open-btn {
-  background: linear-gradient(135deg, #1f4cd7 0%, #355ee2 52%, #cf9a3d 100%);
-  color: #f8fbff;
+  background: linear-gradient(135deg, var(--theme-accent) 0%, var(--theme-accent) 52%, var(--theme-accent) 100%);
+  color: var(--theme-on-accent);
   border-color: transparent;
-  box-shadow: 0 8px 18px rgba(31, 63, 138, 0.25);
+  box-shadow: 0 8px 18px rgb(var(--theme-shadow-rgb) / 0.25);
 }
 
 html[data-theme="light"] .small-btn.danger {
-  border-color: rgba(183, 34, 72, 0.4);
-  color: #a91f42;
-  background: rgba(183, 34, 72, 0.1);
+  border-color: var(--theme-danger);
+  color: var(--theme-danger);
+  background: var(--theme-danger-soft);
 }
 
 html[data-theme="light"] .action-form,
@@ -3710,41 +3707,41 @@ html[data-theme="light"] .live-link,
 html[data-theme="light"] .deposit-step,
 html[data-theme="light"] .withdraw-review-card,
 html[data-theme="light"] .cards-live-badge {
-  background: rgba(255, 255, 255, 0.68);
-  border-color: rgba(34, 56, 102, 0.2);
+  background: var(--theme-surface);
+  border-color: var(--theme-line);
 }
 
 html[data-theme="light"] .admin-mini-pill {
-  border-color: rgba(34, 56, 102, 0.24);
-  background: rgba(255, 255, 255, 0.84);
-  color: #2a3e6d;
+  border-color: var(--theme-line);
+  background: var(--theme-surface);
+  color: var(--theme-text);
 }
 
 html[data-theme="light"] .admin-mini-pill.is-soft {
-  color: #5c6e93;
+  color: var(--theme-accent);
 }
 
 html[data-theme="light"] .admin-user-kpi,
 html[data-theme="light"] .admin-report-wrap {
-  background: rgba(255, 255, 255, 0.74);
-  border-color: rgba(34, 56, 102, 0.2);
+  background: var(--theme-surface);
+  border-color: var(--theme-line);
 }
 
 html[data-theme="light"] .admin-action-block {
-  border-color: rgba(34, 56, 102, 0.28);
+  border-color: var(--theme-line);
 }
 
 html[data-theme="light"] .small-btn.is-active {
-  border-color: rgba(31, 76, 215, 0.52);
-  background: rgba(31, 76, 215, 0.14);
-  color: #173980;
+  border-color: var(--theme-line);
+  background: var(--theme-soft);
+  color: var(--theme-muted);
 }
 
 html[data-theme="light"] .price-chip,
 html[data-theme="light"] .topic-chip {
-  border-color: rgba(23, 63, 189, 0.28);
-  background: rgba(23, 63, 189, 0.08);
-  color: #173980;
+  border-color: var(--theme-line);
+  background: var(--theme-soft);
+  color: var(--theme-accent);
   font-weight: 800;
 }
 
@@ -3752,22 +3749,22 @@ html[data-theme="light"] .price-chip.active,
 html[data-theme="light"] .topic-chip.active,
 html[data-theme="light"] .amount-preset.is-selected,
 html[data-theme="light"] .crypto-amount-preset.is-selected {
-  border-color: rgba(154, 102, 19, 0.62);
-  background: linear-gradient(135deg, rgba(255, 229, 140, 0.72), rgba(65, 211, 178, 0.42));
-  color: #10243e;
-  box-shadow: 0 0 0 1px rgba(154, 102, 19, 0.18);
+  border-color: var(--theme-line);
+  background: linear-gradient(135deg, var(--theme-inset), var(--theme-soft));
+  color: var(--theme-text);
+  box-shadow: 0 0 0 1px rgb(var(--theme-shadow-rgb) / 0.18);
 }
 
 html[data-theme="light"] .admin-status-pill.is-ok {
-  color: #157457;
-  border-color: rgba(18, 122, 90, 0.42);
-  background: rgba(18, 122, 90, 0.1);
+  color: var(--theme-accent);
+  border-color: var(--theme-line);
+  background: var(--theme-soft);
 }
 
 html[data-theme="light"] .admin-status-pill.is-danger {
-  color: #9e1d3f;
-  border-color: rgba(183, 34, 72, 0.4);
-  background: rgba(183, 34, 72, 0.1);
+  color: var(--theme-danger);
+  border-color: var(--theme-danger);
+  background: var(--theme-danger-soft);
 }
 
 html[data-theme="light"] .action-form input,
@@ -3775,9 +3772,9 @@ html[data-theme="light"] .action-form select,
 html[data-theme="light"] .deposit-step-body input,
 html[data-theme="light"] .deposit-step-body select,
 html[data-theme="light"] .small-select {
-  background: #ffffff;
-  border-color: rgba(34, 56, 102, 0.24);
-  color: #17264a;
+  background: var(--theme-inset);
+  border-color: var(--theme-line);
+  color: var(--theme-muted);
 }
 
 html[data-theme="light"] .action-form input:focus,
@@ -3785,111 +3782,111 @@ html[data-theme="light"] .action-form select:focus,
 html[data-theme="light"] .deposit-step-body input:focus,
 html[data-theme="light"] .deposit-step-body select:focus,
 html[data-theme="light"] .small-select:focus {
-  border-color: #1f4cd7;
-  box-shadow: 0 0 0 3px rgba(31, 76, 215, 0.16);
+  border-color: var(--theme-line);
+  box-shadow: 0 0 0 3px rgb(var(--theme-shadow-rgb) / 0.16);
 }
 
 html[data-theme="light"] .deposit-step-body select.has-selection {
-  border-color: rgba(200, 143, 47, 0.72);
-  box-shadow: 0 0 0 2px rgba(200, 143, 47, 0.14);
-  background: #fffaf0;
+  border-color: var(--theme-line);
+  box-shadow: 0 0 0 2px rgb(var(--theme-shadow-rgb) / 0.14);
+  background: var(--theme-inset);
 }
 
 html[data-theme="light"] .destination-selected-card {
-  border-color: rgba(154, 102, 19, 0.54);
-  background: linear-gradient(150deg, rgba(255, 248, 232, 0.95), rgba(239, 246, 255, 0.92));
+  border-color: var(--theme-line);
+  background: linear-gradient(150deg, var(--theme-inset), var(--theme-inset));
 }
 
 html[data-theme="light"] .destination-selected-head,
 html[data-theme="light"] .status-pill,
 html[data-theme="light"] .winner-note,
 html[data-theme="light"] .winner-banner strong {
-  color: #76500c;
+  color: var(--theme-accent);
 }
 
 html[data-theme="light"] .destination-selected-number,
 html[data-theme="light"] .ltr-number {
-  color: #101b32;
+  color: var(--theme-text);
 }
 
 html[data-theme="light"] .status-pill {
-  border-color: rgba(200, 143, 47, 0.52);
-  background: rgba(200, 143, 47, 0.14);
+  border-color: var(--theme-line);
+  background: var(--theme-soft);
 }
 
 html[data-theme="light"] .wallet-balance-wrap {
-  background: linear-gradient(130deg, rgba(31, 76, 215, 0.1), rgba(200, 143, 47, 0.18));
+  background: linear-gradient(130deg, var(--theme-soft), var(--theme-soft));
 }
 
 html[data-theme="light"] .wallet-balance-wrap strong {
-  color: #1d45bf;
+  color: var(--theme-accent);
 }
 
 html[data-theme="light"] .bottom-nav {
-  background: rgba(255, 255, 255, 0.88);
-  border: 1px solid rgba(33, 53, 98, 0.24);
-  box-shadow: 0 12px 28px rgba(23, 39, 75, 0.18);
+  background: var(--theme-surface);
+  border: 1px solid var(--theme-line);
+  box-shadow: 0 12px 28px rgb(var(--theme-shadow-rgb) / 0.18);
 }
 
 html[data-theme="light"] .nav-btn {
-  color: #314674;
+  color: var(--theme-accent);
 }
 
 html[data-theme="light"] .nav-btn.active {
-  border-color: rgba(31, 76, 215, 0.34);
-  background: linear-gradient(145deg, rgba(31, 76, 215, 0.18), rgba(200, 143, 47, 0.22));
-  color: #142a5b;
+  border-color: var(--theme-line);
+  background: linear-gradient(145deg, var(--theme-soft), var(--theme-soft));
+  color: var(--theme-text);
 }
 
 html[data-theme="light"] .called-chip,
 html[data-theme="light"] .live-called-chip,
 html[data-theme="light"] .num-chip {
-  background: rgba(255, 255, 255, 0.9);
-  border-color: rgba(34, 56, 102, 0.2);
-  color: #1d2f59;
+  background: var(--theme-surface);
+  border-color: var(--theme-line);
+  color: var(--theme-text);
 }
 
 html[data-theme="light"] .num-chip.called {
-  border-color: rgba(31, 76, 215, 0.48);
-  background: rgba(31, 76, 215, 0.12);
-  color: #1f3d83;
+  border-color: var(--theme-accent);
+  background: var(--theme-soft);
+  color: var(--theme-accent);
 }
 
 html[data-theme="light"] .num-chip.fresh,
 html[data-theme="light"] .called-chip.new,
 html[data-theme="light"] .live-called-chip.fresh {
-  border-color: rgba(200, 143, 47, 0.8);
-  background: rgba(200, 143, 47, 0.2);
-  color: #6e4908;
-  box-shadow: 0 0 0 1px rgba(200, 143, 47, 0.2), 0 0 16px rgba(200, 143, 47, 0.2);
+  border-color: var(--theme-line);
+  background: var(--theme-soft);
+  color: var(--theme-text);
+  box-shadow: 0 0 0 1px rgb(var(--theme-shadow-rgb) / 0.2), 0 0 16px rgb(var(--theme-shadow-rgb) / 0.2);
 }
 
 html[data-theme="light"] .hot-banner,
 html[data-theme="light"] .winner-kind-pill {
-  border-color: rgba(200, 143, 47, 0.58);
-  color: #8a5e0f;
-  background: rgba(200, 143, 47, 0.14);
+  border-color: var(--theme-line);
+  color: var(--theme-accent);
+  background: var(--theme-soft);
 }
 
 html[data-theme="light"] .smart-chip.status.winner {
-  color: #82570f;
-  border-color: rgba(200, 143, 47, 0.62);
-  background: linear-gradient(130deg, rgba(200, 143, 47, 0.2), rgba(255, 255, 255, 0.68));
+  color: var(--theme-accent);
+  border-color: var(--theme-line);
+  background: linear-gradient(130deg, var(--theme-soft), var(--theme-surface));
 }
 
 html[data-theme="light"] .prize-progress {
-  background: rgba(27, 47, 89, 0.12);
+  background: var(--theme-surface);
 }
 
 html[data-theme="light"] .prize-progress > i {
-  background: linear-gradient(90deg, #204ed4, #3f66e5, #d7a447);
+  background: linear-gradient(90deg, var(--theme-accent), var(--theme-accent), var(--theme-accent));
 }
 
 html[data-theme="light"] .mini-toast {
-  border-color: rgba(200, 143, 47, 0.52);
-  background: rgba(23, 38, 71, 0.92);
-  color: #f7f9ff;
-  box-shadow: 0 14px 28px rgba(15, 28, 58, 0.38);
+  border-color: var(--theme-line);
+  background: var(--theme-surface);
+  color: var(--theme-text);
+  box-shadow: 0 14px 28px rgb(var(--theme-shadow-rgb) / 0.38);
 }
 
 @media (max-width: 860px) {
@@ -3961,9 +3958,9 @@ html[data-theme="light"] .mini-toast {
   overflow: hidden;
   padding: 22px;
   background:
-    radial-gradient(55% 40% at 20% 15%, rgba(255, 213, 111, 0.26), transparent 70%),
-    radial-gradient(50% 42% at 82% 18%, rgba(45, 212, 191, 0.24), transparent 72%),
-    linear-gradient(145deg, #07101f, #101a36 48%, #07101f);
+    radial-gradient(55% 40% at 20% 15%, var(--theme-surface), transparent 70%),
+    radial-gradient(50% 42% at 82% 18%, var(--theme-soft), transparent 72%),
+    linear-gradient(145deg, var(--theme-surface), var(--theme-surface) 48%, var(--theme-surface));
   transition: opacity 0.32s ease, visibility 0.32s ease;
 }
 
@@ -3980,7 +3977,7 @@ html[data-theme="light"] .mini-toast {
   border-radius: 28px;
   padding: 28px 22px;
   text-align: center;
-  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.42);
+  box-shadow: 0 28px 90px rgb(var(--theme-shadow-rgb) / 0.42);
 }
 
 .splash-logo {
@@ -3988,20 +3985,20 @@ html[data-theme="light"] .mini-toast {
   height: 88px;
   border-radius: 26px;
   object-fit: cover;
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.06), 0 16px 44px rgba(0,0,0,0.28);
+  border: 1px solid var(--theme-line);
+  box-shadow: 0 0 0 6px rgb(var(--theme-shadow-rgb) / 0.06), 0 16px 44px rgb(var(--theme-shadow-rgb) / 0.28);
 }
 
 .splash-title {
   margin-top: 14px;
   font-weight: 950;
   font-size: 21px;
-  color: #fff3c4;
+  color: var(--theme-text);
 }
 
 .splash-subtitle {
   margin-top: 6px;
-  color: rgba(255,255,255,0.78);
+  color: var(--theme-muted);
   font-size: 13px;
 }
 
@@ -4011,7 +4008,7 @@ html[data-theme="light"] .mini-toast {
   height: 8px;
   overflow: hidden;
   border-radius: 999px;
-  background: rgba(255,255,255,0.1);
+  background: var(--theme-surface);
 }
 
 .splash-loader i {
@@ -4019,12 +4016,12 @@ html[data-theme="light"] .mini-toast {
   width: 42%;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, #ffd56f, #2dd4bf);
+  background: linear-gradient(90deg, var(--theme-surface), var(--theme-soft));
   animation: splashLoading 1.15s ease-in-out infinite;
 }
 
 .splash-status {
-  color: rgba(255,255,255,0.68);
+  color: var(--theme-text);
   font-size: 12px;
 }
 
@@ -4041,7 +4038,7 @@ html[data-theme="light"] .mini-toast {
   height: 140px;
   right: 8%;
   top: 16%;
-  background: rgba(255, 213, 111, 0.22);
+  background: var(--theme-surface);
 }
 
 .splash-orb-b {
@@ -4049,47 +4046,47 @@ html[data-theme="light"] .mini-toast {
   height: 190px;
   left: 4%;
   bottom: 12%;
-  background: rgba(45, 212, 191, 0.2);
+  background: var(--theme-soft);
   animation-delay: 0.4s;
 }
 
 html[data-theme="light"] .app-splash {
   background:
-    radial-gradient(55% 42% at 18% 14%, rgba(255, 223, 135, 0.42), transparent 72%),
-    radial-gradient(50% 42% at 84% 20%, rgba(68, 195, 178, 0.26), transparent 72%),
-    linear-gradient(145deg, #eef3fb, #f9fbff 48%, #e8eef8);
+    radial-gradient(55% 42% at 18% 14%, var(--theme-surface), transparent 72%),
+    radial-gradient(50% 42% at 84% 20%, var(--theme-soft), transparent 72%),
+    linear-gradient(145deg, var(--theme-surface), var(--theme-surface) 48%, var(--theme-surface));
 }
 
 html[data-theme="light"] .splash-card {
-  background: rgba(255, 255, 255, 0.96);
-  border-color: rgba(24, 39, 70, 0.22);
-  box-shadow: 0 26px 72px rgba(26, 42, 76, 0.22);
+  background: var(--theme-surface);
+  border-color: var(--theme-line);
+  box-shadow: 0 26px 72px rgb(var(--theme-shadow-rgb) / 0.22);
 }
 
 html[data-theme="light"] .splash-logo {
-  border-color: rgba(24, 39, 70, 0.18);
-  box-shadow: 0 0 0 6px rgba(23, 63, 189, 0.06), 0 16px 38px rgba(25, 42, 78, 0.2);
+  border-color: var(--theme-line);
+  box-shadow: 0 0 0 6px rgb(var(--theme-shadow-rgb) / 0.06), 0 16px 38px rgb(var(--theme-shadow-rgb) / 0.2);
 }
 
 html[data-theme="light"] .splash-title {
-  color: #14264a;
+  color: var(--theme-text);
 }
 
 html[data-theme="light"] .splash-subtitle,
 html[data-theme="light"] .splash-status {
-  color: #405171;
+  color: var(--theme-muted);
 }
 
 html[data-theme="light"] .splash-loader {
-  background: rgba(24, 39, 70, 0.1);
+  background: var(--theme-surface);
 }
 
 html[data-theme="light"] .splash-orb-a {
-  background: rgba(255, 211, 105, 0.34);
+  background: var(--theme-surface);
 }
 
 html[data-theme="light"] .splash-orb-b {
-  background: rgba(45, 174, 158, 0.24);
+  background: var(--theme-soft);
 }
 
 @keyframes splashLoading {
@@ -4103,9 +4100,9 @@ html[data-theme="light"] .splash-orb-b {
 }
 
 .sound-toggle-btn.is-on {
-  color: #041226;
-  background: linear-gradient(140deg, #ffd56f, #2dd4bf);
-  border-color: rgba(255,255,255,0.35);
+  color: var(--theme-text);
+  background: linear-gradient(140deg, var(--theme-surface), var(--theme-soft));
+  border-color: var(--theme-line);
 }
 
 .nav-btn {
@@ -4125,9 +4122,9 @@ html[data-theme="light"] .splash-orb-b {
   position: relative;
   overflow: hidden;
   background:
-    radial-gradient(60% 55% at 100% 0%, rgba(255, 213, 111, 0.12), transparent 72%),
-    radial-gradient(70% 70% at 0% 100%, rgba(45, 212, 191, 0.1), transparent 72%),
-    rgba(255, 255, 255, 0.04);
+    radial-gradient(60% 55% at 100% 0%, var(--theme-surface), transparent 72%),
+    radial-gradient(70% 70% at 0% 100%, var(--theme-soft), transparent 72%),
+    var(--theme-surface);
 }
 
 .game-hero::before {
@@ -4135,7 +4132,7 @@ html[data-theme="light"] .splash-orb-b {
   position: absolute;
   inset: -1px;
   pointer-events: none;
-  background: linear-gradient(135deg, rgba(255,255,255,0.16), transparent 36%, rgba(255, 213, 111, 0.12));
+  background: linear-gradient(135deg, var(--theme-surface), transparent 36%, var(--theme-surface));
   opacity: 0.65;
 }
 
@@ -4148,7 +4145,7 @@ html[data-theme="light"] .splash-orb-b {
   min-height: 44px;
   padding-inline: 18px;
   border-radius: 14px;
-  box-shadow: 0 10px 28px rgba(45, 212, 191, 0.2);
+  box-shadow: 0 10px 28px rgb(var(--theme-shadow-rgb) / 0.2);
 }
 
 .wallet-quick-actions {
@@ -4173,14 +4170,14 @@ html[data-theme="light"] .splash-orb-b {
   cursor: pointer;
   color: var(--text);
   font-weight: 800;
-  background: rgba(255,255,255,0.05);
+  background: var(--theme-surface);
 }
 
 .amount-preset.is-selected,
 .crypto-amount-preset.is-selected {
-  color: #041226;
-  border-color: rgba(255,255,255,0.34);
-  background: linear-gradient(140deg, #ffd56f, #2dd4bf);
+  color: var(--theme-text);
+  border-color: var(--theme-line);
+  background: linear-gradient(140deg, var(--theme-inset), var(--theme-soft));
 }
 
 .receipt-preview {
@@ -4190,7 +4187,7 @@ html[data-theme="light"] .splash-orb-b {
   padding: 9px;
   font-size: 12px;
   color: var(--muted);
-  background: rgba(255,255,255,0.04);
+  background: var(--theme-surface);
   min-width: 0;
   max-width: 100%;
   overflow: hidden;
@@ -4235,9 +4232,9 @@ html[data-theme="light"] .splash-orb-b {
   place-items: center;
   font-size: 34px;
   font-weight: 950;
-  color: #041226;
-  background: radial-gradient(circle at 30% 25%, #fff6cf, #ffd56f 48%, #f5a524 100%);
-  box-shadow: 0 14px 36px rgba(255, 213, 111, 0.26);
+  color: var(--theme-text);
+  background: radial-gradient(circle at 30% 25%, var(--theme-surface), var(--theme-surface) 48%, var(--theme-soft) 100%);
+  box-shadow: 0 14px 36px rgb(var(--theme-shadow-rgb) / 0.26);
 }
 
 .last-number-pop.fresh {
@@ -4261,7 +4258,7 @@ html[data-theme="light"] .splash-orb-b {
   position: absolute;
   inset: -40% -20% auto;
   height: 220px;
-  background: radial-gradient(circle, rgba(255, 213, 111, 0.28), transparent 64%);
+  background: radial-gradient(circle, var(--theme-surface), transparent 64%);
   pointer-events: none;
 }
 
@@ -4286,7 +4283,7 @@ html[data-theme="light"] .splash-orb-b {
 
 .winner-graphic span {
   font-size: 58px;
-  filter: drop-shadow(0 12px 22px rgba(255, 213, 111, 0.25));
+  filter: drop-shadow(0 12px 22px var(--theme-accent));
   animation: trophyPop 0.85s ease both;
 }
 
@@ -4295,15 +4292,15 @@ html[data-theme="light"] .splash-orb-b {
   width: 8px;
   height: 8px;
   border-radius: 999px;
-  background: #ffd56f;
+  background: var(--theme-surface);
   animation: confettiDot 1.05s ease infinite alternate;
 }
 
-.winner-graphic i:nth-child(2) { right: 12px; top: 12px; background: #2dd4bf; animation-delay: 0.1s; }
-.winner-graphic i:nth-child(3) { left: 18px; top: 18px; background: #ff7f8a; animation-delay: 0.2s; }
-.winner-graphic i:nth-child(4) { right: 28px; bottom: 10px; background: #a78bfa; animation-delay: 0.35s; }
-.winner-graphic i:nth-child(5) { left: 30px; bottom: 12px; background: #ffd56f; animation-delay: 0.5s; }
-.winner-graphic i:nth-child(6) { left: 50%; top: 2px; background: #7ef5bc; animation-delay: 0.65s; }
+.winner-graphic i:nth-child(2) { right: 12px; top: 12px; background: var(--theme-soft); animation-delay: 0.1s; }
+.winner-graphic i:nth-child(3) { left: 18px; top: 18px; background: var(--theme-surface); animation-delay: 0.2s; }
+.winner-graphic i:nth-child(4) { right: 28px; bottom: 10px; background: var(--theme-surface); animation-delay: 0.35s; }
+.winner-graphic i:nth-child(5) { left: 30px; bottom: 12px; background: var(--theme-surface); animation-delay: 0.5s; }
+.winner-graphic i:nth-child(6) { left: 50%; top: 2px; background: var(--theme-surface); animation-delay: 0.65s; }
 
 @keyframes trophyPop {
   0% { transform: scale(0.65) rotate(-8deg); opacity: 0; }
@@ -4348,11 +4345,11 @@ html[data-theme="light"] .splash-orb-b {
 }
 
 .game-emphasis-block {
-  border-color: rgba(255, 213, 111, 0.42);
+  border-color: var(--theme-line);
   background:
-    radial-gradient(circle at 88% 0%, rgba(255, 213, 111, 0.20), transparent 35%),
-    linear-gradient(155deg, rgba(100, 214, 255, 0.10), rgba(255, 255, 255, 0.045));
-  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.14);
+    radial-gradient(circle at 88% 0%, var(--theme-surface), transparent 35%),
+    linear-gradient(155deg, var(--theme-surface), var(--theme-surface));
+  box-shadow: 0 14px 34px rgb(var(--theme-shadow-rgb) / 0.14);
 }
 
 .active-game-title {
@@ -4378,10 +4375,10 @@ html[data-theme="light"] .splash-orb-b {
   font-size: 22px;
   font-weight: 950;
   letter-spacing: 0.4px;
-  color: #fff7d6;
-  border: 1px solid rgba(255, 213, 111, 0.58);
-  background: linear-gradient(135deg, rgba(255, 195, 55, 0.32), rgba(100, 214, 255, 0.16));
-  box-shadow: 0 0 0 1px rgba(255, 213, 111, 0.18), 0 10px 28px rgba(255, 195, 55, 0.14);
+  color: var(--theme-text);
+  border: 1px solid var(--theme-line);
+  background: linear-gradient(135deg, var(--theme-soft), var(--theme-surface));
+  box-shadow: 0 0 0 1px rgb(var(--theme-shadow-rgb) / 0.18), 0 10px 28px rgb(var(--theme-shadow-rgb) / 0.14);
 }
 
 .card-pro-head-ux2 {
@@ -4414,9 +4411,9 @@ html[data-theme="light"] .splash-orb-b {
   font-size: 12px;
   font-weight: 900;
   white-space: nowrap;
-  color: #fff5d0;
-  border: 1px solid rgba(255, 213, 111, 0.58);
-  background: linear-gradient(135deg, rgba(255, 195, 55, 0.30), rgba(255, 255, 255, 0.06));
+  color: var(--theme-text);
+  border: 1px solid var(--theme-line);
+  background: linear-gradient(135deg, var(--theme-soft), var(--theme-surface));
 }
 
 .card-progress-ux2 {
@@ -4431,8 +4428,8 @@ html[data-theme="light"] .splash-orb-b {
 
 .live-main-pro {
   background:
-    radial-gradient(circle at 80% 0%, rgba(45, 212, 191, 0.18), transparent 36%),
-    rgba(255, 255, 255, 0.035);
+    radial-gradient(circle at 80% 0%, var(--theme-soft), transparent 36%),
+    var(--theme-surface);
   border-radius: 14px;
   padding: 10px;
 }
@@ -4451,10 +4448,10 @@ html[data-theme="light"] .splash-orb-b {
   border-radius: 22px;
   font-size: 34px;
   font-weight: 950;
-  color: #fff7d6;
-  border-color: rgba(255, 213, 111, 0.58);
-  background: linear-gradient(145deg, rgba(255, 195, 55, 0.28), rgba(45, 212, 191, 0.12));
-  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.20), inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+  color: var(--theme-text);
+  border-color: var(--theme-line);
+  background: linear-gradient(145deg, var(--theme-soft), var(--theme-soft));
+  box-shadow: 0 12px 34px rgb(var(--theme-shadow-rgb) / 0.2), inset 0 0 0 1px rgb(var(--theme-shadow-rgb) / 0.12);
 }
 
 .live-called-chip,
@@ -4497,14 +4494,14 @@ html[data-theme="light"] .splash-orb-b {
 html[data-theme="light"] .active-game-title-id,
 html[data-theme="light"] .card-game-badge,
 html[data-theme="light"] .history-game-badge {
-  color: #6b4100;
-  border-color: rgba(174, 112, 17, 0.34);
-  background: linear-gradient(135deg, rgba(255, 214, 116, 0.72), rgba(255, 255, 255, 0.50));
+  color: var(--theme-text);
+  border-color: var(--theme-line);
+  background: linear-gradient(135deg, var(--theme-surface), var(--theme-surface));
 }
 
 html[data-theme="light"] .live-main-pro .last-number-pop {
-  color: #5b3500;
-  background: linear-gradient(145deg, rgba(255, 214, 116, 0.78), rgba(225, 246, 250, 0.72));
+  color: var(--theme-text);
+  background: linear-gradient(145deg, var(--theme-surface), var(--theme-surface));
 }
 
 /* UX2 v3 game number focus */
@@ -4514,11 +4511,11 @@ html[data-theme="light"] .live-main-pro .last-number-pop {
 }
 
 .active-game-title-id {
-  text-shadow: 0 2px 14px rgba(255, 213, 111, 0.25);
+  text-shadow: 0 2px 14px rgb(var(--theme-shadow-rgb) / 0.25);
 }
 
 .card-game-badge {
-  box-shadow: 0 0 0 1px rgba(255, 213, 111, 0.12);
+  box-shadow: 0 0 0 1px rgb(var(--theme-shadow-rgb) / 0.12);
 }
 
 .card-id-stack {
@@ -4562,9 +4559,9 @@ html[data-theme="light"] .live-main-pro .last-number-pop {
   align-items: center;
   margin: 12px 0 14px;
   padding: 12px 14px;
-  border: 1px solid rgba(120, 167, 255, 0.28);
+  border: 1px solid var(--theme-line);
   border-radius: 14px;
-  background: linear-gradient(145deg, rgba(255,255,255,0.055), rgba(255,255,255,0.02));
+  background: linear-gradient(145deg, var(--theme-surface), var(--theme-surface));
   font-size: 13px;
   line-height: 1.8;
 }
@@ -4586,9 +4583,9 @@ html[data-theme="light"] .live-main-pro .last-number-pop {
 .history-modal-card-item {
   padding: 13px;
   border-radius: 16px;
-  border: 1px solid rgba(120, 167, 255, 0.22);
-  background: radial-gradient(circle at 85% 0%, rgba(255, 213, 111, 0.10), transparent 34%), rgba(255, 255, 255, 0.035);
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.10);
+  border: 1px solid var(--theme-line);
+  background: radial-gradient(circle at 85% 0%, var(--theme-surface), transparent 34%), var(--theme-surface);
+  box-shadow: 0 10px 28px rgb(var(--theme-shadow-rgb) / 0.1);
 }
 
 .history-card-pro-head-ux21,
@@ -4633,9 +4630,9 @@ html[data-theme="light"] .live-main-pro .last-number-pop {
   margin: 8px 0 10px;
   padding: 7px 10px;
   border-radius: 12px;
-  border: 1px solid rgba(255, 213, 111, 0.30);
-  background: rgba(255, 213, 111, 0.075);
-  color: #ffe082;
+  border: 1px solid var(--theme-line);
+  background: var(--theme-surface);
+  color: var(--theme-accent);
   font-size: 12px;
   font-weight: 850;
   line-height: 1.65;
@@ -4757,10 +4754,10 @@ html[data-theme="light"] .live-main-pro .last-number-pop {
 
 /* UX 3 admin game panel polish */
 #view-admin .accordion-item {
-  border: 1px solid rgba(120, 167, 255, 0.22);
+  border: 1px solid var(--theme-line);
   border-radius: 18px;
   overflow: hidden;
-  background: linear-gradient(145deg, rgba(255,255,255,0.045), rgba(255,255,255,0.018));
+  background: linear-gradient(145deg, var(--theme-surface), var(--theme-surface));
 }
 
 #view-admin .accordion-item > summary {
@@ -4782,9 +4779,9 @@ html[data-theme="light"] .live-main-pro .last-number-pop {
   margin: 8px 0 10px;
   padding: 7px 11px;
   border-radius: 999px;
-  border: 1px solid rgba(255, 213, 111, 0.34);
-  background: rgba(255, 213, 111, 0.08);
-  color: #ffe082;
+  border: 1px solid var(--theme-line);
+  background: var(--theme-inset);
+  color: var(--theme-muted);
   font-weight: 900;
   line-height: 1.7;
 }
@@ -4803,7 +4800,7 @@ html[data-theme="light"] .live-main-pro .last-number-pop {
 
 #adminCreateTopics .topic-chip.active,
 #adminPricePresetRow .price-chip.active {
-  box-shadow: 0 0 0 1px rgba(255, 213, 111, 0.25), 0 10px 22px rgba(0,0,0,0.16);
+  box-shadow: 0 0 0 1px rgb(var(--theme-shadow-rgb) / 0.25), 0 10px 22px rgb(var(--theme-shadow-rgb) / 0.16);
 }
 
 .admin-ops-dashboard {
@@ -4824,8 +4821,8 @@ html[data-theme="light"] .live-main-pro .last-number-pop {
 .admin-ops-count,
 .admin-service-pill,
 .admin-ops-game {
-  border: 1px solid rgba(120, 167, 255, 0.22);
-  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid var(--theme-line);
+  background: var(--theme-surface);
   border-radius: 14px;
 }
 
@@ -4871,18 +4868,18 @@ html[data-theme="light"] .live-main-pro .last-number-pop {
 }
 
 .admin-service-pill.is-ok {
-  border-color: rgba(126, 245, 188, 0.28);
-  background: rgba(126, 245, 188, 0.08);
+  border-color: var(--theme-line);
+  background: var(--theme-surface);
 }
 
 .admin-service-pill.is-bad {
-  border-color: rgba(248, 113, 113, 0.30);
-  background: rgba(248, 113, 113, 0.10);
+  border-color: var(--theme-line);
+  background: var(--theme-surface);
 }
 
 .admin-service-pill.is-muted {
-  border-color: rgba(255, 213, 111, 0.28);
-  background: rgba(255, 213, 111, 0.07);
+  border-color: var(--theme-line);
+  background: var(--theme-surface);
 }
 
 .admin-ops-games {
@@ -4910,16 +4907,16 @@ html[data-theme="light"] .live-main-pro .last-number-pop {
 }
 
 .admin-risk-item {
-  border-inline-start: 4px solid rgba(120, 167, 255, 0.45);
+  border-inline-start: 4px solid var(--theme-line);
 }
 
 .admin-risk-item.severity-warning {
-  border-inline-start-color: rgba(255, 213, 111, 0.92);
+  border-inline-start-color: var(--theme-warning);
 }
 
 .admin-risk-item.severity-danger,
 .admin-risk-item.severity-error {
-  border-inline-start-color: rgba(248, 113, 113, 0.92);
+  border-inline-start-color: var(--theme-danger);
 }
 
 .admin-risk-severity {
@@ -4927,8 +4924,8 @@ html[data-theme="light"] .live-main-pro .last-number-pop {
   margin-inline-start: 6px;
   padding: 2px 8px;
   border-radius: 999px;
-  background: rgba(255, 213, 111, 0.10);
-  color: #ffe082;
+  background: var(--theme-surface);
+  color: var(--theme-accent);
   font-size: 11px;
   vertical-align: middle;
 }
@@ -4941,37 +4938,37 @@ html[data-theme="light"] .live-main-pro .last-number-pop {
 html[data-theme="light"] .admin-ops-count,
 html[data-theme="light"] .admin-service-pill,
 html[data-theme="light"] .admin-ops-game {
-  background: rgba(255, 255, 255, 0.78);
-  border-color: rgba(36, 63, 112, 0.18);
+  background: var(--theme-surface);
+  border-color: var(--theme-line);
 }
 
 html[data-theme="light"] .admin-service-pill.is-ok {
-  border-color: rgba(22, 163, 74, 0.24);
-  background: rgba(34, 197, 94, 0.08);
+  border-color: var(--theme-line);
+  background: var(--theme-soft);
 }
 
 html[data-theme="light"] .admin-service-pill.is-bad {
-  border-color: rgba(220, 38, 38, 0.24);
-  background: rgba(248, 113, 113, 0.09);
+  border-color: var(--theme-line);
+  background: var(--theme-surface);
 }
 
 html[data-theme="light"] .admin-service-pill.is-muted {
-  border-color: rgba(202, 138, 4, 0.24);
-  background: rgba(250, 204, 21, 0.10);
+  border-color: var(--theme-line);
+  background: var(--theme-soft);
 }
 
 html[data-theme="light"] .admin-risk-severity {
-  color: #92400e;
-  background: rgba(250, 204, 21, 0.16);
+  color: var(--theme-accent);
+  background: var(--theme-soft);
 }
 
 #adminGamesList .history-item {
   position: relative;
   border-radius: 16px;
-  border-color: rgba(120, 167, 255, 0.24);
+  border-color: var(--theme-line);
   background:
-    radial-gradient(circle at 90% 0%, rgba(45, 212, 191, 0.10), transparent 34%),
-    rgba(255, 255, 255, 0.032);
+    radial-gradient(circle at 90% 0%, var(--theme-soft), transparent 34%),
+    var(--theme-surface);
 }
 
 #adminGamesList .history-item.clickable {
@@ -4998,38 +4995,38 @@ html[data-theme="light"] .admin-risk-severity {
   margin: -2px 0 8px;
   padding: 7px 10px;
   border-radius: 12px;
-  background: rgba(100, 214, 255, 0.07);
-  border: 1px solid rgba(100, 214, 255, 0.14);
+  background: var(--theme-surface);
+  border: 1px solid var(--theme-line);
 }
 
 .action-local-hint[data-type="error"]:not(:empty) {
-  color: #fecaca;
-  background: rgba(248, 113, 113, 0.12);
-  border-color: rgba(248, 113, 113, 0.28);
+  color: var(--theme-muted);
+  background: var(--theme-danger-soft);
+  border-color: var(--theme-danger);
 }
 
 .action-local-hint[data-type="success"]:not(:empty) {
-  color: #bbf7d0;
-  background: rgba(126, 245, 188, 0.10);
-  border-color: rgba(126, 245, 188, 0.24);
+  color: var(--theme-muted);
+  background: var(--theme-surface);
+  border-color: var(--theme-line);
 }
 
 html[data-theme="light"] .action-local-hint:not(:empty) {
-  color: #33435f;
-  background: rgba(20, 184, 166, 0.08);
-  border-color: rgba(20, 184, 166, 0.20);
+  color: var(--theme-muted);
+  background: var(--theme-soft);
+  border-color: var(--theme-line);
 }
 
 html[data-theme="light"] .action-local-hint[data-type="error"]:not(:empty) {
-  color: #b42318;
-  background: rgba(248, 113, 113, 0.12);
-  border-color: rgba(220, 38, 38, 0.24);
+  color: var(--theme-muted);
+  background: var(--theme-danger-soft);
+  border-color: var(--theme-danger);
 }
 
 html[data-theme="light"] .action-local-hint[data-type="success"]:not(:empty) {
-  color: #067647;
-  background: rgba(34, 197, 94, 0.10);
-  border-color: rgba(22, 163, 74, 0.22);
+  color: var(--theme-muted);
+  background: var(--theme-soft);
+  border-color: var(--theme-line);
 }
 
 #adminCallNumberInput,
@@ -5062,11 +5059,11 @@ html[data-theme="light"] .action-local-hint[data-type="success"]:not(:empty) {
 }
 
 #adminCallBtn:not(:disabled) {
-  box-shadow: 0 0 0 1px rgba(45, 212, 191, 0.18);
+  box-shadow: 0 0 0 1px rgb(var(--theme-shadow-rgb) / 0.18);
 }
 
 #adminCloseLobbyBtn:not(:disabled) {
-  box-shadow: 0 0 0 1px rgba(248, 113, 113, 0.18);
+  box-shadow: 0 0 0 1px rgb(var(--theme-shadow-rgb) / 0.18);
 }
 
 @media (max-width: 430px) {
@@ -5114,11 +5111,11 @@ html[data-theme="light"] .action-local-hint[data-type="success"]:not(:empty) {
 
 /* LIVE-1 admin live send polish */
 #adminSendLiveBtn {
-  box-shadow: 0 0 0 1px rgba(45, 212, 191, 0.22), 0 10px 22px rgba(0,0,0,0.13);
+  box-shadow: 0 0 0 1px rgb(var(--theme-shadow-rgb) / 0.22), 0 10px 22px rgb(var(--theme-shadow-rgb) / 0.13);
 }
 
 #adminSendLiveBtn:not(:disabled) {
-  background: linear-gradient(135deg, rgba(45, 212, 191, 0.22), rgba(120, 167, 255, 0.16));
+  background: linear-gradient(135deg, var(--theme-soft), var(--theme-surface));
 }
 
 #adminSendLiveBtn:disabled {
@@ -5135,14 +5132,14 @@ html[data-theme="light"] .action-local-hint[data-type="success"]:not(:empty) {
 #adminSendLiveBtn:not(:disabled) {
   opacity: 1 !important;
   filter: none !important;
-  color: #f8fbff !important;
-  border-color: rgba(45, 212, 191, 0.45);
+  color: var(--theme-text) !important;
+  border-color: var(--theme-line);
   background:
-    radial-gradient(circle at 20% 0%, rgba(45, 212, 191, 0.34), transparent 38%),
-    linear-gradient(135deg, rgba(45, 212, 191, 0.30), rgba(120, 167, 255, 0.24)) !important;
+    radial-gradient(circle at 20% 0%, var(--theme-soft), transparent 38%),
+    linear-gradient(135deg, var(--theme-soft), var(--theme-surface)) !important;
   box-shadow:
-    0 0 0 1px rgba(45, 212, 191, 0.28),
-    0 12px 26px rgba(0, 0, 0, 0.18);
+    0 0 0 1px rgb(var(--theme-shadow-rgb) / 0.28),
+    0 12px 26px rgb(var(--theme-shadow-rgb) / 0.18);
 }
 
 #adminSendLiveBtn:disabled {
@@ -5160,23 +5157,23 @@ html[data-theme="light"] .action-local-hint[data-type="success"]:not(:empty) {
   margin-top: 9px;
   padding: 8px 10px;
   border-radius: 13px;
-  border: 1px solid rgba(120, 167, 255, 0.22);
-  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid var(--theme-line);
+  background: var(--theme-surface);
   color: var(--muted);
   font-size: 12px;
   line-height: 1.75;
 }
 
 .withdraw-wallet-status.ok {
-  border-color: rgba(45, 212, 191, 0.34);
-  background: rgba(45, 212, 191, 0.08);
-  color: #9ff7e8;
+  border-color: var(--theme-line);
+  background: var(--theme-soft);
+  color: var(--theme-accent);
 }
 
 .withdraw-wallet-status.bad {
-  border-color: rgba(248, 113, 113, 0.34);
-  background: rgba(248, 113, 113, 0.08);
-  color: #fecaca;
+  border-color: var(--theme-line);
+  background: var(--theme-surface);
+  color: var(--theme-text);
 }
 
 .admin-wdr-approve-btn.needs-refresh {
@@ -5185,9 +5182,9 @@ html[data-theme="light"] .action-local-hint[data-type="success"]:not(:empty) {
 }
 
 .admin-wdr-wallet-refresh-btn {
-  border-color: rgba(255, 213, 111, 0.34);
-  background: rgba(255, 213, 111, 0.08);
-  color: #ffe082;
+  border-color: var(--theme-line);
+  background: var(--theme-surface);
+  color: var(--theme-accent);
 }
 
 /* WITHDRAW-1B wallet display and paid proof */
@@ -5200,8 +5197,8 @@ html[data-theme="light"] .action-local-hint[data-type="success"]:not(:empty) {
 .withdraw-wallet-grid > div {
   padding: 8px 9px;
   border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--theme-line);
+  background: var(--theme-surface);
 }
 
 .withdraw-wallet-grid > div.wide {
@@ -5217,18 +5214,18 @@ html[data-theme="light"] .action-local-hint[data-type="success"]:not(:empty) {
 
 .withdraw-wallet-grid b {
   display: block;
-  color: #f8fbff;
+  color: var(--theme-text);
   font-size: 13px;
 }
 
 .withdraw-wallet-grid.ok > div {
-  border-color: rgba(45, 212, 191, 0.24);
-  background: rgba(45, 212, 191, 0.07);
+  border-color: var(--theme-line);
+  background: var(--theme-soft);
 }
 
 .withdraw-wallet-grid.bad > div {
-  border-color: rgba(248, 113, 113, 0.24);
-  background: rgba(248, 113, 113, 0.07);
+  border-color: var(--theme-line);
+  background: var(--theme-surface);
 }
 
 .withdraw-wallet-grid.muted {
@@ -5246,8 +5243,8 @@ html[data-theme="light"] .action-local-hint[data-type="success"]:not(:empty) {
   margin: 10px 0 8px;
   padding: 10px;
   border-radius: 16px;
-  border: 1px solid rgba(120, 167, 255, 0.30);
-  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--theme-line);
+  background: var(--theme-surface);
 }
 
 .admin-withdraw-item .withdraw-wallet-grid {
@@ -5256,7 +5253,7 @@ html[data-theme="light"] .action-local-hint[data-type="success"]:not(:empty) {
 
 .admin-withdraw-item .withdraw-wallet-grid.muted {
   display: block;
-  color: #b7c4e6;
+  color: var(--theme-muted);
   text-align: center;
   font-size: 12px;
 }
@@ -5303,11 +5300,11 @@ html[data-theme="light"] .action-local-hint[data-type="success"]:not(:empty) {
   grid-template-columns: 34px 1fr;
   gap: 10px;
   padding: 12px;
-  border: 1px solid rgba(120, 167, 255, 0.24);
+  border: 1px solid var(--theme-line);
   border-radius: 18px;
   background:
-    radial-gradient(circle at 92% 0%, rgba(255, 213, 111, 0.10), transparent 35%),
-    rgba(255, 255, 255, 0.045);
+    radial-gradient(circle at 92% 0%, var(--theme-surface), transparent 35%),
+    var(--theme-surface);
 }
 
 .withdraw-proof-step-no {
@@ -5317,8 +5314,8 @@ html[data-theme="light"] .action-local-hint[data-type="success"]:not(:empty) {
   display: grid;
   place-items: center;
   font-weight: 950;
-  color: #071329;
-  background: linear-gradient(135deg, #ffd56f, #4bcdf5);
+  color: var(--theme-text);
+  background: linear-gradient(135deg, var(--theme-surface), var(--theme-soft));
 }
 
 .withdraw-proof-step strong {
@@ -5340,8 +5337,8 @@ html[data-theme="light"] .action-local-hint[data-type="success"]:not(:empty) {
   resize: vertical;
   border-radius: 15px;
   padding: 11px 12px;
-  border: 1px solid rgba(120, 167, 255, 0.28);
-  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--theme-line);
+  background: var(--theme-inset);
   color: var(--text);
   outline: none;
   font-family: inherit;
@@ -5353,14 +5350,14 @@ html[data-theme="light"] .action-local-hint[data-type="success"]:not(:empty) {
   gap: 5px;
   padding: 12px;
   border-radius: 16px;
-  border: 1px dashed rgba(255, 213, 111, 0.45);
-  background: rgba(255, 213, 111, 0.075);
+  border: 1px dashed var(--theme-line);
+  background: var(--theme-surface);
   cursor: pointer;
 }
 
 .withdraw-proof-file-picker span {
   font-weight: 900;
-  color: #ffe082;
+  color: var(--theme-accent);
 }
 
 .withdraw-proof-file-picker b {
@@ -5384,16 +5381,16 @@ html[data-theme="light"] .action-local-hint[data-type="success"]:not(:empty) {
 }
 
 .withdraw-proof-preview-card {
-  border: 1px solid rgba(45, 212, 191, 0.28);
+  border: 1px solid var(--theme-line);
   border-radius: 16px;
   padding: 9px;
-  background: rgba(45, 212, 191, 0.07);
+  background: var(--theme-soft);
 }
 
 .withdraw-proof-preview-card span {
   display: block;
   margin-bottom: 8px;
-  color: #9ff7e8;
+  color: var(--theme-accent);
   font-size: 12px;
   font-weight: 850;
 }
@@ -5404,7 +5401,7 @@ html[data-theme="light"] .action-local-hint[data-type="success"]:not(:empty) {
   object-fit: contain;
   display: block;
   border-radius: 13px;
-  background: rgba(0,0,0,0.22);
+  background: var(--theme-surface);
 }
 
 .withdraw-proof-actions {
@@ -5429,8 +5426,8 @@ html[data-theme="light"] .action-local-hint[data-type="success"]:not(:empty) {
   padding: 8px 10px;
   border-radius: 12px;
   text-align: right;
-  background: rgba(100, 214, 255, 0.07);
-  border: 1px solid rgba(100, 214, 255, 0.14);
+  background: var(--theme-surface);
+  border: 1px solid var(--theme-line);
 }
 
 #withdrawProofHint:empty {
@@ -5438,15 +5435,15 @@ html[data-theme="light"] .action-local-hint[data-type="success"]:not(:empty) {
 }
 
 #withdrawProofHint.error {
-  color: #fecaca;
-  background: rgba(248, 113, 113, 0.12);
-  border-color: rgba(248, 113, 113, 0.28);
+  color: var(--theme-muted);
+  background: var(--theme-danger-soft);
+  border-color: var(--theme-danger);
 }
 
 #withdrawProofHint.success {
-  color: #bbf7d0;
-  background: rgba(126, 245, 188, 0.10);
-  border-color: rgba(126, 245, 188, 0.24);
+  color: var(--theme-muted);
+  background: var(--theme-surface);
+  border-color: var(--theme-line);
 }
 
 #withdrawProofHint.pending {
@@ -5454,25 +5451,25 @@ html[data-theme="light"] .action-local-hint[data-type="success"]:not(:empty) {
 }
 
 html[data-theme="light"] #withdrawProofHint {
-  color: #33435f;
-  background: rgba(20, 184, 166, 0.08);
-  border-color: rgba(20, 184, 166, 0.20);
+  color: var(--theme-muted);
+  background: var(--theme-soft);
+  border-color: var(--theme-line);
 }
 
 html[data-theme="light"] #withdrawProofHint.error {
-  color: #b42318;
-  background: rgba(248, 113, 113, 0.12);
-  border-color: rgba(220, 38, 38, 0.24);
+  color: var(--theme-muted);
+  background: var(--theme-danger-soft);
+  border-color: var(--theme-danger);
 }
 
 html[data-theme="light"] #withdrawProofHint.success {
-  color: #067647;
-  background: rgba(34, 197, 94, 0.10);
-  border-color: rgba(22, 163, 74, 0.22);
+  color: var(--theme-muted);
+  background: var(--theme-soft);
+  border-color: var(--theme-line);
 }
 
 .admin-wdr-paid-btn {
-  box-shadow: 0 0 0 1px rgba(45, 212, 191, 0.20), 0 10px 22px rgba(0,0,0,0.13);
+  box-shadow: 0 0 0 1px rgb(var(--theme-shadow-rgb) / 0.2), 0 10px 22px rgb(var(--theme-shadow-rgb) / 0.13);
 }
 
 @media (max-width: 430px) {
@@ -5606,7 +5603,7 @@ body {
   z-index: 5;
   padding-bottom: 10px;
   margin-bottom: 8px;
-  background: linear-gradient(180deg, rgba(8, 18, 42, 0.98), rgba(8, 18, 42, 0.86));
+  background: linear-gradient(180deg, var(--theme-surface), var(--theme-surface));
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
 }
@@ -5669,24 +5666,24 @@ body {
   bottom: 0;
   z-index: 5;
   padding-top: 10px;
-  background: linear-gradient(0deg, rgba(8, 18, 42, 0.98), rgba(8, 18, 42, 0.72));
+  background: linear-gradient(0deg, var(--theme-surface), var(--theme-surface));
 }
 
 html[data-theme="light"] #withdrawProofModal .withdraw-proof-modal-card {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 251, 255, 0.96));
-  color: #182745;
+  background: linear-gradient(180deg, var(--theme-surface), var(--theme-surface));
+  color: var(--theme-text);
 }
 
 html[data-theme="light"] #withdrawProofModal .winner-modal-head {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 251, 255, 0.92));
-  border-bottom: 1px solid rgba(32, 52, 97, 0.10);
-  box-shadow: 0 8px 18px rgba(22, 36, 66, 0.06);
+  background: linear-gradient(180deg, var(--theme-surface), var(--theme-surface));
+  border-bottom: 1px solid var(--theme-line);
+  box-shadow: 0 8px 18px rgb(var(--theme-shadow-rgb) / 0.06);
 }
 
 html[data-theme="light"] #withdrawProofModal .withdraw-proof-actions {
-  background: linear-gradient(0deg, rgba(255, 255, 255, 0.98), rgba(248, 251, 255, 0.90));
-  border-top: 1px solid rgba(32, 52, 97, 0.10);
-  box-shadow: 0 -8px 18px rgba(22, 36, 66, 0.06);
+  background: linear-gradient(0deg, var(--theme-surface), var(--theme-surface));
+  border-top: 1px solid var(--theme-line);
+  box-shadow: 0 -8px 18px rgb(var(--theme-shadow-rgb) / 0.06);
 }
 
 @media (max-width: 430px) {
@@ -5750,10 +5747,10 @@ html[data-theme="light"] #withdrawProofModal .withdraw-proof-actions {
 .bank-deposit-guide.crypto-guide-card,
 .withdraw-guide-card.crypto-guide-card {
   margin: 0;
-  border: 1px solid rgba(91, 194, 225, 0.28);
+  border: 1px solid var(--theme-line);
   border-radius: 10px;
   padding: 10px;
-  background: rgba(91, 194, 225, 0.055);
+  background: var(--theme-surface);
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   gap: 10px;
@@ -5762,17 +5759,17 @@ html[data-theme="light"] #withdrawProofModal .withdraw-proof-actions {
 }
 
 .withdraw-guide-card.crypto-guide-card {
-  border-color: rgba(45, 212, 191, 0.3);
-  background: rgba(45, 212, 191, 0.055);
+  border-color: var(--theme-line);
+  background: var(--theme-soft);
 }
 
 .bank-deposit-guide .crypto-guide-badge,
 .withdraw-guide-card .crypto-guide-badge {
-  border: 1px solid rgba(91, 194, 225, 0.5);
+  border: 1px solid var(--theme-line);
   border-radius: 999px;
   padding: 4px 8px;
-  color: #9deaff;
-  background: rgba(91, 194, 225, 0.08);
+  color: var(--theme-accent);
+  background: var(--theme-surface);
   font-size: 10px;
   font-weight: 900;
   white-space: nowrap;
@@ -5836,14 +5833,14 @@ html[data-theme="light"] #withdrawProofModal .withdraw-proof-actions {
 .admin-call-mini-stats > div {
   min-height: 46px;
   padding: 8px 10px;
-  border: 1px solid rgba(100, 185, 255, 0.28);
+  border: 1px solid var(--theme-line);
   border-radius: 12px;
-  background: rgba(10, 27, 60, 0.48);
+  background: var(--theme-surface);
 }
 
 .admin-call-mini-stats span {
   display: block;
-  color: rgba(224, 238, 255, 0.68);
+  color: var(--theme-text);
   font-size: 11px;
   line-height: 1.5;
 }
@@ -5851,7 +5848,7 @@ html[data-theme="light"] #withdrawProofModal .withdraw-proof-actions {
 .admin-call-mini-stats strong {
   display: block;
   margin-top: 2px;
-  color: #fff;
+  color: var(--theme-text);
   font-size: 18px;
   font-weight: 900;
   line-height: 1.25;
@@ -5870,18 +5867,18 @@ html[data-theme="light"] #withdrawProofModal .withdraw-proof-actions {
 
 .admin-call-keypad button {
   min-height: 42px;
-  border: 1px solid rgba(100, 185, 255, 0.3);
+  border: 1px solid var(--theme-line);
   border-radius: 12px;
-  background: rgba(16, 39, 86, 0.82);
-  color: #fff;
+  background: var(--theme-surface);
+  color: var(--theme-text);
   font-size: 18px;
   font-weight: 900;
 }
 
 .admin-call-keypad button.soft {
-  color: #cfeaff;
+  color: var(--theme-text);
   font-size: 14px;
-  background: rgba(7, 20, 50, 0.9);
+  background: var(--theme-surface);
 }
 
 .admin-call-keypad button:active {
@@ -5910,8 +5907,8 @@ html[data-theme="light"] #withdrawProofModal .withdraw-proof-actions {
 }
 
 @keyframes adminCallLastPulse {
-  0% { transform: scale(0.88); color: #78ffd6; }
-  55% { transform: scale(1.14); color: #ffffff; }
+  0% { transform: scale(0.88); color: var(--theme-accent); }
+  55% { transform: scale(1.14); color: var(--theme-text); }
   100% { transform: scale(1); }
 }
 
@@ -5920,7 +5917,7 @@ html[data-theme="light"] #withdrawProofModal .withdraw-proof-actions {
     min-height: 52px;
     font-size: 16px;
     font-weight: 950;
-    box-shadow: 0 10px 26px rgba(67, 185, 255, 0.24);
+    box-shadow: 0 10px 26px rgb(var(--theme-shadow-rgb) / 0.24);
   }
 }
 /* ADMIN_CALL_FINISH_PATCH_END */
@@ -5938,9 +5935,9 @@ html[data-theme="light"] #withdrawProofModal .withdraw-proof-actions {
   display: grid;
   gap: 9px;
   padding: 12px;
-  border: 1px solid rgba(45, 212, 191, 0.28);
+  border: 1px solid var(--theme-line);
   border-radius: 14px;
-  background: linear-gradient(145deg, rgba(45, 212, 191, 0.09), rgba(67, 185, 255, 0.05));
+  background: linear-gradient(145deg, var(--theme-soft), var(--theme-soft));
 }
 
 .admin-auto-draw-head {
@@ -5955,7 +5952,7 @@ html[data-theme="light"] #withdrawProofModal .withdraw-proof-actions {
   min-width: 0;
   padding: 8px;
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--theme-surface);
   text-align: center;
 }
 
@@ -5985,7 +5982,7 @@ html[data-theme="light"] #withdrawProofModal .withdraw-proof-actions {
   align-items: center;
   justify-content: center;
   padding: 18px;
-  background: rgba(4, 9, 20, 0.48);
+  background: var(--theme-backdrop);
   backdrop-filter: blur(10px);
 }
 
@@ -6010,11 +6007,11 @@ html[data-theme="light"] #withdrawProofModal .withdraw-proof-actions {
 }
 
 html[data-theme="light"] .admin-winner-modal {
-  background: rgba(16, 27, 50, 0.28);
+  background: var(--theme-backdrop);
 }
 
 html[data-theme="light"] .admin-winner-dialog {
-  background: rgba(255, 255, 255, 0.98);
+  background: var(--theme-surface);
 }
 
 .admin-winner-dialog h3 {
@@ -6047,7 +6044,7 @@ html[data-theme="light"] .admin-winner-dialog {
 
 html[data-theme="light"] .admin-winner-summary > div,
 html[data-theme="light"] .admin-winner-row {
-  background: rgba(246, 248, 255, 0.92);
+  background: var(--theme-surface);
 }
 
 .admin-winner-summary span {
@@ -6096,7 +6093,7 @@ html[data-theme="light"] .admin-winner-row {
 .admin-winner-card-panel {
   border: 1px solid color-mix(in srgb, var(--accent) 38%, var(--glass-border));
   border-radius: 14px;
-  background: color-mix(in srgb, var(--glass) 86%, rgba(45, 212, 191, 0.08));
+  background: color-mix(in srgb, var(--glass) 86%, var(--theme-soft));
   padding: 12px;
   display: grid;
   gap: 10px;
@@ -6142,8 +6139,8 @@ html[data-theme="light"] .admin-winner-row {
   padding: 0 6px;
   border-radius: 999px;
   place-items: center;
-  background: #ef4444;
-  color: #fff;
+  background: var(--theme-danger-soft);
+  color: var(--theme-text);
   font-size: 0.72rem;
   font-weight: 800;
 }
@@ -6158,14 +6155,14 @@ html[data-theme="light"] .admin-winner-row {
   padding: 5px;
   border: 1px solid color-mix(in srgb, var(--accent) 26%, var(--glass-border));
   border-radius: 11px;
-  background: color-mix(in srgb, var(--glass) 88%, rgba(45, 212, 191, 0.12));
-  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.13);
+  background: color-mix(in srgb, var(--glass) 88%, var(--theme-soft));
+  box-shadow: 0 8px 22px rgb(var(--theme-shadow-rgb) / 0.13);
   backdrop-filter: blur(12px);
 }
 
 html[data-theme="light"] .live-game-bar {
-  background: rgba(255, 255, 255, 0.96);
-  box-shadow: 0 12px 28px rgba(30, 64, 175, 0.12);
+  background: var(--theme-surface);
+  box-shadow: 0 12px 28px rgb(var(--theme-shadow-rgb) / 0.12);
 }
 
 .live-game-bar-summary {
@@ -6214,8 +6211,8 @@ html[data-theme="light"] .live-game-bar {
   padding: 1px 7px;
   margin-inline-end: 4px;
   border-radius: 999px;
-  color: #fff;
-  background: #64748b;
+  color: var(--theme-text);
+  background: var(--theme-surface);
   font-style: normal;
   font-size: 0.64rem;
   font-weight: 900;
@@ -6223,19 +6220,19 @@ html[data-theme="light"] .live-game-bar {
 }
 
 .live-status-badge.running {
-  background: #dc2626;
+  background: var(--theme-danger-soft);
 }
 
 .live-status-badge.lobby {
-  background: #0f766e;
+  background: var(--theme-soft);
 }
 
 .live-status-badge.ended {
-  background: #64748b;
+  background: var(--theme-surface);
 }
 
 .live-status-badge.cancelled {
-  background: #7f1d1d;
+  background: var(--theme-danger-soft);
 }
 
 .live-game-bar-summary-text small {
@@ -6251,7 +6248,7 @@ html[data-theme="light"] .live-game-bar {
   place-items: center;
   border-radius: 999px;
   color: var(--muted);
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--theme-surface);
   flex: 0 0 auto;
 }
 
@@ -6273,7 +6270,7 @@ html[data-theme="light"] .live-game-bar {
   padding: 5px 7px;
   border: 1px solid var(--glass-border);
   border-radius: 9px;
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--theme-surface);
   color: var(--text);
   font-family: inherit;
   font-size: 0.72rem;
@@ -6281,7 +6278,7 @@ html[data-theme="light"] .live-game-bar {
 }
 
 html[data-theme="light"] .live-bar-row {
-  background: rgba(248, 250, 252, 0.86);
+  background: var(--theme-surface);
 }
 
 .live-bar-row b,
@@ -6312,7 +6309,7 @@ html[data-theme="light"] .live-bar-row {
   align-items: flex-end;
   justify-content: center;
   padding: 16px;
-  background: rgba(2, 6, 23, 0.48);
+  background: var(--theme-surface);
 }
 
 .notification-center.open {
@@ -6330,7 +6327,7 @@ html[data-theme="light"] .live-bar-row {
 }
 
 html[data-theme="light"] .notification-panel {
-  background: rgba(255, 255, 255, 0.98);
+  background: var(--theme-surface);
 }
 
 .notification-head {
@@ -6380,7 +6377,7 @@ html[data-theme="light"] .notification-panel {
 }
 
 html[data-theme="light"] .notification-item {
-  background: rgba(247, 250, 255, 0.94);
+  background: var(--theme-surface);
 }
 
 .notification-item.is-unread {
@@ -6408,23 +6405,23 @@ html[data-theme="light"] .notification-item {
   width: fit-content;
   padding: 3px 8px;
   border-radius: 999px;
-  color: #fff;
-  background: #64748b;
+  color: var(--theme-text);
+  background: var(--theme-surface);
   font-size: 0.72rem;
   font-weight: 800;
 }
 
 .notification-status.success {
-  background: #059669;
+  background: var(--theme-soft);
 }
 
 .notification-status.pending {
-  background: #d97706;
+  background: var(--theme-warning-soft);
 }
 
 .notification-status.danger,
 .notification-status.error {
-  background: #dc2626;
+  background: var(--theme-danger-soft);
 }
 
 .notification-item-actions {
@@ -6443,7 +6440,7 @@ html[data-theme="light"] .notification-item {
 }
 
 html[data-theme="light"] .receipt-modal-card {
-  background: rgba(255, 255, 255, 0.98);
+  background: var(--theme-surface);
 }
 
 .receipt-modal-body {
@@ -6459,7 +6456,7 @@ html[data-theme="light"] .receipt-modal-card {
   align-items: center;
   padding: 12px;
   border-radius: 14px;
-  background: linear-gradient(135deg, rgba(37, 99, 235, 0.14), rgba(245, 158, 11, 0.14));
+  background: linear-gradient(135deg, var(--theme-soft), var(--theme-soft));
 }
 
 .receipt-seal {
@@ -6468,8 +6465,8 @@ html[data-theme="light"] .receipt-modal-card {
   display: grid;
   place-items: center;
   border-radius: 50%;
-  background: #10b981;
-  color: #fff;
+  background: var(--theme-soft);
+  color: var(--theme-text);
   font-weight: 900;
 }
 
@@ -6501,7 +6498,7 @@ html[data-theme="light"] .receipt-modal-card {
 
 html[data-theme="light"] .receipt-grid > div,
 html[data-theme="light"] .receipt-detail-row {
-  background: rgba(248, 250, 252, 0.94);
+  background: var(--theme-surface);
 }
 
 .receipt-grid span,
@@ -6539,20 +6536,20 @@ html[data-theme="light"] .receipt-detail-row {
 }
 
 html[data-theme="light"] .crypto-health-card {
-  background: rgba(248, 250, 252, 0.95);
+  background: var(--theme-surface);
 }
 
 .crypto-health-card.is-ok {
-  border-color: rgba(16, 185, 129, 0.45);
+  border-color: var(--theme-line);
 }
 
 .crypto-health-card.is-warning {
-  border-color: rgba(234, 179, 8, 0.45);
+  border-color: var(--theme-warning);
 }
 
 .crypto-health-card.is-error,
 .crypto-health-card.is-off {
-  border-color: rgba(239, 68, 68, 0.42);
+  border-color: var(--theme-danger);
 }
 
 .crypto-health-card strong {
@@ -6584,7 +6581,7 @@ html[data-theme="light"] .crypto-health-card {
 }
 
 html[data-theme="light"] .admin-user-behavior-grid > div {
-  background: rgba(248, 250, 252, 0.94);
+  background: var(--theme-surface);
 }
 
 .admin-user-behavior-grid span,
@@ -6654,14 +6651,14 @@ html[data-theme="light"] .admin-user-behavior-grid > div {
 
 /* ADMIN_DRAW_UI_20260917_START */
 .admin-draw-shell {
-  --draw-panel: rgba(8, 16, 34, 0.74);
-  --draw-surface: rgba(255, 255, 255, 0.035);
-  --draw-surface-strong: rgba(255, 255, 255, 0.055);
-  --draw-border: rgba(125, 160, 245, 0.18);
-  --draw-selected: rgba(95, 200, 255, 0.10);
-  --draw-selected-border: rgba(95, 200, 255, 0.46);
-  --draw-selected-text: #dff7ff;
-  --draw-shadow: 0 10px 28px rgba(2, 8, 24, 0.22);
+  --draw-panel: var(--theme-surface);
+  --draw-surface: var(--theme-inset);
+  --draw-surface-strong: var(--theme-surface);
+  --draw-border: var(--theme-line);
+  --draw-selected: var(--theme-soft);
+  --draw-selected-border: var(--theme-accent);
+  --draw-selected-text: var(--theme-accent);
+  --draw-shadow: var(--theme-shadow);
   display: grid;
   gap: 12px;
   padding: 14px;
@@ -6672,14 +6669,14 @@ html[data-theme="light"] .admin-user-behavior-grid > div {
 }
 
 html[data-theme="light"] .admin-draw-shell {
-  --draw-panel: rgba(255, 255, 255, 0.94);
-  --draw-surface: #f8faff;
-  --draw-surface-strong: #f1f5fb;
-  --draw-border: rgba(28, 50, 92, 0.15);
-  --draw-selected: rgba(23, 63, 189, 0.075);
-  --draw-selected-border: rgba(23, 63, 189, 0.34);
-  --draw-selected-text: #173fbd;
-  --draw-shadow: 0 8px 24px rgba(31, 49, 84, 0.08);
+  --draw-panel: var(--theme-surface);
+  --draw-surface: var(--theme-inset);
+  --draw-surface-strong: var(--theme-surface);
+  --draw-border: var(--theme-line);
+  --draw-selected: var(--theme-soft);
+  --draw-selected-border: var(--theme-accent);
+  --draw-selected-text: var(--theme-accent);
+  --draw-shadow: var(--theme-shadow);
 }
 
 .admin-draw-step-head {
@@ -6921,11 +6918,11 @@ html[data-theme="light"] .admin-draw-shell {
 
 .admin-draw-start-panel.is-complete .admin-draw-step-no {
   color: var(--success);
-  border-color: rgba(105, 240, 192, 0.28);
+  border-color: var(--theme-line);
 }
 
 html[data-theme="light"] .admin-draw-start-panel.is-complete .admin-draw-step-no {
-  border-color: rgba(8, 112, 85, 0.24);
+  border-color: var(--theme-line);
 }
 
 .admin-draw-start-btn {
@@ -6952,37 +6949,37 @@ html[data-theme="light"] .admin-draw-start-panel.is-complete .admin-draw-step-no
 
 /* MINI_LIGHT_THEME_CONTRAST_AUDIT_20261009 */
 html[data-theme="light"] {
-  --ui-success-text: #087055;
-  --ui-danger-text: #b42318;
-  --ui-warning-text: #76500c;
-  --ui-info-text: #173fbd;
-  --ui-strong-text: #101b32;
-  --ui-muted-text: #405171;
+  --ui-success-text: var(--theme-accent);
+  --ui-danger-text: var(--theme-danger);
+  --ui-warning-text: var(--theme-warning);
+  --ui-info-text: var(--theme-accent);
+  --ui-strong-text: var(--theme-text);
+  --ui-muted-text: var(--theme-muted);
 }
 
 /* Admin withdrawals: wallet refresh/result cards */
 html[data-theme="light"] .withdraw-wallet-status,
 html[data-theme="light"] .admin-withdraw-item .withdraw-wallet-status {
-  border-color: rgba(23, 63, 189, 0.18);
-  background: rgba(23, 63, 189, 0.035);
+  border-color: var(--theme-line);
+  background: var(--theme-soft);
   color: var(--ui-muted-text);
 }
 
 html[data-theme="light"] .withdraw-wallet-status.ok {
-  border-color: rgba(8, 112, 85, 0.30);
-  background: rgba(8, 112, 85, 0.08);
+  border-color: var(--theme-line);
+  background: var(--theme-surface);
   color: var(--ui-success-text);
 }
 
 html[data-theme="light"] .withdraw-wallet-status.bad {
-  border-color: rgba(180, 35, 24, 0.28);
-  background: rgba(180, 35, 24, 0.07);
+  border-color: var(--theme-line);
+  background: var(--theme-danger-soft);
   color: var(--ui-danger-text);
 }
 
 html[data-theme="light"] .withdraw-wallet-grid > div {
-  border-color: rgba(23, 63, 189, 0.14);
-  background: rgba(23, 63, 189, 0.035);
+  border-color: var(--theme-line);
+  background: var(--theme-soft);
 }
 
 html[data-theme="light"] .withdraw-wallet-grid span {
@@ -6998,8 +6995,8 @@ html[data-theme="light"] .admin-withdraw-item .withdraw-wallet-grid.muted {
 }
 
 html[data-theme="light"] .admin-wdr-wallet-refresh-btn {
-  border-color: rgba(154, 102, 19, 0.34);
-  background: rgba(154, 102, 19, 0.10);
+  border-color: var(--theme-line);
+  background: var(--theme-soft);
   color: var(--ui-warning-text);
 }
 
@@ -7021,13 +7018,13 @@ html[data-theme="light"] .wallet-guide-badge,
 html[data-theme="light"] .crypto-guide-badge,
 html[data-theme="light"] .bank-deposit-guide .crypto-guide-badge,
 html[data-theme="light"] .withdraw-guide-card .crypto-guide-badge {
-  border-color: rgba(23, 63, 189, 0.30);
-  background: rgba(23, 63, 189, 0.08);
+  border-color: var(--theme-line);
+  background: var(--theme-soft);
   color: var(--ui-info-text);
 }
 
 html[data-theme="light"] .badge.pending {
-  background: rgba(154, 102, 19, 0.12);
+  background: var(--theme-warning-soft);
   color: var(--ui-warning-text);
 }
 
@@ -7068,8 +7065,8 @@ html[data-theme="light"] .crypto-confirm-summary span {
 }
 
 html[data-theme="light"] .num-chip.win {
-  border-color: rgba(154, 102, 19, 0.50);
-  background: rgba(154, 102, 19, 0.12);
+  border-color: var(--theme-line);
+  background: var(--theme-soft);
   color: var(--ui-warning-text);
 }
 
@@ -7081,10 +7078,10 @@ html[data-theme="light"] .running-banner {
 
 /* Live admin action: keep a strong background behind white button text */
 html[data-theme="light"] #adminSendLiveBtn:not(:disabled) {
-  color: #f8fbff !important;
-  border-color: rgba(23, 63, 189, 0.40);
-  background: linear-gradient(135deg, #1f4cd7 0%, #355ee2 58%, #8a5e0f 100%) !important;
-  box-shadow: 0 10px 22px rgba(31, 63, 138, 0.24);
+  color: var(--theme-text) !important;
+  border-color: var(--theme-line);
+  background: linear-gradient(135deg, var(--theme-soft) 0%, var(--theme-soft) 58%, var(--theme-soft) 100%) !important;
+  box-shadow: 0 10px 22px rgb(var(--theme-shadow-rgb) / 0.24);
 }
 
 /* Finance rejection reason dialog (both deposit and withdrawal). */
@@ -7137,7 +7134,7 @@ html[data-theme="light"] #adminSendLiveBtn:not(:disabled) {
   padding: 9px 10px;
   border: 1px solid var(--glass-border);
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.045);
+  background: var(--theme-surface);
 }
 
 .withdraw-reject-summary > div.wide {
@@ -7192,7 +7189,7 @@ html[data-theme="light"] #adminSendLiveBtn:not(:disabled) {
   border: 1px solid var(--glass-border);
   border-radius: 12px;
   padding: 8px 10px;
-  background: rgba(255, 255, 255, 0.055);
+  background: var(--theme-surface);
   color: var(--text);
   font: inherit;
   font-size: 11px;
@@ -7202,9 +7199,9 @@ html[data-theme="light"] #adminSendLiveBtn:not(:disabled) {
 }
 
 .withdraw-reject-preset.is-selected {
-  border-color: rgba(255, 127, 138, 0.62);
-  background: rgba(255, 127, 138, 0.14);
-  color: #ffd9df;
+  border-color: var(--theme-danger);
+  background: var(--theme-danger-soft);
+  color: var(--theme-text);
 }
 
 #withdrawRejectReasonInput {
@@ -7214,7 +7211,7 @@ html[data-theme="light"] #adminSendLiveBtn:not(:disabled) {
   border: 1px solid var(--glass-border);
   border-radius: 14px;
   padding: 11px 12px;
-  background: rgba(255, 255, 255, 0.055);
+  background: var(--theme-inset);
   color: var(--text);
   font: inherit;
   font-size: 12px;
@@ -7223,8 +7220,8 @@ html[data-theme="light"] #adminSendLiveBtn:not(:disabled) {
 }
 
 #withdrawRejectReasonInput:focus {
-  border-color: rgba(255, 127, 138, 0.62);
-  box-shadow: 0 0 0 3px rgba(255, 127, 138, 0.10);
+  border-color: var(--theme-danger);
+  box-shadow: 0 0 0 3px rgb(var(--theme-shadow-rgb) / 0.1);
 }
 
 .withdraw-reject-counter {
@@ -7236,10 +7233,10 @@ html[data-theme="light"] #adminSendLiveBtn:not(:disabled) {
 .withdraw-reject-warning {
   margin-top: 12px;
   padding: 9px 10px;
-  border: 1px solid rgba(255, 193, 91, 0.28);
+  border: 1px solid var(--theme-danger);
   border-radius: 12px;
-  background: rgba(255, 193, 91, 0.08);
-  color: #ffe0a3;
+  background: var(--theme-danger-soft);
+  color: var(--theme-danger);
   font-size: 11px;
   line-height: 1.8;
 }
@@ -7252,7 +7249,7 @@ html[data-theme="light"] #adminSendLiveBtn:not(:disabled) {
   gap: 8px;
   margin-top: 12px;
   padding-top: 10px;
-  background: linear-gradient(0deg, rgba(8, 18, 42, 0.98), rgba(8, 18, 42, 0.76));
+  background: linear-gradient(0deg, var(--theme-surface), var(--theme-surface));
 }
 
 #withdrawRejectHint:not(:empty) {
@@ -7263,9 +7260,9 @@ html[data-theme="light"] #adminSendLiveBtn:not(:disabled) {
 }
 
 #withdrawRejectHint.error {
-  border-color: rgba(248, 113, 113, 0.28);
-  background: rgba(248, 113, 113, 0.12);
-  color: #fecaca;
+  border-color: var(--theme-danger);
+  background: var(--theme-danger-soft);
+  color: var(--theme-muted);
 }
 
 #withdrawRejectHint.pending {
@@ -7279,9 +7276,9 @@ html[data-theme="light"] #adminSendLiveBtn:not(:disabled) {
 .withdraw-user-rejection-reason {
   margin-top: 8px;
   padding: 8px 10px;
-  border: 1px solid rgba(255, 127, 138, 0.24);
+  border: 1px solid var(--theme-danger);
   border-radius: 11px;
-  background: rgba(255, 127, 138, 0.08);
+  background: var(--theme-danger-soft);
   color: var(--text);
   font-size: 11px;
   line-height: 1.8;
@@ -7292,8 +7289,8 @@ html[data-theme="light"] #adminSendLiveBtn:not(:disabled) {
 }
 
 html[data-theme="light"] .withdraw-user-rejection-reason {
-  border-color: rgba(180, 35, 24, 0.20);
-  background: rgba(180, 35, 24, 0.055);
+  border-color: var(--theme-danger);
+  background: var(--theme-danger-soft);
   color: var(--ui-strong-text);
 }
 
@@ -7302,38 +7299,38 @@ html[data-theme="light"] .withdraw-user-rejection-reason strong {
 }
 
 html[data-theme="light"] .withdraw-reject-modal-card {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.99), rgba(248, 251, 255, 0.97));
+  background: linear-gradient(180deg, var(--theme-surface), var(--theme-surface));
   color: var(--ui-strong-text);
 }
 
 html[data-theme="light"] .withdraw-reject-summary > div,
 html[data-theme="light"] .withdraw-reject-preset,
 html[data-theme="light"] #withdrawRejectReasonInput {
-  border-color: rgba(34, 56, 102, 0.20);
-  background: rgba(23, 63, 189, 0.035);
+  border-color: var(--theme-danger);
+  background: var(--theme-danger-soft);
   color: var(--ui-strong-text);
 }
 
 html[data-theme="light"] .withdraw-reject-preset.is-selected {
-  border-color: rgba(180, 35, 24, 0.38);
-  background: rgba(180, 35, 24, 0.08);
+  border-color: var(--theme-danger);
+  background: var(--theme-danger-soft);
   color: var(--ui-danger-text);
 }
 
 html[data-theme="light"] .withdraw-reject-warning {
-  border-color: rgba(154, 102, 19, 0.28);
-  background: rgba(154, 102, 19, 0.08);
+  border-color: var(--theme-danger);
+  background: var(--theme-danger-soft);
   color: var(--ui-warning-text);
 }
 
 html[data-theme="light"] .withdraw-reject-actions {
-  background: linear-gradient(0deg, rgba(255, 255, 255, 0.99), rgba(248, 251, 255, 0.92));
-  border-top: 1px solid rgba(32, 52, 97, 0.10);
+  background: linear-gradient(0deg, var(--theme-surface), var(--theme-surface));
+  border-top: 1px solid var(--theme-danger);
 }
 
 html[data-theme="light"] #withdrawRejectHint.error {
-  border-color: rgba(180, 35, 24, 0.24);
-  background: rgba(180, 35, 24, 0.07);
+  border-color: var(--theme-danger);
+  background: var(--theme-danger-soft);
   color: var(--ui-danger-text);
 }
 
@@ -7394,7 +7391,7 @@ html[data-theme="light"] .withdraw-rejection-reason {
   border: 1px solid var(--glass-border);
   border-radius: 16px;
   padding: 12px;
-  background: rgba(255, 255, 255, 0.035);
+  background: var(--theme-surface);
   color: var(--text);
   cursor: pointer;
   transition: border-color .18s ease, background .18s ease, transform .18s ease;
@@ -7405,9 +7402,9 @@ html[data-theme="light"] .withdraw-rejection-reason {
 }
 
 .admin-game-mode-card.active {
-  border-color: rgba(100, 214, 255, 0.68);
-  background: linear-gradient(145deg, rgba(100, 214, 255, 0.14), rgba(126, 245, 188, 0.07));
-  box-shadow: inset 0 0 0 1px rgba(100, 214, 255, 0.12);
+  border-color: var(--theme-line);
+  background: linear-gradient(145deg, var(--theme-surface), var(--theme-surface));
+  box-shadow: inset 0 0 0 1px rgb(var(--theme-shadow-rgb) / 0.12);
 }
 
 .admin-game-mode-icon {
@@ -7418,7 +7415,7 @@ html[data-theme="light"] .withdraw-rejection-reason {
   place-items: center;
   border-radius: 12px;
   font-size: 22px;
-  background: rgba(255, 255, 255, 0.07);
+  background: var(--theme-surface);
 }
 
 .admin-game-mode-card > span:last-child {
@@ -7446,11 +7443,11 @@ html[data-theme="light"] .withdraw-rejection-reason {
 .autopilot-mode-note {
   display: grid;
   gap: 5px;
-  border: 1px solid rgba(100, 214, 255, 0.22);
+  border: 1px solid var(--theme-line);
   border-radius: 13px;
   padding: 10px 11px;
   margin-bottom: 10px;
-  background: rgba(100, 214, 255, 0.06);
+  background: var(--theme-surface);
 }
 
 .admin-auto-explainer strong,
@@ -7469,12 +7466,12 @@ html[data-theme="light"] .withdraw-rejection-reason {
 .autopilot-level-card {
   border: 1px solid var(--glass-border);
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.035);
+  background: var(--theme-surface);
   overflow: hidden;
 }
 
 .autopilot-level-card.is-enabled {
-  border-color: rgba(126, 245, 188, 0.32);
+  border-color: var(--theme-line);
 }
 
 .autopilot-level-summary {
@@ -7520,13 +7517,13 @@ html[data-theme="light"] .withdraw-rejection-reason {
   height: 10px;
   flex: 0 0 10px;
   border-radius: 999px;
-  background: rgba(148, 163, 184, 0.75);
-  box-shadow: 0 0 0 4px rgba(148, 163, 184, 0.08);
+  background: var(--theme-surface);
+  box-shadow: 0 0 0 4px rgb(var(--theme-shadow-rgb) / 0.08);
 }
 
 .autopilot-level-card.is-enabled .autopilot-level-dot {
-  background: #7ef5bc;
-  box-shadow: 0 0 0 4px rgba(126, 245, 188, 0.1);
+  background: var(--theme-surface);
+  box-shadow: 0 0 0 4px rgb(var(--theme-shadow-rgb) / 0.1);
 }
 
 .autopilot-level-quick {
@@ -7551,7 +7548,7 @@ html[data-theme="light"] .withdraw-rejection-reason {
   margin-bottom: 10px;
   border: 1px solid var(--glass-border);
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--theme-surface);
 }
 
 .autopilot-enable-row input {
@@ -7650,12 +7647,12 @@ html[data-theme="light"] .withdraw-rejection-reason {
 html[data-theme="light"] .admin-game-mode-card,
 html[data-theme="light"] .autopilot-level-card,
 html[data-theme="light"] .autopilot-enable-row {
-  background: rgba(255, 255, 255, 0.84);
+  background: var(--theme-surface);
 }
 
 html[data-theme="light"] .admin-game-mode-card.active {
-  background: linear-gradient(145deg, rgba(31, 76, 215, 0.10), rgba(18, 158, 105, 0.07));
-  border-color: rgba(31, 76, 215, 0.42);
+  background: linear-gradient(145deg, var(--theme-soft), var(--theme-soft));
+  border-color: var(--theme-line);
 }
 
 

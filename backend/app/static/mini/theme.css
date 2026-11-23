@@ -1,0 +1,37 @@
+/* Shared semantic palette for every Mini App surface and state. */
+:root {
+  color-scheme: dark;
+  --theme-bg: #101827;
+  --theme-surface: #182338;
+  --theme-inset: #21314a;
+  --theme-text: #edf3ff;
+  --theme-muted: #afbed5;
+  --theme-line: #3b4e6b;
+  --theme-accent: #90baff;
+  --theme-on-accent: #10294f;
+  --theme-soft: #253e63;
+  --theme-warning: #f3ce83;
+  --theme-warning-soft: #46381e;
+  --theme-danger: #ffabb9;
+  --theme-danger-soft: #492d36;
+  --theme-shadow-rgb: 0 10 28;
+  --theme-backdrop: rgb(3 12 28 / 72%);
+  --theme-shadow: 0 12px 36px rgb(var(--theme-shadow-rgb) / 18%);
+  --theme-qr: #ffffff;
+}
+html[data-theme="light"] {
+  color-scheme: light;
+  --theme-bg: #f3f6fc;
+  --theme-surface: #ffffff;
+  --theme-inset: #edf2fa;
+  --theme-text: #182d4d;
+  --theme-muted: #526783;
+  --theme-line: #cbd6e6;
+  --theme-accent: #205bc4;
+  --theme-on-accent: #ffffff;
+  --theme-soft: #e6efff;
+  --theme-warning: #7b510a;
+  --theme-warning-soft: #fff1d5;
+  --theme-danger: #b32b47;
+  --theme-danger-soft: #ffedf1;
+}
