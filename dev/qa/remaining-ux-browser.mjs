@@ -82,6 +82,34 @@ try {
  await page.goto(origin+'/mini/');await page.waitForFunction(()=>window.qa);
  await page.evaluate(async()=>{qa.state.currentUserId=8;qa.state.token='OFFLINE_TEST';qa.state.tokenExp=9999999999;qa.state.soundEnabled=false;await qa.boot();});
  await page.evaluate(rows=>qa.drawGames(rows),games);
+
+ await page.evaluate(()=>{
+   document.querySelector('#headerUserName').textContent='پیمان';
+   document.querySelector('#headerWalletBalance').textContent='۲۵۰٬۰۰۰ تومان';
+   document.querySelector('#notificationsBadge').classList.remove('hidden');
+   document.querySelector('#notificationsBadge').textContent='۵';
+ });
+ for(const theme of ['light','dark']){
+   await page.evaluate(t=>document.documentElement.dataset.theme=t,theme);
+   for(const width of [320,390,1440]){
+     await page.setViewportSize({width,height:900});
+     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+     const a=await page.locator('#trackingBtn').boundingBox();
+     const b=await page.locator('#notificationsBtn').boundingBox();
+     const c=await page.locator('.player-preferences summary').boundingBox();
+     assert.ok(a.height>=44&&b.height>=44&&c.height>=44);
+     assert.ok(Math.abs(a.y-b.y)<1&&Math.abs(b.y-c.y)<1,'header actions stay aligned');
+     await page.locator('.topbar').screenshot({path:path.join(output,`header-${theme}-${width}.png`)});
+     await page.locator('.player-preferences summary').click();
+     assert.equal(await page.locator('#themeBtn').isVisible(),true);
+     const after=await page.locator('#trackingBtn').boundingBox();
+     assert.equal(after.y,a.y,'opening preferences does not move actions');
+     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+     if(width===390)await page.screenshot({path:path.join(output,`preferences-${theme}.png`)});
+     await page.locator('.player-preferences summary').click();
+   }
+ }
+ await page.setViewportSize({width:390,height:844});
  await page.locator('[data-game-filter="RUNNING"]').click();
  assert.equal(await page.locator('#gamesList article:visible').count(),1);
  assert.equal(await page.locator('#gamesList article:visible').getAttribute('data-status'),'RUNNING');
@@ -318,5 +346,5 @@ try {
    await page.locator('#adminOpsDashboard').screenshot({path:path.join(output,'dashboard-'+theme+'.png')});
  }
  assert.deepEqual(errors,[]);assert.deepEqual(writes,[]);
- console.log(JSON.stringify({result:'PASS',screenshots:18,pageErrors:errors,mutationRequests:writes,notificationCalls,receiptCalls}));
+ console.log(JSON.stringify({result:'PASS',screenshots:26,pageErrors:errors,mutationRequests:writes,notificationCalls,receiptCalls}));
 } finally {await browser.close();server.close();}

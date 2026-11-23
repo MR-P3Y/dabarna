@@ -3,11 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <link rel="stylesheet" href="./theme.css?v=20261123blue" />
+    <link rel="stylesheet" href="./theme.css?v=20261123header" />
     <title>مینی‌اپ دبرنای طوفان</title>
-    <link rel="stylesheet" href="./tracking.css?v=20261123blue" />
+    <link rel="stylesheet" href="./tracking.css?v=20261123header" />
     <link rel="stylesheet" href="./styles.css?v=unified-blue-20261123" />
-    <link rel="stylesheet" href="./ux-v2.css?v=remaining-ux-v1&amp;automation=20261113&amp;editor=20261114&amp;player=20261123blue" />
+    <link rel="stylesheet" href="./ux-v2.css?v=remaining-ux-v1&amp;automation=20261113&amp;editor=20261114&amp;player=20261123header" />
   </head>
   <body>
     <div id="appSplash" class="app-splash" aria-label="در حال آماده‌سازی مینی‌اپ">
@@ -41,11 +41,13 @@
             </div>
           </div>
         </div>
-        <div class="smart-head smart-head-secondary">
+        <div class="header-status-row">
           <div id="headerRoleBadge" class="smart-chip status hidden" aria-label="نقش مدیریتی" title="نقش مدیریتی"></div>
           <div id="headerUserStatus" class="smart-chip status normal" aria-label="وضعیت بازی" title="وضعیت حضور در بازی">بدون بازی</div>
+        </div>
+        <div class="smart-head smart-head-secondary">
           <details class="player-preferences">
-            <summary>تنظیمات نمایش</summary>
+            <summary><svg class="header-action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="2"/><circle cx="15" cy="17" r="2"/></svg><span>تنظیمات</span></summary>
             <div class="player-preference-controls">
               <button id="themeBtn" class="theme-toggle-btn" type="button" aria-label="تغییر پوسته">◐ حالت تیره</button>
               <button id="countdownVibrationBtn" class="theme-toggle-btn sound-toggle-btn" type="button" aria-pressed="false" aria-label="لرزش بازی">لرزش</button>
@@ -57,9 +59,9 @@
               </fieldset>
             </div>
           </details>
-          <button id="trackingBtn" class="theme-toggle-btn" type="button">پیگیری</button>
+          <button id="trackingBtn" class="theme-toggle-btn" type="button"><svg class="header-action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4.5 4.5M8 10.5h5"/></svg><span>پیگیری</span></button>
           <button id="notificationsBtn" class="theme-toggle-btn notification-toggle-btn" type="button" aria-label="مرکز اعلان‌ها">
-            اعلان‌ها <span id="notificationsBadge" class="notification-badge hidden">0</span>
+            <svg class="header-action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg><span>اعلان‌ها</span> <span id="notificationsBadge" class="notification-badge hidden">0</span>
           </button>
           <span id="authBadge" class="badge pending system-badge hidden">...</span>
         </div>
@@ -1236,6 +1238,6 @@
     <div id="miniToast" class="mini-toast hidden" role="status" aria-live="polite"></div>
 
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="./app.js?v=remaining-ux-v1&amp;automation=20261113&amp;crypto-history=20261113&amp;editor=20261114&amp;players=1&amp;numbering=1&amp;player=20261123blue" type="module"></script>
+    <script src="./app.js?v=remaining-ux-v1&amp;automation=20261113&amp;crypto-history=20261113&amp;editor=20261114&amp;players=1&amp;numbering=1&amp;player=20261123header" type="module"></script>
   </body>
 </html>
