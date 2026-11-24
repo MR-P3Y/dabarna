@@ -1,0 +1,1 @@
+{"private":true,"type":"module","scripts":{"locales":"node build-mini-locales.mjs","check":"node build-mini-locales.mjs --check"},"devDependencies":{"acorn":"8.15.0"}}

@@ -1,0 +1,1246 @@
+<!doctype html>
+<html lang="en" dir="ltr" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <link rel="stylesheet" href="./theme.css?v=20261123telegram" />
+    <script src="./language.js?v=20261124" defer></script>
+    <title>Toofan Dabarna Mini App</title>
+    <link rel="stylesheet" href="./tracking.css?v=20261123telegram" />
+    <link rel="stylesheet" href="./styles.css?v=unified-blue-20261123" />
+    <link rel="stylesheet" href="./ux-v2.css?v=remaining-ux-v1&amp;automation=20261113&amp;editor=20261114&amp;player=20261123telegram" />
+    <link rel="stylesheet" href="./language.css?v=20261124" />
+  </head>
+  <body>
+    <div id="appSplash" class="app-splash" aria-label="Preparing the Mini App">
+      <div class="splash-orb splash-orb-a"></div>
+      <div class="splash-orb splash-orb-b"></div>
+      <div class="splash-card glass">
+        <img class="splash-logo" src="./assets/bot-logo.jpg?v=20260630assetfix2" alt="Dabarna Toofan logo" />
+        <div class="splash-title">Toofan Dabarna</div>
+        <div class="splash-loader"><i></i></div>
+        <div id="splashStatus" class="splash-status">Preparing the game...</div>
+      </div>
+    </div>
+
+    <div class="app-shell">
+      <header class="topbar glass">
+        <div class="topbar-main">
+          <div class="brand">
+            <img id="brandLogo" class="brand-logo" src="./assets/bot-logo.jpg?v=20260630assetfix2" alt="Dabarna Toofan logo" />
+            <div>
+              <h1 id="brandTitle">Toofan Dabarna</h1>
+            </div>
+          </div>
+          <div class="smart-head smart-head-primary">
+            <div class="smart-chip">
+              <span id="headerUserLabel">User</span>
+              <strong id="headerUserName">-</strong>
+            </div>
+            <div class="smart-chip">
+              <span id="headerWalletMiniLabel">Wallet</span>
+              <strong id="headerWalletBalance">-</strong>
+            </div>
+          </div>
+        </div>
+        <div class="header-status-row">
+          <div id="headerRoleBadge" class="smart-chip status hidden" aria-label="Admin role" title="Admin role"></div>
+          <div id="headerUserStatus" class="smart-chip status normal" aria-label="Game status" title="Game participation status">No active game</div>
+        </div>
+        <div class="smart-head smart-head-secondary">
+          <details class="player-preferences">
+            <summary><svg class="header-action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="2"/><circle cx="15" cy="17" r="2"/></svg><span>Settings</span></summary>
+            <div class="player-preference-controls">
+              <label class="language-choice" for="languageSelect"><span>Language / زبان</span><select id="languageSelect" aria-label="Language / زبان"><option value="fa">فارسی</option><option value="en">English</option></select></label>
+              <button id="themeBtn" class="theme-toggle-btn" type="button" aria-label="Change theme">◐ Dark theme</button>
+              <button id="countdownVibrationBtn" class="theme-toggle-btn sound-toggle-btn" type="button" aria-pressed="false" aria-label="Game vibration">Vibration</button>
+              <button id="soundBtn" class="theme-toggle-btn sound-toggle-btn" type="button" aria-label="Turn game sound on">🔕 Sound</button>
+              <fieldset class="event-preferences">
+                <legend>Alerts in this Mini App</legend>
+                <label><input id="startCue" type="checkbox" checked /> Game starting soon</label>
+                <label><input id="numberCue" type="checkbox" checked /> New number called</label>
+              </fieldset>
+            </div>
+          </details>
+          <button id="trackingBtn" class="theme-toggle-btn" type="button"><svg class="header-action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4.5 4.5M8 10.5h5"/></svg><span>Track</span></button>
+          <button id="notificationsBtn" class="theme-toggle-btn notification-toggle-btn" type="button" aria-label="Notification center">
+            <svg class="header-action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg><span>Notifications</span> <span id="notificationsBadge" class="notification-badge hidden">0</span>
+          </button>
+          <span id="authBadge" class="badge pending system-badge hidden">...</span>
+        </div>
+      </header>
+
+      <main class="content">
+        <section id="liveGameBar" class="live-game-bar hidden" aria-label="Live game bar"></section>
+
+        <section id="view-games" class="view active">
+          <section id="returnGamePanel" class="player-return panel glass" aria-label="Return to my game" hidden>
+            <div><h2>Return to my game</h2><label id="returnGameLabel" for="returnGameSelect">My game</label>
+              <select id="returnGameSelect"></select>
+              <p id="returnGameStatus"></p></div>
+            <button id="returnGameCards" class="small-btn primary" type="button">View my cards</button>
+          </section>
+          <article class="glass panel">
+            <div class="panel-head">
+              <h2 id="gamesTitle">Games</h2>
+              <button id="refreshGamesBtn" class="small-btn" type="button">Refresh</button>
+            </div>
+            <p id="gamesHint" class="hint" role="status"></p>
+            <div id="gamesOverview" class="game-filters" role="group" aria-label="Filter games by status">
+              <button type="button" data-game-filter="ALL" aria-pressed="true">All games <span></span></button>
+              <button type="button" data-game-filter="LOBBY" aria-pressed="false">Open for purchase <span></span></button>
+              <button type="button" data-game-filter="RUNNING" aria-pressed="false">In progress <span></span></button>
+            </div>
+            <div id="hotGameBanner" class="hot-banner hidden"></div>
+            <div id="gamesList" class="stack-list" aria-label="Active game list"></div>
+            <p id="gameFilterEmpty" class="empty" hidden>No games in this category.</p>
+            <details class="quick-guide quick-guide-collapse">
+              <summary>Quick game guide</summary>
+              <p id="gamesGuideText">Choose a game, read its rules and buy cards before it starts. Follow live numbers here once the game begins.</p>
+            </details>
+          </article>
+
+          <article class="glass panel">
+            <div class="panel-head">
+              <h2 id="liveTitle">Live game status</h2>
+              <span id="liveGameMeta" class="meta">-</span>
+            </div>
+            <div id="gameTimeline" class="game-timeline"></div>
+            <div id="liveState" class="live-state"></div>
+            <div id="liveInsights" class="live-insights"></div>
+            <div id="liveLinkSection" class="live-link hidden">
+              <a id="liveLinkAnchor" class="small-btn primary" href="#" target="_blank" rel="noopener noreferrer">Watch live stream</a>
+              <div id="liveLinkMeta" class="meta"></div>
+            </div>
+            <div id="buyActionForm" class="action-form hidden">
+              <label id="buyQtyLabel" for="buyQtyInput">Card quantity</label>
+              <input id="buyQtyInput" type="text" inputmode="numeric" min="1" max="50" value="1" autocomplete="off" />
+              <button id="buyCardsBtn" class="small-btn primary" type="button">Buy cards</button>
+              <div id="buyStatusHint" class="step-hint"></div>
+            </div>
+            <div id="liveActionHint" class="step-hint"></div>
+            <div id="liveEvents" class="events-list"></div>
+          </article>
+          <article class="glass panel">
+            <div class="panel-head">
+              <h2 id="recentStatsTitle">Last 5 games statistics</h2>
+            </div>
+            <div id="recentStatsSlider" class="h-scroll-cards"></div>
+            <div class="panel-head mt-12">
+              <h2 id="trustPanelTitle">Trust indicators</h2>
+            </div>
+            <div id="trustStrip" class="trust-strip"></div>
+          </article>
+
+        </section>
+
+        <section id="view-cards" class="view">
+          <section id="cardFocus" class="panel glass" aria-labelledby="focusTitle" hidden>
+            <header><h2 id="focusTitle">Full-card focus mode</h2>
+              <button id="exitCardFocus" type="button" class="small-btn">Back to cards</button></header>
+            <p id="focusState" role="status"></p>
+            <div id="focusReadout">
+              <div class="focus-number"><span>Last number</span><strong id="focusLastNumber" aria-live="polite">—</strong></div>
+              <p class="focus-recent-row"><span>Recent numbers</span> <span id="focusRecent"></span></p>
+              <label for="focusCardSelect">My card</label> <select id="focusCardSelect"></select>
+              <div id="focusGrid" class="mini-card-grid v2"></div>
+              <p id="focusMatches"></p>
+            </div>
+          </section>
+          <article id="cardsPanel" class="glass panel cards-panel">
+            <div class="panel-head">
+              <h2 id="cardsTitle">My cards</h2>
+              <button id="refreshCardsBtn" class="small-btn" type="button">Refresh</button>
+            </div>
+            <p id="cardsHint" class="hint">Live cards with called numbers highlighted</p>
+            <div id="cardsPullHint" class="pull-hint" data-state="idle">Pull down to refresh</div>
+
+            <div id="cardsLiveBadge" class="cards-live-badge">
+              <div class="cards-live-head">
+                <span id="cardsLiveStatus" class="status-pill">-</span>
+                <span id="cardsLiveLast" class="last-number">-</span>
+              </div>
+              <div id="cardsCalledStream" class="cards-called-stream"></div>
+            </div>
+
+            <div class="cards-box">
+              <div class="cards-box-head">
+                <h3 id="cardsActiveTitle">Active cards</h3>
+                <span id="cardsActiveMeta" class="meta">-</span>
+              </div>
+              <div id="cardsActiveList" class="cards-active-list"></div>
+            </div>
+
+            <div class="cards-box mt-12">
+              <div class="cards-box-head">
+                <h3 id="cardsHistoryTitle">Card purchase history</h3>
+                <span id="cardsHistoryMeta" class="meta">Scrollable</span>
+              </div>
+              <div id="cardsHistoryList" class="cards-history-scroll"></div>
+            </div>
+
+            <div class="cards-box mt-12">
+              <div class="cards-box-head">
+                <h3 id="cardsWinsTitle">My wins</h3>
+                <select id="winsGameFilter" class="small-select"></select>
+              </div>
+              <div id="cardsWinsTimeline" class="cards-history-scroll"></div>
+            </div>
+            <details class="quick-guide quick-guide-collapse">
+              <summary>Cards and wins guide</summary>
+              <p id="cardsGuideText">Each card shows matched numbers and the expected win type. Open history for previous game details.</p>
+            </details>
+
+          </article>
+        </section>
+
+        <section id="view-wallet" class="view">
+          <article class="glass panel">
+            <div class="panel-head">
+              <h2 id="walletTitle">Wallet</h2>
+              <button id="refreshWalletBtn" class="small-btn" type="button">Refresh</button>
+            </div>
+            <div class="wallet-balance-wrap">
+              <span id="walletBalanceLabel">Current balance</span>
+              <strong id="walletBalance">-</strong>
+            </div>
+            <div class="wallet-quick-actions">
+              <button class="small-btn primary wallet-jump-btn" data-target="deposit" type="button">Add wallet funds</button>
+              <button class="small-btn wallet-jump-btn" data-target="withdraw" type="button">Withdrawal request</button>
+            </div>
+
+            <details class="quick-guide quick-guide-collapse">
+              <summary>Deposit and withdrawal guide</summary>
+              <p id="walletGuideText">Follow the steps in order and track the status of your deposit or withdrawal requests.</p>
+            </details>
+            <div class="wallet-flow-grid">
+              <div class="deposit-flow flow-card">
+                <div class="deposit-flow-head">
+                  <h3 id="depositFlowTitle">Deposit to wallet</h3>
+                  <p id="depositFlowDesc">1) Amount 2) Destination card 3) Upload receipt 4) Submit</p>
+                </div>
+
+                <div class="deposit-mode-switch" role="tablist" aria-label="Deposit method">
+                  <button id="bankDepositModeBtn" class="deposit-mode-btn active" data-deposit-mode="bank" role="tab" aria-selected="true" type="button">Bank card</button>
+                  <button id="cryptoDepositModeBtn" class="deposit-mode-btn" data-deposit-mode="crypto" role="tab" aria-selected="false" type="button">Cryptocurrency</button>
+                </div>
+
+                <div id="depositUnavailableNote" class="step-hint hidden" role="status">No deposit methods are active. You can still track previous requests and history.</div>
+
+                <div id="bankDepositPanel" class="deposit-mode-panel">
+                  <div class="crypto-guide-card crypto-guide-card-main bank-deposit-guide" aria-label="Bank card deposit guide">
+                    <div class="crypto-guide-badge">Guide</div>
+                    <div class="crypto-guide-copy">
+                      <strong>How do bank card deposits work?</strong>
+                      <p>Enter an amount in toman, choose and copy the destination card, then submit a clear receipt from your gallery or files.</p>
+                      <ul>
+                        <li>The receipt amount must match the submitted amount.</li>
+                        <li>The tracking number or payment time must be visible on the receipt.</li>
+                        <li>Funds are added to your wallet after admin review.</li>
+                      </ul>
+                    </div>
+                  </div>
+
+                <div class="deposit-step">
+                  <div class="deposit-step-no">1</div>
+                  <div class="deposit-step-body">
+                    <label id="depositAmountLabel" for="depositAmountInput">Amount (toman)</label>
+                    <input id="depositAmountInput" type="text" inputmode="numeric" min="1" autocomplete="off" />
+                    <div class="amount-preset-row" aria-label="Preset top-up amounts">
+                      <button class="amount-preset" data-amount="50000" type="button">50 thousand</button>
+                      <button class="amount-preset" data-amount="100000" type="button">100 thousand</button>
+                      <button class="amount-preset" data-amount="200000" type="button">200 thousand</button>
+                      <button class="amount-preset" data-amount="500000" type="button">500 thousand</button>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="deposit-step">
+                  <div class="deposit-step-no">2</div>
+                  <div class="deposit-step-body">
+                    <label id="depositDestinationLabel" for="depositDestinationSelect">Choose destination card</label>
+                    <div class="deposit-destination-row">
+                      <select id="depositDestinationSelect"></select>
+                      <button id="copyDepositCardBtn" class="small-btn" type="button">Copy card number</button>
+                    </div>
+                    <div id="depositDestinationCardBox" class="destination-selected-card hidden"></div>
+                    <div id="depositDestinationHint" class="step-hint"></div>
+                  </div>
+                </div>
+
+                <div class="deposit-step">
+                  <div class="deposit-step-no">3</div>
+                  <div class="deposit-step-body">
+                    <label id="depositReceiptLabel" for="depositReceiptFileInput">Payment receipt</label>
+                    <div class="deposit-receipt-help">
+                      <strong>Upload receipt</strong>
+                      <span id="depositReceiptPickerHint">On mobile, choose the receipt photo from your gallery. On a computer, select an image or PDF.</span>
+                    </div>
+                    <input id="depositReceiptFileInput" type="file" accept="image/*,.pdf" />
+                    <label class="receipt-picker-btn" for="depositReceiptFileInput">
+                      <span>Choose receipt from gallery / files</span>
+                      <small>Receipt image or PDF</small>
+                    </label>
+                    <div id="receiptPreview" class="receipt-preview hidden"></div>
+                  </div>
+                </div>
+
+                <div class="deposit-step final">
+                  <div class="deposit-step-no">4</div>
+                  <div class="deposit-step-body">
+                    <label id="depositSubmitLabel">Submit</label>
+                    <button id="submitDepositBtn" class="small-btn primary" type="button">Submit deposit</button>
+                    <div id="depositSubmitHint" class="step-hint"></div>
+                  </div>
+                </div>
+                </div>
+
+                <div id="cryptoDepositPanel" class="deposit-mode-panel hidden">
+                  <div id="cryptoCreateView" class="crypto-create-view">
+                    <div id="cryptoActiveResume" class="crypto-active-resume hidden">
+                      <div>
+                        <strong>You have an active invoice</strong>
+                        <span id="cryptoActiveResumeMeta">Open the invoice to continue payment.</span>
+                      </div>
+                      <button id="resumeCryptoInvoiceBtn" class="small-btn" type="button">Continue payment</button>
+                    </div>
+
+                    <div class="crypto-guide-card crypto-guide-card-main" aria-label="Crypto payment guide">
+                      <div class="crypto-guide-badge">Guide</div>
+                      <div class="crypto-guide-copy">
+                        <strong>How do crypto payments work?</strong>
+                        <p>Enter an amount in toman and choose a network to create an invoice at the current rate. Pay with a connected wallet or use the QR code or copied address.</p>
+                        <ul>
+                          <li>Your wallet network must exactly match the invoice network.</li>
+                          <li>Pay the exact amount displayed.</li>
+                          <li>Network fees are separate and calculated by your wallet.</li>
+                        </ul>
+                      </div>
+                    </div>
+
+                    <div class="crypto-trust-card" aria-label="Wallet connection assurance">
+                      <strong>Secure wallet connection</strong>
+                      <span>Toofan Dabarna cannot access your password, recovery phrase or private key. Payment requires your final confirmation inside your wallet.</span>
+                    </div>
+
+                    <section class="crypto-create-section" aria-labelledby="cryptoNetworkTitle">
+                      <div class="crypto-section-head">
+                        <h4 id="cryptoNetworkTitle">Choose network</h4>
+                        <p>Choose the network you will use for payment.</p>
+                      </div>
+                      <input id="cryptoNetworkSelect" type="hidden" value="" />
+                      <div id="cryptoNetworkChoices" class="crypto-network-choices" role="radiogroup" aria-label="Payment network">
+                        <button class="crypto-network-option" data-network="TRON" type="button" role="radio" aria-checked="false">
+                          <span class="crypto-network-mark is-usdt">₮</span>
+                          <span class="crypto-network-copy">
+                            <strong>Tether <b dir="ltr">USDT</b></strong>
+                            <small dir="ltr">TRON • TRC20 • Mainnet</small>
+                          </span>
+                          <span class="crypto-network-radio" aria-hidden="true"></span>
+                        </button>
+                        <button class="crypto-network-option" data-network="TON" type="button" role="radio" aria-checked="false">
+                          <span class="crypto-network-mark is-ton">TON</span>
+                          <span class="crypto-network-copy">
+                            <strong>Toncoin <b dir="ltr">TON</b></strong>
+                            <small dir="ltr">TON • Mainnet</small>
+                          </span>
+                          <span class="crypto-network-radio" aria-hidden="true"></span>
+                        </button>
+                      </div>
+                      <div id="cryptoHealthSummary" class="crypto-health-summary"></div>
+                      <div id="cryptoNetworkHint" class="step-hint"></div>
+                    </section>
+
+                    <section class="crypto-create-section">
+                      <label class="crypto-amount-label" for="cryptoAmountInput">Deposit amount <span>(toman)</span></label>
+                      <div class="crypto-amount-input-wrap">
+                        <input id="cryptoAmountInput" type="text" min="1" inputmode="numeric" placeholder="Enter amount" autocomplete="off" />
+                        <span>toman</span>
+                      </div>
+                      <div class="crypto-amount-presets" aria-label="Preset crypto amounts">
+                        <button class="crypto-amount-preset" data-amount="100000" type="button">۱۰۰,۰۰۰</button>
+                        <button class="crypto-amount-preset" data-amount="500000" type="button">۵۰۰,۰۰۰</button>
+                        <button class="crypto-amount-preset" data-amount="1000000" type="button">۱,۰۰۰,۰۰۰</button>
+                      </div>
+                    </section>
+
+                    <div class="crypto-create-summary" aria-label="Invoice terms summary">
+                      <div>
+                        <span>Current rate</span>
+                        <strong>Retrieved when issued</strong>
+                      </div>
+                      <div>
+                        <span>Invoice validity</span>
+                        <strong id="cryptoInvoiceValidity">15 minutes</strong>
+                      </div>
+                      <div>
+                        <span>Daily deposit limit</span>
+                        <strong id="cryptoDailyLimit">-</strong>
+                      </div>
+                    </div>
+
+                    <div class="crypto-create-actions">
+                      <button id="createCryptoInvoiceBtn" class="small-btn primary crypto-primary-action" type="button">Get rate and continue</button>
+                      <div id="cryptoSubmitHint" class="step-hint"></div>
+                    </div>
+                  </div>
+
+                  <div id="cryptoInvoiceBox" class="crypto-invoice-box hidden"></div>
+                </div>
+              </div>
+
+              <div class="withdraw-flow flow-card">
+                <div class="withdraw-flow-head">
+                  <h3 id="withdrawFlowTitle">Withdraw from wallet</h3>
+                  <p id="withdrawFlowDesc">1) Amount 2) Destination 3) Review 4) Submit</p>
+                </div>
+
+                <div class="crypto-guide-card withdraw-guide-card" aria-label="Wallet withdrawal guide">
+                  <div class="crypto-guide-badge">Guide</div>
+                  <div class="crypto-guide-copy">
+                    <strong>How do bank card withdrawals work?</strong>
+                    <p>Enter the withdrawal amount and your own card details, then review them before submitting.</p>
+                    <ul>
+                      <li>The cardholder name must match the withdrawal information.</li>
+                      <li>Withdrawals are paid after admin review; their status appears here.</li>
+                    </ul>
+                  </div>
+                </div>
+
+                <div class="deposit-step">
+                  <div class="deposit-step-no">1</div>
+                  <div class="deposit-step-body">
+                    <label id="withdrawLabel" for="withdrawAmountInput">Amount (toman)</label>
+                    <input id="withdrawAmountInput" type="text" inputmode="numeric" min="1" autocomplete="off" />
+                  </div>
+                </div>
+
+                <div class="deposit-step">
+                  <div class="deposit-step-no">2</div>
+                  <div class="deposit-step-body">
+                    <label id="withdrawTargetLabel">Withdrawal destination details</label>
+                    <label id="withdrawFullNameLabel" for="withdrawFullNameInput">Full name</label>
+                    <input id="withdrawFullNameInput" type="text" />
+                    <label id="withdrawCardLabel" for="withdrawCardInput">Card number</label>
+                    <input id="withdrawCardInput" type="text" />
+                    <label id="withdrawIbanLabel" for="withdrawIbanInput">IBAN (optional)</label>
+                    <input id="withdrawIbanInput" type="text" />
+                    <label id="withdrawAccountLabel" for="withdrawAccountInput">Account number (optional)</label>
+                    <input id="withdrawAccountInput" type="text" />
+                  </div>
+                </div>
+
+                <div class="deposit-step">
+                  <div class="deposit-step-no">3</div>
+                  <div class="deposit-step-body">
+                    <label id="withdrawReviewLabel">Review information</label>
+                    <div id="withdrawReviewCard" class="withdraw-review-card"></div>
+                    <div id="withdrawPreviewHint" class="step-hint"></div>
+                  </div>
+                </div>
+
+                <div class="deposit-step final">
+                  <div class="deposit-step-no">4</div>
+                  <div class="deposit-step-body">
+                    <label id="withdrawSubmitLabel">Submit</label>
+                    <button id="submitWithdrawBtn" class="small-btn primary" type="button">Submit withdrawal</button>
+                    <div id="withdrawSubmitHint" class="step-hint"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div id="walletTxs" class="stack-list"></div>
+
+            <div class="panel-head mt-12">
+              <h2 id="depositRequestsTitle">Deposit requests</h2>
+            </div>
+            <div id="depositRequestsList" class="stack-list"></div>
+
+            <div class="panel-head mt-12">
+              <h2>Crypto deposits</h2>
+            </div>
+            <div id="cryptoDepositRequestsList" class="stack-list"></div>
+
+            <div class="panel-head mt-12">
+              <h2 id="withdrawRequestsTitle">Withdrawal requests</h2>
+            </div>
+            <div id="withdrawRequestsList" class="stack-list"></div>
+          </article>
+        </section>
+
+        <section id="view-admin" class="view">
+          <article class="glass panel">
+            <div class="panel-head">
+              <h2 id="adminTitle">Admin panel</h2>
+              <button id="refreshAdminBtn" class="small-btn" type="button">Refresh</button>
+            </div>
+            <p id="adminRoleText" class="hint">Loading access level...</p>
+            <nav class="admin-quick-nav-v2" aria-label="Admin section shortcuts">
+              <button type="button" data-admin-jump="adminOpsDashboard">Dashboard</button>
+              <button type="button" data-admin-jump="adminGamesList">Manual games</button>
+              <button type="button" data-admin-jump="adminDrawModeShell">Number controls</button>
+              <button type="button" data-admin-jump="adminAutopilotList">Autopilot</button>
+              <button type="button" data-admin-jump="adminDepositsList">Deposits</button>
+              <button type="button" data-admin-jump="adminWithdrawsList">Withdrawals</button>
+            </nav>
+            <details class="quick-guide quick-guide-collapse">
+              <summary>Admin panel guide</summary>
+              <p id="adminGuideText">Select a game first, then perform actions for that game. Use the shortcuts above for financial reports.</p>
+            </details>
+
+            <section class="cards-box admin-ops-dashboard admin-ops-dashboard-v11 mt-12" aria-labelledby="adminOpsHeading">
+              <div class="admin-ops-head-v11">
+                <div class="admin-ops-head-copy">
+                  <span class="admin-ops-eyebrow">Dabarna control room • Version 1.2</span>
+                  <h3 id="adminOpsHeading">Operations overview</h3>
+                  <p>Use metrics to open relevant queues and actions; select a service for details.</p>
+                </div>
+                <button id="adminOpsRefreshBtn" class="small-btn primary" type="button" aria-label="Refresh dashboard information">↻ Refresh</button>
+              </div>
+              <div class="admin-ops-live-bar-v11" role="status" aria-live="polite" aria-atomic="true">
+                <span id="adminOpsStatus" class="admin-ops-live-state" data-state="loading">Loading information...</span>
+                <span id="adminOpsUpdatedAt" class="admin-ops-updated">Not updated yet</span>
+              </div>
+              <div id="adminOpsDashboard" class="admin-ops-grid" aria-busy="true">
+                <div class="admin-ops-skeleton-v11" aria-hidden="true"><span></span><span></span><span></span></div>
+              </div>
+              <div id="adminOpsServiceDetail" class="admin-ops-service-inspector" role="status" aria-live="polite" hidden></div>
+              <nav class="admin-ops-shortcuts-v11" aria-label="Control room shortcuts">
+                <button type="button" data-admin-jump="adminGamesList">Manual games</button>
+                <button type="button" data-admin-jump="adminRiskAlertsList">Risk alerts</button>
+                <button type="button" data-admin-jump="adminAuditLogsList">Operations log</button>
+                <button id="adminOpsSuperJump" class="hidden" type="button" data-admin-jump="superAdminSection">Manage admins</button>
+              </nav>
+            </section>
+
+            <div class="admin-game-mode-picker" aria-label="Game execution mode">
+              <button id="adminGameModeManualBtn" class="admin-game-mode-card active" type="button" data-admin-game-mode="MANUAL">
+                <span class="admin-game-mode-icon">🎮</span>
+                <span>
+                  <strong>Manual game</strong>
+                  <small>Game creation and management by admin</small>
+                </span>
+              </button>
+              <button id="adminGameModeAutoBtn" class="admin-game-mode-card" type="button" data-admin-game-mode="AUTO">
+                <span class="admin-game-mode-icon">🤖</span>
+                <span>
+                  <strong>Autopilot</strong>
+                  <small>Full lifecycle managed by the system</small>
+                </span>
+              </button>
+            </div>
+
+            <section id="adminAutoModeSection" class="admin-game-mode-section hidden">
+              <div class="cards-box">
+                <div class="cards-box-head">
+                  <div>
+                    <h3>🤖 Automatic games</h3>
+                    <span class="meta">Configure once; the system manages the remaining cycle.</span>
+                  </div>
+                  <button id="adminAutopilotRefreshBtn" class="small-btn" type="button">Reload</button>
+                </div>
+                <div class="admin-auto-explainer">
+                  <strong>How does the system work?</strong>
+                  <span>Create game → Wait for minimum players → Countdown → Start → Call numbers → End → Create next game</span>
+                </div>
+                <section class="system-game-clock-panel" aria-label="System game schedule">
+                  <div class="system-clock-head">
+                    <strong>⏱ Live system game schedule</strong>
+                    <span class="meta">Server time • Only system-created games</span>
+                  </div>
+                  <div id="adminAutopilotReadiness" class="system-clock-grid" aria-live="polite"></div>
+                  <div id="adminSystemGameClocks" class="system-clock-grid" aria-live="off">
+                    <div class="empty">Loading system game status...</div>
+                  </div>
+                </section>
+                <div id="adminAutopilotList" class="stack-list">
+                  <div class="empty">Loading Autopilot settings...</div>
+                </div>
+              </div>
+            </section>
+
+            <section id="adminManualModeSection" class="admin-game-mode-section">
+              <div class="cards-box">
+              <div class="cards-box-head">
+                <h3 id="adminCreateTitle">Create manual game</h3>
+              </div>
+              <p id="adminCreateHint" class="hint">This game is created and controlled by an admin; existing game management features remain available.</p>
+              <div class="action-form">
+                <div class="admin-grid-two">
+                  <div>
+                    <label id="adminCreateGroupLabel" for="adminCreateGroupIdInput">Group ID</label>
+                    <input id="adminCreateGroupIdInput" type="text" autocomplete="off" />
+                    <div id="adminCreateGroupHint" class="step-hint"></div>
+                  </div>
+                  <div>
+                    <label id="adminCreateTopicLabel">Game topic</label>
+                    <div id="adminCreateTopics" class="quick-price-row"></div>
+                    <input id="adminCreateTopicIdInput" type="hidden" />
+                  </div>
+                </div>
+                <div class="admin-grid-two">
+                  <div>
+                    <label id="adminCreatePriceLabel" for="adminCreateCardPriceInput">Card price (toman)</label>
+                    <input id="adminCreateCardPriceInput" type="text" inputmode="numeric" min="1000" step="1000" autocomplete="off" />
+                  </div>
+                  <div>
+                    <label id="adminCreateCommissionLabel" for="adminCreateCommissionInput">Game commission (%)</label>
+                    <input id="adminCreateCommissionInput" type="text" inputmode="decimal" value="10" autocomplete="off" />
+                    <div class="step-hint">This percentage is saved only for this manual game.</div>
+                  </div>
+                </div>
+                <div id="adminPricePresetRow" class="quick-price-row">
+                  <button class="price-chip" type="button" data-price="50000">۵۰,۰۰۰</button>
+                  <button class="price-chip" type="button" data-price="100000">۱۰۰,۰۰۰</button>
+                  <button class="price-chip" type="button" data-price="200000">۲۰۰,۰۰۰</button>
+                  <button class="price-chip" type="button" data-price="500000">۵۰۰,۰۰۰</button>
+                  <button class="price-chip" type="button" data-price="1000000">۱,۰۰۰,۰۰۰</button>
+                </div>
+                <div class="admin-action-row">
+                  <button id="adminCreateBtn" class="small-btn primary" type="button">Create custom game</button>
+                </div>
+                <div id="adminCreateHintMsg" class="step-hint"></div>
+              </div>
+            </div>
+
+            <div class="cards-box mt-12">
+              <div class="cards-box-head">
+                <h3 id="adminGamesTitle">Active manual games</h3>
+                <span id="adminSelectedGameMeta" class="meta">No game selected</span>
+              </div>
+              <div id="adminGamesList" class="cards-history-scroll"></div>
+            </div>
+
+            <div class="cards-box mt-12">
+              <div class="cards-box-head">
+                <h3 id="adminActionsTitle">Game actions</h3>
+              </div>
+              <div class="action-form">
+                                  <div id="adminDrawModeShell" class="admin-draw-shell">
+                    <div class="admin-draw-step-head">
+                      <span class="admin-draw-step-no">۱</span>
+                      <div>
+                        <strong>Number-calling mode</strong>
+                        <small>Choose how numbers are called for this manual game.</small>
+                      </div>
+                    </div>
+
+                    <div class="admin-draw-mode-grid">
+                      <button id="adminDrawModeManualBtn" class="admin-draw-mode-card" type="button">
+                        <span class="admin-draw-mode-icon">M</span>
+                        <span class="admin-draw-mode-copy">
+                          <strong>By admin</strong>
+                          <small>The admin calls numbers using the keypad</small>
+                        </span>
+                        <span class="admin-draw-mode-state">Select</span>
+                      </button>
+
+                      <button id="adminDrawModeAutoBtn" class="admin-draw-mode-card" type="button">
+                        <span class="admin-draw-mode-icon">A</span>
+                        <span class="admin-draw-mode-copy">
+                          <strong>Automatic number caller</strong>
+                          <small>Only number calling is automated for this game</small>
+                        </span>
+                        <span class="admin-draw-mode-state">Select</span>
+                      </button>
+                    </div>
+
+                    <div class="admin-draw-selection-summary">
+                      <div>
+                        <span>Mode</span>
+                        <strong id="adminDrawModeLabel">Not selected</strong>
+                      </div>
+                      <div>
+                        <span>Status</span>
+                        <strong id="adminDrawModeLock">Editable until game starts</strong>
+                      </div>
+                    </div>
+
+                    <div id="adminDrawModeEmpty" class="admin-draw-empty-state">
+                      <strong>Choose number-calling mode</strong>
+                      <span>By admin or automatic caller.</span>
+                    </div>
+
+                    <div id="adminManualDrawPanel" class="admin-draw-config-panel hidden">
+                      <div class="admin-draw-step-head compact">
+                        <span class="admin-draw-step-no">۲</span>
+                        <div>
+                          <strong>Manual calling</strong>
+                          <small>Enter a number and call it.</small>
+                        </div>
+                      </div>
+
+                      <label id="adminCallLabel" for="adminCallNumberInput">Number to call</label>
+                      <input id="adminCallNumberInput" type="tel" inputmode="numeric" min="1" max="90" maxlength="2" enterkeyhint="done" autocomplete="off" />
+
+                      <div class="admin-action-row">
+                        <button id="adminCallBtn" class="small-btn primary" type="button">Call number</button>
+                        <button id="adminUndoBtn" class="small-btn" type="button">Undo last number</button>
+                      </div>
+
+                      <div id="adminCallQuickPanel" class="admin-call-quick-panel">
+                        <div class="admin-call-mini-stats">
+                          <div>
+                            <span>Last number</span>
+                            <strong id="adminCallLastNumber">-</strong>
+                          </div>
+                          <div>
+                            <span>Last 4 numbers</span>
+                            <strong id="adminCallRecentNumbers">-</strong>
+                          </div>
+                          <div>
+                            <span>Progress</span>
+                            <strong id="adminCallProgressCount">0/90</strong>
+                          </div>
+                        </div>
+                        <div id="adminCallKeypad" class="admin-call-keypad" aria-label="Admin number keypad">
+                          <button type="button" data-admin-call-digit="1">1</button>
+                          <button type="button" data-admin-call-digit="2">2</button>
+                          <button type="button" data-admin-call-digit="3">3</button>
+                          <button type="button" data-admin-call-digit="4">4</button>
+                          <button type="button" data-admin-call-digit="5">5</button>
+                          <button type="button" data-admin-call-digit="6">6</button>
+                          <button type="button" data-admin-call-digit="7">7</button>
+                          <button type="button" data-admin-call-digit="8">8</button>
+                          <button type="button" data-admin-call-digit="9">9</button>
+                          <button type="button" class="soft" data-admin-call-clear="1">Clear</button>
+                          <button type="button" data-admin-call-digit="0">0</button>
+                          <button type="button" class="soft" data-admin-call-backspace="1">&#9003;</button>
+                        </div>
+                      </div>
+                      <div id="adminCallActionHint" class="step-hint action-local-hint"></div>
+                    </div>
+
+                    <div id="adminAutoDrawPanel" class="admin-auto-draw-panel admin-draw-config-panel hidden">
+                      <div class="admin-draw-step-head compact">
+                        <span class="admin-draw-step-no">۲</span>
+                        <div>
+                          <strong>Automatic calling</strong>
+                          <small>Set the interval between number calls.</small>
+                        </div>
+                      </div>
+
+                      <label for="adminAutoDrawInterval">Calling interval</label>
+                      <select id="adminAutoDrawInterval" class="admin-draw-native-select">
+                        <option value="2">2 seconds — Full card</option>
+                        <option value="3">3 seconds — Full card</option>
+                        <option value="4">4 seconds — Full card</option>
+                        <option value="5">5 seconds</option>
+                        <option value="8">8 seconds</option>
+                        <option value="10" selected>10 seconds</option>
+                        <option value="15">15 seconds</option>
+                      </select>
+
+                      <div id="adminAutoDrawIntervalChips" class="admin-draw-interval-grid">
+                        <button type="button" data-admin-auto-interval="2">2 seconds</button>
+                        <button type="button" data-admin-auto-interval="3">3 seconds</button>
+                        <button type="button" data-admin-auto-interval="4">4 seconds</button>
+                        <button type="button" data-admin-auto-interval="5">5 seconds</button>
+                        <button type="button" data-admin-auto-interval="8">8 seconds</button>
+                        <button type="button" data-admin-auto-interval="10">10 seconds</button>
+                        <button type="button" data-admin-auto-interval="15">15 seconds</button>
+                      </div>
+
+                      <div class="admin-auto-draw-head">
+                        <div>
+                          <span>Status</span>
+                          <strong id="adminAutoDrawStatus">Paused</strong>
+                        </div>
+                        <div>
+                          <span>Next number in</span>
+                          <strong id="adminAutoDrawCountdown">--:--</strong>
+                        </div>
+                        <div>
+                          <span>Numbers remaining</span>
+                          <strong id="adminAutoDrawRemaining">-</strong>
+                        </div>
+                      </div>
+
+                      <div class="admin-draw-proof">
+                        <span>Sequence code</span>
+                        <strong id="adminDrawCommitment">-</strong>
+                      </div>
+
+                      <div class="admin-action-row">
+                        <button id="adminAutoDrawPauseBtn" class="small-btn" type="button">Pause</button>
+                        <button id="adminAutoDrawResumeBtn" class="small-btn primary" type="button">Resume</button>
+                      </div>
+                      <div id="adminAutoDrawHint" class="step-hint action-local-hint">Choose the number-calling mode before starting the game.</div>
+                    </div>
+
+                    <div id="adminDrawStartPanel" class="admin-draw-start-panel">
+                      <div class="admin-draw-step-head compact">
+                        <span class="admin-draw-step-no">۳</span>
+                        <div>
+                          <strong>Start</strong>
+                          <small id="adminDrawStartSummary">Select the number-calling mode first.</small>
+                        </div>
+                      </div>
+                      <button id="adminStartBtn" class="small-btn primary admin-draw-start-btn" type="button">Start game</button>
+                    </div>
+                  </div>
+                <label id="adminCancelReasonLabel" for="adminCancelReasonInput">Lobby cancellation reason</label>
+                <input id="adminCancelReasonInput" type="text" />
+                <div class="admin-action-row">
+                  <button id="adminCloseLobbyBtn" class="small-btn danger" type="button">Cancel game before start</button>
+                </div>
+                <div id="adminCloseLobbyHint" class="step-hint action-local-hint"></div>
+                <label id="adminLiveLinkLabel" for="adminLiveLinkInput">Live stream link</label>
+                <input id="adminLiveLinkInput" type="url" />
+                <div class="admin-action-row">
+                  <button id="adminSetLiveBtn" class="small-btn" type="button">Save live stream link</button>
+                  <button id="adminSendLiveBtn" class="small-btn primary" type="button">Send live stream link</button>
+                  <button id="adminClearLiveBtn" class="small-btn" type="button">Remove live stream link</button>
+                </div>
+                <div id="adminLiveActionHint" class="step-hint action-local-hint"></div>
+                <div id="adminActionHint" class="step-hint"></div>
+              </div>
+            </div>
+
+            </section>
+
+            <div class="admin-accordion mt-12">
+              <details class="accordion-item">
+                <summary class="accordion-head">
+                  <h3>Risk alerts</h3>
+                  <span class="accordion-icon">▾</span>
+                </summary>
+                <div class="accordion-body">
+                  <div id="adminRiskAlertsList" class="cards-history-scroll"></div>
+                </div>
+              </details>
+
+              <details class="accordion-item">
+                <summary class="accordion-head">
+                  <h3>Admin action log</h3>
+                  <span class="accordion-icon">▾</span>
+                </summary>
+                <div class="accordion-body">
+                  <div id="adminAuditLogsList" class="cards-history-scroll"></div>
+                </div>
+              </details>
+
+              <details class="accordion-item" open>
+                <summary class="accordion-head">
+                  <h3 id="adminDepositsTitle">Pending deposits</h3>
+                  <span class="accordion-icon">▾</span>
+                </summary>
+                <div class="accordion-body">
+                  <div id="adminDepositsList" class="cards-history-scroll"></div>
+                </div>
+              </details>
+
+              <details class="accordion-item">
+                <summary class="accordion-head">
+                  <h3>Crypto deposits needing review</h3>
+                  <span class="accordion-icon">▾</span>
+                </summary>
+                <div class="accordion-body">
+                  <div id="adminCryptoHint" class="step-hint"></div>
+                  <div id="adminCryptoDepositsList" class="cards-history-scroll"></div>
+                </div>
+              </details>
+
+              <details class="accordion-item">
+                <summary class="accordion-head">
+                  <h3 id="adminWithdrawsTitle">Withdrawal management</h3>
+                  <span class="accordion-icon">▾</span>
+                </summary>
+                <div class="accordion-body">
+                  <div id="adminWithdrawsList" class="cards-history-scroll"></div>
+                </div>
+              </details>
+
+              <details class="accordion-item">
+                <summary class="accordion-head">
+                  <h3 id="adminUsersTitle">Manage users</h3>
+                  <span class="accordion-icon">▾</span>
+                </summary>
+                <div class="accordion-body">
+                  <div class="action-form">
+                    <label id="adminUsersSearchLabel" for="adminUsersSearchInput">Search (TG ID / @username / gid: / dep: / wdr:)</label>
+                    <input id="adminUsersSearchInput" type="text" />
+                    <div class="admin-action-row">
+                      <button id="adminUsersSearchBtn" class="small-btn primary" type="button">Search</button>
+                      <button id="adminUsersRefreshBtn" class="small-btn" type="button">Reload selected user</button>
+                    </div>
+                    <div id="adminUsersHint" class="step-hint"></div>
+                  </div>
+                  <div id="adminUsersRecent" class="admin-quick-history hidden mt-12" aria-label="Recent users"></div>
+                  <div id="adminUsersSearchResults" class="cards-history-scroll mt-12"></div>
+                  <div id="adminUsersProfileBox" class="cards-history-scroll mt-12"></div>
+                </div>
+              </details>
+
+              <details id="superAdminSection" class="accordion-item hidden">
+                <summary class="accordion-head">
+                  <h3 id="superAdminTitle">Superadmin management center</h3>
+                  <span class="accordion-icon">▾</span>
+                </summary>
+                <div class="accordion-body superadmin-workspace-v12 superadmin-workspace-v13">
+                  <div class="superadmin-workspace-head superadmin-workspace-head-v13">
+                    <div>
+                      <span class="admin-ops-eyebrow">SUPER ADMIN · CONTROL CENTER</span>
+                      <h4>Dabarna control center</h4>
+                      <p>Manage operations in five sections; existing permissions, APIs and security confirmations remain in place.</p>
+                    </div>
+                    <span class="superadmin-scope-note">Superadmin workspace</span>
+                  </div>
+                  <div class="superadmin-category-layout">
+                    <nav class="superadmin-category-nav" role="tablist" aria-orientation="vertical" aria-label="Superadmin categories">
+                      <button id="superTabOverview" class="superadmin-category-tab" type="button" role="tab" data-super-panel-tab="superPanelOverview" aria-controls="superPanelOverview" aria-selected="true" tabindex="0"><span aria-hidden="true">▦</span><span>Overview<small>Quick access</small></span></button>
+                      <button id="superTabPayments" class="superadmin-category-tab" type="button" role="tab" data-super-panel-tab="superPanelPayments" aria-controls="superPanelPayments" aria-selected="false" tabindex="-1"><span aria-hidden="true">◈</span><span>Manage payments<small>Status and review</small></span></button>
+                      <button id="superTabAccounts" class="superadmin-category-tab" type="button" role="tab" data-super-panel-tab="superPanelAccounts" aria-controls="superPanelAccounts" aria-selected="false" tabindex="-1"><span aria-hidden="true">▤</span><span>Deposit destinations<small>Wallet and bank</small></span></button>
+                      <button id="superTabRoles" class="superadmin-category-tab" type="button" role="tab" data-super-panel-tab="superPanelRoles" aria-controls="superPanelRoles" aria-selected="false" tabindex="-1"><span aria-hidden="true">♙</span><span>Roles and access<small>Manage admins</small></span></button>
+                      <button id="superTabSecurity" class="superadmin-category-tab" type="button" role="tab" data-super-panel-tab="superPanelSecurity" aria-controls="superPanelSecurity" aria-selected="false" tabindex="-1"><span aria-hidden="true">◇</span><span>Security and monitoring<small>Alerts and logs</small></span></button>
+                    </nav>
+                    <div class="superadmin-category-panels">
+                      <section id="superPanelOverview" class="superadmin-panel-v13" role="tabpanel" data-super-panel="superPanelOverview" aria-labelledby="superTabOverview" tabindex="0">
+                        <header class="superadmin-panel-head"><h5>Management overview</h5><p>Find key actions here. Live metrics appear in the operations dashboard above.</p></header>
+                        <div class="superadmin-quick-grid">
+                          <button class="superadmin-quick-card" type="button" data-super-open="superPanelPayments"><strong>◈ Payment status</strong><span>Enable or disable payment methods and check their health</span></button>
+                          <button class="superadmin-quick-card" type="button" data-super-open="superPanelAccounts"><strong>▤ Deposit destinations</strong><span>Crypto addresses and destination bank cards</span></button>
+                          <button class="superadmin-quick-card" type="button" data-super-open="superPanelRoles"><strong>♙ Access levels</strong><span>Grant or remove roles and search admins</span></button>
+                          <button class="superadmin-quick-card" type="button" data-super-open="superPanelSecurity"><strong>◇ Monitoring and security</strong><span>Access alerts and operation logs</span></button>
+                        </div>
+                        <div class="superadmin-overview-notice">Use Operations overview above for live metrics and service status.</div>
+                      </section>
+                      <section id="superPanelPayments" class="superadmin-panel-v13" role="tabpanel" data-super-panel="superPanelPayments" aria-labelledby="superTabPayments" tabindex="0" hidden>
+                        <header class="superadmin-panel-head"><h5>Manage payments</h5><p>Payment method status and monitoring tools; existing confirmations remain required for sensitive actions.</p></header>
+                        <h6 class="superadmin-panel-subtitle">Crypto payments</h6>
+                  <div class="super-crypto-control">
+                    <div class="super-crypto-copy">
+                      <strong>User crypto payments</strong>
+                      <span id="superCryptoStatusText">Loading status...</span>
+                    </div>
+                    <button
+                      id="superCryptoToggleBtn"
+                      class="small-btn danger"
+                      type="button"
+                      role="switch"
+                      aria-checked="true"
+                      data-next-enabled="false"
+                    >Disable crypto payments</button>
+                  </div>
+                  <div id="superCryptoHint" class="step-hint"></div>
+                  <div class="admin-action-row super-crypto-ops">
+                    <button id="superCryptoHealthBtn" class="small-btn" type="button">Service health</button>
+                    <button id="superCryptoReconcileBtn" class="small-btn" type="button">Last 24 hours reconciliation</button>
+                  </div>
+                  <div id="superCryptoOpsResult" class="super-crypto-ops-result hidden"></div>
+                        <h6 class="superadmin-panel-subtitle">Card transfer</h6>
+                  <div class="super-crypto-control super-bank-control">
+                    <div class="super-crypto-copy">
+                      <strong>User bank card deposits</strong>
+                      <span id="superBankDepositStatusText">Enabled for users — Ready to change status</span>
+                    </div>
+                    <button
+                      id="superBankDepositToggleBtn"
+                      class="small-btn danger"
+                      type="button"
+                      role="switch"
+                      aria-checked="true"
+                      data-next-enabled="false"
+                    >Disable card transfers</button>
+                  </div>
+                  <div id="superBankDepositHint" class="step-hint"></div>
+                      </section>
+                      <section id="superPanelAccounts" class="superadmin-panel-v13" role="tabpanel" data-super-panel="superPanelAccounts" aria-labelledby="superTabAccounts" tabindex="0" hidden>
+                        <header class="superadmin-panel-head"><h5>Accounts and deposit destinations</h5><p>View crypto addresses and manage bank cards under the existing safeguards.</p></header>
+                  <details id="superCryptoWalletSection" class="super-finance-editor mt-12">
+                    <summary>💎 Manage TON and USDT-TRC20 receiving addresses</summary>
+                    <p class="hint">Only the owner superadmin can add or change receiving addresses. Initial setup requires payments to be disabled; changing an existing address requires invoice checks and final confirmation.</p>
+                    <button id="superCryptoAddressesRefreshBtn" class="small-btn" type="button">Reload addresses</button>
+                    <div id="superCryptoAddressesList" class="cards-history-scroll mt-12"></div>
+                    <div id="superCryptoProposalEditor" class="action-form hidden mt-12">
+                      <strong>Add or change a receiving address</strong>
+                      <p id="superCryptoProposalNetwork" class="hint"></p>
+                      <label for="superCryptoProposedAddress">New wallet address</label>
+                      <input id="superCryptoProposedAddress" type="text" dir="ltr" maxlength="128" autocomplete="off" spellcheck="false" placeholder="Valid network address" />
+                      <p class="hint">Enter a public wallet address. Changing an existing address requires disabled payments, network checks and separate confirmation. Never enter a recovery phrase or private key.</p>
+                      <div class="admin-action-row">
+                        <button id="superCryptoProposalSubmitBtn" type="button" class="small-btn primary">Save address / request change</button>
+                        <button id="superCryptoProposalCancelBtn" type="button" class="small-btn">Cancel</button>
+                      </div>
+                    </div>
+                    <div id="superCryptoProposalsList" class="cards-history-scroll mt-12" aria-live="polite"></div>
+                    <div id="superCryptoProposalHint" class="step-hint" role="status"></div>
+                  </details>
+                  <details id="superBankCardsSection" class="super-finance-editor mt-12">
+                    <summary>💳 Manage deposit destination cards (list, add, edit, disable)</summary>
+                    <p class="hint">New cards are initially disabled. Enabling or changing a card requires separate confirmation.</p>
+                    <div class="admin-action-row">
+                      <button id="superBankCardsRefreshBtn" class="small-btn" type="button">Refresh cards</button>
+                      <button id="superBankCardsNewBtn" class="small-btn primary" type="button">Add new card</button>
+                    </div>
+                    <div id="superBankCardsList" class="cards-history-scroll mt-12" aria-live="polite"></div>
+                    <div id="superBankCardsEditor" class="action-form hidden mt-12">
+                      <strong id="superBankCardsEditorTitle">Add card</strong>
+                      <label for="superBankCardTitle">Card display title</label>
+                      <input id="superBankCardTitle" type="text" maxlength="100" autocomplete="off" />
+                      <label for="superBankCardNumber">Destination card number</label>
+                      <input id="superBankCardNumber" type="text" inputmode="numeric" maxlength="32" autocomplete="off" dir="ltr" />
+                      <label for="superBankCardBankName">Bank name</label>
+                      <input id="superBankCardBankName" type="text" maxlength="100" autocomplete="off" />
+                      <label for="superBankCardAccountName">Account holder</label>
+                      <input id="superBankCardAccountName" type="text" maxlength="100" autocomplete="off" />
+                      <label for="superBankCardIban">IBAN (optional)</label>
+                      <input id="superBankCardIban" type="text" maxlength="40" autocomplete="off" dir="ltr" />
+                      <label for="superBankCardAccountNumber">Account number (optional)</label>
+                      <input id="superBankCardAccountNumber" type="text" maxlength="40" autocomplete="off" dir="ltr" />
+                      <label class="super-bank-active-row">
+                        <input id="superBankCardActive" type="checkbox" />
+                        Enabled for user deposits
+                      </label>
+                      <div class="admin-action-row">
+                        <button id="superBankCardSaveBtn" class="small-btn primary" type="button">Save changes</button>
+                        <button id="superBankCardDeleteBtn" class="small-btn danger hidden" type="button">Delete disabled card</button>
+                        <button id="superBankCardCancelBtn" class="small-btn" type="button">Cancel</button>
+                      </div>
+                    </div>
+                    <div id="superBankCardsHint" class="step-hint" role="status"></div>
+                  </details>
+                      </section>
+                      <section id="superPanelRoles" class="superadmin-panel-v13" role="tabpanel" data-super-panel="superPanelRoles" aria-labelledby="superTabRoles" tabindex="0" hidden>
+                        <header class="superadmin-panel-head"><h5>Manage roles and access</h5><p>Manage authorized users and the admin list. Access is enforced by the server.</p></header>
+                  <div class="action-form">
+                    <label id="superAdminUserLabel" for="superAdminTgUserInput">User Telegram ID</label>
+                    <input id="superAdminTgUserInput" type="text" inputmode="numeric" min="1" autocomplete="off" />
+                    <label id="superAdminRoleLabel" for="superAdminRoleSelect">Role</label>
+                    <select id="superAdminRoleSelect">
+                      <option value="GAME_OPERATOR">Game operator</option>
+                      <option value="FINANCE_ADMIN">Finance admin</option>
+                      <option value="ADMIN">Admin</option>
+                      <option value="SUPER_ADMIN">Superadmin</option>
+                    </select>
+                    <div class="admin-action-row">
+                      <button id="superAdminGrantBtn" class="small-btn primary" type="button">Grant role</button>
+                      <button id="superAdminRevokeBtn" class="small-btn danger" type="button">Remove role</button>
+                    </div>
+                    <div id="superAdminHint" class="step-hint"></div>
+                  </div>
+                  <div class="admin-list-filter mt-12">
+                    <input id="superAdminFilterInput" type="search" autocomplete="off" aria-label="Filter admins" placeholder="Quick search by admin name, ID or role" />
+                    <button id="superAdminListRefreshBtn" class="small-btn" type="button">Refresh list</button>
+                  </div>
+                  <div id="superAdminListSummary" class="step-hint" aria-live="polite"></div>
+                  <div id="superAdminList" class="cards-history-scroll mt-12"></div>
+                      </section>
+                      <section id="superPanelSecurity" class="superadmin-panel-v13" role="tabpanel" data-super-panel="superPanelSecurity" aria-labelledby="superTabSecurity" tabindex="0" hidden>
+                        <header class="superadmin-panel-head"><h5>Security and monitoring</h5><p>Access existing reports and alerts. This page does not change security settings or create transactions.</p></header>
+                        <div class="superadmin-quick-grid">
+                          <button class="superadmin-quick-card" type="button" data-admin-jump="adminRiskAlertsList"><strong>⚠ Risk alerts</strong><span>Open recorded alerts in the admin panel</span></button>
+                          <button class="superadmin-quick-card" type="button" data-admin-jump="adminAuditLogsList"><strong>▣ Operations log</strong><span>View existing admin history</span></button>
+                          <button class="superadmin-quick-card" type="button" data-admin-jump="adminOpsDashboard"><strong>▦ Service status</strong><span>Return to health and operations monitoring</span></button>
+                        </div>
+                        <div class="superadmin-overview-notice">Sensitive event logging and permission checks remain handled by existing services.</div>
+                      </section>
+                    </div>
+                  </div>
+                </div>
+              </details>
+            </div>
+          </article>
+        </section>
+      </main>
+
+      <nav class="bottom-nav glass" aria-label="Main navigation">
+        <button class="nav-btn active" data-view="games" type="button" aria-current="page" aria-label="Games">
+          <span class="nav-icon icon-die" aria-hidden="true"></span><span id="navGamesText">Game</span>
+        </button>
+        <button class="nav-btn" data-view="cards" type="button" aria-label="My cards">
+          <span class="nav-icon icon-cards" aria-hidden="true"></span><span><span id="navCardsText">My cards</span> <span id="navCardsCount" hidden></span></span>
+        </button>
+        <button class="nav-btn" data-view="wallet" type="button" aria-label="Wallet">
+          <span class="nav-icon icon-wallet" aria-hidden="true"></span><span id="navWalletText">Wallet</span>
+        </button>
+        <button id="adminNavBtn" class="nav-btn hidden" data-view="admin" type="button" aria-label="Admin">
+          <span class="nav-icon icon-admin" aria-hidden="true">⚙︎</span><span id="navAdminText">Admin</span>
+        </button>
+      </nav>
+    </div>
+
+    <div id="adminNotify" class="admin-notify hidden" aria-live="polite">
+      <button id="adminNotifyClose" class="admin-notify-close" type="button" aria-label="Close notification">×</button>
+      <button id="adminNotifyBody" class="admin-notify-body" type="button">
+        <span id="adminNotifyKind" class="admin-notify-kind">Admin notification</span>
+        <strong id="adminNotifyTitle">New item</strong>
+        <span id="adminNotifyMeta">Tap to view details</span>
+      </button>
+    </div>
+
+    <div id="notificationCenter" class="notification-center" aria-hidden="true">
+      <div class="notification-panel glass" role="dialog" aria-modal="true" aria-labelledby="notificationCenterTitle">
+        <div class="notification-head">
+          <div>
+            <h2 id="notificationCenterTitle">Notification center</h2>
+            <p id="notificationCenterMeta">Wins, deposits, withdrawals and important messages</p>
+          </div>
+          <button id="notificationCloseBtn" class="icon-btn" type="button" aria-label="Close notifications">×</button>
+        </div>
+        <div class="notification-actions">
+          <button id="notificationMarkAllBtn" class="small-btn" type="button">Read all</button>
+          <button id="notificationRefreshBtn" class="small-btn" type="button">Refresh</button>
+        </div>
+        <p id="notificationSyncStatus" class="inbox-sync" role="status" aria-live="polite">Not synced yet</p>
+        <div id="notificationFilters" class="inbox-filters" role="group" aria-label="Filter notifications">
+          <button type="button" data-filter="all" aria-pressed="true">All</button>
+          <button type="button" data-filter="unread" aria-pressed="false">Unread</button>
+          <button type="button" data-filter="game" aria-pressed="false">Games</button>
+          <button type="button" data-filter="win" aria-pressed="false">Wins</button>
+          <button type="button" data-filter="payment" aria-pressed="false">Finance</button>
+          <button type="button" data-filter="system" aria-pressed="false">System</button>
+        </div>
+        <div id="notificationList" class="notification-list"></div>
+      </div>
+    </div>
+
+    <div id="winnerModal" class="winner-modal" aria-hidden="true">
+      <div class="winner-modal-card glass" role="dialog" aria-modal="true" aria-labelledby="winnerModalTitle" aria-describedby="winnerModalStatus">
+        <div class="winner-modal-head">
+          <h2 id="winnerModalTitle">Win notification</h2>
+          <button id="winnerCloseBtn" class="icon-btn" type="button" aria-label="Close">×</button>
+        </div>
+        <div class="winner-graphic" aria-hidden="true">
+          <span>🎉</span>
+          <i></i><i></i><i></i><i></i><i></i>
+        </div>
+        <p id="winnerModalKind" class="winner-modal-kind"></p>
+        <p id="winnerModalAmount" class="winner-modal-amount"></p>
+        <p id="winnerModalGame" class="winner-modal-game"></p>
+        <p id="winnerModalStatus" class="winner-modal-status"></p>
+        <div id="winnerCardDetails" class="winner-card-shares"></div>
+        <div class="winner-modal-actions">
+          <button id="winnerGameBtn" class="small-btn" type="button">View game</button>
+          <button id="winnerWalletBtn" class="small-btn primary" type="button">View in wallet</button>
+          <button id="winnerDismissBtn" class="small-btn" type="button">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="historyModal" class="winner-modal" aria-hidden="true">
+      <div class="history-modal-card glass">
+        <div class="winner-modal-head">
+          <h2 id="historyModalTitle">Card details</h2>
+          <button id="historyCloseBtn" class="icon-btn" type="button" aria-label="Close">×</button>
+        </div>
+        <p id="historyModalMeta" class="winner-modal-kind"></p>
+        <div id="historyModalBody" class="history-modal-body"></div>
+      </div>
+    </div>
+
+    <div id="depositReceiptModal" class="winner-modal" aria-hidden="true">
+      <div class="history-modal-card glass">
+        <div class="winner-modal-head">
+          <h2 id="depositReceiptModalTitle">Deposit receipt</h2>
+          <button id="depositReceiptCloseBtn" class="icon-btn" type="button" aria-label="Close">×</button>
+        </div>
+        <p id="depositReceiptModalMeta" class="winner-modal-kind"></p>
+        <div id="depositReceiptModalBody" class="deposit-receipt-modal-body"></div>
+        <div id="depositReceiptModalActions" class="deposit-receipt-actions"></div>
+      </div>
+    </div>
+
+    <div id="receiptModal" class="winner-modal" aria-hidden="true">
+      <div class="receipt-modal-card glass" role="dialog" aria-modal="true" aria-labelledby="receiptModalTitle">
+        <div class="winner-modal-head">
+          <h2 id="receiptModalTitle">Transaction receipt</h2>
+          <button id="receiptModalCloseBtn" class="icon-btn" type="button" aria-label="Close">×</button>
+        </div>
+        <div id="receiptModalBody" class="receipt-modal-body"></div>
+      </div>
+    </div>
+
+
+    <div id="withdrawProofModal" class="winner-modal" aria-hidden="true">
+      <div class="withdraw-proof-modal-card glass" role="dialog" aria-modal="true" aria-labelledby="withdrawProofModalTitle">
+        <div class="winner-modal-head">
+          <div>
+            <h2 id="withdrawProofModalTitle">Record withdrawal payment proof</h2>
+            <p id="withdrawProofModalMeta" class="withdraw-proof-meta">The amount was debited from the wallet when the withdrawal was approved. Record payment proof now.</p>
+          </div>
+          <button id="withdrawProofCloseBtn" class="icon-btn" type="button" aria-label="Close">×</button>
+        </div>
+
+        <div class="withdraw-proof-flow">
+          <div class="withdraw-proof-step">
+            <div class="withdraw-proof-step-no">1</div>
+            <div>
+              <strong>Proof text or tracking code</strong>
+              <p>Enter a tracking code, transfer number, payment description or other verifiable reference.</p>
+              <textarea id="withdrawProofTextInput" rows="4" maxlength="1000" placeholder="Example: Paid — Tracking code 123456789"></textarea>
+            </div>
+          </div>
+
+          <div class="withdraw-proof-step">
+            <div class="withdraw-proof-step-no">2</div>
+            <div>
+              <strong>Payment proof image</strong>
+              <p>Optional, but recommended for easier tracking. Accepted formats: JPG, PNG, WEBP; maximum 3 MB.</p>
+              <label class="withdraw-proof-file-picker" for="withdrawProofFileInput">
+                <span>Choose proof image</span>
+                <b id="withdrawProofFileName">No file selected</b>
+              </label>
+              <input id="withdrawProofFileInput" class="visually-hidden-file" type="file" accept="image/jpeg,image/png,image/webp,image/*" />
+              <div id="withdrawProofPreview" class="withdraw-proof-preview hidden"></div>
+            </div>
+          </div>
+
+          <div class="withdraw-proof-actions">
+            <div class="withdraw-proof-button-row">
+              <button id="withdrawProofCancelBtn" class="small-btn" type="button">Cancel</button>
+              <button id="withdrawProofSubmitBtn" class="small-btn primary" type="button">Finalize payment</button>
+            </div>
+            <div id="withdrawProofHint" class="step-hint"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="withdrawRejectModal" class="winner-modal" aria-hidden="true">
+      <div class="withdraw-reject-modal-card glass" role="dialog" aria-modal="true" aria-labelledby="withdrawRejectModalTitle">
+        <div class="winner-modal-head">
+          <div>
+            <h2 id="withdrawRejectModalTitle">Reject withdrawal</h2>
+            <p id="withdrawRejectModalMeta" class="withdraw-reject-meta">The rejection reason will be sent to the user and saved in admin history.</p>
+          </div>
+          <button id="withdrawRejectCloseBtn" class="icon-btn" type="button" aria-label="Close">×</button>
+        </div>
+
+        <div id="withdrawRejectSummary" class="withdraw-reject-summary"></div>
+
+        <div class="withdraw-reject-section">
+          <strong id="withdrawRejectPresetsTitle">Common reasons</strong>
+          <p>Choose an option to fill in the complete text, then edit it if needed.</p>
+          <div id="withdrawRejectPresets" class="withdraw-reject-presets">
+            <button class="withdraw-reject-preset" type="button" data-reason="در حال حاضر امکان انجام پرداخت این برداشت وجود ندارد. لطفاً کمی بعد دوباره درخواست ثبت کنید.">💰 Unable to pay</button>
+            <button class="withdraw-reject-preset" type="button" data-reason="به دلیل اختلال موقت شبکه بانکی، انجام این برداشت در حال حاضر ممکن نیست. لطفاً بعداً دوباره تلاش کنید.">🏦 Banking network issue</button>
+            <button class="withdraw-reject-preset" type="button" data-reason="اطلاعات بانکی واردشده قابل تأیید نیست. لطفاً شماره کارت، شبا و شماره حساب را بررسی و دوباره درخواست ثبت کنید.">💳 Invalid bank details</button>
+            <button class="withdraw-reject-preset" type="button" data-reason="نام صاحب حساب با اطلاعات ثبت‌شده مطابقت ندارد. لطفاً اطلاعات بانکی به نام صاحب حساب صحیح ثبت شود.">👤 Account holder name mismatch</button>
+            <button class="withdraw-reject-preset" type="button" data-reason="اطلاعات بانکی این درخواست نیاز به اصلاح دارد. لطفاً اطلاعات صحیح را وارد و درخواست برداشت جدید ثبت کنید.">✏️ Information needs correction</button>
+          </div>
+        </div>
+
+        <div class="withdraw-reject-section">
+          <label id="withdrawRejectReasonLabel" for="withdrawRejectReasonInput">Final withdrawal rejection reason</label>
+          <textarea id="withdrawRejectReasonInput" rows="5" minlength="3" maxlength="500" placeholder="Enter the withdrawal rejection reason..."></textarea>
+          <div class="withdraw-reject-counter"><span id="withdrawRejectReasonCount">۰</span> / ۵۰۰</div>
+        </div>
+
+        <div id="withdrawRejectWarningText" class="withdraw-reject-warning">⚠️ After confirmation, the rejection reason will be sent to the user.</div>
+
+        <div class="withdraw-reject-actions">
+          <button id="withdrawRejectCancelBtn" class="small-btn" type="button">Cancel</button>
+          <button id="withdrawRejectSubmitBtn" class="small-btn danger" type="button" disabled>Confirm withdrawal rejection</button>
+        </div>
+        <div id="withdrawRejectHint" class="step-hint" role="status" aria-live="polite"></div>
+      </div>
+    </div>
+
+    <div id="miniToast" class="mini-toast hidden" role="status" aria-live="polite"></div>
+
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="./app.en.js?v=remaining-ux-v1&amp;automation=20261113&amp;crypto-history=20261113&amp;editor=20261114&amp;players=1&amp;numbering=1&amp;player=20261123telegram" type="module"></script>
+  </body>
+</html>

@@ -5,6 +5,7 @@ import path from 'node:path';
 import http from 'node:http';
 import {fileURLToPath} from 'node:url';
 const {chromium}=await import(process.env.PLAYWRIGHT_MODULE || 'playwright');
+const english=process.env.UI_LANGUAGE==='en';
 const base=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../../backend/app/static/mini');
 const output=process.env.QA_SCREENSHOT_DIR || path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../audit/admin-editor-20261114/screenshots');
 fs.mkdirSync(output,{recursive:true});
@@ -14,7 +15,7 @@ const server=http.createServer((req,res)=>{
  if(!full.startsWith(base+path.sep)||!fs.existsSync(full)){res.writeHead(404).end();return;}
  res.setHeader('Content-Type',({'.js':'application/javascript','.mjs':'application/javascript','.html':'text/html','.css':'text/css','.woff2':'font/woff2','.png':'image/png','.jpg':'image/jpeg'})[path.extname(full)]||'application/octet-stream');
  let body=fs.readFileSync(full);
- if(name==='app.js') {
+ if(name==='app.js'||name==='app.en.js') {
   body=body.toString().replace('boot().catch((err) => {','Promise.resolve().catch((err) => {').replace('  let authOk = false;','  hideSplash(); return;\n  let authOk = false;');
   body+='\nwindow.qa={state,boot,refreshAdminAutopilotConfig,saveAdminAutopilotLevel,renderAutopilotReadiness,setSystemClocks(items){systemGameClockRows=items;systemGameClockRuntimeReady=true;systemGameDrawWorkerReady=true;renderSystemGameClocks();},refreshAutomationTimeline,renderAdminAutopilotConfig,renderAdminAutoDraw,tickAutomationTimeline,age(){automationReceivedAt-=16000;},setClocks(items){automationItems=items;automationReceivedAt=Date.now();gameStartCountdownServerOffsetMs=0;renderAutomationTimeline();}};';
  }
@@ -49,7 +50,7 @@ await page.route('**/*',async route=>{
 });
 function gate(){let arrived,release;const ready=new Promise(r=>arrived=r),wait=new Promise(r=>release=r);return {arrived,release,ready,wait};}
 try {
- await page.goto(origin+'/mini/');await page.waitForFunction(()=>window.qa);
+ await page.goto(origin+(english?'/mini/en.html':'/mini/'));await page.waitForFunction(()=>window.qa);
  await page.evaluate(async()=>{
   await qa.boot();qa.state.token='OFFLINE_TEST';qa.state.tokenExp=9999999999;qa.state.authReady=true;qa.state.admin.enabled=true;
   document.querySelectorAll('.view').forEach(e=>e.classList.remove('active'));document.querySelector('#view-admin').classList.add('active');
@@ -75,12 +76,12 @@ try {
  assert.equal(await page.evaluate(()=>document.activeElement.selectionStart),1,'caret stays in place');
  failConfig=true;await page.evaluate(()=>qa.refreshAdminAutopilotConfig());
  assert.equal(await page.locator('#autopilotCountdown_HIGH').inputValue(),'60');
- assert.match(await page.locator('#adminAutopilotSyncStatus').innerText(),/حفظ شدند/);
+ assert.match(await page.locator('#adminAutopilotSyncStatus').innerText(),english?/preserv|retain/i:/حفظ شدند/);
  failConfig=false;
  const delayedGet=gate();holdGet=delayedGet;
  await page.evaluate(()=>{window.pendingRefresh=qa.refreshAdminAutopilotConfig();});await delayedGet.ready;
  await page.locator('#autopilotMinPlayers_LOW').fill('۰');
- await assert.rejects(page.evaluate(()=>qa.saveAdminAutopilotLevel('LOW',true)),/حداقل بازیکن/);
+ await assert.rejects(page.evaluate(()=>qa.saveAdminAutopilotLevel('LOW',true)),english?/minimum.*player/i:/حداقل بازیکن/);
  assert.equal(writes.length,0);
  await page.locator('#autopilotMinPlayers_LOW').fill('۳');
  await page.locator('#autopilotCountdown_LOW').fill('70');
@@ -100,7 +101,7 @@ try {
  assert.equal(await page.locator('#autopilotCountdown_HIGH').inputValue(),'60','saving one level never clears another draft');
  assert.equal(await low.getAttribute('data-dirty'),'1');
  assert.equal(await high.getAttribute('data-dirty'),'1');
- assert.match(await page.locator('#adminAutopilotHint_LOW').innerText(),/هنوز ذخیره نشده/);
+ assert.match(await page.locator('#adminAutopilotHint_LOW').innerText(),english?/unsaved|not.*saved/i:/هنوز ذخیره نشده/);
  await page.locator('#autopilotRepeat_LOW').fill('۹۰');
  await page.locator('#autopilotMinPlayers_LOW').fill('۱');
  await page.evaluate(()=>qa.saveAdminAutopilotLevel('LOW',true));
@@ -125,7 +126,14 @@ try {
  await page.setViewportSize({width:1280,height:1000});
  const panel=page.locator('.system-game-clock-panel');
  const colors=await panel.evaluate(el=>({background:getComputedStyle(el).backgroundImage,card:getComputedStyle(el.querySelector('.system-clock-card')).backgroundColor,ink:getComputedStyle(el.querySelector('.system-clock-digits')).color,meta:getComputedStyle(el.querySelector('.meta')).color}));
- assert.equal(colors.card,'rgb(255, 255, 255)');assert.equal(colors.ink,'rgb(23, 48, 71)');assert.equal(colors.meta,'rgb(71, 94, 118)');
+ const palette=await page.evaluate(()=>{
+   const root=getComputedStyle(document.documentElement);
+   const rgb=name=>{const value=root.getPropertyValue(name).trim().replace('#','');return `rgb(${[0,2,4].map(i=>parseInt(value.slice(i,i+2),16)).join(', ')})`;};
+   return {surface:rgb('--theme-surface'),ink:rgb('--theme-text'),meta:rgb('--theme-muted')};
+ });
+ assert.equal(colors.card,palette.surface);assert.equal(colors.ink,palette.ink);assert.equal(colors.meta,palette.meta);
+ const luminance=rgb=>rgb.match(/\d+/g).map(Number).map(v=>v/255).map(v=>v<=.04045?v/12.92:((v+.055)/1.055)**2.4).reduce((sum,v,i)=>sum+v*[.2126,.7152,.0722][i],0);
+ for(const ink of [colors.ink,colors.meta])assert.ok((luminance(colors.card)+.05)/(luminance(ink)+.05)>=4.5,'actual light clock text contrast');
  await panel.screenshot({path:path.join(output,'system-clocks-light-desktop.png')});
  await page.setViewportSize({width:390,height:844});
  await panel.screenshot({path:path.join(output,'system-clocks-light-mobile.png')});
