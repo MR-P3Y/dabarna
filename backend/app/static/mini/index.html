@@ -3,12 +3,12 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <link rel="stylesheet" href="./theme.css?v=20261123telegram" />
+    <link rel="stylesheet" href="./theme.css?v=20261124journey" />
     <script src="./language.js?v=20261124" defer></script>
     <title>مینی‌اپ دبرنای طوفان</title>
-    <link rel="stylesheet" href="./tracking.css?v=20261123telegram" />
+    <link rel="stylesheet" href="./tracking.css?v=20261124journey" />
     <link rel="stylesheet" href="./styles.css?v=unified-blue-20261123" />
-    <link rel="stylesheet" href="./ux-v2.css?v=remaining-ux-v1&amp;automation=20261113&amp;editor=20261114&amp;player=20261123telegram" />
+    <link rel="stylesheet" href="./ux-v2.css?v=remaining-ux-v1&amp;automation=20261113&amp;editor=20261114&amp;player=20261124journey" />
     <link rel="stylesheet" href="./language.css?v=20261124" />
   </head>
   <body>
@@ -105,13 +105,17 @@
               <h2 id="liveTitle">وضعیت زنده بازی</h2>
               <span id="liveGameMeta" class="meta">-</span>
             </div>
-            <div id="gameTimeline" class="game-timeline"></div>
-            <div id="liveState" class="live-state"></div>
-            <div id="liveInsights" class="live-insights"></div>
-            <div id="liveLinkSection" class="live-link hidden">
-              <a id="liveLinkAnchor" class="small-btn primary" href="#" target="_blank" rel="noopener noreferrer">مشاهده پخش زنده</a>
-              <div id="liveLinkMeta" class="meta"></div>
-            </div>
+            <nav id="gameJourney" class="game-journey" aria-label="مسیر بازی" hidden>
+              <strong id="journeyGameLabel"></strong>
+              <button id="journeyGames" type="button" class="small-btn">انتخاب بازی دیگر</button>
+              <button id="journeyCards" type="button" class="small-btn">کارت‌های همین بازی</button>
+              <button id="journeyWallet" type="button" class="small-btn">شارژ کیف پول و بازگشت</button>
+            </nav>
+            <section id="purchaseComplete" class="purchase-complete" role="status" hidden>
+              <strong id="purchaseCompleteText"></strong>
+              <button id="purchaseCards" class="small-btn primary" type="button">دیدن کارت‌های خریداری‌شده</button>
+              <button id="purchaseLive" class="small-btn" type="button">دنبال کردن همین بازی</button>
+            </section>
             <div id="buyActionForm" class="action-form hidden">
               <label id="buyQtyLabel" for="buyQtyInput">تعداد کارت</label>
               <input id="buyQtyInput" type="text" inputmode="numeric" min="1" max="50" value="1" autocomplete="off" />
@@ -119,6 +123,13 @@
               <div id="buyStatusHint" class="step-hint"></div>
             </div>
             <div id="liveActionHint" class="step-hint"></div>
+            <div id="gameTimeline" class="game-timeline"></div>
+            <div id="liveState" class="live-state"></div>
+            <div id="liveInsights" class="live-insights"></div>
+            <div id="liveLinkSection" class="live-link hidden">
+              <a id="liveLinkAnchor" class="small-btn primary" href="#" target="_blank" rel="noopener noreferrer">مشاهده پخش زنده</a>
+              <div id="liveLinkMeta" class="meta"></div>
+            </div>
             <div id="liveEvents" class="events-list"></div>
           </article>
           <article class="glass panel">
@@ -195,6 +206,10 @@
         </section>
 
         <section id="view-wallet" class="view">
+          <aside id="walletGameReturn" class="panel glass game-journey" hidden>
+            <span id="walletGameReturnLabel"></span>
+            <button id="walletReturnToGame" type="button" class="small-btn primary">بازگشت به خرید همین بازی</button>
+          </aside>
           <article class="glass panel">
             <div class="panel-head">
               <h2 id="walletTitle">کیف پول</h2>
@@ -1241,6 +1256,6 @@
     <div id="miniToast" class="mini-toast hidden" role="status" aria-live="polite"></div>
 
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="./app.js?v=remaining-ux-v1&amp;automation=20261113&amp;crypto-history=20261113&amp;editor=20261114&amp;players=1&amp;numbering=1&amp;player=20261123telegram" type="module"></script>
+    <script src="./app.js?v=remaining-ux-v1&amp;automation=20261113&amp;crypto-history=20261113&amp;editor=20261114&amp;players=1&amp;numbering=1&amp;player=20261124journey" type="module"></script>
   </body>
 </html>

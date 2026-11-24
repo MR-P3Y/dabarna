@@ -1664,5 +1664,17 @@
   "رسید برد خطی (۵ عدد از یک ردیف)": "Line win (5 numbers in one row) receipt",
   "رسید برد سطری(تمام)": "Final row win receipt",
   "رویداد جایزه با قانون پرکردنی ناسازگار است": "Prize event is inconsistent with full-card rules",
-  "رسید رویداد جایزه با قانون پرکردنی ناسازگار است": "Prize event is inconsistent with full-card rules receipt"
+  "رسید رویداد جایزه با قانون پرکردنی ناسازگار است": "Prize event is inconsistent with full-card rules receipt",
+  "مسیر بازی": "Game journey",
+  "انتخاب بازی دیگر": "Choose another game",
+  "کارت‌های همین بازی": "Cards for this game",
+  "شارژ کیف پول و بازگشت": "Top up and return",
+  "دیدن کارت‌های خریداری‌شده": "View purchased cards",
+  "دنبال کردن همین بازی": "Follow this game",
+  "بازگشت به خرید همین بازی": "Return to this game",
+  "پس از شارژ، به بازی": "After topping up, return to game",
+  "برگردید؛ خرید خودکار انجام نمی‌شود.": "; cards will not be purchased automatically.",
+  "بازی انتخاب‌شده تغییر کرد؛ خرید را برای بازی موردنظر دوباره بررسی کنید.": "The selected game changed. Review your intended game before purchasing again.",
+  "خرید ثبت شد · بازی": "Purchase recorded · Game",
+  "· شماره خرید": "· Purchase ID"
 }

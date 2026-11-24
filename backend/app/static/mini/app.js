@@ -2925,6 +2925,7 @@ function renderLiveLink(st) {
 }
 
 function updateBuyActionState({ statusKey, myCardsCount }) {
+  renderGameJourney();
   const actionForm = getEl("buyActionForm");
   const actionHint = getEl("liveActionHint");
   const buyHint = getEl("buyStatusHint");
@@ -2933,7 +2934,7 @@ function updateBuyActionState({ statusKey, myCardsCount }) {
   const canBuy = Boolean(state.selectedGameId) && String(statusKey || "").toUpperCase() === "LOBBY";
   if (actionForm) actionForm.classList.toggle("hidden", !canBuy);
   if (buyBtn) {
-    buyBtn.disabled = !canBuy;
+    buyBtn.disabled = !canBuy || purchaseInFlight;
     buyBtn.classList.toggle("disabled", !canBuy);
   }
 
@@ -3099,6 +3100,7 @@ async function openLiveGame(gameId, options = {}) {
   state.selectedGameId = gid;
   const previousCursor = Number(options.notifyAfterId ?? getLiveEventCursor(gid));
   const snapshot = await apiFetch(`/mini-api/games/${gid}/snapshot?events_limit=${LIVE_EVENTS_LIMIT}`);
+  if (Number(state.selectedGameId) !== gid) return;
   renderLiveSnapshot(snapshot, gid, {
     notifyFresh: Boolean(options.notifyFresh),
     notifyAfterId: previousCursor,
@@ -5498,7 +5500,45 @@ function drawDepositDestinations(payload) {
   syncDepositMethodAvailability();
 }
 
+let purchaseInFlight = false;
+let purchasedGameId = 0;
+let walletReturnGameId = 0;
+
+function renderGameJourney() {
+  const id = Number(state.selectedGameId || 0);
+  const root = getEl("gameJourney");
+  if (root) root.hidden = !id;
+  if (getEl("journeyGameLabel")) getEl("journeyGameLabel").textContent = id ? `مسیر بازی ${gameDisplayRef(id)}` : "";
+  if (getEl("purchaseComplete")) getEl("purchaseComplete").hidden = !purchasedGameId || purchasedGameId !== id;
+}
+
+function bindGameJourney() {
+  getEl("journeyGames")?.addEventListener("click", () => {
+    switchToView("games");
+    getEl("gamesTitle").scrollIntoView({behavior:"smooth",block:"start"});
+    getEl("refreshGamesBtn").focus({preventScroll:true});
+  });
+  for (const id of ["journeyCards", "purchaseCards"]) getEl(id)?.addEventListener("click", () => {
+    const gid = id === "purchaseCards" ? purchasedGameId : state.selectedGameId;
+    openMyCardsForGame(gid).catch(err => showToast(localizeApiError(err.message), "error"));
+  });
+  getEl("purchaseLive")?.addEventListener("click", () => openLiveBarGame(purchasedGameId).catch(err => showToast(localizeApiError(err.message), "error")));
+  getEl("journeyWallet")?.addEventListener("click", () => {
+    walletReturnGameId = Number(state.selectedGameId || 0);
+    getEl("walletGameReturn").hidden = !walletReturnGameId;
+    getEl("walletGameReturnLabel").textContent = `پس از شارژ، به بازی ${gameDisplayRef(walletReturnGameId)} برگردید؛ خرید خودکار انجام نمی‌شود.`;
+    switchToView("wallet");
+    getEl("walletGameReturn").scrollIntoView({behavior:"smooth",block:"start"});
+  });
+  getEl("walletReturnToGame")?.addEventListener("click", () => openLiveBarGame(walletReturnGameId, {buy:true}).catch(err => showToast(localizeApiError(err.message), "error")));
+}
+
 async function buySelectedGame() {
+  if (purchaseInFlight) return;
+  purchaseInFlight = true;
+  const purchasedId = Number(state.selectedGameId || 0);
+  getEl("buyCardsBtn").disabled = true;
+  try {
   if (!state.selectedGameId) {
     throw new Error("ابتدا یک بازی را انتخاب کنید.");
   }
@@ -5520,13 +5560,26 @@ async function buySelectedGame() {
     }
   }
 
+  if (Number(state.selectedGameId) !== purchasedId) throw new Error("بازی انتخاب‌شده تغییر کرد؛ خرید را برای بازی موردنظر دوباره بررسی کنید.");
   setHint("buyStatusHint", "در حال خرید کارت...");
-  const res = await apiFetch(`/mini-api/games/${state.selectedGameId}/buy`, {
+  const res = await apiFetch(`/mini-api/games/${purchasedId}/buy`, {
     method: "POST",
     body: { qty, idempotency_key: idem("buy") },
   });
   setHint("buyStatusHint", `خرید موفق بود. شماره خرید: ${res.purchase_id}`, "success");
-  await Promise.allSettled([refreshWallet(), refreshCards(), openLiveGame(state.selectedGameId)]);
+  await Promise.allSettled([refreshWallet(), refreshCards(), Number(state.selectedGameId) === purchasedId ? openLiveGame(purchasedId, {announce:false}) : Promise.resolve()]);
+  purchasedGameId = purchasedId;
+  getEl("purchaseCompleteText").textContent = `خرید ثبت شد · بازی ${gameDisplayRef(purchasedId)} · شماره خرید ${res.purchase_id}`;
+  renderGameJourney();
+  if (Number(state.selectedGameId) === purchasedId) {
+    setHint("buyStatusHint", `خرید موفق بود. شماره خرید: ${res.purchase_id}`, "success");
+    getEl("purchaseCards").focus({preventScroll:true});
+  }
+  } finally {
+    purchaseInFlight = false;
+    const snapshot = state.gameSnapshots.get(Number(state.selectedGameId));
+    getEl("buyCardsBtn").disabled = String(snapshot?.game?.status || snapshot?.state?.status || "").toUpperCase() !== "LOBBY";
+  }
 }
 
 
@@ -10422,6 +10475,7 @@ async function boot() {
   bind("refreshGamesBtn", "click", () => runManualRefresh("refreshGamesBtn", () => refreshGames()).catch(() => {}));
   bind("refreshCardsBtn", "click", () => runManualRefresh("refreshCardsBtn", () => refreshCards({ silent: false })).catch(() => {}));
   bind("refreshWalletBtn", "click", () => runManualRefresh("refreshWalletBtn", () => refreshWallet()).catch(() => {}));
+  bindGameJourney();
   bind("buyCardsBtn", "click", () => buySelectedGame().catch((e) => setLocalError("buyStatusHint", e)));
   bind("submitDepositBtn", "click", () => submitDepositWithReceipt().catch((e) => setLocalError("depositSubmitHint", e)));
   bind("createCryptoInvoiceBtn", "click", () => createCryptoInvoice().catch((e) => setLocalError("cryptoSubmitHint", e)));

@@ -32,16 +32,16 @@ for(const file of ['app.js','experience.mjs','tracking.mjs','automation-clocks.m
  let text=compile(fs.readFileSync(path.join(root,file),'utf8').replaceAll('\r\n','\n'));
  for(const module of ['experience','tracking','automation-clocks'])text=text.replaceAll('./'+module+'.mjs?','./'+module+'.en.mjs?');
  if(file==='app.js'){
-  text='import {knownText} from "./locale-en.mjs?v=20261124";\n'+text;
+  text='import {knownText} from "./locale-en.mjs?v=20261124journey";\n'+text;
   text=text.replaceAll('safeText(item.title ||', 'safeText(knownText(item.title) ||').replaceAll('safeText(item.body || "")', 'safeText(notificationBody(item))').replaceAll('receipt?.title ||', 'knownText(receipt?.title) ||').replaceAll('safeText(item?.label ||', 'safeText(knownText(item?.label) ||');
-  text='import {notificationBody} from "./server-labels.en.mjs?v=20261124";\n'+text;
+  text='import {notificationBody} from "./server-labels.en.mjs?v=20261124journey";\n'+text;
   text=text.replace('const raw = String(detail || "").trim();','const raw = knownText(String(detail || "").trim());');
   text=text.replace(/function toFaDigits\(value\) \{[\s\S]*?\n\}/,'function toFaDigits(value) { return String(value ?? ""); }');
  }
  if(file==='experience.mjs') text=text.replace('.includes("ناسازگار")', '.includes("inconsistent")');
  if(file==='tracking.mjs'){
-  text='import {knownText} from "./locale-en.mjs?v=20261124";\n'+text;
-  text='import {fieldValue} from "./server-labels.en.mjs?v=20261124";\n'+text;
+  text='import {knownText} from "./locale-en.mjs?v=20261124journey";\n'+text;
+  text='import {fieldValue} from "./server-labels.en.mjs?v=20261124journey";\n'+text;
   text=text.replaceAll('escape(f.value)', 'escape(fieldValue(f))');
   text=text.replace('dialog.dir = "rtl"','dialog.dir = "ltr"');
   text=text.replaceAll('escape(row.title)','escape(kinds[row.kind] || knownText(row.title))').replaceAll('escape(row.status_label)','escape(statuses[row.status] || knownText(row.status_label))').replaceAll('escape(f.label)','escape(knownText(f.label))').replaceAll('escape(t.label)','escape(knownText(t.label))').replaceAll('escape(w.label)','escape(knownText(w.label))');
