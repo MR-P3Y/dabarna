@@ -6,8 +6,11 @@ import path from 'node:path';
 import http from 'node:http';
 import {fileURLToPath} from 'node:url';
 const {chromium}=await import(process.env.PLAYWRIGHT_MODULE || 'playwright');
+const english=process.env.UI_LANGUAGE==='en';
 const base=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../../backend/app/static/mini');
-const output=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../audit/crypto-current-20261112/screenshots');
+const labels=JSON.parse(fs.readFileSync(path.join(base,'locales/en.json'),'utf8'));
+const tr=v=>english?(labels[v]||v):v;
+const output=process.env.QA_SCREENSHOT_DIR || path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../audit/crypto-current-20261112/screenshots');
 fs.mkdirSync(output,{recursive:true});
 const server=http.createServer((req,res)=>{
  const name=decodeURIComponent(new URL(req.url,'http://localhost').pathname).replace(/^\/mini\/?/,'') || 'index.html';
@@ -15,7 +18,7 @@ const server=http.createServer((req,res)=>{
  if(!full.startsWith(base+path.sep)||!fs.existsSync(full)){res.writeHead(404).end();return;}
  const ext=path.extname(full); res.setHeader('Content-Type',({'.js':'application/javascript','.mjs':'application/javascript','.html':'text/html','.css':'text/css','.png':'image/png','.jpg':'image/jpeg','.woff2':'font/woff2'})[ext]||'application/octet-stream');
  let body=fs.readFileSync(full);
- if(name==='app.js'){
+ if(name==='app.js'||name==='app.en.js'){
   body=body.toString().replace('boot().catch((err) => {','Promise.resolve().catch((err) => {').replace('  let authOk = false;','  hideSplash(); return;\n  let authOk = false;');
   body+='\nwindow.qa={state,boot,refreshNotifications,inboxUi,showAdminWinnerPopup,closeAdminWinnerModal,openWinnerModal,closeWinnerModal,openNotificationCenter,closeNotificationCenter,renderNotificationCenter,refreshGames,refreshSuperCryptoSettings};';
  }
@@ -47,25 +50,25 @@ await page.route('**/*',async route=>{
  return route.fulfill({status,contentType:'application/json',body:JSON.stringify(body)});
 });
 try{
- await page.goto(origin+'/mini/');await page.waitForFunction(()=>window.qa);
+ await page.goto(origin+(english?'/mini/en.html':'/mini/'));await page.waitForFunction(()=>window.qa);
  await page.evaluate(async()=>{qa.state.currentUserId=8;qa.state.token='OFFLINE_TEST';qa.state.tokenExp=9999999999;await qa.boot();qa.state.admin.enabled=true;qa.state.admin.canManageSuperSettings=true;await qa.refreshSuperCryptoSettings();
    const surface=document.querySelector('#superCryptoWalletSection');document.body.append(surface);surface.open=true;surface.style.cssText='position:fixed;inset:0;overflow:auto;background:var(--bg);z-index:9999;padding:16px';});
- const apply=page.getByRole('button',{name:'فعال‌سازی واقعی آدرس جدید',exact:true});
- await apply.click();await page.waitForFunction(()=>document.querySelector('#superCryptoProposalHint').textContent.includes('شبکه'));
+ const apply=page.getByRole('button',{name:tr('فعال‌سازی واقعی آدرس جدید'),exact:true});
+ await apply.click();await page.waitForFunction(()=>document.querySelector('#superCryptoProposalHint').textContent.match(/شبکه|network/i));
  assert.equal(await apply.isDisabled(),false,'failed readiness must restore button');
  assert.deepEqual(writes,[],'readiness failure must not activate');
- failReadiness=false;await apply.click();await page.waitForFunction(()=>document.querySelector('#superCryptoProposalHint').textContent.includes('مسدود'));
+ failReadiness=false;await apply.click();await page.waitForFunction(()=>document.querySelector('#superCryptoProposalHint').textContent.match(/مسدود|block/i));
  assert.deepEqual(writes,[],'unresolved history blocks activation');
- await page.getByRole('button',{name:'بررسی سابقه بدون تغییر موجودی',exact:true}).click();
- await page.waitForFunction(()=>document.querySelector('.crypto-history-review')?.textContent.includes('مجوز تغییر آدرس'));
+ await page.getByRole('button',{name:tr('بررسی سابقه بدون تغییر موجودی'),exact:true}).click();
+ await page.waitForFunction(()=>document.querySelector('.crypto-history-review')?.textContent.match(/مجوز تغییر آدرس|permission.*address|authori/i));
  assert.deepEqual(writes,[],'history review must not activate or credit');
- await page.getByRole('button',{name:'لغو همین درخواست',exact:true}).click();
- await page.waitForFunction(()=>document.querySelector('#superCryptoProposalsList').textContent.includes('درخواستی'));
+ await page.getByRole('button',{name:tr('لغو همین درخواست'),exact:true}).click();
+ await page.waitForFunction(()=>document.querySelector('#superCryptoProposalsList').textContent.match(/درخواستی|no pending|no.*request/i));
  assert.deepEqual(writes[0].data,{network:'TON',expected_address:newAddress,expected_created_at:'fixture-1',confirmation:'CANCEL_PENDING_CRYPTO_ADDRESS'});
- await page.getByRole('button',{name:'✏️ تغییر آدرس',exact:true}).click();
+ await page.getByRole('button',{name:tr('✏️ تغییر آدرس'),exact:true}).click();
  await page.locator('#superCryptoProposedAddress').fill(newAddress);
  await page.locator('#superCryptoProposalSubmitBtn').click();
- await page.waitForFunction(()=>document.querySelector('#superCryptoProposalsList').textContent.includes('در انتظار'));
+ await page.waitForFunction(()=>document.querySelector('#superCryptoProposalsList').textContent.match(/در انتظار|pending|awaiting/i));
  assert.equal(writes.length,2);assert.equal(writes[1].data.expected_current_address,oldAddress);assert.equal(writes[1].data.address,newAddress);
  await page.screenshot({path:path.join(output,'owner-crypto-mobile.png')});
  assert.deepEqual(errors,[]);console.log(JSON.stringify({result:'PASS',mockedMutations:writes.length,realNetworkRequests:0,pageErrors:errors}));
