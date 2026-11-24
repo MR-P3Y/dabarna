@@ -1,0 +1,1 @@
+PASS: actual browser assets, mobile/desktop clocks, server pending, stale data, coalesced polling, countdown revocation, admin countdown and rule-specific speeds; zero writes

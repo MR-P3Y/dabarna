@@ -1,0 +1,117 @@
+fresh
+
+test_fresh_upgrade_and_repeat_preserve_records (tests.test_fresh_migrations_mysql.FreshMigrationTests.test_fresh_upgrade_and_repeat_preserve_records) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 3.260s
+
+OK
+
+migrate
+
+
+lifecycle
+ISOLATED MYSQL ONLY: davarna_tambola_v2_test_20261104, migration 20261115_0014
+PASS: isolated MySQL FULL_CARD/4s start/draw/winner/payout/repeat; all changes rollback
+PASS: isolated MySQL FULL_CARD/3s start/draw/winner/payout/repeat; all changes rollback
+PASS: isolated MySQL FULL_CARD/2s start/draw/winner/payout/repeat; all changes rollback
+PASS: isolated MySQL LINE/8s start/draw/winner/payout/repeat; all changes rollback
+PASS: isolated MySQL LINE/8s start/draw/winner/payout/repeat; all changes rollback
+Connected to isolated DB: davarna_tambola_v2_test_20261104; migration: 20261115_0014
+Concurrent tests enabled only for davarna_tambola_v2_test_20261104 (20261115_0014)
+
+test_full_card_four_second_draws_and_next_round (tests.mysql_autopilot_e2e.MySQLAutopilotEndToEndTests.test_full_card_four_second_draws_and_next_round) ... ok
+test_full_card_three_second_draws_and_next_round (tests.mysql_autopilot_e2e.MySQLAutopilotEndToEndTests.test_full_card_three_second_draws_and_next_round) ... ok
+test_full_card_two_second_draws_and_next_round (tests.mysql_autopilot_e2e.MySQLAutopilotEndToEndTests.test_full_card_two_second_draws_and_next_round) ... ok
+test_single_player_config_applies_only_to_autopilot_after_full_grace (tests.mysql_autopilot_e2e.MySQLAutopilotEndToEndTests.test_single_player_config_applies_only_to_autopilot_after_full_grace) ... ok
+test_two_player_autopilot_draw_payout_and_next_round (tests.mysql_autopilot_e2e.MySQLAutopilotEndToEndTests.test_two_player_autopilot_draw_payout_and_next_round) ... ok
+test_bot_admin_report_responds_with_v2_metadata (tests.mysql_finance_smoke.MySQLFinanceSmokeTests.test_bot_admin_report_responds_with_v2_metadata)
+Regression guard: game report's raw SQL must include V2 fields. ... /src/backend/app/routers/bot_router.py:682: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+  class BotUserOut(BaseModel):
+/src/backend/app/routers/bot_router.py:691: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+  class WalletTxOut(BaseModel):
+/src/backend/app/routers/bot_router.py:706: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+  class WalletOut(BaseModel):
+/src/backend/app/routers/bot_router.py:724: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+  class WithdrawRequestOut(BaseModel):
+/src/backend/app/routers/bot_router.py:767: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+  class DepositRequestOut(BaseModel):
+/src/backend/app/routers/bot_router.py:783: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+  class BotGameOut(BaseModel):
+/src/backend/app/routers/bot_router.py:804: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+  class BotAdminGameOut(BaseModel):
+/src/backend/app/routers/bot_router.py:980: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+  class BotPurchaseCardsOut(BaseModel):
+/src/backend/app/routers/bot_router.py:996: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+  class AdminDepositRequestOut(BaseModel):
+/src/backend/app/routers/bot_router.py:1018: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+  class AdminWithdrawRequestOut(BaseModel):
+/src/backend/app/routers/admin_users_router.py:49: PydanticDeprecatedSince20: Using extra keyword arguments on `Field` is deprecated and will be removed. Use `json_schema_extra` instead. (Extra keys: 'ne'). Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+  amount: int = Field(ne=0)
+ok
+test_buy_replay_and_refund_with_real_mysql_events (tests.mysql_finance_smoke.MySQLFinanceSmokeTests.test_buy_replay_and_refund_with_real_mysql_events) ... ok
+test_full_card_pays_only_after_fifteen (tests.mysql_finance_smoke.MySQLFinanceSmokeTests.test_full_card_pays_only_after_fifteen) ... ok
+test_line_tourna_then_final_exact_once (tests.mysql_finance_smoke.MySQLFinanceSmokeTests.test_line_tourna_then_final_exact_once) ... ok
+test_v2_snapshot_nearest_progress_with_full_ninety_calls (tests.mysql_finance_smoke.MySQLFinanceSmokeTests.test_v2_snapshot_nearest_progress_with_full_ninety_calls)
+The V2 preview must count 15 numbers, never 27 cells or just 50 calls. ... ok
+test_four_simultaneous_distinct_keys_all_count_once (tests.mysql_finance_concurrency.MySQLFinanceConcurrencyTests.test_four_simultaneous_distinct_keys_all_count_once) ... ok
+test_four_simultaneous_same_key_debit_once (tests.mysql_finance_concurrency.MySQLFinanceConcurrencyTests.test_four_simultaneous_same_key_debit_once) ... ok
+test_simultaneous_conflicting_quantities_reject_second (tests.mysql_finance_concurrency.MySQLFinanceConcurrencyTests.test_simultaneous_conflicting_quantities_reject_second) ... ok
+test_simultaneous_wallet_credit_same_key_once (tests.mysql_finance_concurrency.MySQLFinanceConcurrencyTests.test_simultaneous_wallet_credit_same_key_once) ... ok
+
+----------------------------------------------------------------------
+Ran 14 tests in 6.389s
+
+OK
+
+wallet
+
+test_add_both_networks_cross_surface_then_rotate_with_mysql_locks (tests.test_owner_crypto_wallet_mysql_disposable.RealMySQLOwnerWalletFlows.test_add_both_networks_cross_surface_then_rotate_with_mysql_locks) ... /src/backend/app/routers/mini_router.py:6364: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+  "created_at": datetime.utcnow().isoformat(timespec="microseconds"),
+/src/backend/app/routers/mini_router.py:6750: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+  "activated_at": datetime.utcnow().isoformat(timespec="seconds"),
+ok
+test_cross_surface_cancel_preserves_active_destination_and_rejects_replay (tests.test_owner_crypto_wallet_mysql_disposable.RealMySQLOwnerWalletFlows.test_cross_surface_cancel_preserves_active_destination_and_rejects_replay) ... /src/backend/app/routers/mini_router.py:6364: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+  "created_at": datetime.utcnow().isoformat(timespec="microseconds"),
+/src/backend/app/routers/mini_router.py:6420: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+  "cancelled_at": datetime.utcnow().isoformat(timespec="microseconds")}
+/src/backend/app/routers/mini_router.py:6364: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+  "created_at": datetime.utcnow().isoformat(timespec="microseconds"),
+ok
+test_mysql_history_rotation_preserves_invoice_and_retired_watch (tests.test_owner_crypto_wallet_mysql_disposable.RealMySQLOwnerWalletFlows.test_mysql_history_rotation_preserves_invoice_and_retired_watch) ... /src/backend/app/routers/mini_router.py:6364: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+  "created_at": datetime.utcnow().isoformat(timespec="microseconds"),
+/src/backend/app/routers/mini_router.py:6750: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+  "activated_at": datetime.utcnow().isoformat(timespec="seconds"),
+ok
+test_refuse_when_runtime_is_on_and_do_not_change_stored_address (tests.test_owner_crypto_wallet_mysql_disposable.RealMySQLOwnerWalletFlows.test_refuse_when_runtime_is_on_and_do_not_change_stored_address) ... ok
+test_concurrent_invoice_snapshot_is_consistent_and_rollback_restores_old_destination (tests.test_crypto_destination_mysql_concurrency._AtomicWalletMySQLConcurrency.test_concurrent_invoice_snapshot_is_consistent_and_rollback_restores_old_destination)
+Persistent invoice snapshots are serialized against rotation commit. ... ok
+test_invoice_reader_blocks_behind_rotation_lock (tests.test_crypto_destination_mysql_concurrency._AtomicWalletMySQLConcurrency.test_invoice_reader_blocks_behind_rotation_lock) ... ok
+test_real_invoice_create_with_rotation_uses_committed_address (tests.test_crypto_destination_mysql_concurrency._AtomicWalletMySQLConcurrency.test_real_invoice_create_with_rotation_uses_committed_address)
+Call real CryptoDepositService.create_invoice, persist actual model. ... ok
+test_real_ledger_replay_does_not_double_credit_after_restart (tests.test_crypto_destination_mysql_concurrency._AtomicWalletMySQLConcurrency.test_real_ledger_replay_does_not_double_credit_after_restart)
+Same hash, same user: two sessions must yield one wallet ledger row. ... ok
+test_stale_activation_refused_after_other_commit (tests.test_crypto_destination_mysql_concurrency._AtomicWalletMySQLConcurrency.test_stale_activation_refused_after_other_commit) ... ok
+
+----------------------------------------------------------------------
+Ran 9 tests in 3.293s
+
+OK
+
+rbac
+
+test_denied_user (tests.test_mini_ops_dashboard_mysql_isolated.RealMySQLDashboardRBAC.test_denied_user) ... ok
+test_finance_admin_gets_counts_but_only_own_games (tests.test_mini_ops_dashboard_mysql_isolated.RealMySQLDashboardRBAC.test_finance_admin_gets_counts_but_only_own_games) ... /src/backend/app/routers/mini_router.py:3668: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+  AdminAuditLog.created_at >= datetime.utcnow() - timedelta(hours=24),
+/src/backend/app/routers/mini_router.py:3680: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+  "server_time": datetime.utcnow().isoformat(timespec="seconds"),
+ok
+test_game_operator_is_scoped (tests.test_mini_ops_dashboard_mysql_isolated.RealMySQLDashboardRBAC.test_game_operator_is_scoped) ... ok
+test_post_disallowed (tests.test_mini_ops_dashboard_mysql_isolated.RealMySQLDashboardRBAC.test_post_disallowed) ... ok
+test_regular_admin_is_scoped (tests.test_mini_ops_dashboard_mysql_isolated.RealMySQLDashboardRBAC.test_regular_admin_is_scoped) ... ok
+test_superadmin_sees_all (tests.test_mini_ops_dashboard_mysql_isolated.RealMySQLDashboardRBAC.test_superadmin_sees_all) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.523s
+
+OK

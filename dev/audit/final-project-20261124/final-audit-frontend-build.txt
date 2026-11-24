@@ -1,0 +1,11 @@
+npm notice run build
+npm notice run node -e "require('fs').rmSync('dist',{recursive:true,force:true})" && esbuild wallet-connect.js --bundle --format=esm --platform=browser --target=es2020 --inject:./buffer-shim.js --splitting --entry-names=wallet-connect --chunk-names=wallet-chunks/[name]-[hash] --minify --outdir=dist
+
+  dist\wallet-chunks\tron-checkout-NP3E6KFY.js    1.3mb
+  dist\wallet-chunks\ton-checkout-JGIJWFRR.js   685.2kb
+  dist\wallet-chunks\dist-7NMK6VSE.js           135.8kb
+  dist\wallet-chunks\chunk-YQWIMUR5.js           28.8kb
+  dist\wallet-chunks\chunk-GFRKY6HC.js           12.2kb
+  ...and 1 more output file...
+
+Done in 4459ms

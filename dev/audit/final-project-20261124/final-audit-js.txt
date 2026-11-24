@@ -1,0 +1,32 @@
+PASS: admin section routing, safe destinations, read-only controls and selected game UI.
+✔ final-audit\backend\tests\js\test_admin_navigation_ux.mjs (141.9157ms)
+PASS: server-owned start, next-number and next-game clocks; delay, pause and stale states.
+✔ final-audit\backend\tests\js\test_automation_phases.mjs (155.6448ms)
+PASS: Autopilot-authoritative countdown, UI, sound/haptic safeguards and pending state.
+✔ final-audit\backend\tests\js\test_autopilot_start_countdown_v1.mjs (176.5245ms)
+PASS: verified personal prizes, repeated owners, invalid payloads, rules and inbox filters
+✔ final-audit\backend\tests\js\test_experience.mjs (144.1223ms)
+PASS: rules, game dashboard, card progress, and wallet prize labels.
+✔ final-audit\backend\tests\js\test_game_discovery_ux.mjs (141.055ms)
+PASS: haptic enable sample, off, persistence, hidden/disabled cues, Telegram priority and safe unsupported fallback
+✔ final-audit\backend\tests\js\test_game_haptics.mjs (160.5179ms)
+PASS: card navigation avoids duplicate loads; finance, win, and unknown notification routes are correct.
+✔ final-audit\backend\tests\js\test_navigation_regressions_wave5.mjs (155.1732ms)
+PASS: mini-game live notification labels use correct rule, including old payloads.
+✔ final-audit\backend\tests\js\test_notification_rule_labels.mjs (125.7857ms)
+PASS: payment option visibility, legacy API guard and admin UX wiring.
+✔ final-audit\backend\tests\js\test_payment_visibility_admin_ux.mjs (136.2066ms)
+PASS: superadmin v1.2 dashboard contract, read-only render, XSS escaping, failure/retry and cache revision
+✔ final-audit\backend\tests\js\test_superadmin_dashboard_v11.mjs (195.0285ms)
+PASS: categorized superadmin v1.3 navigation, RBAC and control IDs
+✔ final-audit\backend\tests\js\test_superadmin_sections_v13.mjs (110.8297ms)
+PASS: safe, disconnected mock preview with valid scripts and 3x9 cards.
+✔ final-audit\backend\tests\js\test_ux_preview_safety.mjs (103.8871ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 391.8285
