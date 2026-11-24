@@ -30,9 +30,12 @@ def _contrast_ratio(a: str, b: str = "#ffffff") -> float:
 
 
 def test_light_theme_semantic_text_colors_meet_normal_text_contrast() -> None:
-    variables = dict(
-        re.findall(r"--(ui-[a-z0-9-]+)\s*:\s*(#[0-9a-fA-F]{6})\s*;", CSS)
-    )
+    theme = (MINI_DIR / "theme.css").read_text(encoding="utf-8")
+    light = theme.split('html[data-theme="light"]', 1)[1]
+    palette = dict(re.findall(r"--(theme-[a-z0-9-]+)\s*:\s*(#[0-9a-fA-F]{6})\s*;", light))
+    aliases = dict(re.findall(r"--(ui-[a-z0-9-]+)\s*:\s*var\(--(theme-[a-z0-9-]+)\)\s*;", CSS))
+    variables = {name: palette[target] for name, target in aliases.items()}
+    assert INDEX.index("./theme.css?") < INDEX.index("./styles.css?")
     expected = {
         "ui-success-text",
         "ui-danger-text",
@@ -71,4 +74,4 @@ def test_critical_light_theme_overrides_exist() -> None:
 
 
 def test_stylesheet_cache_token_matches_contrast_release() -> None:
-    assert "./styles.css?v=finance-reject-reasons-20261108" in INDEX
+    assert "./styles.css?v=unified-blue-20261123" in INDEX

@@ -125,7 +125,14 @@ try {
  await page.setViewportSize({width:1280,height:1000});
  const panel=page.locator('.system-game-clock-panel');
  const colors=await panel.evaluate(el=>({background:getComputedStyle(el).backgroundImage,card:getComputedStyle(el.querySelector('.system-clock-card')).backgroundColor,ink:getComputedStyle(el.querySelector('.system-clock-digits')).color,meta:getComputedStyle(el.querySelector('.meta')).color}));
- assert.equal(colors.card,'rgb(255, 255, 255)');assert.equal(colors.ink,'rgb(23, 48, 71)');assert.equal(colors.meta,'rgb(71, 94, 118)');
+ const palette=await page.evaluate(()=>{
+   const root=getComputedStyle(document.documentElement);
+   const rgb=name=>{const value=root.getPropertyValue(name).trim().replace('#','');return `rgb(${[0,2,4].map(i=>parseInt(value.slice(i,i+2),16)).join(', ')})`;};
+   return {surface:rgb('--theme-surface'),ink:rgb('--theme-text'),meta:rgb('--theme-muted')};
+ });
+ assert.equal(colors.card,palette.surface);assert.equal(colors.ink,palette.ink);assert.equal(colors.meta,palette.meta);
+ const luminance=rgb=>rgb.match(/\d+/g).map(Number).map(v=>v/255).map(v=>v<=.04045?v/12.92:((v+.055)/1.055)**2.4).reduce((sum,v,i)=>sum+v*[.2126,.7152,.0722][i],0);
+ for(const ink of [colors.ink,colors.meta])assert.ok((luminance(colors.card)+.05)/(luminance(ink)+.05)>=4.5,'actual light clock text contrast');
  await panel.screenshot({path:path.join(output,'system-clocks-light-desktop.png')});
  await page.setViewportSize({width:390,height:844});
  await panel.screenshot({path:path.join(output,'system-clocks-light-mobile.png')});

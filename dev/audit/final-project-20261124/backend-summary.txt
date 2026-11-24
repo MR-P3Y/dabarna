@@ -1,0 +1,8 @@
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+SKIPPED [1] tests\test_crypto_destination_mysql_concurrency.py:22: unittest.case.SkipTest: disposable MySQL opt-in required
+SKIPPED [1] tests\test_fresh_migrations_mysql.py:10: unittest.case.SkipTest: disposable migration database required
+SKIPPED [1] tests\test_mini_ops_dashboard_mysql_isolated.py:11: unittest.case.SkipTest: isolated MySQL opt-in required
+SKIPPED [1] tests\test_owner_crypto_wallet_mysql_disposable.py:22: unittest.case.SkipTest: explicit disposable-MySQL opt-in required
+326 passed, 4 skipped, 64 warnings, 116 subtests passed in 20.38s
+External connection attempts blocked: 0
