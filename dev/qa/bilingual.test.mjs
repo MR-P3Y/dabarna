@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import {ruleLabel,prizeLabel,personalPrize} from '../../backend/app/static/mini/experience.en.mjs';
+import {fieldValue,notificationBody} from '../../backend/app/static/mini/server-labels.en.mjs';
+assert.match(ruleLabel('LINE',2),/15 numbers/);
+assert.match(ruleLabel('FULL_CARD',2),/No Tourna/);
+assert.match(ruleLabel('LEGACY',1),/20 numbers/);
+assert.match(prizeLabel('PRIZE_ROW',{game_rule:'LINE',card_layout_version:1}),/cannot be verified/);
+assert.match(prizeLabel('PRIZE_COL',{game_rule:'FULL_CARD',card_layout_version:2}),/inconsistent/);
+assert.equal(personalPrize({winner_user_ids:[8,9],winner_card_ids:[1,2],amounts_by_card:[30,70]},8),30);
+assert.equal(notificationBody({kind:'deposit',body:'درخواست #12 | مبلغ 20,000 تومان'}),'Request #12 | Amount 20,000 toman');
+assert.equal(notificationBody({kind:'crypto',body:'فاکتور #12 | 20,000 تومان | TON/TON | دلیل کاربر'}),'Invoice #12 | 20,000 toman | TON/TON | دلیل کاربر');
+for(const label of ['نام کاربری','دلیل بررسی','هش تراکنش','کد بازی و کارت'])assert.equal(fieldValue({label,value:'بازی'}),'بازی');
+assert.equal(fieldValue({label:'تأیید شبکه',value:'2 از 12'}),'2 of 12');
+assert.match(fieldValue({label:'قانون',value:'پرکردنی، تکمیل ۱۵ عدد'}),/all 15/);
+console.log('PASS: English rules, invalid layouts, individual awards, server templates and private values');
