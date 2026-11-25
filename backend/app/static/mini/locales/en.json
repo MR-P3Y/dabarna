@@ -1676,5 +1676,14 @@
   "برگردید؛ خرید خودکار انجام نمی‌شود.": "; cards will not be purchased automatically.",
   "بازی انتخاب‌شده تغییر کرد؛ خرید را برای بازی موردنظر دوباره بررسی کنید.": "The selected game changed. Review your intended game before purchasing again.",
   "خرید ثبت شد · بازی": "Purchase recorded · Game",
-  "· شماره خرید": "· Purchase ID"
+  "· شماره خرید": "· Purchase ID",
+  "برندگان ۵ بازی اخیر": "Winners of the last 5 games",
+  "بخشی از اطلاعات برد قابل تأیید نیست.": "Some win records cannot be verified.",
+  "بردی برای این بازی ثبت نشده است.": "No win has been recorded for this game.",
+  "مبالغ مربوط به رویداد ثبت‌شدهٔ برد است؛ رسید اعتبار کیف پول در حساب برنده نمایش داده می‌شود.": "Amounts refer to recorded win events. Wallet credit receipts are shown in the winner's account.",
+  "هنوز بازی پایان‌یافته‌ای ثبت نشده است.": "No completed games have been recorded yet.",
+  "نتایج پنج بازی پایان‌یافتهٔ اخیر": "Results of the last five completed games",
+  "دریافت نتایج تازه انجام نشد؛ دوباره تلاش کنید.": "Could not refresh results. Please try again.",
+  "برای پیگیری، کد یا فیلتر موردنظر را وارد کنید.": "Enter a tracking code or filter first.",
+  "کادر جست‌وجو خالی است؛ برای جست‌وجوی عمومی دکمهٔ پیگیری را بزنید.": "The search is empty. Use Search to explicitly browse all accessible records."
 }

@@ -1438,3 +1438,5 @@ html[data-theme] .bottom-nav.glass { box-shadow: 0 -2px 16px -5px rgb(var(--them
 .game-journey button,.purchase-complete button{min-height:44px;white-space:normal}
 .purchase-complete{border-color:var(--theme-accent)}
 @media(max-width:480px){.game-journey button,.purchase-complete button{flex:1 1 130px}}
+
+.result-winner{display:grid;gap:6px;padding:12px;margin-block:10px;border:1px solid var(--theme-line);border-radius:12px;background:var(--theme-inset);overflow-wrap:anywhere}.result-winner b{color:var(--theme-accent)}

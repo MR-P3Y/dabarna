@@ -1,5 +1,5 @@
 // Only system-owned fields may be translated. Names, reasons, addresses and codes stay intact.
-import {knownText} from './locale-en.mjs?v=20261124journey';
+import {knownText} from './locale-en.mjs?v=20261125results';
 const systemFields=new Set(['جهت','علت ثبت','رسید پیوست','ثبت در کیف پول','مرحله بعد','قانون','شماره‌خوان','ساختار کارت']);
 export function fieldValue(field) {
  if(field.label==='تأیید شبکه')return String(field.value).replace(/^(\d+) از (\d+)$/, '$1 of $2');

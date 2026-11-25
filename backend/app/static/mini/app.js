@@ -1,5 +1,5 @@
 import * as experience from "./experience.mjs?v=remaining-ux-v1";
-import {initTracking} from "./tracking.mjs?v=20261122design";
+import {initTracking} from "./tracking.mjs?v=20261125results";
 import {automationClock} from "./automation-clocks.mjs?v=20261113";
 const tg = window.Telegram?.WebApp;
 
@@ -293,7 +293,7 @@ const UI_TEXT = {
   refreshGamesBtn: "به‌روزرسانی",
   gamesGuideText:
     "قانون هر بازی را بررسی کن. تا وقتی بازی در لابی است می‌توانی کارت بخری؛ بعد از شروع، اعداد زنده را دنبال کن.",
-  recentStatsTitle: "آمار ۵ بازی اخیر",
+  recentStatsTitle: "برندگان ۵ بازی اخیر",
   trustPanelTitle: "سیستم اعتماد",
   liveTitle: "وضعیت زنده بازی",
   buyQtyLabel: "تعداد کارت",
@@ -2596,50 +2596,30 @@ function parseApiDate(raw) {
   return new Date(text);
 }
 
-function drawRecentStats(items) {
-  const root = getEl("recentStatsSlider");
-  if (!root) return;
-  const list = Array.isArray(items) ? items : [];
-  if (!list.length) {
-    root.innerHTML = '<div class="empty">هنوز بازی شروع‌شده‌ای برای آمار وجود ندارد.</div>';
-    return;
-  }
-
-  root.innerHTML = list
-    .map((g) => {
-      const colTotal = Number(g.col_prize_total || 0);
-      const rowTotal = Number(g.row_prize_total || 0);
-      const colWinners = Number(g.col_winners_count || 0);
-      const rowWinners = Number(g.row_winners_count || 0);
-      const gameRule = String(g.game_rule || "LEGACY").toUpperCase();
-      const colLabel = gameRule === "LINE" ? "تورنا (۳ عدد از یک ردیف)" : "ستونی (تورنا)";
-      const rowLabel = gameRule === "FULL_CARD" ? "پرکردنی (۱۵ عدد)"
-        : gameRule === "LINE" ? "خطی (۵ عدد از یک ردیف)" : "سطری (تمام)";
-
-      const colWinnerText = colTotal > 0
-        ? `تعداد: ${safeText(colWinners || 1)} | مجموع: ${safeText(toman(colTotal))}`
-        : "-";
-      const rowWinnerText = rowTotal > 0
-        ? `تعداد: ${safeText(rowWinners || 1)} | مجموع: ${safeText(toman(rowTotal))}`
-        : "-";
-
-      return `
-      <div class="stat-card">
-        <h4>بازی ${safeText(gameDisplayRef(g.game_id))}</h4>
-        <div class="meta-row">وضعیت: ${safeText(statusLabel(g.status || "ENDED"))}</div>
-        <div class="meta-row">🎫 مبلغ کارت: ${safeText(toman(g.card_price || 0))}</div>
-        <div class="meta-row">🎟 کارت فروخته‌شده: ${safeText(g.sold_cards)}</div>
-        <div class="meta-row">💳 مجموع فروش کارت: ${safeText(toman(g.sold_amount || 0))}</div>
-        <div class="meta-row">🧾 کمیسیون: ${safeText(toman(g.commission_amount || 0))}</div>
-        <div class="meta-row">💰 مجموع برنده‌ها: ${safeText(toman(g.prize_pool || 0))}</div>
-        <div class="meta-row">🏆 تعداد برنده‌ها: ${safeText(g.winners_count)}</div>
-        ${gameRule === "FULL_CARD" ? "" : `<div class="meta-row">🔷 برد ${safeText(colLabel)}: ${colWinnerText}</div>`}
-        <div class="meta-row">🟩 برد ${safeText(rowLabel)}: ${rowWinnerText}</div>
-      </div>
-    `
-    })
-    .join("");
+let resultsRequest = null;
+async function refreshRecentResults() {
+  if (resultsRequest) return resultsRequest;
+  resultsRequest = (async () => {
+    const root = getEl("recentStatsSlider");
+    try {
+      const data = await apiFetch("/mini-api/games/recent-results");
+      root.innerHTML = (data.items || []).slice(0,5).map(game => `<article class="stat-card">
+        <h4>بازی ${safeText(game.code)}</h4>
+        <p class="meta">${safeText(formatFaDateTime(game.ended_at))}</p>
+        ${game.incomplete ? '<p>بخشی از اطلاعات برد قابل تأیید نیست.</p>' : ""}
+        ${(game.winners || []).map(w => `<div class="result-winner"><strong>${safeText(w.alias)}</strong>
+          <span>کارت ${safeText(w.card)} · ${safeText(winnerKindLabelByReason(w.kind,game.game_rule))}</span>
+          <b>${w.amount == null ? "مبلغ قابل تأیید نیست" : safeText(toman(w.amount))}</b></div>`).join("") || '<p>بردی برای این بازی ثبت نشده است.</p>'}
+        <p class="hint">مبالغ مربوط به رویداد ثبت‌شدهٔ برد است؛ رسید اعتبار کیف پول در حساب برنده نمایش داده می‌شود.</p>
+      </article>`).join("") || '<p class="empty">هنوز بازی پایان‌یافته‌ای ثبت نشده است.</p>';
+      getEl("recentResultsStatus").textContent = "نتایج پنج بازی پایان‌یافتهٔ اخیر";
+    } catch (_) {
+      getEl("recentResultsStatus").textContent = "دریافت نتایج تازه انجام نشد؛ دوباره تلاش کنید.";
+    } finally { resultsRequest = null; }
+  })();
+  return resultsRequest;
 }
+function drawRecentStats() { refreshRecentResults(); }
 
 function drawTrustStrip(payload) {
   const root = getEl("trustStrip");
@@ -10475,6 +10455,7 @@ async function boot() {
   bind("refreshGamesBtn", "click", () => runManualRefresh("refreshGamesBtn", () => refreshGames()).catch(() => {}));
   bind("refreshCardsBtn", "click", () => runManualRefresh("refreshCardsBtn", () => refreshCards({ silent: false })).catch(() => {}));
   bind("refreshWalletBtn", "click", () => runManualRefresh("refreshWalletBtn", () => refreshWallet()).catch(() => {}));
+  bind("refreshRecentResults", "click", () => refreshRecentResults());
   bindGameJourney();
   bind("buyCardsBtn", "click", () => buySelectedGame().catch((e) => setLocalError("buyStatusHint", e)));
   bind("submitDepositBtn", "click", () => submitDepositWithReceipt().catch((e) => setLocalError("depositSubmitHint", e)));
