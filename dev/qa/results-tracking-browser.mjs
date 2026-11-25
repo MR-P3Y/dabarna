@@ -48,7 +48,7 @@ await page.route('**/*',async route=>{
  if(route.request().method()!=='GET')writes.push(url.pathname);
  let body={};let status=200;
  if(url.pathname.includes('/tracking/'))trackingRequests.push(url.pathname+url.search);
- if(url.pathname.endsWith('/games/recent-results')){body={items:Array.from({length:6},(_,i)=>({game_id:i+1,code:'G-'+i,game_rule:'FULL_CARD',card_layout_version:2,ended_at:'2026-11-25T10:00:00Z',winners:[{alias:'<img src=x onerror=alert(1)>',card:1,kind:'PRIZE_ROW',amount:i?30:null}]}))};}
+ if(url.pathname.endsWith('/games/recent-results')){body={items:Array.from({length:6},(_,i)=>({game_id:i+1,code:'G-'+i,game_rule:i%2?'LINE':'FULL_CARD',card_layout_version:2,card_price:5000,sold_cards:20,sold_amount:100000,commission_amount:10000,prize_pool:90000,winners_count:1,ended_at:'2026-11-25T10:00:00Z',winners:[{alias:'<img src=x onerror=alert(1)>',card:1,kind:'PRIZE_ROW',amount:i?30:null}]}))};}
  else if(url.pathname.includes('/tracking/search')){
    if(failTracking)status=503;
    const offset=Number(url.searchParams.get('offset')||0);
@@ -86,6 +86,23 @@ try {
   await page.evaluate(async()=>{qa.state.currentUserId=8;qa.state.token='OFFLINE_TEST';qa.state.tokenExp=9999999999;await qa.boot();await qa.refreshRecentResults();});
   assert.equal(await page.locator('#recentStatsSlider .stat-card').count(),5);
   assert.equal(await page.locator('#recentStatsSlider img').count(),0);
+  const detail=page.locator('#recentStatsSlider details').first();
+  assert.equal(await detail.evaluate(el=>el.open),false,'summary cards initially compact');
+  assert.equal(await page.locator('#recentStatsSlider .stat-card').first().locator('.meta-row').count(),6);
+  await detail.locator('summary').click();
+  await page.evaluate(()=>qa.refreshRecentResults());
+  assert.equal(await page.locator('#recentStatsSlider details').first().evaluate(el=>el.open),true,'refresh preserves expanded winner details');
+  assert.equal(await page.locator('#recentStatsSlider details summary').first().evaluate(el=>el===document.activeElement),true,'refresh retains keyboard focus');
+  await page.locator('#recentStatsSlider details summary').first().click();
+  for(const theme of ['light','dark']){
+    await page.evaluate(t=>document.documentElement.dataset.theme=t,theme);
+    for(const width of [320,390,1440]){
+      await page.setViewportSize({width,height:900});
+      assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+      await page.locator('#recentStatsSlider').screenshot({path:path.join(output,`stats-${lang}-${theme}-${width}.png`)});
+    }
+  }
+  await page.setViewportSize({width:390,height:844});
   assert.match(await page.locator('#recentStatsSlider').innerText(),lang==='en'?/cannot be verified/:/قابل تأیید نیست/);
   await page.locator('#trackingBtn').click();
   const refresh=page.locator('#trackingCenter [data-refresh]');

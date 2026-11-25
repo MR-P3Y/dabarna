@@ -293,7 +293,7 @@ const UI_TEXT = {
   refreshGamesBtn: "به‌روزرسانی",
   gamesGuideText:
     "قانون هر بازی را بررسی کن. تا وقتی بازی در لابی است می‌توانی کارت بخری؛ بعد از شروع، اعداد زنده را دنبال کن.",
-  recentStatsTitle: "برندگان ۵ بازی اخیر",
+  recentStatsTitle: "آمار و برندگان ۵ بازی اخیر",
   trustPanelTitle: "سیستم اعتماد",
   liveTitle: "وضعیت زنده بازی",
   buyQtyLabel: "تعداد کارت",
@@ -2597,25 +2597,59 @@ function parseApiDate(raw) {
 }
 
 let resultsRequest = null;
+function renderRecentResultCard(game, expanded) {
+  const winners = Array.isArray(game.winners) ? game.winners : [];
+  const money = value => value == null ? "هنوز ثبت نشده" : toman(value);
+  const count = value => value == null ? "هنوز ثبت نشده" : toFaDigits(value);
+  const prizeSummary = kind => {
+    const rows = winners.filter(w => w.kind === kind);
+    if (!rows.length) return game.incomplete ? "قابل تأیید نیست" : "بردی ثبت نشده";
+    const total = !game.incomplete && rows.every(w => Number.isSafeInteger(w.amount) && w.amount >= 0)
+      ? rows.reduce((sum,w) => sum + w.amount,0) : null;
+    return `${count(rows.length)} کارت · ${total == null ? "مبلغ قابل تأیید نیست" : money(total)}`;
+  };
+  const rule = String(game.game_rule || "UNKNOWN");
+  const kindLabel = kind => ["LINE","FULL_CARD","LEGACY"].includes(rule) ? winnerKindLabelByReason(kind,rule) : "قانون برد قابل تأیید نیست";
+  return `<article class="stat-card recent-result-card" data-result-game="${Number(game.game_id)}">
+    <header class="recent-result-head"><h4>بازی ${safeText(game.code)}</h4><span class="recent-result-status">پایان‌یافته</span></header>
+    <p class="recent-result-date">${safeText(formatFaDateTime(game.ended_at))}</p>
+    <div class="meta-row"><span>مبلغ کارت</span><strong>${safeText(money(game.card_price))}</strong></div>
+    <div class="meta-row"><span>کارت فروخته‌شده</span><strong>${safeText(count(game.sold_cards))}</strong></div>
+    <div class="meta-row"><span>مجموع فروش کارت</span><strong>${safeText(money(game.sold_amount))}</strong></div>
+    <div class="meta-row"><span>کمیسیون</span><strong>${safeText(money(game.commission_amount))}</strong></div>
+    <div class="meta-row result-pool"><span>صندوق جایزه</span><strong>${safeText(money(game.prize_pool))}</strong></div>
+    <div class="meta-row"><span>برندگان ثبت‌شده</span><strong>${safeText(count(game.winners_count))}</strong></div>
+    <div class="recent-prize-summary">
+      ${rule === "FULL_CARD" ? '<p class="meta">این قانون تورنا ندارد.</p>' : `<div><span>${safeText(kindLabel("PRIZE_COL"))}</span><strong>${safeText(prizeSummary("PRIZE_COL"))}</strong></div>`}
+      <div><span>${safeText(kindLabel("PRIZE_ROW"))}</span><strong>${safeText(prizeSummary("PRIZE_ROW"))}</strong></div>
+    </div>
+    ${game.incomplete ? '<p class="hint">بخشی از اطلاعات برد قابل تأیید نیست.</p>' : ""}
+    <details class="recent-winner-details" ${expanded ? "open" : ""}>
+      <summary>جزئیات برندگان <span>${safeText(count(winners.length))} کارت</span></summary>
+      <div class="recent-winner-list">${winners.map(w => `<div class="result-winner"><div><strong>${safeText(w.alias)}</strong><span>کارت ${safeText(count(w.card))}</span></div>
+        <span>${safeText(kindLabel(w.kind))}</span>
+        <b>${w.amount == null ? "مبلغ قابل تأیید نیست" : safeText(toman(w.amount))}</b></div>`).join("") || '<p class="hint">بردی برای این بازی ثبت نشده است.</p>'}</div>
+    </details>
+  </article>`;
+}
 async function refreshRecentResults() {
   if (resultsRequest) return resultsRequest;
   resultsRequest = (async () => {
     const root = getEl("recentStatsSlider");
+    const button = getEl("refreshRecentResults");
+    if (button) button.disabled = true;
     try {
       const data = await apiFetch("/mini-api/games/recent-results");
-      root.innerHTML = (data.items || []).slice(0,5).map(game => `<article class="stat-card">
-        <h4>بازی ${safeText(game.code)}</h4>
-        <p class="meta">${safeText(formatFaDateTime(game.ended_at))}</p>
-        ${game.incomplete ? '<p>بخشی از اطلاعات برد قابل تأیید نیست.</p>' : ""}
-        ${(game.winners || []).map(w => `<div class="result-winner"><strong>${safeText(w.alias)}</strong>
-          <span>کارت ${safeText(w.card)} · ${safeText(winnerKindLabelByReason(w.kind,game.game_rule))}</span>
-          <b>${w.amount == null ? "مبلغ قابل تأیید نیست" : safeText(toman(w.amount))}</b></div>`).join("") || '<p>بردی برای این بازی ثبت نشده است.</p>'}
-        <p class="hint">مبالغ مربوط به رویداد ثبت‌شدهٔ برد است؛ رسید اعتبار کیف پول در حساب برنده نمایش داده می‌شود.</p>
-      </article>`).join("") || '<p class="empty">هنوز بازی پایان‌یافته‌ای ثبت نشده است.</p>';
+      const expanded = new Set([...root.querySelectorAll('.recent-winner-details[open]')].map(el => el.closest('[data-result-game]').dataset.resultGame));
+      const focused = document.activeElement?.closest?.('.recent-winner-details')?.closest('[data-result-game]')?.dataset.resultGame;
+      const left = root.scrollLeft;
+      root.innerHTML = (data.items || []).slice(0,5).map(game => renderRecentResultCard(game, expanded.has(String(game.game_id)))).join("") || '<p class="empty">هنوز بازی پایان‌یافته‌ای ثبت نشده است.</p>';
+      root.scrollLeft = left;
+      if (focused) root.querySelector(`[data-result-game="${Number(focused)}"] summary`)?.focus({preventScroll:true});
       getEl("recentResultsStatus").textContent = "نتایج پنج بازی پایان‌یافتهٔ اخیر";
     } catch (_) {
       getEl("recentResultsStatus").textContent = "دریافت نتایج تازه انجام نشد؛ دوباره تلاش کنید.";
-    } finally { resultsRequest = null; }
+    } finally { resultsRequest = null; if (button) button.disabled = false; }
   })();
   return resultsRequest;
 }

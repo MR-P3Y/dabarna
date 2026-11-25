@@ -296,7 +296,7 @@ const UI_TEXT = {
   refreshGamesBtn: "Refresh",
   gamesGuideText:
     "Check each game's rules. Buy cards while the game is in the lobby, then follow live numbers after it starts.",
-  recentStatsTitle: "Winners of the last 5 games",
+  recentStatsTitle: "Last 5 games: stats and winners",
   trustPanelTitle: "Trust indicators",
   liveTitle: "Live game status",
   buyQtyLabel: "Card quantity",
@@ -2600,25 +2600,59 @@ function parseApiDate(raw) {
 }
 
 let resultsRequest = null;
+function renderRecentResultCard(game, expanded) {
+  const winners = Array.isArray(game.winners) ? game.winners : [];
+  const money = value => value == null ? "Not recorded yet" : toman(value);
+  const count = value => value == null ? "Not recorded yet" : toFaDigits(value);
+  const prizeSummary = kind => {
+    const rows = winners.filter(w => w.kind === kind);
+    if (!rows.length) return game.incomplete ? "Cannot be verified" : "No win recorded";
+    const total = !game.incomplete && rows.every(w => Number.isSafeInteger(w.amount) && w.amount >= 0)
+      ? rows.reduce((sum,w) => sum + w.amount,0) : null;
+    return `${count(rows.length)} Card · ${total == null ? "Amount cannot be verified" : money(total)}`;
+  };
+  const rule = String(game.game_rule || "UNKNOWN");
+  const kindLabel = kind => ["LINE","FULL_CARD","LEGACY"].includes(rule) ? winnerKindLabelByReason(kind,rule) : "Win rule cannot be verified";
+  return `<article class="stat-card recent-result-card" data-result-game="${Number(game.game_id)}">
+    <header class="recent-result-head"><h4>Game ${safeText(game.code)}</h4><span class="recent-result-status">Ended</span></header>
+    <p class="recent-result-date">${safeText(formatFaDateTime(game.ended_at))}</p>
+    <div class="meta-row"><span>Card price</span><strong>${safeText(money(game.card_price))}</strong></div>
+    <div class="meta-row"><span>Cards sold</span><strong>${safeText(count(game.sold_cards))}</strong></div>
+    <div class="meta-row"><span>Card sales</span><strong>${safeText(money(game.sold_amount))}</strong></div>
+    <div class="meta-row"><span>کمیسیون</span><strong>${safeText(money(game.commission_amount))}</strong></div>
+    <div class="meta-row result-pool"><span>صندوق جایزه</span><strong>${safeText(money(game.prize_pool))}</strong></div>
+    <div class="meta-row"><span>Recorded winners</span><strong>${safeText(count(game.winners_count))}</strong></div>
+    <div class="recent-prize-summary">
+      ${rule === "FULL_CARD" ? "<p class=\"meta\">This rule has no Tourna.</p>" : `<div><span>${safeText(kindLabel("PRIZE_COL"))}</span><strong>${safeText(prizeSummary("PRIZE_COL"))}</strong></div>`}
+      <div><span>${safeText(kindLabel("PRIZE_ROW"))}</span><strong>${safeText(prizeSummary("PRIZE_ROW"))}</strong></div>
+    </div>
+    ${game.incomplete ? "<p class=\"hint\">Some win records cannot be verified.</p>" : ""}
+    <details class="recent-winner-details" ${expanded ? "open" : ""}>
+      <summary>Winner details <span>${safeText(count(winners.length))} Card</span></summary>
+      <div class="recent-winner-list">${winners.map(w => `<div class="result-winner"><div><strong>${safeText(w.alias)}</strong><span>Card ${safeText(count(w.card))}</span></div>
+        <span>${safeText(kindLabel(w.kind))}</span>
+        <b>${w.amount == null ? "Amount cannot be verified" : safeText(toman(w.amount))}</b></div>`).join("") || "<p class=\"hint\">No win has been recorded for this game.</p>"}</div>
+    </details>
+  </article>`;
+}
 async function refreshRecentResults() {
   if (resultsRequest) return resultsRequest;
   resultsRequest = (async () => {
     const root = getEl("recentStatsSlider");
+    const button = getEl("refreshRecentResults");
+    if (button) button.disabled = true;
     try {
       const data = await apiFetch("/mini-api/games/recent-results");
-      root.innerHTML = (data.items || []).slice(0,5).map(game => `<article class="stat-card">
-        <h4>Game ${safeText(game.code)}</h4>
-        <p class="meta">${safeText(formatFaDateTime(game.ended_at))}</p>
-        ${game.incomplete ? "<p>Some win records cannot be verified.</p>" : ""}
-        ${(game.winners || []).map(w => `<div class="result-winner"><strong>${safeText(w.alias)}</strong>
-          <span>Card ${safeText(w.card)} · ${safeText(winnerKindLabelByReason(w.kind,game.game_rule))}</span>
-          <b>${w.amount == null ? "Amount cannot be verified" : safeText(toman(w.amount))}</b></div>`).join("") || "<p>No win has been recorded for this game.</p>"}
-        <p class="hint">Amounts refer to recorded win events. Wallet credit receipts are shown in the winner's account.</p>
-      </article>`).join("") || "<p class=\"empty\">No completed games have been recorded yet.</p>";
+      const expanded = new Set([...root.querySelectorAll('.recent-winner-details[open]')].map(el => el.closest('[data-result-game]').dataset.resultGame));
+      const focused = document.activeElement?.closest?.('.recent-winner-details')?.closest('[data-result-game]')?.dataset.resultGame;
+      const left = root.scrollLeft;
+      root.innerHTML = (data.items || []).slice(0,5).map(game => renderRecentResultCard(game, expanded.has(String(game.game_id)))).join("") || "<p class=\"empty\">No completed games have been recorded yet.</p>";
+      root.scrollLeft = left;
+      if (focused) root.querySelector(`[data-result-game="${Number(focused)}"] summary`)?.focus({preventScroll:true});
       getEl("recentResultsStatus").textContent = "Results of the last five completed games";
     } catch (_) {
       getEl("recentResultsStatus").textContent = "Could not refresh results. Please try again.";
-    } finally { resultsRequest = null; }
+    } finally { resultsRequest = null; if (button) button.disabled = false; }
   })();
   return resultsRequest;
 }

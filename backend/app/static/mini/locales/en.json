@@ -1685,5 +1685,15 @@
   "نتایج پنج بازی پایان‌یافتهٔ اخیر": "Results of the last five completed games",
   "دریافت نتایج تازه انجام نشد؛ دوباره تلاش کنید.": "Could not refresh results. Please try again.",
   "برای پیگیری، کد یا فیلتر موردنظر را وارد کنید.": "Enter a tracking code or filter first.",
-  "کادر جست‌وجو خالی است؛ برای جست‌وجوی عمومی دکمهٔ پیگیری را بزنید.": "The search is empty. Use Search to explicitly browse all accessible records."
+  "کادر جست‌وجو خالی است؛ برای جست‌وجوی عمومی دکمهٔ پیگیری را بزنید.": "The search is empty. Use Search to explicitly browse all accessible records.",
+  "آمار و برندگان ۵ بازی اخیر": "Last 5 games: stats and winners",
+  "مبلغ کارت": "Card price",
+  "کارت فروخته‌شده": "Cards sold",
+  "مجموع فروش کارت": "Card sales",
+  "برندگان ثبت‌شده": "Recorded winners",
+  "بردی ثبت نشده": "No win recorded",
+  "قابل تأیید نیست": "Cannot be verified",
+  "جزئیات برندگان": "Winner details",
+  "این قانون تورنا ندارد.": "This rule has no Tourna.",
+  "مبالغ برد از رویداد ثبت‌شده است؛ رسید واریز جایزه در حساب برنده قرار دارد.": "Prize amounts come from recorded win events. Credit receipts are available in each winner's account."
 }
