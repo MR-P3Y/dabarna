@@ -1440,3 +1440,23 @@ html[data-theme] .bottom-nav.glass { box-shadow: 0 -2px 16px -5px rgb(var(--them
 @media(max-width:480px){.game-journey button,.purchase-complete button{flex:1 1 130px}}
 
 .result-winner{display:grid;gap:6px;padding:12px;margin-block:10px;border:1px solid var(--theme-line);border-radius:12px;background:var(--theme-inset);overflow-wrap:anywhere}.result-winner b{color:var(--theme-accent)}
+
+/* Preserve the original horizontal statistics cards; winners expand in place. */
+#recentStatsSlider{scroll-snap-type:x proximity;align-items:start;gap:10px;padding-block:6px 12px}
+#recentStatsSlider .recent-result-card{scroll-snap-align:start;padding:12px;border-radius:14px;box-shadow:0 4px 14px color-mix(in srgb,var(--theme-accent) 7%,transparent)}
+.recent-result-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px}
+.recent-result-head h4{margin:0;font-size:13px;overflow-wrap:anywhere}
+.recent-result-status{font-size:10px;padding:3px 7px;border-radius:6px;background:var(--theme-inset);color:var(--theme-muted)}
+.recent-result-date{margin:6px 0 12px;font-size:10px;color:var(--theme-muted)}
+.recent-result-card .meta-row{display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding-block:4px;border-bottom:1px solid var(--theme-line);font-size:11px}
+.recent-result-card .meta-row strong{color:var(--theme-text);font-weight:650;text-align:end;overflow-wrap:anywhere}
+.recent-result-card .result-pool strong{color:var(--theme-accent)}
+.recent-prize-summary{padding-block:9px;min-height:85px;font-size:10px;color:var(--theme-muted)}
+.recent-prize-summary>div{display:grid;gap:3px;margin-block:5px}.recent-prize-summary strong{color:var(--theme-text);font-weight:600}
+.recent-winner-details{border-top:1px solid var(--theme-line);padding-top:4px}
+.recent-winner-details summary{min-height:44px;cursor:pointer;align-content:center;font-size:11px;font-weight:650;color:var(--theme-accent)}
+.recent-winner-details summary>span{float:inline-end;font-size:10px;color:var(--theme-muted);font-weight:400;padding-inline:4px}
+.recent-winner-list{max-height:260px;overflow-y:auto;overscroll-behavior:contain}
+.recent-result-card .result-winner{margin-block:6px;padding:9px;gap:5px;font-size:11px;border-radius:8px}
+.result-winner>div{display:flex;align-items:center;justify-content:space-between;gap:8px}.result-winner>div>span{font-size:10px;color:var(--theme-muted)}
+.recent-results-note{font-size:10px;line-height:1.8}

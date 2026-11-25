@@ -48,6 +48,18 @@ class PublicResultsTests(TrackingTests):
         self.assertTrue(row['incomplete'])
         self.assertTrue(all(w['kind']=='PRIZE_ROW' for w in row['winners']))
 
+    def test_statistics_preserve_stored_values_and_count_actual_cards(self):
+        game=self.db.get(Game,1)
+        game.sold_amount=0;game.prize_pool=0;game.commission_amount=0
+        self.db.commit()
+        row=self.client.get('/mini-api/games/recent-results').json()['items'][0]
+        self.assertEqual(row['card_price'],5)
+        self.assertEqual(row['sold_cards'],1)
+        self.assertEqual(row['sold_amount'],0) # never substitute price * count
+        self.assertEqual(row['prize_pool'],0)
+        self.assertEqual(row['commission_amount'],0)
+        self.assertEqual(row['winners_count'],1) # verified distinct user, not event count
+
     def test_requires_authentication(self):
         app=FastAPI();app.include_router(results.router)
         with TestClient(app) as client:self.assertEqual(client.get('/mini-api/games/recent-results').status_code,401)

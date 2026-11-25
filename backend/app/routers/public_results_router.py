@@ -3,7 +3,7 @@ No wallet balances, Telegram IDs, addresses or inferred shares are exposed.
 """
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, Response
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 from app.core.db import get_db
 from app.core.mini_security import get_mini_user_id
@@ -25,6 +25,7 @@ def recent_results(response: Response, user_id: int = Depends(get_mini_user_id),
         rows = db.scalars(select(GameEvent).where(GameEvent.game_id == game.id,
                           GameEvent.kind.in_(["PRIZE_COL", "PRIZE_ROW"])).order_by(GameEvent.id.desc())).all()
         winners, seen_kinds, invalid = [], set(), rule == "UNKNOWN"
+        verified_users = set()
         for event in rows:
             if event.kind in seen_kinds:
                 continue
@@ -51,6 +52,7 @@ def recent_results(response: Response, user_id: int = Depends(get_mini_user_id),
                 if not card or card.game_id != game.id or card.user_id != uid:
                     invalid = True
                     continue
+                verified_users.add(uid)
                 user = db.get(User, uid)
                 name = str(getattr(user, "username", None) or getattr(user, "first_name", None) or "").strip()
                 alias = (name[:2] + "•••") if name else "•••"
@@ -61,5 +63,8 @@ def recent_results(response: Response, user_id: int = Depends(get_mini_user_id),
                                     amount=amount, event_id=event.id))
         items.append(dict(game_id=game.id, code=game.display_code or str(game.id), game_rule=rule,
                           card_layout_version=game.card_layout_version, ended_at=game.ended_at,
-                          winners=winners, incomplete=invalid))
+                          card_price=game.card_price, sold_amount=game.sold_amount,
+                          sold_cards=db.scalar(select(func.count(GameCard.id)).where(GameCard.game_id == game.id)),
+                          commission_amount=game.commission_amount, prize_pool=game.prize_pool,
+                          winners_count=len(verified_users), winners=winners, incomplete=invalid))
     return dict(items=items, fetched_at=datetime.now(timezone.utc))
