@@ -82,10 +82,13 @@ export function initTracking({apiFetch, getAccount}) {
       }
     } finally {if(mine===serial)dialog.removeAttribute("aria-busy");}
   }
+  function formFilters() {
+    return {q:el("trackingQuery").value.trim(),kind:el("trackingKind").value,status:el("trackingStatus").value,since:el("trackingSince").value,until:el("trackingUntil").value};
+  }
   async function search(start=0, readForm=false) {
     if(readForm) {
       if(el("trackingQuery").value.trim())history={};
-      filters={q:el("trackingQuery").value.trim(),kind:el("trackingKind").value,status:el("trackingStatus").value,since:el("trackingSince").value,until:el("trackingUntil").value};
+      filters=formFilters();
     }
     offset=start;last={type:"search",start};detail=null;
     const query=new URLSearchParams({...filters,...history,offset:start,limit:20});
@@ -118,7 +121,17 @@ export function initTracking({apiFetch, getAccount}) {
   async function refresh() {
     const scroll=dialog.scrollTop;
     if(last?.type==="detail")await show(last.kind,last.id,last.start);
-    else await search(last?.start || 0);
+    else {
+      const current=formFilters();
+      const changed=Object.keys(current).some(key=>current[key] !== (filters[key] || ""));
+      if(!last && !Object.values(current).some(Boolean) && !history.owner && !history.game){
+        feedback("برای پیگیری، کد یا فیلتر موردنظر را وارد کنید."); return;
+      }
+      if(changed && !Object.values(current).some(Boolean) && !history.owner && !history.game){
+        feedback("کادر جست‌وجو خالی است؛ برای جست‌وجوی عمومی دکمهٔ پیگیری را بزنید."); return;
+      }
+      await search(changed?0:last?.start || 0,changed || !last);
+    }
     dialog.scrollTop=scroll;
   }
   el("trackingForm").addEventListener("submit",e=>{e.preventDefault();search(0,true);});

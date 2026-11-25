@@ -184,3 +184,6 @@ def debug_admin_sources():
         "os_ADMIN_TOKEN_MAP": os.getenv("ADMIN_TOKEN_MAP"),
         "config_ADMIN_TOKEN_MAP": getattr(config, "ADMIN_TOKEN_MAP", {}),
     }
+
+from app.routers.public_results_router import router as public_results_router
+app.include_router(public_results_router)

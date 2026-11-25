@@ -1386,6 +1386,62 @@ async def _admin_forum_audit(bot: Bot, api: ApiClient) -> None:
         set_meta_marker("admin_crypto_reconciliation_key", income_day_key)
 
 
+async def _send_public_prize_notice(bot: Bot, *, game_id: int, report: dict, kind: str, event: dict) -> bool:
+    game = report.get("game") or {}
+    payload = _event_payload(event)
+    call_number = _to_int(payload.get("call_number"), 0)
+    amount_total = _prize_amount(payload.get("amount_total"))
+    game_topic_id = _to_int(game.get("tg_topic_id"), 0)
+    rule = rule_kind(game)
+    if rule == "UNKNOWN" or (kind == "PRIZE_COL" and rule == "FULL_CARD"):
+        logger.warning("Inconsistent prize rule/layout: game=%s kind=%s", game_id, kind)
+        return True
+    bucket = {"PRIZE_COL": "col", "PRIZE_ROW": "row"}[kind]
+    if bucket == "col" and (game.get("payout_state_json") or {}).get("col", {}).get("absorbed_into_row"):
+        return True
+    kind_title = "تورنا" if bucket == "col" else {"FULL_CARD": "پرکردنی", "LINE": "خطی", "LEGACY": "ردیفی"}[rule]
+    grouped = _winner_shares(game, payload, bucket)
+    labels = {row["card_id"]: row["display_serial"] for row in report.get("winner_cards", [])
+              if row.get("card_id") and row.get("display_serial")}
+    winner_card_ids = [cid for cards in grouped.values() for cid, _ in cards]
+    if _is_user_forum_game(report):
+        public_text = panel(
+            "اعلان برنده",
+            "#نتایج #برنده\n"
+            f"🎮 بازی: <b>#{game.get('display_code') or game_id}</b>\n"
+            f"🧵 دسته بازی: <b>{user_game_topic_title(game_topic_id if game_topic_id > 0 else None)}</b>\n"
+            f"🏆 نوع برد: <b>{kind_title}</b>\n"
+            f"👥 تعداد برنده‌ها: <b>{len(grouped)}</b>\n"
+            f"🪪 کارت‌های برنده: <code>{', '.join(str(labels.get(x, x)) for x in winner_card_ids) if winner_card_ids else '—'}</code>\n"
+            f"💰 مجموع جایزه ثبت‌شده: <b>{_amount_text(amount_total)}</b>\n"
+            f"{f'🔢 عدد برنده: <b>{call_number}</b>' if call_number > 0 else ''}\n\n"
+            "سهم هر برنده در ربات خصوصی نمایش داده می‌شود.",
+        )
+        return await send_to_user_topic(
+            bot,
+            name="results",
+            text=public_text,
+            parse_mode="HTML",
+            disable_notification=False,
+        )
+
+    return True
+
+
+async def _process_public_prize_reports(bot: Bot, *, game_id: int, report: dict, is_first_seen: bool) -> None:
+    for kind in ("PRIZE_COL", "PRIZE_ROW"):
+        event = _latest_event(report.get("events") or [], kind)
+        if not event:
+            continue
+        await deliver_lifecycle_event(
+            game_id=game_id, event_key=kind + "_NOTICE_RESULTS", event=event,
+            is_first_seen=is_first_seen,
+            legacy_event_key=kind if is_first_seen else None,
+            send=lambda kind=kind, event=event: _send_public_prize_notice(
+                bot, game_id=game_id, report=report, kind=kind, event=event),
+        )
+
+
 async def _queue_prize_notifications(
     queue: asyncio.Queue[_SendJob],
     bot: Bot,
@@ -1413,26 +1469,6 @@ async def _queue_prize_notifications(
     labels = {row["card_id"]: row["display_serial"] for row in report.get("winner_cards", [])
               if row.get("card_id") and row.get("display_serial")}
     winner_card_ids = [cid for cards in grouped.values() for cid, _ in cards]
-    if _is_user_forum_game(report):
-        public_text = panel(
-            "اعلان برنده",
-            "#نتایج #برنده\n"
-            f"🎮 بازی: <b>#{game.get('display_code') or game_id}</b>\n"
-            f"🧵 دسته بازی: <b>{user_game_topic_title(game_topic_id if game_topic_id > 0 else None)}</b>\n"
-            f"🏆 نوع برد: <b>{kind_title}</b>\n"
-            f"👥 تعداد برنده‌ها: <b>{len(grouped)}</b>\n"
-            f"🪪 کارت‌های برنده: <code>{', '.join(str(labels.get(x, x)) for x in winner_card_ids) if winner_card_ids else '—'}</code>\n"
-            f"💰 مجموع پرداخت: <b>{_amount_text(amount_total)}</b>\n"
-            f"{f'🔢 عدد برنده: <b>{call_number}</b>' if call_number > 0 else ''}\n\n"
-            "سهم هر برنده در ربات خصوصی نمایش داده می‌شود.",
-        )
-        await send_to_user_topic(
-            bot,
-            name="results",
-            text=public_text,
-            parse_mode="HTML",
-            disable_notification=False,
-        )
 
     for tg_uid, cards in grouped.items():
         text = (
@@ -1771,6 +1807,8 @@ async def notifier_loop(
         col_event_id = _to_int((col_event or {}).get("id"), 0)
         row_event_id = _to_int((row_event or {}).get("id"), 0)
         is_first_lifecycle_seen = gid not in warmed_lifecycle_games
+
+        await _process_public_prize_reports(bot, game_id=gid, report=rep, is_first_seen=gid not in warmed_prize_games)
 
         if gid not in warmed_prize_games:
             prev_col = get_event_marker(gid, "PRIZE_COL")
