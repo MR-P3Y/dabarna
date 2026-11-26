@@ -5,6 +5,7 @@ import hashlib
 import hmac
 import json
 import logging
+import re
 import time
 from typing import Any
 from urllib.parse import unquote
@@ -62,6 +63,9 @@ def verify_session_token(token: str) -> int:
     if not token or "." not in token:
         raise HTTPException(status_code=401, detail="توکن نشست نامعتبر است.")
 
+    if len(token) > 4096 or not re.fullmatch(r"[A-Za-z0-9_-]+\.[A-Za-z0-9_-]{43}", token.strip()):
+        raise HTTPException(status_code=401, detail="توکن نشست نامعتبر است.")
+
     parts = token.strip().split(".")
     if len(parts) != 2:
         raise HTTPException(status_code=401, detail="توکن نشست نامعتبر است.")
@@ -76,13 +80,15 @@ def verify_session_token(token: str) -> int:
     except Exception:
         raise HTTPException(status_code=401, detail="محتوای نشست نامعتبر است.")
 
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=401, detail="محتوای نشست نامعتبر است.")
     uid = payload.get("uid")
     exp = payload.get("exp")
-    if not isinstance(uid, int) or uid <= 0:
+    if type(uid) is not int or uid <= 0:
         raise HTTPException(status_code=401, detail="کاربر نشست نامعتبر است.")
-    if not isinstance(exp, int):
+    if type(exp) is not int:
         raise HTTPException(status_code=401, detail="زمان انقضای نشست نامعتبر است.")
-    if int(time.time()) > int(exp):
+    if int(time.time()) >= int(exp):
         raise HTTPException(status_code=401, detail="نشست کاربری منقضی شده است.")
     return int(uid)
 

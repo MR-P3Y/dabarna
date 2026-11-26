@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import re
 from dataclasses import dataclass
 from typing import Any
 from urllib.parse import parse_qsl
@@ -55,6 +56,9 @@ def verify_init_data(init_data: str, bot_token: str) -> TelegramWebAppInitData:
     recv_hash = (data.get("hash") or "").strip()
     if not recv_hash:
         raise TelegramInitDataError("missing hash")
+
+    if not re.fullmatch(r"[0-9a-f]{64}", recv_hash):
+        raise TelegramInitDataError("invalid hash")
 
     # Build data_check_string
     pairs: list[str] = []
