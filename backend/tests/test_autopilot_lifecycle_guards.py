@@ -21,7 +21,7 @@ class AutopilotLifecycleGuardTests(unittest.TestCase):
         self.db = Mock()
         self.config = SimpleNamespace(
             enabled=1, scheduler_mode="AUTO", start_mode="AUTO",
-            draw_mode="AUTO", card_price=5000, min_unique_players=2,
+            draw_mode="AUTO", card_price=5000, min_unique_players=2, start_requirement="PLAYERS", min_cards_sold=2,
             countdown_seconds=30, draw_interval_seconds=8,
             cooldown_seconds=60, repeat_interval_seconds=120,
         )
@@ -34,7 +34,7 @@ class AutopilotLifecycleGuardTests(unittest.TestCase):
     def manage(self, players, *, auto_draw=True):
         with (
             patch.object(GameAutopilotWorker, "_ensure_draw_mode") as ensure,
-            patch.object(GameAutopilotWorker, "_unique_players", return_value=players) as count,
+            patch.object(GameAutopilotWorker, "readiness", return_value=dict(ready=players >= 2, minimum_players=2, minimum_cards=None)) as count,
             patch("app.services.game_autopilot_worker.cfg.GAME_AUTO_DRAW_ENABLED", auto_draw),
             patch("app.services.game_autopilot_worker.GameService.start_game") as start,
         ):
@@ -129,7 +129,7 @@ class AutopilotLifecycleGuardTests(unittest.TestCase):
         start.assert_called_once_with(
             db=self.db, game_id=9001, admin_user_id=42,
             idempotency_key="autopilot:start:9001",
-            can_manage_any=True, autopilot_minimum=2,
+            can_manage_any=True, autopilot_minimum=2, autopilot_minimum_cards=None,
         )
 
     def test_auto_draw_disabled_blocks_auto_game_start(self):

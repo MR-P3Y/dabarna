@@ -33,7 +33,7 @@ def fake_config():
         repeat_interval_seconds=600,
         draw_interval_seconds=8,
         cooldown_seconds=60,
-        min_unique_players=2,
+        min_unique_players=2, start_requirement="PLAYERS", min_cards_sold=2,
         updated_by=None,
         updated_at=None,
     )

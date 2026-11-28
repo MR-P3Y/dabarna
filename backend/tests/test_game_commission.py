@@ -44,7 +44,7 @@ class GameCommissionTests(unittest.TestCase):
             repeat_interval_seconds=60,
             draw_interval_seconds=8,
             cooldown_seconds=0,
-            min_unique_players=2,
+            min_unique_players=2, start_requirement="PLAYERS", min_cards_sold=2,
             updated_by=None,
             updated_at=None,
         )

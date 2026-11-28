@@ -68,7 +68,7 @@ class MySQLAutopilotEndToEndTests(unittest.TestCase):
             if actual_db != TEST_DB:
                 raise RuntimeError("SAFETY STOP: wrong database selected")
             version = db.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
-            if version != "20261115_0014":
+            if version != "20261128_0015":
                 raise RuntimeError(f"SAFETY STOP: wrong test schema migration {version}")
         print(f"ISOLATED MYSQL ONLY: {TEST_DB}, migration {version}")
 
