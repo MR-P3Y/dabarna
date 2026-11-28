@@ -56,7 +56,7 @@ class MySQLFinanceSmokeTests(unittest.TestCase):
             if dbname != TEST_DB:
                 raise RuntimeError("SAFETY STOP: connected to unexpected database")
             ver = connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
-            if ver != "20261115_0014":
+            if ver != "20261128_0015":
                 raise RuntimeError("SAFETY STOP: unexpected database migration version")
         print(f"Connected to isolated DB: {TEST_DB}; migration: {ver}")
 

@@ -638,6 +638,8 @@ class MiniAutopilotConfigUpdateIn(BaseModel):
     draw_interval_seconds: int | None = None
     cooldown_seconds: int | None = None
     min_unique_players: int | None = Field(default=None, strict=True)
+    start_requirement: str | None = None
+    min_cards_sold: int | None = Field(default=None, strict=True, ge=1, le=10000)
 
 
 def _audit_auto_draw(

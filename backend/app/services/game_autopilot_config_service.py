@@ -147,6 +147,8 @@ class GameAutopilotConfigService:
             "draw_interval_seconds": int(row.draw_interval_seconds),
             "cooldown_seconds": int(row.cooldown_seconds),
             "min_unique_players": int(row.min_unique_players),
+            "start_requirement": row.start_requirement,
+            "min_cards_sold": int(row.min_cards_sold),
             "topic_id": GameAutopilotConfigService.topic_id_for_level(str(row.level)),
             "updated_by": int(row.updated_by) if row.updated_by is not None else None,
             "updated_at": str(row.updated_at) if row.updated_at is not None else None,
@@ -181,8 +183,8 @@ class GameAutopilotConfigService:
         updated_by: int | None,
         allow_commission_change: bool,
     ) -> tuple[dict[str, Any], dict[str, Any]]:
-        if values.get("min_unique_players") is not None:
-            threshold = player_threshold(values["min_unique_players"])
+        if any(values.get(key) is not None for key in ("min_unique_players", "min_cards_sold", "start_requirement")):
+            threshold = player_threshold(values["min_unique_players"]) if values.get("min_unique_players") is not None else None
             row = db.get(GameAutopilotConfig, _normalize_level(level), with_for_update=True)
             if row is None:
                 raise HTTPException(status_code=404, detail="autopilot config not found")
@@ -231,8 +233,19 @@ class GameAutopilotConfigService:
                 )
             row.draw_interval_seconds = draw_interval
 
-        if threshold is not None and threshold != row.min_unique_players:
+        mode = values.get("start_requirement")
+        if mode is not None and mode not in {"PLAYERS", "CARDS", "BOTH"}:
+            raise HTTPException(status_code=400, detail="invalid start requirement")
+        cards = values.get("min_cards_sold")
+        if cards is not None:
+            cards = _positive_int(cards, "min_cards_sold", minimum=1, maximum=10000)
+        if threshold is not None:
             row.min_unique_players = threshold
+        if mode is not None:
+            row.start_requirement = mode
+        if cards is not None:
+            row.min_cards_sold = cards
+        if any(before[key] != getattr(row, key) for key in ("min_unique_players", "min_cards_sold", "start_requirement")):
             # A deadline armed under the previous threshold cannot start a round.
             lane = Game.game_level == row.level
             topic = GameAutopilotConfigService.topic_id_for_level(row.level)

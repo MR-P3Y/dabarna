@@ -1460,3 +1460,9 @@ html[data-theme] .bottom-nav.glass { box-shadow: 0 -2px 16px -5px rgb(var(--them
 .recent-result-card .result-winner{margin-block:6px;padding:9px;gap:5px;font-size:11px;border-radius:8px}
 .result-winner>div{display:flex;align-items:center;justify-content:space-between;gap:8px}.result-winner>div>span{font-size:10px;color:var(--theme-muted)}
 .recent-results-note{font-size:10px;line-height:1.8}
+
+.game-start-readiness { display:grid; gap:9px; padding:12px; margin-block:8px; border:1px solid var(--theme-line); border-radius:12px; background:var(--theme-inset); color:var(--theme-text); font-size:12px; }
+.game-start-readiness[hidden] { display:none; }
+.readiness-line { display:grid; grid-template-columns:1fr auto; align-items:center; gap:4px 10px; }
+.readiness-line b { direction:ltr; font-variant-numeric:tabular-nums; }
+.readiness-line progress { grid-column:1/-1; width:100%; height:8px; accent-color:var(--theme-accent); }

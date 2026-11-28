@@ -28,6 +28,9 @@ class GameAutopilotConfig(Base):
     # Distinct card owners required before the automatic countdown can arm.
     min_unique_players: Mapped[int] = mapped_column(Integer, nullable=False, server_default="2")
 
+    start_requirement: Mapped[str] = mapped_column(String(16), nullable=False, server_default="PLAYERS")
+    min_cards_sold: Mapped[int] = mapped_column(Integer, nullable=False, server_default="2")
+
     updated_by: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("users.id"), nullable=True)
     created_at: Mapped[str] = mapped_column(
         TIMESTAMP, server_default=text("CURRENT_TIMESTAMP"), nullable=False

@@ -22,7 +22,7 @@ class FreshMigrationTests(unittest.TestCase):
             subprocess.run([sys.executable, "-m", "alembic", "upgrade", "head"], check=True)
         upgrade()
         with engine.begin() as conn:
-            self.assertEqual(conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one(), "20261115_0014")
+            self.assertEqual(conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one(), "20261128_0015")
             conn.execute(text("INSERT INTO users (id,tg_user_id,first_name) VALUES (9001,9001,'fixture')"))
             conn.execute(text("INSERT INTO wallets (user_id,balance) VALUES (9001,12345)"))
             before = conn.execute(text("SELECT level,enabled,start_mode,game_rule FROM game_autopilot_configs ORDER BY level")).all()

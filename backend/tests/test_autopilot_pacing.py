@@ -13,11 +13,11 @@ class PacingTests(TestCase):
         self.db=Mock()
         self.game=SimpleNamespace(id=3,status='LOBBY',draw_mode='AUTO',scheduled_start_at=None,
             autopilot_ready_at=None,draw_mode_locked_at=None)
-        self.config=SimpleNamespace(start_mode='AUTO',min_unique_players=2,countdown_seconds=45)
+        self.config=SimpleNamespace(start_mode='AUTO',min_unique_players=2,start_requirement='PLAYERS',countdown_seconds=45)
 
     def tick(self,players):
+        self.db.execute.return_value.one.return_value = (players, players)
         with (patch.object(GameAutopilotWorker,'_ensure_draw_mode'),
-              patch.object(GameAutopilotWorker,'_unique_players',return_value=players),
               patch('app.services.game_autopilot_worker.cfg.GAME_AUTO_DRAW_ENABLED',True),
               patch('app.services.game_autopilot_worker.GameService.start_game') as start):
             result=GameAutopilotWorker._manage_active(self.db,game=self.game,config=self.config,actor_user_id=1,now=self.now)
