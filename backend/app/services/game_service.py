@@ -559,6 +559,7 @@ class GameService:
     def start_game(
         db: Session, game_id: int, admin_user_id: int, idempotency_key: str,
         can_manage_any: bool = False, *, autopilot_minimum: int | None = None,
+        autopilot_minimum_cards: int | None = None,
     ) -> Game:
         game = (
             db.execute(select(Game).where(Game.id == game_id).with_for_update())
@@ -626,10 +627,14 @@ class GameService:
         # Only the worker supplies the threshold from its locked lane config.
         # Manual Bot/API starts retain their existing two-player rule.
         minimum = 2
-        if autopilot_minimum is not None:
+        if autopilot_minimum is not None or autopilot_minimum_cards is not None:
             if game.execution_source != "SYSTEM":
                 raise HTTPException(status_code=409, detail="automatic start requires a system game")
-            minimum = player_threshold(autopilot_minimum)
+            minimum = player_threshold(autopilot_minimum) if autopilot_minimum is not None else 0
+            if autopilot_minimum_cards is not None:
+                cards = db.scalar(select(func.count(GameCard.id)).where(GameCard.game_id == game.id))
+                if cards < autopilot_minimum_cards:
+                    raise HTTPException(status_code=409, detail="cannot start: not enough sold cards")
         unique_players = int(
             db.execute(
                 select(func.count(func.distinct(GameCard.user_id))).where(

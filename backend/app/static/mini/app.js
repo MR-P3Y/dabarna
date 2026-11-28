@@ -2030,6 +2030,19 @@ let automationItems = [];
 let automationReceivedAt = 0;
 
 function renderAutomationTimeline() {
+  for (const box of document.querySelectorAll("[data-start-readiness]")) {
+    const item = automationItems.find(row => Number(row.game_id) === Number(box.dataset.startReadiness));
+    const ready = item?.readiness;
+    box.hidden = !ready;
+    if (!ready) continue;
+    const rows = [
+      ["بازیکنان متمایز", ready.players, ready.minimum_players],
+      ["کارت‌های فروخته‌شده", ready.cards, ready.minimum_cards],
+    ];
+    const html = '<strong>شرط شروع بازی</strong>' + rows.filter(([, , target]) => target > 0)
+      .map(([label, value, target]) => `<div class="readiness-line"><span>${label}</span><b>${toFaDigits(value)} / ${toFaDigits(target)}</b><progress aria-label="${label}" value="${Number(value)}" max="${Number(target)}"></progress></div>`).join("");
+    if (box.innerHTML !== html) box.innerHTML = html;
+  }
   const games = getEl("gamesList");
   if (!games) return;
   let root = getEl("automationTimeline");
@@ -2217,6 +2230,7 @@ function drawGames(items) {
 
     return `
       <article class="item game-hero game-hero-v2${startClock ? " countdown-soon" : ""}" data-game-id="${safeText(gid)}" data-status="${safeText(statusKey)}">
+        ${isLobby ? `<div class="game-start-readiness" data-start-readiness="${gid}" hidden></div>` : ""}
         <div class="item-row game-hero-top">
           <div class="game-identity">
             <span class="game-identity-overline">${safeText(ruleMeta.levelLabel)}</span>
@@ -2250,6 +2264,7 @@ function drawGames(items) {
     `;
   }).join("");
   applyGameFilter();
+  renderAutomationTimeline();
   tickAutopilotGameStartClocks();
 
   root.querySelectorAll(".open-btn").forEach((btn) => {
@@ -8637,6 +8652,14 @@ function renderAdminAutopilotConfig(payload) {
                 </div>
 
                 <div>
+                  <label for="autopilotRequirement_${safeText(level)}">شرط شروع خودکار</label>
+                  <select id="autopilotRequirement_${safeText(level)}">
+                    <option value="PLAYERS" ${(item.start_requirement || "PLAYERS") === "PLAYERS" ? "selected" : ""}>فقط بازیکنان</option>
+                    <option value="CARDS" ${item.start_requirement === "CARDS" ? "selected" : ""}>فقط فروش کارت</option>
+                    <option value="BOTH" ${item.start_requirement === "BOTH" ? "selected" : ""}>بازیکنان و فروش کارت</option>
+                  </select>
+                  <label for="autopilotMinCards_${safeText(level)}">حداقل مجموع کارت فروخته‌شده</label>
+                  <input id="autopilotMinCards_${safeText(level)}" type="number" min="1" max="10000" value="${safeText(item.min_cards_sold ?? 2)}" />
                   <label for="autopilotMinPlayers_${safeText(level)}">حداقل بازیکن مجزا برای شروع خودکار</label>
                   <input id="autopilotMinPlayers_${safeText(level)}" type="text" inputmode="numeric"
                     value="${safeText(String(item.min_unique_players ?? ""))}" />
@@ -8758,6 +8781,13 @@ async function saveAdminAutopilotLevel(level, canEditCommission, button = null) 
     payload.repeat_interval_seconds = repeatInterval;
     payload.cooldown_seconds = 0;
   }
+  const modeInput = getEl(`autopilotRequirement_${key}`);
+  const cardsInput = getEl(`autopilotMinCards_${key}`);
+  const minimumCards = parseIntegerStrict(cardsInput.value);
+  if (!minimumCards || minimumCards < 1 || minimumCards > 10000) throw new Error("حداقل فروش کارت باید بین ۱ و ۱۰٬۰۰۰ باشد.");
+  const savedMode = [...modeInput.options].find(option => option.defaultSelected)?.value;
+  if (modeInput.value !== savedMode) payload.start_requirement = modeInput.value;
+  if (minimumCards !== Number(cardsInput.defaultValue)) payload.min_cards_sold = minimumCards;
   const minInput = getEl(`autopilotMinPlayers_${key}`);
   if (minPlayers !== Number(minInput.defaultValue)) payload.min_unique_players = minPlayers;
   const enabledInput = getEl(`autopilotEnabled_${key}`);
@@ -8787,6 +8817,10 @@ async function saveAdminAutopilotLevel(level, canEditCommission, button = null) 
       body: payload,
     });
     // A retained draft compares subsequent edits against the values just saved.
+    if ("start_requirement" in payload) {
+      for (const option of modeInput.options) option.defaultSelected = option.value === payload.start_requirement;
+    }
+    if ("min_cards_sold" in payload) cardsInput.defaultValue = String(minimumCards);
     if ("min_unique_players" in payload) minInput.defaultValue = String(minPlayers);
     if ("repeat_interval_seconds" in payload) getEl(`autopilotRepeat_${key}`).defaultValue = String(repeatInterval);
     enabledInput.defaultChecked = payload.enabled;

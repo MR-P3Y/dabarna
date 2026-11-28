@@ -19,6 +19,9 @@ class TimelineTests(TestCase):
         self.game = Obj(id=5, status='LOBBY', execution_source='SYSTEM', draw_mode='AUTO', scheduled_start_at=self.now)
         self.control = Obj(status='RUNNING', next_draw_at=self.now, interval_seconds=2)
         self.db = Mock()
+        self.config.start_requirement = 'PLAYERS'
+        self.config.min_unique_players = 2
+        self.db.execute.return_value.one.return_value = (2, 2)
         self.db.get.side_effect = lambda model, key: {User: Obj(id=1), GameAutopilotConfig:self.config, GameAutoDraw:self.control}[model]
 
     def timeline(self, active=True, latest=None, durations=None, runtime=True):

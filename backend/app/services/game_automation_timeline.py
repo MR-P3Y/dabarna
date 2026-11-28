@@ -38,6 +38,7 @@ def automation_timeline(db) -> list[dict]:
             elif not autopilot_ready or not config.enabled:
                 continue
             elif config.start_mode=='AUTO':
+                item['readiness'] = GameAutopilotWorker.readiness(db, game.id, config)
                 durations=GameAutopilotWorker.countdowns_for_games(db,{game.id:level})
                 if game.id in durations:
                     item.update(phase='START',deadline_utc=_iso(game.scheduled_start_at),duration_seconds=durations[game.id])

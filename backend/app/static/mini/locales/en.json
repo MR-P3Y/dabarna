@@ -1695,5 +1695,13 @@
   "قابل تأیید نیست": "Cannot be verified",
   "جزئیات برندگان": "Winner details",
   "این قانون تورنا ندارد.": "This rule has no Tourna.",
-  "مبالغ برد از رویداد ثبت‌شده است؛ رسید واریز جایزه در حساب برنده قرار دارد.": "Prize amounts come from recorded win events. Credit receipts are available in each winner's account."
+  "مبالغ برد از رویداد ثبت‌شده است؛ رسید واریز جایزه در حساب برنده قرار دارد.": "Prize amounts come from recorded win events. Credit receipts are available in each winner's account.",
+  "شرط شروع بازی": "Start requirements",
+  "بازیکنان متمایز": "Distinct players",
+  "شرط شروع خودکار": "Automatic start requirement",
+  "فقط بازیکنان": "Players only",
+  "فقط فروش کارت": "Card sales only",
+  "بازیکنان و فروش کارت": "Players and card sales",
+  "حداقل مجموع کارت فروخته‌شده": "Minimum total cards sold",
+  "حداقل فروش کارت باید بین ۱ و ۱۰٬۰۰۰ باشد.": "Minimum card sales must be between 1 and 10,000."
 }

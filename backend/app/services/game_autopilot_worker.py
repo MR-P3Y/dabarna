@@ -103,6 +103,21 @@ class GameAutopilotWorker:
         ).scalar_one()
         return int(value or 0)
 
+    @staticmethod
+    def readiness(db, game_id: int, config) -> dict:
+        players, cards = db.execute(
+            select(func.count(func.distinct(GameCard.user_id)), func.count(GameCard.id))
+            .where(GameCard.game_id == game_id)
+        ).one()
+        mode = config.start_requirement or "PLAYERS"
+        minimum_players = player_threshold(config.min_unique_players) if mode in {"PLAYERS", "BOTH"} else None
+        minimum_cards = int(config.min_cards_sold) if mode in {"CARDS", "BOTH"} else None
+        ready = mode in {"PLAYERS", "CARDS", "BOTH"} and (
+            minimum_players is None or players >= minimum_players
+        ) and (minimum_cards is None or cards >= minimum_cards)
+        return dict(players=players, cards=cards, minimum_players=minimum_players,
+                    minimum_cards=minimum_cards, ready=ready)
+
     @classmethod
     def countdowns_for_games(cls, db, levels_by_id: dict[int, str]) -> dict[int, int]:
         """Read the deadlines this worker can service without arming or starting anything."""
@@ -127,7 +142,7 @@ class GameAutopilotWorker:
                 or (game.draw_mode == "AUTO" and not cfg.GAME_AUTO_DRAW_ENABLED)
             ):
                 continue
-            if cls._unique_players(db, game.id) >= player_threshold(config.min_unique_players):
+            if cls.readiness(db, game.id, config)["ready"]:
                 ready = _as_datetime(game.autopilot_ready_at)
                 scheduled = _as_datetime(game.scheduled_start_at)
                 if ready and scheduled and scheduled > ready:
@@ -192,9 +207,8 @@ class GameAutopilotWorker:
         if str(game.draw_mode or "").upper() == "AUTO" and not cfg.GAME_AUTO_DRAW_ENABLED:
             return "blocked_auto_draw_disabled"
 
-        players = GameAutopilotWorker._unique_players(db, int(game.id))
-        minimum = player_threshold(config.min_unique_players)
-        if players < minimum:
+        readiness = GameAutopilotWorker.readiness(db, int(game.id), config)
+        if not readiness["ready"]:
             # A past deadline cannot make a later qualifying buyer start instantly.
             if game.scheduled_start_at is not None or getattr(game, 'autopilot_ready_at', None) is not None:
                 game.scheduled_start_at = None
@@ -220,7 +234,8 @@ class GameAutopilotWorker:
             admin_user_id=int(actor_user_id),
             idempotency_key=f"autopilot:start:{int(game.id)}",
             can_manage_any=True,
-            autopilot_minimum=minimum,
+            autopilot_minimum=readiness["minimum_players"],
+            autopilot_minimum_cards=readiness["minimum_cards"],
         )
         return "started"
 
